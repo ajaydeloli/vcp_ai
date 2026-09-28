@@ -36,6 +36,19 @@ class MarketDataRepository(Protocol):
 
 
 @runtime_checkable
+class InstrumentRepository(Protocol):
+    """Persistence abstraction for the security master."""
+
+    def save_instruments(self, instruments: list[Instrument]) -> int:
+        """Upsert instruments. Returns number of records modified."""
+        ...
+
+    def load_instruments(self) -> list[Instrument]:
+        """Load all currently active instruments."""
+        ...
+
+
+@runtime_checkable
 class UniverseRepository(Protocol):
     """Persistence abstraction for universe snapshots and memberships."""
 

@@ -8,13 +8,19 @@ version = "0.1.0"
 description = "Institutional-grade NSE VCP scanner (Minervini Trend Template + Volatility Contraction Pattern)"
 readme = "README.md"
 requires-python = ">=3.11"
-# Phase 0 dependencies only. Justification:
-#   pydantic - schema/range/cross-field config validation (PROJECT_DESIGN 47)
-#   pyyaml   - YAML configuration files (PROJECT_DESIGN 45)
-# DuckDB/pyarrow arrive in Phase 1, provider SDKs behind adapters in Phase 1+.
+# Phase 1 dependencies. Justification:
+#   pydantic  - schema/range/cross-field config validation (PROJECT_DESIGN 47)
+#   pyyaml    - YAML configuration files (PROJECT_DESIGN 45)
+#   duckdb    - analytical SQL + Parquet queries (DATABASE_SCHEMA §3; Phase 1)
+#   pyarrow   - columnar Parquet storage layer (DATABASE_SCHEMA §3; Phase 1)
+# Provider SDKs (Kite/Dhan) remain behind adapters in Phase 1+.
 dependencies = [
     "pydantic>=2.6,<3",
     "pyyaml>=6.0",
+    "duckdb>=1.1,<2",
+    "pyarrow>=17,<20",
+    "pytz>=2024",  # required by DuckDB for TIMESTAMPTZ Python binding
+    "kiteconnect>=5.0.0",
 ]
 
 [project.optional-dependencies]
