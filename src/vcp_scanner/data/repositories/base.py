@@ -9,6 +9,11 @@ from __future__ import annotations
 from datetime import date, datetime
 from typing import Any, Protocol, runtime_checkable
 
+from vcp_scanner.domain.corporate_actions import (
+    CorporateAction,
+    CorporateActionAdjustment,
+    CorporateActionResolution,
+)
 from vcp_scanner.domain.fundamentals import FundamentalSnapshot
 from vcp_scanner.domain.market import Candle, Instrument
 
@@ -94,4 +99,73 @@ class FundamentalRepository(Protocol):
 
     def load_snapshot(self, instrument_id: str, as_of: date) -> FundamentalSnapshot | None:
         """Load most recent fundamental snapshot available at or before as_of date."""
+        ...
+
+
+@runtime_checkable
+class CorporateActionRepository(Protocol):
+    """Persistence abstraction for corporate actions and resolution.
+
+    All tables are bitemporal (known_from/known_to). Point-in-time reads
+    use known_at to reconstruct the world as it was seen at a past time.
+    See DATABASE_SCHEMA §16, §17, §17A.
+    """
+
+    # -- Raw corporate actions (one row per source observation) --
+
+    def save_corporate_action(
+        self,
+        action: CorporateAction,
+        known_from: datetime,
+    ) -> None:
+        """Append a raw corporate action observation from a single provider."""
+        ...
+
+    def load_corporate_actions(
+        self,
+        instrument_id: str,
+        *,
+        known_at: datetime | None = None,
+    ) -> list[CorporateAction]:
+        """Load current (or as-of known_at) raw actions for an instrument."""
+        ...
+
+    # -- Resolution (cross-source reconciled records) --
+
+    def save_resolution(
+        self,
+        resolution: CorporateActionResolution,
+        known_from: datetime,
+    ) -> None:
+        """Append a resolution row, closing any prior current row for the
+        same (instrument_id, action_type, ex_date)."""
+        ...
+
+    def load_resolutions(
+        self,
+        instrument_id: str,
+        *,
+        known_at: datetime | None = None,
+    ) -> list[CorporateActionResolution]:
+        """Load current (or as-of known_at) resolutions for an instrument."""
+        ...
+
+    # -- Adjustment factors (derived from resolutions) --
+
+    def save_adjustment(
+        self,
+        adjustment: CorporateActionAdjustment,
+        known_from: datetime,
+    ) -> None:
+        """Append an adjustment factor row."""
+        ...
+
+    def load_adjustments(
+        self,
+        instrument_id: str,
+        *,
+        known_at: datetime | None = None,
+    ) -> list[CorporateActionAdjustment]:
+        """Load current (or as-of known_at) adjustments for an instrument,
+        ordered by effective_date ascending."""
         ...

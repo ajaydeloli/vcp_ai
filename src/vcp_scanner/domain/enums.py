@@ -158,7 +158,9 @@ class CorporateActionType(StrEnum):
     SPLIT = "SPLIT"
     BONUS = "BONUS"
     DIVIDEND = "DIVIDEND"
+    RIGHTS = "RIGHTS"
     SYMBOL_CHANGE = "SYMBOL_CHANGE"
+    NAME_CHANGE = "NAME_CHANGE"
     MERGER = "MERGER"
     DEMERGER = "DEMERGER"
 

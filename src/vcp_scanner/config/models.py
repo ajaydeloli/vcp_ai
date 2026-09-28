@@ -323,6 +323,20 @@ class UniverseConfig(StrictBaseModel):
     eligible_series: list[str] = Field(default_factory=lambda: ["EQ", "BE"])
 
 
+class UnexplainedGapConfig(StrictBaseModel):
+    gap_pct: Annotated[float, Field(gt=0)] = 30.0
+    split_like_max_integer: Annotated[int, Field(gt=0)] = 10
+    split_like_tolerance_pct: Annotated[float, Field(ge=0)] = 3.0
+
+
+class CorporateActionsConfig(StrictBaseModel):
+    primary_source: str = "nse"
+    secondary_source: str = "upstox"
+    secondary_grace_days: Annotated[int, Field(ge=0)] = 3
+    conflict_blocks_signals: bool = True
+    unexplained_gap: UnexplainedGapConfig = Field(default_factory=UnexplainedGapConfig)
+
+
 class DataConfig(StrictBaseModel):
     """Data persistence and provider configuration (PROJECT_DESIGN section 45)."""
 
@@ -332,6 +346,7 @@ class DataConfig(StrictBaseModel):
     primary_provider: str = "kite"
     secondary_provider: str | None = "dhan"
     trading_calendar: str = "NSE"
+    corporate_actions: CorporateActionsConfig = Field(default_factory=CorporateActionsConfig)
 
 
 class MonitoringConfig(StrictBaseModel):
