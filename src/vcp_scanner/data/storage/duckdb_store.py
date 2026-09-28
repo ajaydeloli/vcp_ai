@@ -147,7 +147,8 @@ CREATE TABLE IF NOT EXISTS corporate_actions (
     source_record_id    VARCHAR,
     created_at          TIMESTAMPTZ NOT NULL,
     known_from          TIMESTAMPTZ NOT NULL,
-    known_to            TIMESTAMPTZ
+    known_to            TIMESTAMPTZ,
+    UNIQUE (corporate_action_id, source)
 )
 """
 

@@ -37,6 +37,7 @@ class CorporateAction:
     old_symbol: str | None = None
     new_symbol: str | None = None
     source_record_id: str | None = None
+    ingested_at: datetime | None = None  # When we first saw this; for grace period
 
 
 @dataclass(frozen=True, slots=True)

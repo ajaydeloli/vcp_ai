@@ -238,7 +238,25 @@ class DuckDBCorporateActionRepository:
         adjustment: CorporateActionAdjustment,
         known_from: datetime,
     ) -> None:
-        """Append an adjustment factor row."""
+        """Append an adjustment factor row, closing any prior current row
+        for the same (instrument_id, effective_date)."""
+        # Close existing current adjustment for same logical key
+        self._store.conn.execute(
+            """
+            UPDATE corporate_action_adjustments
+            SET known_to = ?
+            WHERE instrument_id = ?
+              AND effective_date = ?
+              AND known_to IS NULL
+            """,
+            [
+                known_from,
+                adjustment.instrument_id,
+                adjustment.effective_date,
+            ],
+        )
+
+        # Insert new current row
         self._store.conn.execute(
             """
             INSERT INTO corporate_action_adjustments (

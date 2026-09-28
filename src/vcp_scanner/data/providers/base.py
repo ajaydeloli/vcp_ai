@@ -9,10 +9,10 @@ from __future__ import annotations
 from datetime import date, datetime
 from typing import Protocol, runtime_checkable
 
+from vcp_scanner.domain.corporate_actions import CorporateAction
 from vcp_scanner.domain.fundamentals import FundamentalSnapshot
 from vcp_scanner.domain.market import (
     Candle,
-    CorporateActionRecord,
     Instrument,
     ProviderCapabilities,
     ProviderHealth,
@@ -75,8 +75,17 @@ class SecurityMasterProvider(Protocol):
 class CorporateActionProvider(Protocol):
     """Provider for splits, bonuses, dividends, symbol changes (PROJECT_DESIGN section 14A)."""
 
-    def get_actions(self, start: date, end: date) -> list[CorporateActionRecord]:
-        """Fetch corporate actions reported by this provider's source."""
+    def get_actions(
+        self, start: date, end: date, instruments: list[Instrument] | None = None
+    ) -> list[CorporateAction]:
+        """Fetch corporate actions reported by this provider's source.
+
+        Args:
+            start: Start date for the query.
+            end: End date for the query.
+            instruments: Optional list of specific instruments to query. Providers like Upstox
+                that query by ISIN will require this.
+        """
         ...
 
 

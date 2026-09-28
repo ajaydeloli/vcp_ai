@@ -28,18 +28,23 @@ class GapDetector:
         self,
         candles: list[Candle],
         resolutions: list[CorporateActionResolution],
+        detected_at: datetime | None = None,
     ) -> list[DataQualityEvent]:
         """Scan ordered candles for unexplained price gaps.
 
         Args:
             candles: Raw daily candles for a single instrument, sorted by date.
             resolutions: Reconciled corporate actions for this instrument.
+            detected_at: The timestamp to stamp on generated events. Defaults to now(UTC).
 
         Returns:
             List of DataQualityEvent for detected anomalies.
         """
         if len(candles) < 2:
             return []
+
+        if detected_at is None:
+            detected_at = datetime.now(UTC)
 
         # Index known ex-dates for fast lookup
         known_ex_dates = {r.ex_date for r in resolutions if r.ex_date is not None}
@@ -61,12 +66,14 @@ class GapDetector:
                 ex_date = curr.timestamp.date()
                 if ex_date not in known_ex_dates:
                     # We have a gap with no corporate action to explain it.
-                    event = self._build_event(prev, curr, gap_ratio)
+                    event = self._build_event(prev, curr, gap_ratio, detected_at)
                     events.append(event)
 
         return events
 
-    def _build_event(self, prev: Candle, curr: Candle, gap_ratio: float) -> DataQualityEvent:
+    def _build_event(
+        self, prev: Candle, curr: Candle, gap_ratio: float, detected_at: datetime
+    ) -> DataQualityEvent:
         is_split_like, expected_ratio = self._is_split_like(prev.close, curr.open)
 
         context = {
@@ -92,7 +99,7 @@ class GapDetector:
             instrument_id=curr.instrument_id,
             flag=DataQualityFlag.UNEXPLAINED_GAP,
             severity=EventSeverity.HIGH,
-            detected_at=datetime.now(UTC),
+            detected_at=detected_at,
             description=desc,
             context=context,
         )

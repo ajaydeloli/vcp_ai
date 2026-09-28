@@ -32,15 +32,6 @@ from vcp_scanner.domain.enums import CorporateActionType
 logger = logging.getLogger(__name__)
 
 
-# Action types that affect price adjustment
-_PRICE_AFFECTING_TYPES = frozenset(
-    {
-        CorporateActionType.SPLIT,
-        CorporateActionType.BONUS,
-    }
-)
-
-
 @dataclass(frozen=True, slots=True)
 class ReconciliationResult:
     """Output of reconciling one logical corporate action."""
@@ -244,9 +235,15 @@ class ReconciliationEngine:
 
         Within secondary_grace_days of first sighting → SINGLE_SOURCE.
         Past grace period → PROVIDER_CONFLICT.
+
+        Uses ``ingested_at`` (when we first saw the action) rather than the
+        provider's ``created_at``, to avoid premature conflict when the
+        provider publishes late-dated records.  Falls back to ``created_at``
+        if ``ingested_at`` is not set.
         """
-        # Use the action's created_at date as the "first sighting"
-        first_seen = action.created_at.date()
+        # Prefer our own ingestion timestamp over the provider's
+        first_seen_ts = action.ingested_at or action.created_at
+        first_seen = first_seen_ts.date()
         days_since = (as_of_date - first_seen).days
 
         if days_since <= self._config.secondary_grace_days:

@@ -150,10 +150,11 @@ class AdjustmentEngine:
         return adjusted_candles
 
     def _is_price_affecting(self, action_type: CorporateActionType) -> bool:
+        """SPLIT and BONUS affect price/volume. DIVIDEND is excluded until
+        special-dividend adjustment logic is implemented (see §18A)."""
         return action_type in (
             CorporateActionType.SPLIT,
             CorporateActionType.BONUS,
-            CorporateActionType.DIVIDEND,
         )
 
     def _compute_single_factor(self, resolution: CorporateActionResolution) -> tuple[float, float]:
@@ -175,9 +176,5 @@ class AdjustmentEngine:
                 total = num + den
                 return (den / total, total / den)
 
-        # Dividend logic would go here if we were adjusting for all dividends,
-        # but typically we don't adjust volume for dividends, and price only if
-        # it's a special dividend.
-        # We will return 1.0, 1.0 for now unless cash_amount logic is specified.
-
+        # Unrecognized or unhandled action type — no adjustment
         return 1.0, 1.0

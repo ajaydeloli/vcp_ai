@@ -3,7 +3,7 @@
 **Project:** Institutional-Grade Minervini VCP Scanner  
 **Version:** 1.1  
 **Status:** Architecture baseline (revised after design review)  
-**Primary historical provider:** Kite Connect  
+**Primary historical providers:** Kite Connect, Upstox  
 **Future provider:** Dhan API  
 **Local source of truth:** DuckDB + Parquet  
 
