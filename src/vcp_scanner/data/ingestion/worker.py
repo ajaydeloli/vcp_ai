@@ -62,8 +62,8 @@ class IngestionWorker:
 
     def __init__(
         self,
-        provider: "MarketDataProvider",
-        repository: "DuckDBMarketDataRepository",
+        provider: MarketDataProvider,
+        repository: DuckDBMarketDataRepository,
         code_version: str = "dev",
     ) -> None:
         self._provider = provider
@@ -76,7 +76,7 @@ class IngestionWorker:
 
     def ingest_instrument(
         self,
-        instrument: "Instrument",
+        instrument: Instrument,
         start: date,
         end: date,
         *,
@@ -127,7 +127,9 @@ class IngestionWorker:
         error_count = 0
 
         try:
-            effective_start = self._effective_start(instrument, start, force)
+            effective_start = self._effective_start(
+                instrument, start, force, as_of_date=now_utc.date()
+            )
             if effective_start is None:
                 # All dates in range already covered; nothing to do.
                 logger.info(
@@ -163,7 +165,7 @@ class IngestionWorker:
 
             for chunk_start, chunk_end in chunks:
                 try:
-                    candles: list["Candle"] = self._provider.get_historical_daily(
+                    candles: list[Candle] = self._provider.get_historical_daily(
                         instrument, chunk_start, chunk_end
                     )
                     records_received += len(candles)
@@ -228,9 +230,10 @@ class IngestionWorker:
 
     def _effective_start(
         self,
-        instrument: "Instrument",
+        instrument: Instrument,
         requested_start: date,
         force: bool,
+        as_of_date: date | None = None,
     ) -> date | None:
         """Return the actual start date after checking local coverage.
 
@@ -246,25 +249,26 @@ class IngestionWorker:
             return requested_start
 
         latest_date = latest_ts.date()
+        cutoff_date = as_of_date or datetime.now(UTC).date()
         # Shift start to day after last stored date
         next_needed = latest_date + timedelta(days=1)
-        if next_needed > date.today():
+        if next_needed > cutoff_date:
             return None  # fully up to date
         return max(next_needed, requested_start)
 
     def _validate_and_build_raw(
         self,
-        candles: list["Candle"],
+        candles: list[Candle],
         run_id: str,
         received_at: datetime,
-    ) -> tuple[list[RawOHLCVRow], list["Candle"], int]:
+    ) -> tuple[list[RawOHLCVRow], list[Candle], int]:
         """Validate OHLC and build raw storage rows.
 
         Returns:
             (raw_rows, valid_candles, rejected_count)
         """
         raw_rows: list[RawOHLCVRow] = []
-        valid_candles: list["Candle"] = []
+        valid_candles: list[Candle] = []
         rejected = 0
 
         for candle in candles:

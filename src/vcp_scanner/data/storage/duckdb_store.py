@@ -105,7 +105,8 @@ CREATE TABLE IF NOT EXISTS daily_prices (
     known_to            TIMESTAMPTZ                 -- NULL while current
     -- No PK because bitemporal rows mean multiple rows share (instrument_id, trade_date).
     -- Current row: WHERE known_to IS NULL
-    -- Point-in-time read: WHERE known_from <= :known_at AND (known_to IS NULL OR known_to > :known_at)
+    -- Point-in-time read: WHERE known_from <= :known_at
+    --   AND (known_to IS NULL OR known_to > :known_at)
 )
 """
 
@@ -193,7 +194,7 @@ class DuckDBStore:
         self.conn.close()
         logger.debug("DuckDBStore closed: %s", self._path)
 
-    def __enter__(self) -> "DuckDBStore":
+    def __enter__(self) -> DuckDBStore:
         return self
 
     def __exit__(self, *_: object) -> None:

@@ -21,7 +21,7 @@ class ParquetArchiver:
 
     def __init__(
         self,
-        store: "DuckDBStore",
+        store: DuckDBStore,
         raw_dir: str | Path,
         canonical_dir: str | Path,
     ) -> None:
@@ -36,11 +36,8 @@ class ParquetArchiver:
 
         logger.info("Archiving raw_ohlcv to %s", target)
         self._store.conn.execute(
-            f"""
-            COPY (SELECT * FROM raw_ohlcv) 
-            TO '{target}' 
-            (FORMAT PARQUET, PARTITION_BY (provider, instrument_id), OVERWRITE_OR_IGNORE TRUE)
-            """
+            f"COPY (SELECT * FROM raw_ohlcv) TO '{target}' "
+            "(FORMAT PARQUET, PARTITION_BY (provider, instrument_id), OVERWRITE_OR_IGNORE TRUE)"
         )
 
     def archive_daily_prices(self) -> None:
@@ -50,9 +47,6 @@ class ParquetArchiver:
 
         logger.info("Archiving current daily_prices to %s", target)
         self._store.conn.execute(
-            f"""
-            COPY (SELECT * FROM daily_prices WHERE known_to IS NULL) 
-            TO '{target}' 
-            (FORMAT PARQUET, PARTITION_BY (instrument_id), OVERWRITE_OR_IGNORE TRUE)
-            """
+            f"COPY (SELECT * FROM daily_prices WHERE known_to IS NULL) TO '{target}' "
+            "(FORMAT PARQUET, PARTITION_BY (instrument_id), OVERWRITE_OR_IGNORE TRUE)"
         )

@@ -175,7 +175,7 @@ def candle_source_hash(
     circular import between schema and domain layers.
     """
     import hashlib  # noqa: PLC0415
-    import json     # noqa: PLC0415
+    import json  # noqa: PLC0415
 
     payload = json.dumps(
         {

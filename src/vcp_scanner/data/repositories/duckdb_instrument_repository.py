@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 class DuckDBInstrumentRepository:
     """InstrumentRepository backed by DuckDB."""
 
-    def __init__(self, store: "DuckDBStore") -> None:
+    def __init__(self, store: DuckDBStore) -> None:
         self._store = store
 
     def save_instruments(self, instruments: list[Instrument]) -> int:

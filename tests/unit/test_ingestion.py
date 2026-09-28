@@ -28,7 +28,6 @@ from vcp_scanner.data.repositories.duckdb_market_repository import DuckDBMarketD
 from vcp_scanner.data.storage.duckdb_store import DuckDBStore
 from vcp_scanner.domain.market import Candle, Instrument
 
-
 # ---------------------------------------------------------------------------
 # Shared fixtures
 # ---------------------------------------------------------------------------
@@ -161,9 +160,11 @@ def test_bitemporal_correction(
     ).fetchone()
     assert all_rows is not None and all_rows[0] == 2
 
-    # Old row should have known_to set to t2
     closed = repo._store.conn.execute(
-        "SELECT known_to FROM daily_prices WHERE instrument_id = ? AND trade_date = ? AND known_to IS NOT NULL",
+        """
+        SELECT known_to FROM daily_prices
+        WHERE instrument_id = ? AND trade_date = ? AND known_to IS NOT NULL
+        """,
         [INSTRUMENT.instrument_id, trade_date],
     ).fetchone()
     assert closed is not None

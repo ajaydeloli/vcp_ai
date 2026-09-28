@@ -22,16 +22,15 @@ import logging
 from datetime import UTC, date, datetime
 from typing import TYPE_CHECKING
 
-from vcp_scanner.domain.enums import Timeframe
-from vcp_scanner.domain.market import Candle
 from vcp_scanner.data.schema import (
-    DailyPriceRow,
     IngestionRunRow,
     OHLCValidationResult,
     RawOHLCVRow,
     candle_source_hash,
     validate_ohlc,
 )
+from vcp_scanner.domain.enums import Timeframe
+from vcp_scanner.domain.market import Candle
 
 if TYPE_CHECKING:
     from vcp_scanner.data.storage.duckdb_store import DuckDBStore
@@ -48,7 +47,7 @@ class DuckDBMarketDataRepository:
     Tests inject an in-memory store so no filesystem I/O occurs.
     """
 
-    def __init__(self, store: "DuckDBStore") -> None:
+    def __init__(self, store: DuckDBStore) -> None:
         self._store = store
 
     # ------------------------------------------------------------------
@@ -85,16 +84,16 @@ class DuckDBMarketDataRepository:
 
         candles: list[Candle] = []
         for row in rows:
-            iid, td, o, h, l, c, vol, prov = row
+            iid, td, open_val, high_val, low_val, close_val, vol, prov = row
             candles.append(
                 Candle(
                     instrument_id=iid,
                     timestamp=datetime(td.year, td.month, td.day, tzinfo=UTC),
                     timeframe=Timeframe.DAILY,
-                    open=o,
-                    high=h,
-                    low=l,
-                    close=c,
+                    open=open_val,
+                    high=high_val,
+                    low=low_val,
+                    close=close_val,
                     volume=vol,
                     provider=prov,
                 )
@@ -253,16 +252,16 @@ class DuckDBMarketDataRepository:
 
         candles: list[Candle] = []
         for row in rows:
-            iid, td, o, h, l, c, vol, prov = row
+            iid, td, open_val, high_val, low_val, close_val, vol, prov = row
             candles.append(
                 Candle(
                     instrument_id=iid,
                     timestamp=datetime(td.year, td.month, td.day, tzinfo=UTC),
                     timeframe=Timeframe.DAILY,
-                    open=o,
-                    high=h,
-                    low=l,
-                    close=c,
+                    open=open_val,
+                    high=high_val,
+                    low=low_val,
+                    close=close_val,
                     volume=vol,
                     provider=prov,
                 )

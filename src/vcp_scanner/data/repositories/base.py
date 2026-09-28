@@ -10,7 +10,7 @@ from datetime import date, datetime
 from typing import Any, Protocol, runtime_checkable
 
 from vcp_scanner.domain.fundamentals import FundamentalSnapshot
-from vcp_scanner.domain.market import Candle
+from vcp_scanner.domain.market import Candle, Instrument
 
 
 @runtime_checkable

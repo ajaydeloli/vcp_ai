@@ -6,7 +6,7 @@ Tests parsing of historical data, capabilities and instrument loading.
 from __future__ import annotations
 
 from datetime import UTC, date, datetime
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 
@@ -18,7 +18,7 @@ from vcp_scanner.domain.market import Instrument
 def mock_kiteconnect():
     with patch("vcp_scanner.data.providers.kite.KiteConnect") as MockKite:
         mock_instance = MockKite.return_value
-        
+
         # Mock instrument dump
         mock_instance.instruments.return_value = [
             {
@@ -36,7 +36,7 @@ def mock_kiteconnect():
                 "exchange": "NSE"
             }
         ]
-        
+
         # Mock historical data
         mock_instance.historical_data.return_value = [
             {
@@ -56,18 +56,18 @@ def mock_kiteconnect():
                 "volume": 120000,
             }
         ]
-        
+
         yield mock_instance
 
 
 def test_get_instruments(mock_kiteconnect) -> None:
     provider = KiteProvider("api_key", "access_token")
     instruments = provider.get_instruments()
-    
+
     assert len(instruments) == 1
     assert instruments[0].symbol == "RELIANCE"
     assert instruments[0].instrument_id == "RELIANCE"
-    
+
     mock_kiteconnect.instruments.assert_called_once_with("NSE")
 
 
@@ -75,18 +75,18 @@ def test_get_historical_daily(mock_kiteconnect) -> None:
     provider = KiteProvider("api_key", "access_token")
     # KiteProvider ensures instruments are loaded before historical request
     # to find the instrument token.
-    
+
     instrument = Instrument("RELIANCE", "RELIANCE", "NSE")
     start = date(2024, 1, 2)
     end = date(2024, 1, 3)
-    
+
     candles = provider.get_historical_daily(instrument, start, end)
-    
+
     assert len(candles) == 2
     assert candles[0].close == 2520.0
     assert candles[1].volume == 120000
     assert candles[0].provider == "KITE"
-    
+
     mock_kiteconnect.historical_data.assert_called_once()
     call_args = mock_kiteconnect.historical_data.call_args[1]
     assert call_args["instrument_token"] == 738561
@@ -96,6 +96,6 @@ def test_get_historical_daily(mock_kiteconnect) -> None:
 def test_capabilities() -> None:
     provider = KiteProvider("api_key")
     caps = provider.get_capabilities()
-    
+
     assert caps.daily_history is True
     assert caps.historical_requests_per_second == 3.0

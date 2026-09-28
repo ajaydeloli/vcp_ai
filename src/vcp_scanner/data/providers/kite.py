@@ -7,7 +7,6 @@ from __future__ import annotations
 
 import logging
 from datetime import UTC, date, datetime
-from typing import Any
 
 from vcp_scanner.domain.enums import Timeframe
 from vcp_scanner.domain.market import (
@@ -22,7 +21,7 @@ logger = logging.getLogger(__name__)
 
 try:
     from kiteconnect import KiteConnect
-    from kiteconnect.exceptions import TokenException, DataException, NetworkException
+    from kiteconnect.exceptions import DataException, NetworkException, TokenException
 except ImportError:
     KiteConnect = None
     TokenException = Exception
@@ -57,16 +56,16 @@ class KiteProvider:
 
         logger.info("Fetching instruments dump from Kite...")
         raw_instruments = self._kite.instruments("NSE")
-        
+
         instruments = []
         for row in raw_instruments:
             # We map Kite's instrument_token to a provider-specific mapping eventually,
             # but for now we store the symbol in the domain Instrument.
             symbol = row["tradingsymbol"]
             token = row["instrument_token"]
-            
+
             self._symbol_to_token[symbol] = token
-            
+
             # Using symbol as our internal instrument_id for V1
             instruments.append(
                 Instrument(
@@ -78,7 +77,7 @@ class KiteProvider:
                     series=row.get("segment"),
                 )
             )
-            
+
         self._instruments_cache = instruments
         logger.info("Loaded %d NSE instruments from Kite", len(instruments))
 
@@ -95,7 +94,7 @@ class KiteProvider:
     ) -> list[Candle]:
         """Fetch raw daily OHLCV bars."""
         self._ensure_instruments_loaded()
-        
+
         token = self._symbol_to_token.get(instrument.symbol)
         if not token:
             logger.warning("No Kite instrument token found for %s", instrument.symbol)
@@ -106,10 +105,10 @@ class KiteProvider:
         end_dt = datetime.combine(end, datetime.max.time())
 
         logger.debug(
-            "Fetching Kite history for token %s (%s) from %s to %s", 
+            "Fetching Kite history for token %s (%s) from %s to %s",
             token, instrument.symbol, start, end
         )
-        
+
         try:
             records = self._kite.historical_data(
                 instrument_token=token,
@@ -129,7 +128,7 @@ class KiteProvider:
             # We convert to UTC
             record_dt: datetime = r["date"]
             dt_utc = record_dt.astimezone(UTC)
-            
+
             candles.append(
                 Candle(
                     instrument_id=instrument.instrument_id,

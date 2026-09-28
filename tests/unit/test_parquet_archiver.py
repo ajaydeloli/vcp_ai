@@ -2,12 +2,13 @@
 
 from __future__ import annotations
 
-from datetime import UTC, date, datetime
+from datetime import UTC, datetime
+
 import pytest
 
+from vcp_scanner.data.repositories.duckdb_market_repository import DuckDBMarketDataRepository
 from vcp_scanner.data.schema import RawOHLCVRow
 from vcp_scanner.data.storage.duckdb_store import DuckDBStore
-from vcp_scanner.data.repositories.duckdb_market_repository import DuckDBMarketDataRepository
 from vcp_scanner.data.storage.parquet_archiver import ParquetArchiver
 
 
@@ -16,17 +17,17 @@ def setup_store(tmp_path) -> tuple[DuckDBStore, DuckDBMarketDataRepository, Parq
     store = DuckDBStore(":memory:")
     store.migrate()
     repo = DuckDBMarketDataRepository(store)
-    
+
     raw_dir = tmp_path / "raw"
     canon_dir = tmp_path / "canonical"
-    
+
     archiver = ParquetArchiver(store, raw_dir, canon_dir)
     return store, repo, archiver
 
 
 def test_archive_raw_ohlcv(setup_store, tmp_path) -> None:
     _, repo, archiver = setup_store
-    
+
     row = RawOHLCVRow(
         provider="KITE",
         provider_instrument_id="RELIANCE",
@@ -44,29 +45,29 @@ def test_archive_raw_ohlcv(setup_store, tmp_path) -> None:
         source_hash="hash-1",
     )
     repo.save_raw_ohlcv([row])
-    
+
     archiver.archive_raw_ohlcv()
-    
+
     # Check if partition folders were created
     raw_dir = tmp_path / "raw" / "raw_ohlcv"
     provider_dir = raw_dir / "provider=KITE"
     assert provider_dir.exists()
-    
+
     instrument_dir = provider_dir / "instrument_id=RELIANCE"
     assert instrument_dir.exists()
-    
+
     parquet_files = list(instrument_dir.glob("*.parquet"))
     assert len(parquet_files) > 0
 
 
 def test_archive_daily_prices(setup_store, tmp_path) -> None:
     _, repo, archiver = setup_store
-    
+
     # Needs to be a Candle but we can just insert directly for speed or use save_daily
     # Let's use save_daily with a mock Candle to ensure the bitemporal logic holds
-    from vcp_scanner.domain.market import Candle
     from vcp_scanner.domain.enums import Timeframe
-    
+    from vcp_scanner.domain.market import Candle
+
     candle = Candle(
         instrument_id="TCS",
         timestamp=datetime(2024, 1, 2, tzinfo=UTC),
@@ -78,14 +79,14 @@ def test_archive_daily_prices(setup_store, tmp_path) -> None:
         volume=5000,
         provider="KITE"
     )
-    
+
     repo.save_daily([candle])
-    
+
     archiver.archive_daily_prices()
-    
+
     canon_dir = tmp_path / "canonical" / "daily_prices"
     instrument_dir = canon_dir / "instrument_id=TCS"
     assert instrument_dir.exists()
-    
+
     parquet_files = list(instrument_dir.glob("*.parquet"))
     assert len(parquet_files) > 0
