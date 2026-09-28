@@ -21,6 +21,7 @@ dependencies = [
     "pyarrow>=17,<20",
     "pytz>=2024",  # required by DuckDB for TIMESTAMPTZ Python binding
     "kiteconnect>=5.0.0",
+    "python-dotenv>=1.0",
 ]
 
 [project.optional-dependencies]

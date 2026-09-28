@@ -43,9 +43,7 @@ class DummyMarketDataProvider:
     def get_instruments(self) -> list[Instrument]:
         return []
 
-    def get_historical_daily(
-        self, instrument: Instrument, start: date, end: date
-    ) -> list[Candle]:
+    def get_historical_daily(self, instrument: Instrument, start: date, end: date) -> list[Candle]:
         return []
 
     def get_historical_intraday(

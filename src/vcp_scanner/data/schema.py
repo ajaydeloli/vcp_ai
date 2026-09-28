@@ -112,6 +112,7 @@ class DailyPriceAdjustedRow:
 # OHLC integrity check — used by the ingestion worker before any insert.
 # ---------------------------------------------------------------------------
 
+
 @dataclass(frozen=True, slots=True)
 class OHLCValidationResult:
     """Outcome of an OHLC sanity check (DATA_SPECIFICATION §23)."""

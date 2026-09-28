@@ -128,12 +128,75 @@ CREATE TABLE IF NOT EXISTS daily_prices_adjusted (
 )
 """
 
+_DDL_CORPORATE_ACTIONS = """
+CREATE TABLE IF NOT EXISTS corporate_actions (
+    corporate_action_id VARCHAR NOT NULL,
+    instrument_id       VARCHAR NOT NULL,
+    isin                VARCHAR,
+    action_date         DATE,
+    announcement_date   DATE,
+    ex_date             DATE,
+    record_date         DATE,
+    action_type         VARCHAR NOT NULL,
+    ratio_numerator     DOUBLE,
+    ratio_denominator   DOUBLE,
+    cash_amount         DOUBLE,
+    old_symbol          VARCHAR,
+    new_symbol          VARCHAR,
+    source              VARCHAR NOT NULL,
+    source_record_id    VARCHAR,
+    created_at          TIMESTAMPTZ NOT NULL,
+    known_from          TIMESTAMPTZ NOT NULL,
+    known_to            TIMESTAMPTZ
+)
+"""
+
+_DDL_CORPORATE_ACTION_RESOLUTION = """
+CREATE TABLE IF NOT EXISTS corporate_action_resolution (
+    resolution_id       VARCHAR NOT NULL,
+    instrument_id       VARCHAR NOT NULL,
+    isin                VARCHAR,
+    action_type         VARCHAR NOT NULL,
+    ex_date             DATE,
+    ratio_numerator     DOUBLE,
+    ratio_denominator   DOUBLE,
+    cash_amount         DOUBLE,
+    nse_action_id       VARCHAR,
+    upstox_action_id    VARCHAR,
+    status              VARCHAR NOT NULL,
+    conflict_fields     VARCHAR,
+    resolved_by         VARCHAR,
+    resolved_at         TIMESTAMPTZ,
+    known_from          TIMESTAMPTZ NOT NULL,
+    known_to            TIMESTAMPTZ
+)
+"""
+
+_DDL_CORPORATE_ACTION_ADJUSTMENTS = """
+CREATE TABLE IF NOT EXISTS corporate_action_adjustments (
+    resolution_id            VARCHAR NOT NULL,
+    instrument_id            VARCHAR NOT NULL,
+    effective_date           DATE NOT NULL,
+    price_factor             DECIMAL(18,8) NOT NULL,
+    volume_factor            DECIMAL(18,8) NOT NULL,
+    cumulative_price_factor  DECIMAL(18,8) NOT NULL,
+    cumulative_volume_factor DECIMAL(18,8) NOT NULL,
+    source                   VARCHAR NOT NULL,
+    calculation_version      VARCHAR NOT NULL,
+    known_from               TIMESTAMPTZ NOT NULL,
+    known_to                 TIMESTAMPTZ
+)
+"""
+
 _ALL_DDL: list[tuple[str, str]] = [
     ("instruments", _DDL_INSTRUMENTS),
     ("ingestion_runs", _DDL_INGESTION_RUNS),
     ("raw_ohlcv", _DDL_RAW_OHLCV),
     ("daily_prices", _DDL_DAILY_PRICES),
     ("daily_prices_adjusted", _DDL_DAILY_PRICES_ADJUSTED),
+    ("corporate_actions", _DDL_CORPORATE_ACTIONS),
+    ("corporate_action_resolution", _DDL_CORPORATE_ACTION_RESOLUTION),
+    ("corporate_action_adjustments", _DDL_CORPORATE_ACTION_ADJUSTMENTS),
 ]
 
 

@@ -59,8 +59,10 @@ def basic_provider() -> FakeMarketDataProvider:
 
 
 @pytest.fixture()
-def worker(basic_provider: FakeMarketDataProvider,
-           store_and_repo: tuple[DuckDBStore, DuckDBMarketDataRepository]) -> IngestionWorker:
+def worker(
+    basic_provider: FakeMarketDataProvider,
+    store_and_repo: tuple[DuckDBStore, DuckDBMarketDataRepository],
+) -> IngestionWorker:
     _, repo = store_and_repo
     return IngestionWorker(provider=basic_provider, repository=repo)
 
@@ -68,6 +70,7 @@ def worker(basic_provider: FakeMarketDataProvider,
 # ---------------------------------------------------------------------------
 # FakeMarketDataProvider satisfies Protocol
 # ---------------------------------------------------------------------------
+
 
 def test_fake_provider_satisfies_protocol() -> None:
     """FakeMarketDataProvider must be a valid MarketDataProvider at runtime."""
@@ -78,6 +81,7 @@ def test_fake_provider_satisfies_protocol() -> None:
 # ---------------------------------------------------------------------------
 # Round-trip: ingest → load
 # ---------------------------------------------------------------------------
+
 
 def test_ingest_creates_daily_rows(
     worker: IngestionWorker,
@@ -102,6 +106,7 @@ def test_ingest_creates_daily_rows(
 # Idempotency
 # ---------------------------------------------------------------------------
 
+
 def test_ingest_idempotent(
     worker: IngestionWorker,
     store_and_repo: tuple[DuckDBStore, DuckDBMarketDataRepository],
@@ -118,14 +123,13 @@ def test_ingest_idempotent(
         "SELECT COUNT(*) FROM daily_prices WHERE instrument_id = ? AND known_to IS NULL",
         [INSTRUMENT.instrument_id],
     ).fetchone()
-    assert count is not None and count[0] == 4, (
-        f"Expected 4 current rows, got {count[0]}"
-    )
+    assert count is not None and count[0] == 4, f"Expected 4 current rows, got {count[0]}"
 
 
 # ---------------------------------------------------------------------------
 # Bitemporal correction
 # ---------------------------------------------------------------------------
+
 
 def test_bitemporal_correction(
     store_and_repo: tuple[DuckDBStore, DuckDBMarketDataRepository],
@@ -174,6 +178,7 @@ def test_bitemporal_correction(
 # OHLC validation — reject invalid bars
 # ---------------------------------------------------------------------------
 
+
 def test_invalid_ohlc_rejected(
     store_and_repo: tuple[DuckDBStore, DuckDBMarketDataRepository],
 ) -> None:
@@ -218,6 +223,7 @@ def test_none_volume_accepted(
 # Ingestion run tracking
 # ---------------------------------------------------------------------------
 
+
 def test_ingestion_run_recorded(
     worker: IngestionWorker,
     store_and_repo: tuple[DuckDBStore, DuckDBMarketDataRepository],
@@ -240,6 +246,7 @@ def test_ingestion_run_recorded(
 # ---------------------------------------------------------------------------
 # Superseded rows invisible to load_daily
 # ---------------------------------------------------------------------------
+
 
 def test_load_daily_hides_superseded_rows(
     store_and_repo: tuple[DuckDBStore, DuckDBMarketDataRepository],
@@ -267,6 +274,7 @@ def test_load_daily_hides_superseded_rows(
 # Point-in-time read (as_of)
 # ---------------------------------------------------------------------------
 
+
 def test_load_daily_as_of(
     store_and_repo: tuple[DuckDBStore, DuckDBMarketDataRepository],
 ) -> None:
@@ -286,7 +294,9 @@ def test_load_daily_as_of(
 
     # At t1 + 1 second, should see close=100
     at_t1 = repo.load_daily_as_of(
-        INSTRUMENT.instrument_id, trade_date, trade_date,
+        INSTRUMENT.instrument_id,
+        trade_date,
+        trade_date,
         known_at=datetime(2024, 1, 3, 9, 0, 1, tzinfo=UTC),
     )
     assert len(at_t1) == 1
@@ -294,7 +304,9 @@ def test_load_daily_as_of(
 
     # After t2, should see close=99
     at_t2 = repo.load_daily_as_of(
-        INSTRUMENT.instrument_id, trade_date, trade_date,
+        INSTRUMENT.instrument_id,
+        trade_date,
+        trade_date,
         known_at=datetime(2024, 1, 4, 9, 0, 1, tzinfo=UTC),
     )
     assert len(at_t2) == 1
@@ -304,6 +316,7 @@ def test_load_daily_as_of(
 # ---------------------------------------------------------------------------
 # Chunk boundary: provider called ≤ max_request_days per call
 # ---------------------------------------------------------------------------
+
 
 def test_chunk_boundary_respected() -> None:
     """Provider must never be called with a date range > max_request_days."""
@@ -341,6 +354,7 @@ def test_chunk_boundary_respected() -> None:
 # _date_chunks helper
 # ---------------------------------------------------------------------------
 
+
 def test_date_chunks_single_chunk() -> None:
     chunks = _date_chunks(date(2024, 1, 1), date(2024, 1, 5), max_days=10)
     assert chunks == [(date(2024, 1, 1), date(2024, 1, 5))]
@@ -371,6 +385,7 @@ def test_date_chunks_no_overlap() -> None:
 # ---------------------------------------------------------------------------
 # latest_timestamp — no data → None
 # ---------------------------------------------------------------------------
+
 
 def test_latest_timestamp_none_when_empty(
     store_and_repo: tuple[DuckDBStore, DuckDBMarketDataRepository],

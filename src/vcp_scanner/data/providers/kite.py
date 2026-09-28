@@ -106,7 +106,10 @@ class KiteProvider:
 
         logger.debug(
             "Fetching Kite history for token %s (%s) from %s to %s",
-            token, instrument.symbol, start, end
+            token,
+            instrument.symbol,
+            start,
+            end,
         )
 
         try:
@@ -182,7 +185,7 @@ class KiteProvider:
     def get_capabilities(self) -> ProviderCapabilities:
         """Return provider-specific rate limits, history constraints and features."""
         return ProviderCapabilities(
-            daily_history_max_request_days=2000, # Kite allows ~10 years for daily
+            daily_history_max_request_days=2000,  # Kite allows ~10 years for daily
             intraday_history_max_request_days={"5minute": 100, "15minute": 200},
             historical_requests_per_second=3.0,
             supports_bulk_historical=False,

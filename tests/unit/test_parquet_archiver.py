@@ -77,7 +77,7 @@ def test_archive_daily_prices(setup_store, tmp_path) -> None:
         low=2990.0,
         close=3020.0,
         volume=5000,
-        provider="KITE"
+        provider="KITE",
     )
 
     repo.save_daily([candle])

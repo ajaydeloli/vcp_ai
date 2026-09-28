@@ -95,14 +95,15 @@ class FakeMarketDataProvider:
         end: date,
     ) -> list[Candle]:
         self.call_log.append(
-            {"method": "get_historical_daily", "instrument_id": instrument.instrument_id,
-             "start": start, "end": end}
+            {
+                "method": "get_historical_daily",
+                "instrument_id": instrument.instrument_id,
+                "start": start,
+                "end": end,
+            }
         )
         all_candles = self._candles.get(instrument.instrument_id, [])
-        return [
-            c for c in all_candles
-            if start <= c.timestamp.date() <= end
-        ]
+        return [c for c in all_candles if start <= c.timestamp.date() <= end]
 
     def get_historical_intraday(
         self,

@@ -33,7 +33,7 @@ def mock_kiteconnect():
                 "lot_size": 1,
                 "instrument_type": "EQ",
                 "segment": "NSE",
-                "exchange": "NSE"
+                "exchange": "NSE",
             }
         ]
 
@@ -54,7 +54,7 @@ def mock_kiteconnect():
                 "low": 2510.0,
                 "close": 2540.0,
                 "volume": 120000,
-            }
+            },
         ]
 
         yield mock_instance

@@ -116,12 +116,8 @@ def load_scanner_config(config_dir: str | Path = "config") -> ScannerConfig:
 
         universe = UniverseConfig(**universe_raw) if universe_raw else UniverseConfig()
         data = DataConfig(**data_raw) if data_raw else DataConfig()
-        monitoring = (
-            MonitoringConfig(**monitoring_raw) if monitoring_raw else MonitoringConfig()
-        )
-        logging_cfg = (
-            LoggingConfig(**logging_raw) if logging_raw else LoggingConfig()
-        )
+        monitoring = MonitoringConfig(**monitoring_raw) if monitoring_raw else MonitoringConfig()
+        logging_cfg = LoggingConfig(**logging_raw) if logging_raw else LoggingConfig()
 
         return ScannerConfig(
             strategy=strategy,

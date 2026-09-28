@@ -38,8 +38,6 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-
-
 class DuckDBMarketDataRepository:
     """``MarketDataRepository`` backed by DuckDB (DATABASE_SCHEMA §12, §14).
 

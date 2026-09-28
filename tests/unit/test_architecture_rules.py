@@ -41,11 +41,11 @@ def test_strategy_and_domain_have_no_broker_or_db_dependencies() -> None:
                 if isinstance(node, ast.Import):
                     for alias in node.names:
                         root_mod = alias.name.split(".")[0]
-                        assert (
-                            root_mod not in FORBIDDEN_STRATEGY_IMPORTS
-                        ), f"Forbidden import '{root_mod}' found in {py_file}"
+                        assert root_mod not in FORBIDDEN_STRATEGY_IMPORTS, (
+                            f"Forbidden import '{root_mod}' found in {py_file}"
+                        )
                 elif isinstance(node, ast.ImportFrom) and node.module:
                     root_mod = node.module.split(".")[0]
-                    assert (
-                        root_mod not in FORBIDDEN_STRATEGY_IMPORTS
-                    ), f"Forbidden import '{root_mod}' found in {py_file}"
+                    assert root_mod not in FORBIDDEN_STRATEGY_IMPORTS, (
+                        f"Forbidden import '{root_mod}' found in {py_file}"
+                    )

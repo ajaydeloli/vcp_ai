@@ -22,6 +22,7 @@ def store() -> DuckDBStore:
 # Migration idempotency
 # ---------------------------------------------------------------------------
 
+
 def test_migrate_creates_all_tables(store: DuckDBStore) -> None:
     """migrate() must create all five Phase 1 tables."""
     expected_tables = {
@@ -35,9 +36,7 @@ def test_migrate_creates_all_tables(store: DuckDBStore) -> None:
         "SELECT table_name FROM information_schema.tables WHERE table_schema = 'main'"
     ).fetchall()
     actual = {row[0] for row in result}
-    assert expected_tables.issubset(actual), (
-        f"Missing tables: {expected_tables - actual}"
-    )
+    assert expected_tables.issubset(actual), f"Missing tables: {expected_tables - actual}"
 
 
 def test_migrate_is_idempotent(store: DuckDBStore) -> None:
@@ -55,6 +54,7 @@ def test_migrate_is_idempotent(store: DuckDBStore) -> None:
 # ---------------------------------------------------------------------------
 # Table column spot-checks
 # ---------------------------------------------------------------------------
+
 
 def test_daily_prices_has_bitemporal_columns(store: DuckDBStore) -> None:
     """daily_prices must have known_from and known_to for bitemporal reads."""
@@ -108,6 +108,7 @@ def test_raw_ohlcv_has_no_primary_key(store: DuckDBStore) -> None:
 # ---------------------------------------------------------------------------
 # Context-manager lifecycle
 # ---------------------------------------------------------------------------
+
 
 def test_store_context_manager() -> None:
     """DuckDBStore can be used as a context manager without errors."""
