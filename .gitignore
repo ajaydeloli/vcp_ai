@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Secrets (PROJECT_DESIGN 45, 75): never commit
+.env
+*.pem
+*.key
+
+# Data lake and generated output (PROJECT_DESIGN 11)
+data/*
+!data/.gitkeep
+reports/*
+!reports/.gitkeep
+*.duckdb
+*.duckdb.wal
+*.parquet
+
+# Notebooks
+.ipynb_checkpoints/

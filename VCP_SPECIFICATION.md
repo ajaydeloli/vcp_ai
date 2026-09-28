@@ -1,0 +1,1584 @@
+# VCP_SPECIFICATION.md
+
+**Project:** Institutional-Grade NSE VCP Scanner  
+**Version:** 1.1  
+**Status:** Technical specification baseline (revised after design review)  
+**Scope:** Deterministic VCP detection for V1; future ML confirmation interface included
+
+---
+
+## 1. Purpose
+
+This document defines how the system represents, measures, detects, classifies, scores, monitors, and invalidates a Volatility Contraction Pattern (VCP).
+
+The VCP engine is a **deterministic quantitative pattern engine**, not an LLM chart-reading system. Every production classification must be reproducible from the same data snapshot, configuration, and algorithm version.
+
+Minervini's published material describes the VCP as a consolidation after a confirmed Stage 2 uptrend, characterized by tightening price action and contraction in volatility/supply near the right side of the base.
+
+---
+
+# 2. Core Principle
+
+The detector must never decide that a VCP exists merely because a chart visually resembles one.
+
+```text
+OHLCV
+  ↓
+Swing Structure
+  ↓
+Base Detection
+  ↓
+Contraction Measurement
+  ↓
+Progressive Tightening
+  ↓
+Volatility + Volume Analysis
+  ↓
+Pivot Detection
+  ↓
+Classification
+```
+
+Detection, classification, ranking, and future prediction are separate problems.
+
+---
+
+# 3. Relationship to Trend Template
+
+The Trend Template is a mandatory production gate.
+
+```text
+Universe
+  ↓
+Liquidity
+  ↓
+RS across full eligible universe
+  ↓
+Trend Template
+  ↓
+Weekly Stage-2 Context
+  ↓
+Daily VCP Detection
+```
+
+A VCP-like structure outside confirmed Stage 2 may be retained for research, but it must not receive `VCP` or `A_PLUS_VCP` production classification.
+
+This follows the Minervini methodology described in published material: establish the Stage 2 uptrend first, then evaluate the VCP.
+
+---
+
+Stage 2 and the Trend Template are defined in TREND_TEMPLATE_SPECIFICATION.md.
+
+# 4. Timeframe Hierarchy
+
+### Weekly
+
+Used for:
+- Stage 2 context
+- major trend
+- base duration
+- major resistance
+- prior advance
+
+### Daily
+
+Used for:
+- swing points
+- contractions
+- contraction depth
+- range compression
+- ATR contraction
+- volume dry-up
+- pivot
+- current setup state
+
+Intraday data is excluded from VCP detection in V1 and reserved for future breakout monitoring.
+
+---
+
+# 5. VCP Classification, Status and Confirmation
+
+Three independent axes replace the earlier single "lifecycle" list:
+
+```text
+classification:  NONE < VCP_LIKE < VCP < A_PLUS_VCP        (from measurements)
+status:          FORMING -> PIVOT_READY -> BREAKOUT
+                 side states: FAILED, INVALIDATED
+                 data states: INSUFFICIENT_DATA, DATA_NOT_READY, STALE_DATA
+confirmation:    CONFIRMED | PROVISIONAL                   (§9A)
+```
+
+Production classifications: `VCP`, `A_PLUS_VCP`. `VCP_LIKE` is a watchlist/research classification. Every daily observation and every transition is persisted, never overwritten.
+
+---
+
+# 6. Required VCP Components
+
+The detector evaluates:
+
+1. prior advance;
+2. base structure;
+3. contraction sequence;
+4. progressive tightening;
+5. volatility contraction;
+6. volume/supply contraction;
+7. pivot quality.
+
+These are measurements, not independent buy signals.
+
+---
+
+# 7. Prior Advance
+
+Measure:
+
+```text
+prior_advance_return
+prior_advance_duration
+prior_advance_slope
+```
+
+Example configuration:
+
+```yaml
+vcp:
+  prior_advance:
+    enabled: true
+    lookback_days: 120
+    min_return_pct: 20
+```
+
+The minimum advance is a configurable research hypothesis, not a permanent universal rule.
+
+---
+
+# 8. Base Definition
+
+A base is the broader consolidation containing the contraction sequence.
+
+Required measurements:
+
+```text
+base_start
+base_end
+base_high
+base_low
+base_depth_pct
+base_duration_days
+```
+
+```python
+base_depth_pct = (base_high - base_low) / base_high * 100
+```
+
+A single pullback is not automatically a VCP.
+
+---
+
+# 9. Swing Detection
+
+Initial implementation:
+
+```yaml
+swing_detection:
+  method: pivot_n_bar
+  left_bars: 5
+  right_bars: 5
+```
+
+A swing high is confirmed when its high is greater than or equal to the configured neighboring bars on both sides. A swing low is defined analogously.
+
+Every swing stores:
+
+```text
+swing_date
+confirmation_date
+is_confirmed
+```
+
+Historical calculations must not use a swing before its confirmation date.
+
+---
+
+# 9A. Confirmation Lag and Provisional Patterns
+
+With `right_bars = N`, a swing is known only N bars after it occurs, so the newest N bars are structurally unconfirmed. That is exactly the right-side tight area that A+ depends on. Rules:
+
+1. A contraction is **confirmed** when both its swing high and swing low are confirmed as of `as_of_date`.
+2. At most one **provisional contraction** is allowed: the one in progress, measured from the latest confirmed swing high to the running low since that high (subject to `swing.min_depth_pct` and `min_duration_days`). It is stored with `is_confirmed = false`.
+3. A pattern is `CONFIRMED` only if every counted contraction is confirmed. Otherwise it is `PROVISIONAL`.
+4. Classification is computed from measured values in both states (a provisional contraction counts as the final contraction) and stored with `confirmation_state`.
+5. New-setup alerts and default ranking use `CONFIRMED` patterns. `PROVISIONAL` patterns appear on the watchlist unless `confirmation.include_provisional_in_ranking` is true.
+6. Historical runs execute the detector as of each date, so provisional states are reproduced. They are never upgraded retroactively (§56).
+
+```yaml
+vcp:
+  confirmation:
+    allow_provisional_final_contraction: true
+    include_provisional_in_ranking: false
+```
+
+Research items: compare forward outcomes for `PROVISIONAL` vs `CONFIRMED`; test `right_bars` 3 vs 5; evaluate an ATR-normalised zig-zag swing method (reserved key `swing.method: zigzag_atr`).
+
+---
+
+# 10. Contraction Definition
+
+A contraction is a meaningful decline from a local swing high to a subsequent local swing low.
+
+```python
+depth_pct = (peak_price - trough_price) / peak_price * 100
+```
+
+Depth is measured on **adjusted** prices: `peak_price` = adjusted high at the swing high, `trough_price` = adjusted low at the swing low.
+
+Each contraction stores:
+
+```text
+sequence_number
+peak_date
+peak_price
+trough_date
+trough_price
+depth_pct
+duration_days
+atr_pct
+range_pct
+volume_ratio
+confirmation_date
+```
+
+---
+
+# 11. Contraction Sequence
+
+Default configuration:
+
+```yaml
+vcp:
+  contractions:
+    min: 2
+    max: 6
+```
+
+The maximum is a detection/classification control, not a claim that real VCPs can never contain more contractions.
+
+Nested minor oscillations must be filtered as noise rather than automatically becoming additional contractions.
+
+---
+
+# 12. Progressive Tightening
+
+Core relationship:
+
+```text
+D1 > D2 > D3 > D4
+```
+
+where `D` is contraction depth percentage.
+
+Example:
+
+```text
+24% → 15% → 8% → 4%
+```
+
+is strongly progressive.
+
+The raw ratios must be preserved, not only a Boolean pass/fail value.
+
+---
+
+# 13. Progressive Tightening Tolerance
+
+Initial configuration:
+
+```yaml
+vcp:
+  progressive_tolerance_pct: 10
+```
+
+A later contraction may be slightly larger than the previous one within configured tolerance, but materially larger contractions must be flagged.
+
+The tolerance is **relative**: `D(n+1) <= D(n) x (1 + progressive_tolerance_pct/100)`. Persist each ratio `D(n+1)/D(n)` and `max_tightening_ratio`.
+
+Store:
+
+```text
+tightening_ratio_1
+tightening_ratio_2
+...
+tightening_consistency
+```
+
+---
+
+# 14. Final Contraction
+
+The latest completed contraction is the `final_contraction`.
+
+Store:
+
+```text
+final_contraction_pct
+final_contraction_duration
+final_contraction_atr_pct
+final_contraction_volume_ratio
+```
+
+Initial thresholds:
+
+```yaml
+classification:
+  a_plus:
+    max_final_contraction_pct: 8
+  vcp:
+    max_final_contraction_pct: 12
+  vcp_like:
+    max_final_contraction_pct: 15
+```
+
+These are research hypotheses and require out-of-sample validation.
+
+---
+
+# 15. Volatility Contraction
+
+VCP detection must measure actual volatility, not only pullback depth.
+
+Required metrics:
+
+```text
+ATR(14)
+ATR_pct
+rolling true range
+rolling high-low range
+rolling standard deviation
+```
+
+Example:
+
+```python
+atr_pct = ATR14 / close * 100
+```
+
+The detector compares earlier and later contraction volatility.
+
+---
+
+# 16. Range Compression
+
+Measure:
+
+```text
+last_20d_range_pct
+last_10d_range_pct
+last_5d_range_pct
+last_20d_ATR_pct
+last_10d_ATR_pct
+```
+
+The right side should generally show decreasing range and/or ATR.
+
+A setup with shrinking pullback depth but expanding daily volatility should score materially lower than one where both dimensions contract.
+
+---
+
+# 17. Volume Dry-Up
+
+Required measurements:
+
+```text
+volume_5d_avg
+volume_10d_avg
+volume_20d_avg
+volume_50d_avg
+final_volume_ratio
+contraction_volume_ratio
+```
+
+Example:
+
+```python
+volume_ratio_5_20 = avg_volume_5 / avg_volume_20
+```
+
+The detector evaluates volume **through the sequence**, not by requiring every individual bar to be below average.
+
+Example:
+
+```text
+T1 = 1.10
+T2 = 0.88
+T3 = 0.62
+```
+
+shows stronger drying than a sequence where volume increases into the final contraction.
+
+---
+
+# 18. Selling-Pressure Measurements
+
+Where reliable data exists, calculate:
+
+```text
+up-volume
+down-volume
+high-volume down days
+high-volume up days
+accumulation/distribution proxy
+```
+
+These are supporting measurements. They must not be described as proof of institutional accumulation.
+
+---
+
+# 18A. Operational Definitions of Boolean Criteria
+
+Every `require_*` flag needs a measurable rule. Initial definitions (hypotheses, configurable):
+
+| Criterion | Definition |
+|---|---|
+| `progressive_tightening` | for all n: D(n+1) ≤ D(n) × (1 + tolerance) AND D(last) < D(first) |
+| `volume_dryup` | `final_volume_ratio` ≤ `volume.dryup_ratio` AND `final_volume_ratio` < first contraction's `volume_ratio`. Here `final_volume_ratio` = mean volume over the final contraction ÷ 50-day average volume at that contraction's start |
+| `volatility_contraction` | `atr_contraction_ratio` = mean ATR14% over the final contraction ÷ mean ATR14% over the first contraction ≤ `volatility.contraction_ratio_max` |
+| `tight_pivot` | `right_side_range_pct` = (max high − min low) ÷ max high × 100 over the last `right_side_window_days` bars ≤ `pivot.max_right_side_range_pct` |
+
+Missing or suspect volume makes `volume_dryup` NULL/`INSUFFICIENT_DATA`, never a pass. `tight_pivot` measures compression only. Distance to pivot is a separate readiness test (§46).
+
+---
+
+# 19. Pivot Definition
+
+The pivot is the resistance level associated with the top of the current tight area and used for future breakout monitoring.
+
+Candidate sources:
+
+1. base high;
+2. latest meaningful confirmed swing high;
+3. tight-right-side consolidation high;
+4. relevant repeated resistance.
+
+The detector generates candidates and selects a primary pivot deterministically.
+
+---
+
+# 20. Pivot Candidate
+
+```python
+@dataclass(frozen=True)
+class PivotCandidate:
+    price: float
+    date: date
+    source: str
+    distance_to_close_pct: float
+    touches: int
+    rejection_count: int
+    right_side_tightness_pct: float
+```
+
+---
+
+# 21. Pivot Distance
+
+```python
+pivot_distance_pct = (pivot_price - close) / close * 100
+```
+
+This is a setup-readiness measurement, not a prediction.
+
+Example interpretation:
+
+```text
+1.2%  close
+3.5%  moderate
+8.0%  distant
+```
+
+Exact thresholds remain configurable.
+
+---
+
+# 22. Pivot Tightness
+
+Measure the price structure immediately below the pivot:
+
+```text
+right_side_range_pct
+right_side_ATR_pct
+right_side_volume_ratio
+distance_from_pivot_pct
+```
+
+A low final contraction alone is insufficient if the right side remains structurally loose.
+
+---
+
+# 23. Nested Contractions and Noise
+
+Minor fluctuations should not become contractions merely because a local high/low exists.
+
+Initial filters:
+
+```yaml
+vcp:
+  swing:
+    min_depth_pct: 2.0
+    min_duration_days: 3
+```
+
+Where practical, movement significance should be normalized by ATR rather than relying only on fixed percentages.
+
+---
+
+# 24. Failed Contractions
+
+A contraction can become invalid when:
+
+- price materially breaks its contraction low;
+- the base structure is destroyed;
+- Trend Template fails;
+- excessive volatility returns;
+- a major distribution event occurs.
+
+Failed structures must be retained for research.
+
+---
+
+# 25. VCP Invalidation
+
+Initial invalidation configuration:
+
+```yaml
+vcp:
+  invalidation:
+    trend_template_failure: true
+    base_low_break_pct: 2.0
+    volatility_expansion_multiple: 2.0
+```
+
+Possible invalidation reasons:
+
+```text
+TREND_TEMPLATE_FAIL
+BASE_STRUCTURE_FAIL
+EXCESS_VOLATILITY
+PIVOT_STRUCTURE_FAIL
+DATA_QUALITY_FAIL
+```
+
+---
+
+# 26. Current vs Historical Detection
+
+The detector must accept an explicit `as_of_date`.
+
+```python
+detect_vcp(symbol="ABC", as_of_date="2022-06-15")
+```
+
+must not inspect any data after that date.
+
+For historical signals, future-confirmed swings cannot be treated as known on their swing date.
+
+---
+
+# 27. Provisional Patterns
+
+The current live contraction may be incomplete.
+
+The system may emit:
+
+```text
+PROVISIONAL_VCP
+```
+
+but must distinguish it from:
+
+```text
+CONFIRMED_VCP
+```
+
+This distinction is mandatory for live monitoring and backtesting.
+
+---
+
+# 28. Classification
+
+Production classifications (alerts, primary ranking):
+
+```text
+A_PLUS_VCP
+VCP
+```
+
+Watchlist/research classification:
+
+```text
+VCP_LIKE
+```
+
+Status values are listed in §5 and are independent of classification.
+
+Classification precedence:
+
+```text
+A+ VCP
+  ↓
+VCP
+  ↓
+VCP-like
+  ↓
+No VCP
+```
+
+A setup satisfying A+ criteria receives `A_PLUS_VCP`, not simultaneous contradictory classifications.
+
+---
+
+# 29. A+ VCP
+
+Initial requirements:
+
+```yaml
+classification:
+  a_plus:
+    min_contractions: 3
+    max_contractions: 6
+    max_final_contraction_pct: 8
+    require_progressive_tightening: true
+    require_volatility_contraction: true
+    require_volume_dryup: true
+    require_tight_pivot: true
+```
+
+Interpretation:
+
+```text
+strict contraction sequence
++ strong right-side compression
++ drying volume
++ defined pivot
++ Stage 2
+```
+
+---
+
+# 30. Standard VCP
+
+Initial requirements:
+
+```yaml
+classification:
+  vcp:
+    min_contractions: 2
+    max_contractions: 6
+    max_final_contraction_pct: 12
+    require_progressive_tightening: true
+    require_tight_pivot: true
+```
+
+The standard class permits reasonable variations that do not satisfy A+ criteria.
+
+---
+
+# 31. VCP-Like
+
+Initial requirements:
+
+```yaml
+classification:
+  vcp_like:
+    min_contractions: 2
+    max_final_contraction_pct: 15
+```
+
+`VCP_LIKE` means the measured structure resembles a VCP but does not yet satisfy the stricter production definition. It is a research/watchlist state.
+
+---
+
+# 32. VCP Quality Vector
+
+Store independent quality dimensions:
+
+```text
+contraction_quality
+progressive_tightening_quality
+volatility_quality
+volume_quality
+pivot_quality
+base_quality
+trend_quality
+```
+
+Each may be normalized to 0–100 for ranking and research.
+
+---
+
+# 33. VCP Score
+
+Initial VCP-score hypothesis:
+
+```yaml
+vcp_score:
+  contraction_sequence: 25
+  tightening: 20
+  final_contraction: 20
+  volatility: 15
+  pivot: 10
+  base_structure: 10
+```
+
+These weights are research parameters and must be validated independently of the overall Setup Score.
+
+Volume is **not** part of the VCP Score. `volume_quality` feeds the separate Volume Score (SCORING_SPECIFICATION §5), so it is counted once. Bounds and normalization: SCORING_SPECIFICATION §4.
+
+---
+
+# 34. Detection vs Scoring
+
+Mandatory separation:
+
+```python
+pattern = detector.detect(...)
+score = scorer.score(pattern)
+```
+
+Never use:
+
+```python
+if score > 75:
+    pattern_exists = True
+```
+
+Detection determines whether the structural pattern exists. Scoring ranks already-qualified structures.
+
+---
+
+# 35. Trend Interaction
+
+Trend Template remains a gate.
+
+```text
+Trend FAIL
+    ↓
+No production VCP
+```
+
+Trend quality may still affect the ranking of stocks that pass the gate.
+
+---
+
+# 36. Fundamental Independence
+
+Fundamentals are completely outside the VCP detector.
+
+Correct:
+
+```text
+VCP Detector
+    ↓
+VCP Classification
+    ↓
+Fundamental Support
+```
+
+Incorrect:
+
+```text
+Strong EPS growth
+    ↓
+VCP = true
+```
+
+---
+
+# 37. Market Regime
+
+Market context should be stored separately:
+
+```text
+index trend
+market breadth
+market regime
+volatility regime
+```
+
+A weak market should not cause the VCP detector to lower its structural requirements. It should be recorded as context for later research.
+
+---
+
+# 38. Data Requirements
+
+Minimum daily data:
+
+```text
+date
+open
+high
+low
+close
+volume
+```
+
+Preferred:
+
+```text
+adjusted OHLC
+corporate-action flags
+delivery data where reliably available
+```
+
+Weekly data should be derived from validated daily data unless independently sourced weekly data is explicitly reconciled.
+
+---
+
+# 39. Missing Data
+
+Missing candles must not become zero movement.
+
+If required data is incomplete:
+
+```text
+VCP status = INSUFFICIENT_DATA
+```
+
+unless configured tolerance explicitly permits continuation.
+
+---
+
+# 40. Price Anomalies
+
+Flag unexplained large overnight movements, initially around ±30%:
+
+```text
+large_gap
+AND
+no_matching_corporate_action
+→ UNEXPLAINED_GAP (see DATA_SPECIFICATION §18A)
+```
+
+The detector must not automatically treat an anomalous candle as a valid contraction.
+
+---
+
+# 41. Liquidity Boundary
+
+Liquidity is handled by the universe engine, not VCP detection.
+
+```text
+Universe eligibility
+        ≠
+Pattern structure
+```
+
+This separation prevents the VCP algorithm from becoming coupled to a particular market-universe policy.
+
+---
+
+# 42. Pattern Domain Object
+
+Recommended model:
+
+```python
+@dataclass(frozen=True)
+class VCPPattern:
+    instrument_id: str
+    as_of_date: date
+
+    base_start: date
+    base_end: date | None
+    base_high: float
+    base_low: float
+
+    contractions: tuple[Contraction, ...]
+
+    progressive_tightening: bool
+    tightening_quality: float
+    volatility_quality: float
+    volume_quality: float
+    pivot_quality: float
+
+    pivot: PivotCandidate | None
+    final_contraction_pct: float | None
+    pivot_distance_pct: float | None
+
+    classification: VCPClassification
+    status: VCPStatus
+    algorithm_version: str
+```
+
+---
+
+# 43. Explainability Contract
+
+Every result must expose its measurements.
+
+Example:
+
+```json
+{
+  "classification": "A_PLUS_VCP",
+  "contractions": [
+    {"depth_pct": 18.2},
+    {"depth_pct": 10.1},
+    {"depth_pct": 6.4}
+  ],
+  "progressive_tightening": true,
+  "final_contraction_pct": 6.4,
+  "volume_dryup": true,
+  "atr_contraction": true,
+  "pivot_distance_pct": 1.2
+}
+```
+
+The frontend should render these facts directly rather than recomputing them.
+
+---
+
+# 44. Chart Annotation Contract
+
+The charting layer receives explicit annotations:
+
+```text
+base_start
+base_high
+base_low
+T1 peak/trough/depth
+T2 peak/trough/depth
+T3 peak/trough/depth
+pivot
+```
+
+The UI must not independently rediscover the pattern.
+
+---
+
+# 45. Breakout Definition
+
+Breakout monitoring is separate from VCP detection.
+
+Initial concept:
+
+```text
+price > pivot
+AND
+volume / baseline_volume >= configured_multiplier
+```
+
+Example:
+
+```yaml
+breakout:
+  min_volume_ratio: 1.5
+```
+
+A breakout must never be required retroactively for a VCP to exist.
+
+---
+
+# 46. Pivot-Ready State
+
+A pattern becomes `PIVOT_READY` when:
+
+```text
+valid VCP classification
++ pivot exists
++ pivot distance <= configured threshold
++ acceptable data quality
+```
+
+Example:
+
+```yaml
+monitoring:
+  pivot_ready:
+    max_distance_pct: 3
+```
+
+---
+
+# 47. Breakout Immutability
+
+A breakout creates a separate event:
+
+```text
+VCPPattern
+      +
+BreakoutEvent
+```
+
+The original pre-breakout VCP record must not be rewritten based on the subsequent outcome.
+
+---
+
+# 48. Versioning
+
+Every detector result stores:
+
+```text
+algorithm_version
+config_hash
+data_snapshot_id
+```
+
+Any structural algorithm change requires a new algorithm version.
+
+---
+
+# 49. Determinism
+
+Given identical:
+
+```text
+data snapshot
+configuration
+algorithm version
+```
+
+the detector must produce identical output.
+
+No random decisions, LLM decisions, or real-time external calls are allowed inside the deterministic detector.
+
+---
+
+# 50. Module Interfaces
+
+The VCP engine must be decomposed rather than implemented as one monolithic function.
+
+Recommended components:
+
+```text
+SwingDetector
+BaseDetector
+ContractionDetector
+TighteningAnalyzer
+VolatilityAnalyzer
+VolumeAnalyzer
+PivotDetector
+VCPClassifier
+VCPDetector
+```
+
+Example interfaces:
+
+```python
+class BaseDetector(Protocol):
+    def find_candidates(...): ...
+
+class ContractionDetector(Protocol):
+    def detect(...): ...
+
+class PivotDetector(Protocol):
+    def detect(...): ...
+
+class VCPClassifier(Protocol):
+    def classify(...): ...
+```
+
+`VCPDetector` orchestrates these components.
+
+---
+
+# 51. Future ML Confirmer
+
+Future ML operates after deterministic feature extraction:
+
+```text
+OHLCV
+ ↓
+Deterministic Measurements
+ ↓
+VCPFeatureVector
+ ↓
+ML Confirmer
+ ↓
+Ranking adjustment / confirmation
+```
+
+It cannot override:
+
+```text
+universe gate
+Trend Template gate
+data-quality gate
+VCP structural gate
+```
+
+Potential output:
+
+```text
+confirmation_score
+model_version
+calibration_version
+```
+
+---
+
+# 52. LLM Boundary
+
+LLM may explain:
+
+- why the setup qualified;
+- which measurements are strongest;
+- which conditions are incomplete;
+- what changed since yesterday.
+
+LLM may not decide:
+
+```text
+VCP = true
+```
+
+LLM receives structured facts and produces prose only.
+
+---
+
+# 53. ML Training Dataset
+
+Historical observations can later become training samples.
+
+Features may include:
+
+```text
+contraction depths
+contraction ratios
+duration
+ATR contraction
+volume contraction
+pivot distance
+RS
+Trend score
+base duration
+base depth
+market regime
+```
+
+Labels are generated only from future observations after the sample date.
+
+Examples:
+
+```text
+breakout_within_20_days
+forward_max_return_20d
+```
+
+---
+
+# 54. Label Leakage Protection
+
+Features must never include future:
+
+```text
+price
+volume
+contraction
+pivot
+breakout
+```
+
+A contraction not confirmed at the observation timestamp cannot be used as a confirmed historical feature.
+
+---
+
+# 55. Daily Re-Evaluation
+
+The system recomputes the current pattern every trading day.
+
+Example:
+
+```text
+Day 1 → VCP-like
+Day 2 → VCP-like
+Day 3 → VCP
+Day 4 → VCP
+Day 5 → A+ VCP
+Day 6 → Pivot Ready
+Day 7 → Breakout
+```
+
+Every daily observation is retained.
+
+---
+
+# 56. No Retroactive Classification
+
+A successful breakout must not cause earlier observations to be rewritten.
+
+If the scanner said `VCP_LIKE` on Day 8, it remains `VCP_LIKE` even if the stock breaks out successfully on Day 10.
+
+This is essential for unbiased backtesting.
+
+---
+
+# 57. Golden Dataset
+
+Create a manually reviewed benchmark:
+
+```text
+tests/fixtures/vcp/
+├── confirmed_a_plus/
+├── confirmed_vcp/
+├── vcp_like/
+├── non_vcp/
+├── failed_vcp/
+└── ambiguous/
+```
+
+Each fixture contains:
+
+```text
+symbol
+as_of_date
+expected_classification
+review_notes
+```
+
+Every structural detector change must run the regression suite against this dataset.
+
+Labeling protocol:
+
+- Label from charts **without seeing detector output**; two reviewers where possible.
+- Target ≥ 100 examples per class, accumulated over time.
+- Hold out 30%, never used for threshold tuning.
+- Exclude `ambiguous` examples from precision/recall.
+
+---
+
+# 58. Human Review
+
+The system reduces manual chart review; it does not initially eliminate it.
+
+UI actions:
+
+```text
+Confirm VCP
+Reject VCP
+Mark Ambiguous
+```
+
+Human labels must remain separate from algorithm labels:
+
+```text
+algorithm = A_PLUS_VCP
+human_review = REJECTED
+```
+
+---
+
+# 59. Failure Modes
+
+The detector must explicitly handle:
+
+### V-shaped recovery
+Not automatically a VCP; requires genuine contraction structure.
+
+### Wide-and-loose base
+Normally fails or remains VCP-like.
+
+### Flat base
+May be constructive but is not automatically a VCP.
+
+### Downtrend base
+Trend Template failure prevents production VCP classification.
+
+### Persistent distribution
+Reduces volume/supply quality.
+
+### Increasing volatility
+Reduces VCP quality.
+
+### Distant pivot
+May remain a valid VCP but not `PIVOT_READY`.
+
+---
+
+# 60. Initial Configuration
+
+```yaml
+vcp:
+  contractions:
+    min: 2
+    max: 6
+
+  swing:
+    left_bars: 5
+    right_bars: 5
+    min_depth_pct: 2.0
+    min_duration_days: 3
+
+  progressive_tolerance_pct: 10
+
+  volatility:
+    atr_period: 14
+    contraction_ratio_max: 0.80
+
+  volume:
+    short_period: 5
+    medium_period: 20
+    long_period: 50
+    dryup_ratio: 0.70
+
+  pivot:
+    max_distance_pct: 3.0
+    right_side_window_days: 10
+    max_right_side_range_pct: 5.0
+
+  confirmation:
+    allow_provisional_final_contraction: true
+    include_provisional_in_ranking: false
+
+classification:
+  a_plus:
+    min_contractions: 3
+    max_contractions: 6
+    max_final_contraction_pct: 8
+    require_progressive_tightening: true
+    require_volume_dryup: true
+    require_volatility_contraction: true
+    require_tight_pivot: true
+
+  vcp:
+    min_contractions: 2
+    max_contractions: 6
+    max_final_contraction_pct: 12
+    require_progressive_tightening: true
+    require_tight_pivot: true
+
+  vcp_like:
+    min_contractions: 2
+    max_final_contraction_pct: 15
+```
+
+All values are initial hypotheses and must be empirically validated.
+
+---
+
+# 61. Recommended Detection Pipeline
+
+```python
+def detect_vcp(symbol, as_of_date, config):
+    data = load_daily_data(symbol, as_of_date)
+    validate_data(data)
+
+    weekly = build_weekly_context(data)
+    if not weekly.stage2_context:
+        return no_production_vcp("STAGE2_FAIL")
+
+    swings = detect_confirmed_swings(data, config.swing)
+    bases = find_candidate_bases(data, swings, weekly, config)
+
+    candidates = []
+    for base in bases:
+        contractions = extract_contractions(base, swings, data, config)
+        contractions = filter_noise(contractions, config)
+
+        if len(contractions) < config.contractions.min:
+            continue
+
+        tightening = evaluate_progressive_tightening(
+            contractions,
+            config.progressive_tolerance_pct,
+        )
+        volatility = evaluate_volatility_contraction(
+            data, contractions, config
+        )
+        volume = evaluate_volume_contraction(
+            data, contractions, config
+        )
+        pivot = detect_pivot(
+            base, contractions, data, config
+        )
+
+        classification = classify_vcp(
+            contractions,
+            tightening,
+            volatility,
+            volume,
+            pivot,
+            config,
+        )
+
+        if classification is not None:
+            candidates.append(build_pattern(...))
+
+    if candidates:
+        return select_primary_pattern(candidates)   # §61A
+    return no_vcp("NO_QUALIFYING_STRUCTURE")
+```
+
+The actual implementation should be decomposed into testable modules.
+
+---
+
+# 61A. Primary Pattern Selection
+
+Every qualifying candidate base is persisted (`is_primary = false`). The primary pattern is chosen deterministically by, in order:
+
+1. highest classification (`A_PLUS_VCP` > `VCP` > `VCP_LIKE`)
+2. `CONFIRMED` over `PROVISIONAL`
+3. most recent `base_end`
+4. longer `base_duration_days`
+5. earlier `base_start`
+
+---
+
+# 62. Research Methodology
+
+Thresholds must be treated as hypotheses.
+
+Examples:
+
+```text
+A+ final contraction: 8 vs 10 vs 12%
+Volume dry-up: 0.60 vs 0.70 vs 0.80
+Pivot distance: 2 vs 3 vs 5%
+```
+
+Use:
+
+```text
+development period
+validation period
+out-of-sample period
+walk-forward testing
+```
+
+Do not choose thresholds solely because they maximize historical return.
+
+---
+
+# 63. Evaluation Metrics
+
+Detector metrics:
+
+```text
+detection count
+classification distribution
+breakout rate
+false-positive rate
+false-negative rate
+```
+
+Ranking metrics:
+
+```text
+top-decile forward return
+rank correlation
+information coefficient
+hit rate
+```
+
+Trading metrics are a later layer:
+
+```text
+CAGR
+max drawdown
+Sharpe
+Sortino
+expectancy
+profit factor
+```
+
+---
+
+# 64. Data Lineage
+
+For every VCP result, the system must answer:
+
+```text
+Which candles produced it?
+Which provider supplied them?
+Which corporate-action adjustments were applied?
+Which universe snapshot was used?
+Which Trend Template result was used?
+Which configuration was active?
+Which algorithm version produced it?
+```
+
+This is required for institutional-style reproducibility.
+
+---
+
+# 65. Definition of Done
+
+The VCP engine is complete only when:
+
+- swing detection is deterministic;
+- swing confirmation timestamps exist;
+- base detection is separated from contraction detection;
+- contractions have measurable depth and duration;
+- progressive tightening is measurable;
+- volatility contraction is measurable;
+- volume dry-up is measurable;
+- pivot detection is deterministic;
+- A+ / VCP / VCP-like classifications exist;
+- thresholds are configurable;
+- historical `as_of_date` operation works;
+- no future data enters historical results;
+- golden fixtures exist;
+- regression tests exist;
+- failure/invalidation states exist;
+- measurements are persisted;
+- algorithm/config/data versions are persisted;
+- chart annotations can be generated directly from results;
+- ML can later consume the feature vector without changing detection;
+- LLM cannot override the detector.
+
+---
+
+# 66. Final Specification Principle
+
+The VCP engine answers four separate questions:
+
+### Q1 — Is the stock in the correct trend?
+
+```text
+Trend Template / Stage 2
+```
+
+### Q2 — Is there a meaningful contraction sequence?
+
+```text
+T1 → T2 → T3 → ...
+```
+
+### Q3 — Is the right side becoming tighter?
+
+```text
+price + volatility + volume
+```
+
+### Q4 — Is there a defined pivot?
+
+```text
+resistance + tight right side
+```
+
+The architecture is therefore:
+
+```text
+Stage 2
+   +
+Meaningful base
+   +
+Successive contractions
+   +
+Progressive tightening
+   +
+Volatility contraction
+   +
+Supply/volume contraction
+   +
+Defined pivot
+   ↓
+VCP candidate
+   ↓
+A+ / VCP / VCP-like
+   ↓
+VCP Quality Score
+   ↓
+Final Setup Ranking
+```
+
+The key rule is that **the detector establishes the pattern; the scorer ranks the pattern; future ML may estimate outcomes; the LLM explains the facts.**
