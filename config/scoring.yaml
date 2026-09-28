@@ -1,0 +1,108 @@
+# scoring.yaml - Setup Scoring Weights and Bounds
+# Specification baseline: SCORING_SPECIFICATION.md (scoring-1.0.0)
+
+version: scoring-1.0.0
+
+weights:
+  trend: 25.0
+  vcp: 35.0
+  volume: 15.0
+  rs: 15.0
+  fundamentals: 10.0
+
+fundamentals_max_weight: 15.0
+fundamentals_min_availability: 0.5
+high_volume_multiple: 1.5
+
+components:
+  trend:
+    weights:
+      high_proximity: 40.0
+      sma200_slope: 30.0
+      ma_stack_margin: 30.0
+    bounds:
+      high_proximity:
+        worst: 25.0
+        best: 0.0
+      sma200_slope:
+        worst: 0.0
+        best: 8.0
+      ma_stack_margin:
+        worst: 0.0
+        best: 20.0
+
+  vcp:
+    weights:
+      contraction_sequence: 25.0
+      tightening: 20.0
+      final_contraction: 20.0
+      volatility: 15.0
+      pivot: 10.0
+      base_structure: 10.0
+    bounds:
+      contraction_sequence:
+        worst: 2.0
+        best: 4.0
+      tightening:
+        worst: 1.10
+        best: 0.60
+      final_contraction:
+        worst: 15.0
+        best: 3.0
+      volatility:
+        worst: 1.0
+        best: 0.5
+      pivot:
+        worst: 8.0
+        best: 2.0
+      base_structure:
+        worst: 40.0
+        best: 15.0
+
+  volume:
+    weights:
+      dryup_quality: 50.0
+      up_down_volume: 25.0
+      distribution: 25.0
+    bounds:
+      dryup_quality:
+        worst: 1.0
+        best: 0.40
+      up_down_volume:
+        worst: 0.8
+        best: 1.5
+      distribution:
+        worst: 4.0
+        best: 0.0
+
+  fundamentals:
+    weights:
+      eps_yoy: 30.0
+      eps_qoq: 20.0
+      sales_yoy: 20.0
+      eps_acceleration: 10.0
+      margin_expansion: 10.0
+      roe: 5.0
+      debt: 5.0
+    bounds:
+      eps_yoy:
+        worst: 0.0
+        best: 50.0
+      eps_qoq:
+        worst: 0.0
+        best: 50.0
+      sales_yoy:
+        worst: 0.0
+        best: 30.0
+      eps_acceleration:
+        worst: 0.0
+        best: 15.0
+      margin_expansion:
+        worst: 0.0
+        best: 3.0
+      roe:
+        worst: 10.0
+        best: 25.0
+      debt:
+        worst: 1.0
+        best: 0.0

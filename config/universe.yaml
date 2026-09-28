@@ -1,0 +1,12 @@
+# universe.yaml - Universe Definition and Screening Filters
+# Specification baseline: PROJECT_DESIGN.md
+
+exchange: NSE
+min_close_price: 10.0
+min_daily_turnover_inr: 5000000.0  # 50 Lakhs
+min_history_days: 253
+exclude_asm_gsm: true
+exclude_trade_to_trade: true
+eligible_series:
+  - EQ
+  - BE

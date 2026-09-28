@@ -1,0 +1,17 @@
+# monitoring.yaml - Real-time/Intraday Monitoring and Alert Settings
+# Specification baseline: PROJECT_DESIGN.md (sections 53-54)
+
+poll_interval_seconds: 60
+
+enabled_events:
+  - VCP_FORMING
+  - VCP_QUALIFIED
+  - PIVOT_READY
+  - PIVOT_CHANGED
+  - BREAKOUT
+  - BREAKOUT_FAILED
+  - SETUP_INVALIDATED
+  - DATA_STALE
+
+channels:
+  - console

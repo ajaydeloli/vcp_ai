@@ -1,1 +1,38 @@
-"""config package (see PROJECT_DESIGN.md section 6 for module boundaries)."""
+"""Configuration package (PROJECT_DESIGN section 45-47)."""
+
+from vcp_scanner.config.loader import compute_config_hash, load_scanner_config
+from vcp_scanner.config.models import (
+    ClassificationConfig,
+    DataConfig,
+    LoggingConfig,
+    MonitoringConfig,
+    NormalizationBounds,
+    RSConfig,
+    ScannerConfig,
+    ScoringConfig,
+    StageConfig,
+    StrategyConfig,
+    TierClassificationConfig,
+    TrendTemplateConfig,
+    UniverseConfig,
+    VCPThresholdsConfig,
+)
+
+__all__ = [
+    "ClassificationConfig",
+    "DataConfig",
+    "LoggingConfig",
+    "MonitoringConfig",
+    "NormalizationBounds",
+    "RSConfig",
+    "ScannerConfig",
+    "ScoringConfig",
+    "StageConfig",
+    "StrategyConfig",
+    "TierClassificationConfig",
+    "TrendTemplateConfig",
+    "UniverseConfig",
+    "VCPThresholdsConfig",
+    "compute_config_hash",
+    "load_scanner_config",
+]

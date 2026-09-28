@@ -18,15 +18,15 @@ from datetime import UTC, datetime
 from typing import Any
 
 # Context variables for request / scan tracing
-_LOG_CONTEXT: contextvars.ContextVar[dict[str, Any]] = contextvars.ContextVar(
-    "log_context", default={}
+_LOG_CONTEXT: contextvars.ContextVar[dict[str, Any] | None] = contextvars.ContextVar(
+    "log_context", default=None
 )
 
 
 @contextmanager
 def log_context(**kwargs: Any) -> Generator[None, None, None]:
     """Context manager to attach structured attributes (e.g. scan_id, symbol) to log messages."""
-    current = _LOG_CONTEXT.get().copy()
+    current = dict(_LOG_CONTEXT.get() or {})
     current.update({k: v for k, v in kwargs.items() if v is not None})
     token = _LOG_CONTEXT.set(current)
     try:
@@ -39,7 +39,7 @@ class StructuredJsonFormatter(logging.Formatter):
     """Formats log records as single-line JSON objects with standard fields."""
 
     def format(self, record: logging.LogRecord) -> str:
-        ctx = _LOG_CONTEXT.get()
+        ctx = _LOG_CONTEXT.get() or {}
         entry: dict[str, Any] = {
             "timestamp": datetime.now(UTC).isoformat(),
             "level": record.levelname,
@@ -83,7 +83,7 @@ class TextStructuredFormatter(logging.Formatter):
 
     def format(self, record: logging.LogRecord) -> str:
         ts = datetime.now(UTC).strftime("%Y-%m-%d %H:%M:%S")
-        ctx = _LOG_CONTEXT.get()
+        ctx = _LOG_CONTEXT.get() or {}
         fields: list[str] = [f"[{ts}]", f"{record.levelname:<5}", f"[{record.name}]"]
 
         component = getattr(record, "component", ctx.get("component"))

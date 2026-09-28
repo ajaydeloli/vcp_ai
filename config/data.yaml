@@ -1,0 +1,9 @@
+# data.yaml - Persistence and Data Provider Settings
+# Specification baseline: DATA_SPECIFICATION.md, PROJECT_DESIGN.md
+
+duckdb_path: data/vcp_scanner.duckdb
+raw_storage_dir: data/raw
+canonical_storage_dir: data/canonical
+primary_provider: kite
+secondary_provider: dhan
+trading_calendar: NSE

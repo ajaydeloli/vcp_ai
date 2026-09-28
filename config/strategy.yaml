@@ -1,0 +1,41 @@
+# strategy.yaml - Technical Gates, Pattern Thresholds and Classification
+# Specification baseline: TREND_TEMPLATE_SPECIFICATION.md, PROJECT_DESIGN.md
+
+trend_template:
+  required: true
+  min_rs_rank: 70
+  stricter_rs_rank: 80
+  sma200_slope_lookback_days: 21
+  min_above_52w_low_pct: 25.0
+  max_below_52w_high_pct: 25.0
+  extreme_basis: high_low
+
+rs:
+  version: rs-1.0.0
+  windows_days: [63, 126, 189, 252]
+  weights: [0.40, 0.20, 0.20, 0.20]
+  min_history_days: 253
+
+stage:
+  sma_weeks: 30
+  slope_lookback_weeks: 4
+  flat_band_pct: 0.5
+  prior_advance_min_pct: 10.0
+
+vcp:
+  min_contractions: 2
+  max_contractions: 6
+  progressive_tolerance_pct: 10.0
+  require_volume_dryup: true
+  require_tight_pivot: true
+
+classification:
+  a_plus:
+    min_contractions: 3
+    max_final_contraction_pct: 8.0
+  vcp:
+    min_contractions: 2
+    max_final_contraction_pct: 12.0
+  vcp_like:
+    min_contractions: 2
+    max_final_contraction_pct: 15.0

@@ -1,0 +1,6 @@
+# logging.yaml - Structured Logging Configuration
+# Specification baseline: PROJECT_DESIGN.md (section 76), DATA_SPECIFICATION.md (section 95)
+
+level: INFO
+json_format: false
+log_file: null
