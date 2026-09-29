@@ -283,3 +283,104 @@ def test_surveillance_flags_idempotent_existing_flag(store):
         "WHERE instrument_id = 'NSE_EQ|RCOM' AND known_to IS NULL"
     ).fetchall()
     assert len(rows) == 1  # no duplicates
+
+
+# ---------------------------------------------------------------------------
+# Review fixes: multi-period history, stage changes, non-snapshot providers
+# ---------------------------------------------------------------------------
+
+
+def _sm_worker(store, records=(), flags=()):
+    return SecurityMasterIngestionWorker(
+        store=store,
+        security_master_provider=FakeSecurityMasterProvider(list(records)),
+        surveillance_provider=FakeSurveillanceProvider(list(flags)),
+    )
+
+
+def test_multi_period_history_is_kept_whole(store):
+    """Two periods for one instrument must both stay current, not collapse to the last."""
+    periods = [
+        SecurityRecord(
+            instrument_id="NSE_EQ|ABC",
+            symbol="OLDABC",
+            exchange="NSE",
+            valid_from=date(2010, 1, 1),
+            valid_to=date(2019, 12, 31),
+            isin="INE000A01010",
+            series="EQ",
+            source="NSE",
+        ),
+        SecurityRecord(
+            instrument_id="NSE_EQ|ABC",
+            symbol="ABC",
+            exchange="NSE",
+            valid_from=date(2020, 1, 1),
+            isin="INE000A01010",
+            series="EQ",
+            source="NSE",
+        ),
+    ]
+    _sm_worker(store, records=periods).run(start=date(2010, 1, 1), end=date(2024, 1, 1))
+
+    rows = store.conn.execute(
+        "SELECT symbol FROM security_master_history "
+        "WHERE instrument_id = 'NSE_EQ|ABC' AND known_to IS NULL ORDER BY valid_from"
+    ).fetchall()
+    assert [r[0] for r in rows] == ["OLDABC", "ABC"]
+
+
+def test_asm_stage_change_supersedes_old_stage(store):
+    def flag(stage):
+        return SurveillanceRecord(
+            instrument_id="NSE_EQ|YESBANK",
+            flag="ASM",
+            valid_from=date(2024, 1, 1),
+            source="NSE",
+            extra={"stage": stage},
+        )
+
+    _sm_worker(store, flags=[flag("II")]).run(start=date(2024, 1, 1), end=date(2024, 3, 1))
+    r = _sm_worker(store, flags=[flag("III")]).run(start=date(2024, 1, 1), end=date(2024, 3, 1))
+
+    assert r["flags_inserted"] == 1
+    current = store.conn.execute(
+        "SELECT stage FROM surveillance_flags_history WHERE known_to IS NULL"
+    ).fetchall()
+    assert current == [("III",)]
+    total = store.conn.execute("SELECT COUNT(*) FROM surveillance_flags_history").fetchone()[0]
+    assert total == 2  # stage II kept as history
+
+
+def test_absent_flags_kept_when_provider_returns_event_history(store):
+    flag = SurveillanceRecord(
+        instrument_id="NSE_EQ|YESBANK",
+        flag="ASM",
+        valid_from=date(2024, 1, 1),
+        source="NSE",
+        extra={"stage": "II"},
+    )
+    _sm_worker(store, flags=[flag]).run(start=date(2024, 1, 1), end=date(2024, 3, 1))
+
+    history_provider = FakeSurveillanceProvider([])
+    history_provider.returns_active_snapshot = False
+    worker = SecurityMasterIngestionWorker(
+        store=store,
+        security_master_provider=FakeSecurityMasterProvider([]),
+        surveillance_provider=history_provider,
+    )
+    r = worker.run(start=date(2023, 1, 1), end=date(2023, 6, 1))
+
+    assert r["flags_closed"] == 0
+
+
+def test_record_without_source_uses_default_provider_name(store):
+    """Regression: rec.source empty used to raise AttributeError (no PROVIDER_NAME)."""
+    flag = SurveillanceRecord(
+        instrument_id="NSE_EQ|NOSRC", flag="T2T", valid_from=date(2024, 1, 1), source=None
+    )
+    _sm_worker(store, flags=[flag]).run(start=date(2024, 1, 1), end=date(2024, 3, 1))
+    row = store.conn.execute(
+        "SELECT source FROM surveillance_flags_history WHERE instrument_id = 'NSE_EQ|NOSRC'"
+    ).fetchone()
+    assert row == ("NSE",)

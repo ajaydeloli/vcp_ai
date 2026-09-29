@@ -57,13 +57,19 @@ def _add_security(store: DuckDBStore, iid: str, series: str = "EQ") -> None:
 
 
 def _add_price(store: DuckDBStore, iid: str, trade_date: date, close: float, vol: int) -> None:
+    """Insert 253 consecutive daily bars ending on ``trade_date`` (min_history_days)."""
     now = datetime.now(UTC)
     store.conn.execute(
-        "INSERT INTO daily_prices "
-        "(instrument_id, trade_date, open_raw, high_raw, low_raw, close_raw, "
-        " volume_raw, primary_provider, data_status, source_run_id, source_hash, known_from) "
-        "VALUES (?, ?, ?, ?, ?, ?, ?, 'MOCK', 'OK', 'run', 'hash', ?)",
-        [iid, trade_date, close, close, close, close, vol, now],
+        """
+        INSERT INTO daily_prices (
+                instrument_id, trade_date, open_raw, high_raw, low_raw, close_raw,
+                volume_raw, primary_provider, data_status, source_run_id, source_hash, known_from
+            )
+            SELECT CAST(? AS VARCHAR), CAST(? AS DATE) - CAST(i AS INTEGER),
+                   ?, ?, ?, ?, ?, 'MOCK', 'OK', 'run', 'hash', CAST(? AS TIMESTAMPTZ)
+            FROM range(0, ?) t(i)
+        """,
+        [iid, trade_date, close, close, close, close, vol, now, 253],
     )
 
 

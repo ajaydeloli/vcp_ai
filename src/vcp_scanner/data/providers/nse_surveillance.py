@@ -1,4 +1,4 @@
-"""NSE Surveillance Flags Provider (DATA_SPECIFICATION §14A).
+"""NSE Surveillance Flags Provider (PROJECT_DESIGN §14A).
 
 Fetches ASM (Additional Surveillance Measure), GSM (Graded Surveillance
 Measure), T2T (Trade-to-Trade), and BE (Book Entry) flags from NSE's
@@ -30,10 +30,13 @@ class NSESurveillanceProvider:
 
     This provider attempts to fetch from the known JSON API endpoints.
     For GSM specifically, manual upload or a separate PDF parser spike
-    may be needed (DATA_SPECIFICATION §14A verification item).
+    may be needed (PROJECT_DESIGN §14A verification item).
     """
 
     PROVIDER_NAME = "NSE"
+    # get_flags ignores its window and returns the full set active today, so a flag
+    # missing from the feed really has lapsed (the worker relies on this to close flags).
+    returns_active_snapshot = True
     BASE_URL = "https://www.nseindia.com"
 
     # Known API routes for surveillance data

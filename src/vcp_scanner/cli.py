@@ -10,6 +10,8 @@ from vcp_scanner.config.loader import compute_config_hash, load_scanner_config
 from vcp_scanner.domain.errors import ConfigError
 from vcp_scanner.versioning import PACKAGE_VERSION, version_manifest
 
+DEFAULT_DB_PATH = "data/vcp_scanner.duckdb"  # matches data.duckdb_path in config/data.yaml
+
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
@@ -89,8 +91,8 @@ def build_parser() -> argparse.ArgumentParser:
     )
     universe_parser.add_argument(
         "--db",
-        default="data/minervini.duckdb",
-        help="Path to DuckDB database file (default: data/minervini.duckdb)",
+        default=DEFAULT_DB_PATH,
+        help="Path to DuckDB database file (default: data/vcp_scanner.duckdb)",
     )
     universe_parser.add_argument(
         "--config-dir",
@@ -114,8 +116,24 @@ def build_parser() -> argparse.ArgumentParser:
     )
     sm_parser.add_argument(
         "--db",
-        default="data/minervini.duckdb",
-        help="Path to DuckDB database file (default: data/minervini.duckdb)",
+        default=DEFAULT_DB_PATH,
+        help="Path to DuckDB database file (default: data/vcp_scanner.duckdb)",
+    )
+
+    adjusted_parser = ingest_subparsers.add_parser(
+        "adjusted-prices",
+        help="Build adjusted daily prices from raw prices and stored adjustment factors",
+    )
+    adjusted_parser.add_argument(
+        "--instrument",
+        action="append",
+        metavar="INSTRUMENT_ID",
+        help="Instrument to build (repeatable). Default: every instrument with raw prices",
+    )
+    adjusted_parser.add_argument(
+        "--db",
+        default=DEFAULT_DB_PATH,
+        help="Path to DuckDB database file (default: data/vcp_scanner.duckdb)",
     )
 
     return parser
@@ -263,6 +281,9 @@ def main(argv: Sequence[str] | None = None) -> int:
                 NSESecurityMasterProvider,
             )
             from vcp_scanner.data.providers.nse_surveillance import NSESurveillanceProvider
+            from vcp_scanner.data.repositories.duckdb_instrument_repository import (
+                DuckDBInstrumentResolver,
+            )
             from vcp_scanner.data.storage.duckdb_store import DuckDBStore
 
             try:
@@ -284,6 +305,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                     store=store,
                     security_master_provider=NSESecurityMasterProvider(),
                     surveillance_provider=NSESurveillanceProvider(),
+                    resolver=DuckDBInstrumentResolver(store),
                 )
                 print(
                     f"Ingesting security master and surveillance flags "
@@ -294,6 +316,51 @@ def main(argv: Sequence[str] | None = None) -> int:
                 for k, v in stats.items():
                     print(f"  {k}: {v}")
                 return 0
+
+        elif args.ingest_command == "adjusted-prices":
+            import os
+            from datetime import UTC, datetime
+
+            from vcp_scanner.data.adjustment.builder import (
+                STATUS_BUILT,
+                STATUS_FAILED,
+                AdjustedPriceBuilder,
+            )
+            from vcp_scanner.data.repositories.duckdb_corporate_action_repository import (
+                DuckDBCorporateActionRepository,
+            )
+            from vcp_scanner.data.repositories.duckdb_market_repository import (
+                DuckDBMarketDataRepository,
+            )
+            from vcp_scanner.data.storage.duckdb_store import DuckDBStore
+
+            db_path = args.db
+            os.makedirs(
+                os.path.dirname(db_path) if os.path.dirname(db_path) else ".",
+                exist_ok=True,
+            )
+
+            with DuckDBStore(db_path) as store:
+                store.migrate()
+                adjusted_builder = AdjustedPriceBuilder(
+                    DuckDBMarketDataRepository(store),
+                    DuckDBCorporateActionRepository(store),
+                )
+                results = adjusted_builder.build_all(
+                    computed_at=datetime.now(UTC),
+                    instrument_ids=args.instrument,
+                )
+
+            built = [r for r in results if r.status == STATUS_BUILT]
+            failed = [r for r in results if r.status == STATUS_FAILED]
+            print("Adjusted prices built:")
+            print(f"  Instruments built : {len(built)}")
+            print(f"  Rows written      : {sum(r.rows_written for r in built)}")
+            print(f"  Skipped (no raw)  : {len(results) - len(built) - len(failed)}")
+            print(f"  Failed            : {len(failed)}")
+            for r in failed:
+                print(f"    {r.instrument_id}: {r.error}", file=sys.stderr)
+            return 1 if failed else 0
         else:
             parser.parse_args(["ingest", "--help"])
             return 0

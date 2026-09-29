@@ -11,7 +11,9 @@ Rules obeyed (AGENTS.md):
 from __future__ import annotations
 
 import logging
+import time
 import uuid
+from collections.abc import Callable
 from dataclasses import replace
 from datetime import UTC, date, datetime, timedelta
 from typing import TYPE_CHECKING
@@ -24,6 +26,7 @@ from vcp_scanner.data.schema import (
 )
 
 if TYPE_CHECKING:
+    from vcp_scanner.data.identity import InstrumentResolver
     from vcp_scanner.data.providers.base import MarketDataProvider
     from vcp_scanner.data.repositories.duckdb_market_repository import (
         DuckDBMarketDataRepository,
@@ -65,10 +68,19 @@ class IngestionWorker:
         provider: MarketDataProvider,
         repository: DuckDBMarketDataRepository,
         code_version: str = "dev",
+        resolver: InstrumentResolver | None = None,
+        *,
+        sleep: Callable[[float], None] = time.sleep,
+        monotonic: Callable[[], float] = time.monotonic,
     ) -> None:
         self._provider = provider
         self._repo = repository
         self._code_version = code_version
+        self._resolver = resolver
+        # Injected so tests can verify throttling without real waiting.
+        self._sleep = sleep
+        self._monotonic = monotonic
+        self._last_request_at: float | None = None
 
     # ------------------------------------------------------------------
     # Public API
@@ -106,6 +118,7 @@ class IngestionWorker:
         Returns:
             The completed IngestionRunRow with final status and counts.
         """
+        instrument = self._canonical_instrument(instrument)
         now_utc: datetime = ingestion_time or datetime.now(UTC)
         run_id = str(uuid.uuid4())
 
@@ -127,10 +140,8 @@ class IngestionWorker:
         error_count = 0
 
         try:
-            effective_start = self._effective_start(
-                instrument, start, force, as_of_date=now_utc.date()
-            )
-            if effective_start is None:
+            missing = self._missing_ranges(instrument, start, end, force, as_of_date=now_utc.date())
+            if not missing:
                 # All dates in range already covered; nothing to do.
                 logger.info(
                     "Ingest skipped: %s [%s, %s] already fully covered locally.",
@@ -153,18 +164,22 @@ class IngestionWorker:
             caps = self._provider.get_capabilities()
             chunk_size = caps.daily_history_max_request_days
 
-            chunks = _date_chunks(effective_start, end, chunk_size)
+            chunks = [
+                c for r_start, r_end in missing for c in _date_chunks(r_start, r_end, chunk_size)
+            ]
             logger.info(
-                "Ingesting %s from %s to %s in %d chunk(s) (max %d days).",
+                "Ingesting %s: %d missing range(s) %s in %d chunk(s) (max %d days).",
                 instrument.instrument_id,
-                effective_start,
-                end,
+                len(missing),
+                missing,
                 len(chunks),
                 chunk_size,
             )
+            min_interval = self._min_request_interval(caps.historical_requests_per_second)
 
             for chunk_start, chunk_end in chunks:
                 try:
+                    self._throttle(min_interval)
                     candles: list[Candle] = self._provider.get_historical_daily(
                         instrument, chunk_start, chunk_end
                     )
@@ -199,9 +214,6 @@ class IngestionWorker:
             logger.exception("Fatal error ingesting %s", instrument.instrument_id)
             error_count += 1
             status = "FAILED"
-            records_received = records_received
-            records_written = records_written
-            records_rejected = records_rejected
 
         completed_run = replace(
             run,
@@ -228,33 +240,92 @@ class IngestionWorker:
     # Private helpers
     # ------------------------------------------------------------------
 
-    def _effective_start(
+    def _canonical_instrument(self, instrument: Instrument) -> Instrument:
+        """Remap a provider-reported instrument to its permanent ID (ISIN, then symbol).
+
+        Unknown instruments keep the ID the provider reported (already minted by the
+        provider through ``vcp_scanner.data.identity``), so first-time ingestion works.
+        """
+        if self._resolver is None:
+            return instrument
+        resolved = self._resolver.resolve(
+            isin=instrument.isin,
+            symbol=instrument.symbol,
+            exchange=instrument.exchange,
+        )
+        if resolved is None or resolved == instrument.instrument_id:
+            return instrument
+        logger.info(
+            "Remapped instrument %s -> permanent id %s", instrument.instrument_id, resolved
+        )
+        return replace(instrument, instrument_id=resolved)
+
+    def _missing_ranges(
         self,
         instrument: Instrument,
         requested_start: date,
+        requested_end: date,
         force: bool,
         as_of_date: date | None = None,
-    ) -> date | None:
-        """Return the actual start date after checking local coverage.
+    ) -> list[tuple[date, date]]:
+        """Return the date ranges inside [requested_start, requested_end] not yet stored.
 
-        If ``force=True`` return ``requested_start``.
-        If we have data up to ``end`` already, return ``None`` (skip).
-        Otherwise return the day after the latest stored date.
+        With ``force=True`` the whole request is returned. Otherwise local coverage is
+        treated as one span [earliest, latest] and only what lies outside it is fetched:
+
+        * a *head* range when the request starts before the earliest stored bar, so a
+          backfill (e.g. 2020-2024 after 2023-2024 was ingested) still fetches the old
+          history instead of silently skipping it;
+        * a *tail* range after the latest stored bar, up to today, as before.
+
+        An empty list means the request is fully covered. Interior holes (a missing day
+        inside the span) are the gap detector's job, not this method's.
         """
         if force:
-            return requested_start
+            return [(requested_start, requested_end)]
 
         latest_ts = self._repo.latest_timestamp(instrument.instrument_id)
-        if latest_ts is None:
-            return requested_start
+        earliest_ts = self._repo.earliest_timestamp(instrument.instrument_id)
+        if latest_ts is None or earliest_ts is None:
+            return [(requested_start, requested_end)]
 
-        latest_date = latest_ts.date()
-        cutoff_date = as_of_date or datetime.now(UTC).date()
-        # Shift start to day after last stored date
-        next_needed = latest_date + timedelta(days=1)
-        if next_needed > cutoff_date:
-            return None  # fully up to date
-        return max(next_needed, requested_start)
+        earliest = earliest_ts.date()
+        latest = latest_ts.date()
+        cutoff = as_of_date or datetime.now(UTC).date()
+
+        ranges: list[tuple[date, date]] = []
+
+        if requested_start < earliest:
+            head_end = min(requested_end, earliest - timedelta(days=1))
+            if requested_start <= head_end:
+                ranges.append((requested_start, head_end))
+
+        tail_start = max(latest + timedelta(days=1), requested_start)
+        # Nothing to fetch after ``latest`` if we are already current (or the request ends
+        # before it). Never look past today.
+        if tail_start <= min(requested_end, cutoff):
+            ranges.append((tail_start, requested_end))
+
+        return ranges
+
+    @staticmethod
+    def _min_request_interval(requests_per_second: float) -> float:
+        """Seconds between provider calls implied by the provider's rate limit."""
+        if requests_per_second <= 0:
+            return 0.0
+        return 1.0 / requests_per_second
+
+    def _throttle(self, min_interval: float) -> None:
+        """Sleep just long enough to stay under the provider's requests-per-second limit.
+
+        The clock is shared across instruments (one worker, many ``ingest_instrument``
+        calls), so a bulk run respects the limit overall, not only within one instrument.
+        """
+        if min_interval > 0 and self._last_request_at is not None:
+            wait = min_interval - (self._monotonic() - self._last_request_at)
+            if wait > 0:
+                self._sleep(wait)
+        self._last_request_at = self._monotonic()
 
     def _validate_and_build_raw(
         self,

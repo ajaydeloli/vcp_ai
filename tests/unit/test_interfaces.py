@@ -111,6 +111,9 @@ class DummyMarketDataRepository:
     def latest_timestamp(self, instrument_id: str) -> datetime | None:
         return None
 
+    def earliest_timestamp(self, instrument_id: str) -> datetime | None:
+        return None
+
 
 class DummyUniverseRepository:
     def save_snapshot(

@@ -8,10 +8,12 @@ flag is no longer reported by the provider.
 
 from __future__ import annotations
 
+import dataclasses
 import logging
 from datetime import UTC, date, datetime
 from typing import TYPE_CHECKING
 
+from vcp_scanner.data.identity import InstrumentResolver, canonical_instrument_id
 from vcp_scanner.data.providers.base import (
     SecurityMasterProvider,
     SurveillanceProvider,
@@ -35,15 +37,20 @@ class SecurityMasterIngestionWorker:
        that are no longer active.
     """
 
+    # Source stamp for rows whose provider record carries no ``source`` of its own.
+    PROVIDER_NAME = "NSE"
+
     def __init__(
         self,
         store: DuckDBStore,
         security_master_provider: SecurityMasterProvider,
         surveillance_provider: SurveillanceProvider,
+        resolver: InstrumentResolver | None = None,
     ) -> None:
         self._store = store
         self._sm_provider = security_master_provider
         self._surv_provider = surveillance_provider
+        self._resolver = resolver
 
     def run(
         self,
@@ -87,23 +94,42 @@ class SecurityMasterIngestionWorker:
             logger.warning("No security master records returned.")
             return {"security_inserted": 0, "security_unchanged": 0}
 
+        # The NSE listing carries ISIN + symbol. Resolve to the permanent ID first so a
+        # renamed symbol updates its existing instrument instead of forking a new one.
+        records = [
+            dataclasses.replace(
+                rec,
+                instrument_id=canonical_instrument_id(
+                    self._resolver,
+                    rec.instrument_id,
+                    isin=rec.isin,
+                    symbol=rec.symbol,
+                    exchange=rec.exchange,
+                ),
+            )
+            for rec in records
+        ]
+
         inserted = 0
         unchanged = 0
 
         for rec in records:
-            # Check if this instrument already has a current row with
-            # the same key fields (instrument_id, series, exchange).
+            # The logical key of a history row is (instrument_id, valid_from): one instrument
+            # can hold several periods (renames, series moves) side by side. Only the row
+            # for the SAME period is ever superseded, so a multi-period history is kept
+            # whole instead of collapsing to its last row.
             existing = self._store.conn.execute(
                 """
                 SELECT instrument_id, isin, series, exchange,
-                       listing_date, delisting_date
+                       listing_date, delisting_date, symbol, valid_to
                 FROM security_master_history
                 WHERE instrument_id = ?
+                  AND valid_from = ?
                   AND known_to IS NULL
                 ORDER BY known_from DESC
                 LIMIT 1
                 """,
-                [rec.instrument_id],
+                [rec.instrument_id, rec.valid_from],
             ).fetchone()
 
             if existing:
@@ -114,6 +140,8 @@ class SecurityMasterIngestionWorker:
                     ex_exchange,
                     ex_listing,
                     ex_delisting,
+                    ex_symbol,
+                    ex_valid_to,
                 ) = existing
 
                 # If nothing changed, skip
@@ -123,6 +151,8 @@ class SecurityMasterIngestionWorker:
                     and ex_exchange == rec.exchange
                     and ex_listing == rec.listing_date
                     and ex_delisting == rec.delisting_date
+                    and ex_symbol == rec.symbol
+                    and ex_valid_to == rec.valid_to
                 ):
                     unchanged += 1
                     continue
@@ -133,9 +163,10 @@ class SecurityMasterIngestionWorker:
                     UPDATE security_master_history
                     SET known_to = ?
                     WHERE instrument_id = ?
+                      AND valid_from = ?
                       AND known_to IS NULL
                     """,
-                    [known_at, rec.instrument_id],
+                    [known_at, rec.instrument_id, rec.valid_from],
                 )
 
             # Insert new row
@@ -193,7 +224,14 @@ class SecurityMasterIngestionWorker:
         and valid_to.
         """
         logger.info("Fetching surveillance flags from %s to %s", start, end)
-        records = self._surv_provider.get_flags(start, end)
+        # Surveillance lists carry no ISIN, so flags resolve by exchange + symbol.
+        records = [
+            dataclasses.replace(
+                rec,
+                instrument_id=canonical_instrument_id(self._resolver, rec.instrument_id),
+            )
+            for rec in self._surv_provider.get_flags(start, end)
+        ]
 
         # Build set of currently active flags from provider
         active_flags: set[tuple[str, str]] = set()
@@ -205,9 +243,10 @@ class SecurityMasterIngestionWorker:
 
         # 1. Insert new flags that don't already exist
         for rec in records:
+            stage = rec.extra.get("stage")
             existing = self._store.conn.execute(
                 """
-                SELECT 1
+                SELECT stage
                 FROM surveillance_flags_history
                 WHERE instrument_id = ?
                   AND flag_type = ?
@@ -218,8 +257,19 @@ class SecurityMasterIngestionWorker:
             ).fetchone()
 
             if existing:
-                # Flag already tracked as active, skip
-                continue
+                if existing[0] == stage:
+                    # Flag already tracked with the same stage, skip
+                    continue
+                # ASM/GSM stage moved (e.g. II -> III): supersede the old row so the stage
+                # history is kept and the universe sees the current stage.
+                self._store.conn.execute(
+                    """
+                    UPDATE surveillance_flags_history
+                    SET known_to = ?, valid_to = ?
+                    WHERE instrument_id = ? AND flag_type = ? AND known_to IS NULL
+                    """,
+                    [known_at, rec.valid_from, rec.instrument_id, rec.flag],
+                )
 
             self._store.conn.execute(
                 """
@@ -232,7 +282,7 @@ class SecurityMasterIngestionWorker:
                 [
                     rec.instrument_id,
                     rec.flag,
-                    rec.extra.get("stage"),
+                    stage,
                     rec.valid_from,
                     rec.valid_to,
                     rec.source or self.PROVIDER_NAME,
@@ -241,15 +291,24 @@ class SecurityMasterIngestionWorker:
             )
             inserted += 1
 
-        # 2. Close flags that are no longer active
-        # Find all currently open flags in DB
-        open_flags = self._store.conn.execute(
-            """
-            SELECT instrument_id, flag_type
-            FROM surveillance_flags_history
-            WHERE known_to IS NULL
-            """,
-        ).fetchall()
+        # 2. Close flags that are no longer active.
+        # Absence from the feed only means "lapsed" if the provider returns the FULL set
+        # active now (a snapshot, like NSE's ASM/T2T lists). A provider that returns event
+        # history for the requested window sets ``returns_active_snapshot = False``; for
+        # it, absence proves nothing, and closure would wrongly end flags that are still
+        # active. Providers that do not declare it are treated as snapshots (legacy).
+        snapshot = getattr(self._surv_provider, "returns_active_snapshot", True)
+        if not snapshot:
+            logger.info("Surveillance provider returns event history; not closing absent flags.")
+            open_flags: list[tuple[str, str]] = []
+        else:
+            open_flags = self._store.conn.execute(
+                """
+                SELECT instrument_id, flag_type
+                FROM surveillance_flags_history
+                WHERE known_to IS NULL
+                """,
+            ).fetchall()
 
         today = known_at.date()
         for iid, flag_type in open_flags:

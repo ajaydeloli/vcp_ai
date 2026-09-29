@@ -48,6 +48,10 @@ class RSConfig(StrictBaseModel):
     windows_days: list[int] = Field(default_factory=lambda: [63, 126, 189, 252])
     weights: list[float] = Field(default_factory=lambda: [0.40, 0.20, 0.20, 0.20])
     min_history_days: Annotated[int, Field(ge=253)] = 253
+    # An instrument whose latest bar is older than this many calendar days before the
+    # as-of date is not ranked (a suspended/stale name must not carry an old return into
+    # today's percentile). 4 covers a long weekend plus one holiday.
+    max_staleness_days: Annotated[int, Field(ge=0)] = 4
 
     @model_validator(mode="after")
     def validate_weights(self) -> RSConfig:
@@ -318,6 +322,12 @@ class UniverseConfig(StrictBaseModel):
     min_close_price: Annotated[float, Field(ge=0)] = 10.0
     min_daily_turnover_inr: Annotated[float, Field(ge=0)] = 5_000_000.0  # 50 Lakhs
     min_history_days: Annotated[int, Field(ge=253)] = 253
+    # Latest bar older than this many calendar days before the as-of date => not trading.
+    max_staleness_days: Annotated[int, Field(ge=0)] = 30
+    # Operator attestation that the security master covers delisted/merged names for the
+    # whole history (PROJECT_DESIGN 14A). Without it a snapshot is never
+    # POINT_IN_TIME_COMPLETE, whatever the data looks like.
+    survivorship_coverage_verified: bool = False
     exclude_asm_gsm: bool = True
     exclude_trade_to_trade: bool = True
     eligible_series: list[str] = Field(default_factory=lambda: ["EQ", "BE"])
@@ -344,7 +354,7 @@ class DataConfig(StrictBaseModel):
     raw_storage_dir: str = "data/raw"
     canonical_storage_dir: str = "data/canonical"
     primary_provider: str = "kite"
-    secondary_provider: str | None = "dhan"
+    secondary_provider: str | None = "upstox"
     trading_calendar: str = "NSE"
     corporate_actions: CorporateActionsConfig = Field(default_factory=CorporateActionsConfig)
 

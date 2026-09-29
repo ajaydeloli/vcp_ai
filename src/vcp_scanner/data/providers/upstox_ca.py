@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import logging
-import uuid
 from datetime import UTC, date, datetime
 from typing import Any
 
@@ -11,6 +10,7 @@ import requests
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
+from vcp_scanner.data.identity import deterministic_action_id
 from vcp_scanner.domain.corporate_actions import CorporateAction
 from vcp_scanner.domain.enums import CorporateActionType
 from vcp_scanner.domain.market import Instrument
@@ -59,13 +59,22 @@ class UpstoxCorporateActionProvider:
         actions: list[CorporateAction] = []
 
         for instrument in instruments:
+            # Upstox keys equities by ISIN ("NSE_EQ|<ISIN>"), never by trading symbol
+            # (DATA_SPECIFICATION section 6, Identity). Without an ISIN there is no reliable key.
+            if not instrument.isin:
+                logger.warning(
+                    "Skipping Upstox actions for %s: no ISIN to build an instrument key.",
+                    instrument.instrument_id,
+                )
+                continue
+
             try:
-                # The exact Upstox v2 endpoint for corporate actions can vary.
-                # Often it's part of historical market data or a specific endpoint.
-                # Assuming a theoretical /corporate-actions endpoint for this implementation.
+                # UNVERIFIED: the exact Upstox v2 endpoint for corporate actions has not been
+                # confirmed against official docs. Treat Upstox as an unverified secondary
+                # source until the provider spike (DATA_SPECIFICATION section 18A) is done.
                 url = f"{self.BASE_URL}/corporate-actions"
                 params = {
-                    "instrument_key": f"NSE_EQ|{instrument.symbol}",  # Example format
+                    "instrument_key": f"NSE_EQ|{instrument.isin}",
                     "from_date": start.isoformat(),
                     "to_date": end.isoformat(),
                 }
@@ -133,8 +142,22 @@ class UpstoxCorporateActionProvider:
                 num = float(parts[0])
                 den = float(parts[1])
 
+            cash_amount = float(item["amount"]) if item.get("amount") else None
+
+            # Deterministic ID: the same Upstox record maps to the same row on every fetch.
+            action_id = deterministic_action_id(
+                self.PROVIDER_NAME,
+                instrument.isin or instrument.instrument_id,
+                action_type.value,
+                ex_date,
+                num,
+                den,
+                cash_amount,
+                item.get("id"),
+            )
+
             return CorporateAction(
-                corporate_action_id=str(uuid.uuid4()),
+                corporate_action_id=action_id,
                 instrument_id=instrument.instrument_id,
                 isin=instrument.isin,
                 action_type=action_type,
@@ -143,7 +166,7 @@ class UpstoxCorporateActionProvider:
                 ex_date=ex_date,
                 ratio_numerator=num,
                 ratio_denominator=den,
-                cash_amount=float(item["amount"]) if item.get("amount") else None,
+                cash_amount=cash_amount,
                 source_record_id=str(item.get("id", "")),
             )
         except Exception as e:

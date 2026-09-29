@@ -121,8 +121,24 @@ class DuckDBFeatureRepository(FeatureRepository):
 
         self.store.conn.executemany(sql, records)
 
-    def load_daily_features(self, instrument_id: str, as_of: date) -> DailyFeatures | None:
-        sql = """
+    def load_daily_features(
+        self,
+        instrument_id: str,
+        as_of: date,
+        calculation_version: str | None = None,
+    ) -> DailyFeatures | None:
+        """Latest feature row on or before ``as_of``.
+
+        Pass ``calculation_version`` to read one version only. Without it a table holding
+        several versions (e.g. features-1.0.0 rows next to features-1.1.0 after a bump)
+        could return a stale row from the old one, so callers that know their version
+        should always pass it.
+        """
+        version_clause = "AND calculation_version = ?" if calculation_version else ""
+        params: list[object] = [instrument_id, as_of]
+        if calculation_version:
+            params.append(calculation_version)
+        sql = f"""
             SELECT
                 instrument_id, trade_date, sma_20, sma_50, sma_150, sma_200, ema_10, ema_20, ema_50,
                 atr_14, atr_pct_14, high_20, high_50, high_252, low_20, low_50, low_252,
@@ -131,10 +147,10 @@ class DuckDBFeatureRepository(FeatureRepository):
                 rolling_volatility_20, rolling_volatility_50,
                 calculation_version
             FROM technical_features_daily
-            WHERE instrument_id = ? AND trade_date <= ?
+            WHERE instrument_id = ? AND trade_date <= ? {version_clause}
             ORDER BY trade_date DESC LIMIT 1
-        """
-        result = self.store.conn.execute(sql, [instrument_id, as_of]).fetchone()
+        """  # noqa: S608 - the only interpolated text is a fixed literal; values are bound
+        result = self.store.conn.execute(sql, params).fetchone()
         if not result:
             return None
 

@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from vcp_scanner.domain.corporate_actions import (
     CorporateAction,
@@ -47,8 +47,25 @@ class DuckDBCorporateActionRepository:
         self,
         action: CorporateAction,
         known_from: datetime,
-    ) -> None:
-        """Append a raw corporate action observation from a single provider."""
+    ) -> bool:
+        """Append a raw corporate action observation from a single provider.
+
+        Idempotent: an observation already held as current (same ``corporate_action_id``
+        and source) is left untouched, which preserves its original ``known_from`` (the
+        first-seen time the grace-period logic relies on). Returns True if a row was
+        inserted, False if it was already known.
+        """
+        existing = self._store.conn.execute(
+            """
+            SELECT 1 FROM corporate_actions
+            WHERE corporate_action_id = ? AND source = ? AND known_to IS NULL
+            LIMIT 1
+            """,
+            [action.corporate_action_id, action.source],
+        ).fetchone()
+        if existing is not None:
+            return False
+
         self._store.conn.execute(
             """
             INSERT INTO corporate_actions (
@@ -81,6 +98,7 @@ class DuckDBCorporateActionRepository:
                 known_from,
             ],
         )
+        return True
 
     def load_corporate_actions(
         self,
@@ -97,7 +115,7 @@ class DuckDBCorporateActionRepository:
                        action_type,
                        ratio_numerator, ratio_denominator, cash_amount,
                        old_symbol, new_symbol,
-                       source, source_record_id, created_at
+                       source, source_record_id, created_at, known_from
                 FROM corporate_actions
                 WHERE instrument_id = ?
                   AND known_to IS NULL
@@ -113,7 +131,7 @@ class DuckDBCorporateActionRepository:
                        action_type,
                        ratio_numerator, ratio_denominator, cash_amount,
                        old_symbol, new_symbol,
-                       source, source_record_id, created_at
+                       source, source_record_id, created_at, known_from
                 FROM corporate_actions
                 WHERE instrument_id = ?
                   AND known_from <= ?
@@ -282,6 +300,29 @@ class DuckDBCorporateActionRepository:
             ],
         )
 
+    def replace_adjustments(
+        self,
+        instrument_id: str,
+        adjustments: list[CorporateActionAdjustment],
+        known_from: datetime,
+    ) -> None:
+        """Make ``adjustments`` the complete current factor set for an instrument.
+
+        Every currently-open factor row is closed first, so a factor whose resolution
+        became a PROVIDER_CONFLICT (or vanished) is retired rather than left behind.
+        Closed rows stay in the table for as-of reads.
+        """
+        self._store.conn.execute(
+            """
+            UPDATE corporate_action_adjustments
+            SET known_to = ?
+            WHERE instrument_id = ? AND known_to IS NULL
+            """,
+            [known_from, instrument_id],
+        )
+        for adjustment in adjustments:
+            self.save_adjustment(adjustment, known_from=known_from)
+
     def load_adjustments(
         self,
         instrument_id: str,
@@ -329,7 +370,7 @@ class DuckDBCorporateActionRepository:
     # ------------------------------------------------------------------
 
     @staticmethod
-    def _row_to_corporate_action(row: tuple) -> CorporateAction:
+    def _row_to_corporate_action(row: tuple[Any, ...]) -> CorporateAction:
         (
             ca_id,
             iid,
@@ -347,6 +388,7 @@ class DuckDBCorporateActionRepository:
             source,
             source_record_id,
             created_at,
+            known_from,
         ) = row
         return CorporateAction(
             corporate_action_id=ca_id,
@@ -365,10 +407,12 @@ class DuckDBCorporateActionRepository:
             source=source,
             source_record_id=source_record_id,
             created_at=created_at,
+            # First time we saw it: drives the secondary-source grace period.
+            ingested_at=known_from,
         )
 
     @staticmethod
-    def _row_to_resolution(row: tuple) -> CorporateActionResolution:
+    def _row_to_resolution(row: tuple[Any, ...]) -> CorporateActionResolution:
         (
             res_id,
             iid,
@@ -403,7 +447,7 @@ class DuckDBCorporateActionRepository:
         )
 
     @staticmethod
-    def _row_to_adjustment(row: tuple) -> CorporateActionAdjustment:
+    def _row_to_adjustment(row: tuple[Any, ...]) -> CorporateActionAdjustment:
         (
             res_id,
             iid,

@@ -9,6 +9,9 @@ class WeeklyAggregationEngine:
     """Derives weekly prices from daily prices."""
 
     def __init__(self, store: DuckDBStore, source_daily_version: str = "daily-adj-1.0.0") -> None:
+        # ``source_daily_version`` is the label weekly rows are stored under. It is not a
+        # filter: the daily input always comes from ``daily_prices_adjusted_current``, which
+        # exposes exactly one adjustment version per instrument.
         self.store = store
         self.source_daily_version = source_daily_version
 
@@ -27,7 +30,7 @@ class WeeklyAggregationEngine:
                     SUM(volume_adj) AS volume,
                     MAX(high_adj) AS high,
                     MIN(low_adj) AS low
-                FROM daily_prices_adjusted
+                FROM daily_prices_adjusted_current
                 WHERE instrument_id = ?
                 GROUP BY instrument_id, date_trunc('week', trade_date)
             ),
@@ -38,7 +41,7 @@ class WeeklyAggregationEngine:
                     d.trade_date,
                     d.open_adj,
                     d.close_adj
-                FROM daily_prices_adjusted d
+                FROM daily_prices_adjusted_current d
                 WHERE d.instrument_id = ?
             ),
             weekly_ohlcv AS (
@@ -73,5 +76,33 @@ class WeeklyAggregationEngine:
         """
 
         cursor = self.store.conn.cursor()
-        cursor.execute(sql, [instrument_id, instrument_id, self.source_daily_version])
-        return 1
+        result = cursor.execute(
+            sql, [instrument_id, instrument_id, self.source_daily_version]
+        ).fetchone()
+        written = int(result[0]) if result else 0
+
+        # A week aggregated while still in progress is keyed by its then-last trading day
+        # (week_end). Re-running after the week has advanced upserts a row with a *later*
+        # week_end and would leave the earlier partial row behind, so the same week is
+        # counted twice (e.g. in the 30-week SMA). Drop every row whose week is present in
+        # the daily data but whose week_end is no longer that week's last trading day.
+        cursor.execute(
+            """
+            DELETE FROM weekly_prices
+            WHERE instrument_id = ?
+              AND source_daily_version = ?
+              AND date_trunc('week', week_end) IN (
+                  SELECT DISTINCT date_trunc('week', trade_date)
+                  FROM daily_prices_adjusted_current
+                  WHERE instrument_id = ?
+              )
+              AND week_end NOT IN (
+                  SELECT MAX(trade_date)
+                  FROM daily_prices_adjusted_current
+                  WHERE instrument_id = ?
+                  GROUP BY date_trunc('week', trade_date)
+              )
+            """,
+            [instrument_id, self.source_daily_version, instrument_id, instrument_id],
+        )
+        return written

@@ -47,6 +47,10 @@ class MarketDataRepository(Protocol):
         """Return the latest timestamp recorded for this instrument, or None."""
         ...
 
+    def earliest_timestamp(self, instrument_id: str) -> datetime | None:
+        """Return the earliest timestamp recorded for this instrument, or None."""
+        ...
+
 
 @runtime_checkable
 class InstrumentRepository(Protocol):
@@ -123,8 +127,11 @@ class CorporateActionRepository(Protocol):
         self,
         action: CorporateAction,
         known_from: datetime,
-    ) -> None:
-        """Append a raw corporate action observation from a single provider."""
+    ) -> bool:
+        """Append a raw corporate action observation from a single provider.
+
+        Idempotent: returns False (and writes nothing) if it is already held as current.
+        """
         ...
 
     def load_corporate_actions(
@@ -166,6 +173,15 @@ class CorporateActionRepository(Protocol):
         """Append an adjustment factor row."""
         ...
 
+    def replace_adjustments(
+        self,
+        instrument_id: str,
+        adjustments: list[CorporateActionAdjustment],
+        known_from: datetime,
+    ) -> None:
+        """Make ``adjustments`` the full current factor set, retiring all other open rows."""
+        ...
+
     def load_adjustments(
         self,
         instrument_id: str,
@@ -189,7 +205,12 @@ class FeatureRepository(Protocol):
         """Save computed weekly aggregated prices."""
         ...
 
-    def load_daily_features(self, instrument_id: str, as_of: date) -> DailyFeatures | None:
+    def load_daily_features(
+        self,
+        instrument_id: str,
+        as_of: date,
+        calculation_version: str | None = None,
+    ) -> DailyFeatures | None:
         """Load the daily feature vector for an instrument on a specific date."""
         ...
 

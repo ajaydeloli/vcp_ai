@@ -128,6 +128,33 @@ CREATE TABLE IF NOT EXISTS daily_prices_adjusted (
 )
 """
 
+# Once corporate actions change, an instrument can hold several ``adjustment_version``s
+# side by side (old ones stay reproducible). Every reader that aggregates adjusted prices
+# (features, weekly bars, RS) must see exactly ONE version per instrument, otherwise sums
+# double and joins fan out. This view is that single source: for each instrument it keeps
+# only the most recently computed version. The version is chosen per (instrument, version)
+# by its newest computed_at, so rows inside one version are never filtered out.
+_DDL_DAILY_PRICES_ADJUSTED_CURRENT = """
+CREATE OR REPLACE VIEW daily_prices_adjusted_current AS
+WITH ranked_versions AS (
+    SELECT
+        instrument_id,
+        adjustment_version,
+        ROW_NUMBER() OVER (
+            PARTITION BY instrument_id
+            ORDER BY MAX(computed_at) DESC, adjustment_version DESC
+        ) AS rn
+    FROM daily_prices_adjusted
+    GROUP BY instrument_id, adjustment_version
+)
+SELECT a.*
+FROM daily_prices_adjusted a
+JOIN ranked_versions v
+  ON a.instrument_id = v.instrument_id
+ AND a.adjustment_version = v.adjustment_version
+WHERE v.rn = 1
+"""
+
 _DDL_CORPORATE_ACTIONS = """
 CREATE TABLE IF NOT EXISTS corporate_actions (
     corporate_action_id VARCHAR NOT NULL,
@@ -369,6 +396,7 @@ _ALL_DDL: list[tuple[str, str]] = [
     ("raw_ohlcv", _DDL_RAW_OHLCV),
     ("daily_prices", _DDL_DAILY_PRICES),
     ("daily_prices_adjusted", _DDL_DAILY_PRICES_ADJUSTED),
+    ("daily_prices_adjusted_current", _DDL_DAILY_PRICES_ADJUSTED_CURRENT),
     ("corporate_actions", _DDL_CORPORATE_ACTIONS),
     ("corporate_action_resolution", _DDL_CORPORATE_ACTION_RESOLUTION),
     ("corporate_action_adjustments", _DDL_CORPORATE_ACTION_ADJUSTMENTS),

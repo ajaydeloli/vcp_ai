@@ -408,3 +408,106 @@ def test_latest_timestamp_correct(
     latest = repo.latest_timestamp(INSTRUMENT.instrument_id)
     assert latest is not None
     assert latest.date() == date(2024, 1, 4)
+
+
+# ---------------------------------------------------------------------------
+# Review fixes: backfill of older history, incremental tail, rate-limit throttle
+# ---------------------------------------------------------------------------
+
+
+def _calls(provider: FakeMarketDataProvider) -> list[tuple[date, date]]:
+    return [
+        (c["start"], c["end"]) for c in provider.call_log if c["method"] == "get_historical_daily"
+    ]
+
+
+def test_backfill_fetches_history_older_than_stored_data() -> None:
+    """Requesting 2020-2024 after 2023-2024 was ingested must fetch the missing 2020-2022."""
+    all_dates = [date(2024, 1, 1) + timedelta(days=i) for i in range(20)]
+    provider = FakeMarketDataProvider(
+        candles_by_id={INSTRUMENT.instrument_id: _make_candles(INSTRUMENT.instrument_id, all_dates)}
+    )
+    s = DuckDBStore(":memory:")
+    s.migrate()
+    repo = DuckDBMarketDataRepository(s)
+    w = IngestionWorker(provider=provider, repository=repo)
+    t = datetime(2024, 3, 1, 9, 0, tzinfo=UTC)
+
+    # First: only the later part.
+    w.ingest_instrument(INSTRUMENT, date(2024, 1, 10), date(2024, 1, 20), ingestion_time=t)
+    provider.call_log.clear()
+
+    # Second: a wider window that starts earlier. Old history must be requested.
+    w.ingest_instrument(INSTRUMENT, date(2024, 1, 1), date(2024, 1, 20), ingestion_time=t)
+
+    assert _calls(provider) == [(date(2024, 1, 1), date(2024, 1, 9))]
+    earliest = repo.earliest_timestamp(INSTRUMENT.instrument_id)
+    assert earliest is not None and earliest.date() == date(2024, 1, 1)
+
+
+def test_incremental_fetch_only_requests_new_tail() -> None:
+    all_dates = [date(2024, 1, 1) + timedelta(days=i) for i in range(20)]
+    provider = FakeMarketDataProvider(
+        candles_by_id={INSTRUMENT.instrument_id: _make_candles(INSTRUMENT.instrument_id, all_dates)}
+    )
+    s = DuckDBStore(":memory:")
+    s.migrate()
+    repo = DuckDBMarketDataRepository(s)
+    w = IngestionWorker(provider=provider, repository=repo)
+    t = datetime(2024, 3, 1, 9, 0, tzinfo=UTC)
+
+    w.ingest_instrument(INSTRUMENT, date(2024, 1, 1), date(2024, 1, 10), ingestion_time=t)
+    provider.call_log.clear()
+    w.ingest_instrument(INSTRUMENT, date(2024, 1, 1), date(2024, 1, 20), ingestion_time=t)
+
+    assert _calls(provider) == [(date(2024, 1, 11), date(2024, 1, 20))]
+
+
+def test_fully_covered_request_makes_no_provider_call() -> None:
+    dates = [date(2024, 1, 1) + timedelta(days=i) for i in range(10)]
+    provider = FakeMarketDataProvider(
+        candles_by_id={INSTRUMENT.instrument_id: _make_candles(INSTRUMENT.instrument_id, dates)}
+    )
+    s = DuckDBStore(":memory:")
+    s.migrate()
+    w = IngestionWorker(provider=provider, repository=DuckDBMarketDataRepository(s))
+    t = datetime(2024, 3, 1, 9, 0, tzinfo=UTC)
+
+    w.ingest_instrument(INSTRUMENT, dates[0], dates[-1], ingestion_time=t)
+    provider.call_log.clear()
+    w.ingest_instrument(INSTRUMENT, dates[0], dates[-1], ingestion_time=t)
+
+    assert _calls(provider) == []
+
+
+def test_requests_are_throttled_to_provider_rate_limit() -> None:
+    dates = [date(2024, 1, 2) + timedelta(days=i) for i in range(10)]
+    provider = FakeMarketDataProvider(
+        candles_by_id={INSTRUMENT.instrument_id: _make_candles(INSTRUMENT.instrument_id, dates)},
+        max_request_days=2,  # 5 chunks
+    )
+    caps = provider.get_capabilities()
+    assert caps.historical_requests_per_second > 0
+
+    now = [0.0]
+    sleeps: list[float] = []
+
+    def fake_sleep(seconds: float) -> None:
+        sleeps.append(seconds)
+        now[0] += seconds
+
+    s = DuckDBStore(":memory:")
+    s.migrate()
+    w = IngestionWorker(
+        provider=provider,
+        repository=DuckDBMarketDataRepository(s),
+        sleep=fake_sleep,
+        monotonic=lambda: now[0],
+    )
+    w.ingest_instrument(
+        INSTRUMENT, dates[0], dates[-1], ingestion_time=datetime(2024, 2, 1, tzinfo=UTC), force=True
+    )
+
+    interval = 1.0 / caps.historical_requests_per_second
+    assert len(sleeps) == 4  # 5 requests -> 4 waits (none before the first)
+    assert all(abs(x - interval) < 1e-9 for x in sleeps)

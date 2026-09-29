@@ -15,6 +15,7 @@ joinable:
 
 from __future__ import annotations
 
+import uuid
 from typing import Protocol, runtime_checkable
 
 _SEPARATOR = "|"
@@ -30,6 +31,20 @@ def symbol_from_instrument_id(instrument_id: str) -> str | None:
     if _SEPARATOR not in instrument_id:
         return None
     return instrument_id.split(_SEPARATOR, 1)[1] or None
+
+
+_ACTION_ID_NAMESPACE = uuid.UUID("6f0c1f4e-3b0a-4d6e-9a53-0d1f6b7f3c11")
+
+
+def deterministic_action_id(source: str, *parts: object) -> str:
+    """Stable ID for a provider's corporate-action observation.
+
+    Providers used to mint a random uuid4 per fetch, so re-running an ingest duplicated
+    every row. The same observation (same source and same identifying fields) now always
+    maps to the same ID, which lets the repository skip what it already holds.
+    """
+    key = "|".join([source.upper(), *("" if p is None else str(p) for p in parts)])
+    return str(uuid.uuid5(_ACTION_ID_NAMESPACE, key))
 
 
 @runtime_checkable
@@ -52,17 +67,19 @@ def canonical_instrument_id(
     instrument_id: str,
     *,
     isin: str | None = None,
+    symbol: str | None = None,
     exchange: str = "NSE",
 ) -> str:
     """Return the permanent ID for a provider-reported ``instrument_id``.
 
+    ``symbol`` is optional: when omitted it is recovered from a minted-form ID.
     With no resolver, or when the instrument is unknown, the reported ID is kept.
     """
     if resolver is None:
         return instrument_id
     resolved = resolver.resolve(
         isin=isin,
-        symbol=symbol_from_instrument_id(instrument_id),
+        symbol=symbol or symbol_from_instrument_id(instrument_id),
         exchange=exchange,
     )
     return resolved or instrument_id

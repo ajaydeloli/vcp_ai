@@ -76,7 +76,7 @@ class GapDetector:
     ) -> DataQualityEvent:
         is_split_like, expected_ratio = self._is_split_like(prev.close, curr.open)
 
-        context = {
+        context: dict[str, str | float | int | None] = {
             "prev_date": prev.timestamp.date().isoformat(),
             "curr_date": curr.timestamp.date().isoformat(),
             "prev_close": prev.close,

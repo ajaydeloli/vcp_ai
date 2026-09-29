@@ -45,7 +45,7 @@ class DailyFeatureEngine:
                         ABS(low_adj - LAG(close_adj) OVER w_all)
                     ) END AS true_range,
                     (close_adj - LAG(close_adj) OVER w_all) / NULLIF(LAG(close_adj) OVER w_all, 0) AS daily_return
-                FROM daily_prices_adjusted
+                FROM daily_prices_adjusted_current
                 WHERE instrument_id = ?
                 WINDOW w_all AS (PARTITION BY instrument_id ORDER BY trade_date)
             ),
@@ -147,7 +147,5 @@ class DailyFeatureEngine:
         """
 
         cursor = self.store.conn.cursor()
-        cursor.execute(sql, [instrument_id, self.calculation_version])
-        # Returns number of rows inserted/updated
-        # Since standard duckdb python API rowcount is often -1, we'll return an estimate or just 1.
-        return 1
+        result = cursor.execute(sql, [instrument_id, self.calculation_version]).fetchone()
+        return int(result[0]) if result else 0

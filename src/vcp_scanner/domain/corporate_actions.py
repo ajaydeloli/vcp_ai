@@ -2,8 +2,9 @@
 
 from dataclasses import dataclass
 from datetime import date, datetime
+from enum import StrEnum
 
-from vcp_scanner.domain.enums import CorporateActionType, StrEnum
+from vcp_scanner.domain.enums import CorporateActionType
 
 
 class CorporateActionStatus(StrEnum):
@@ -13,6 +14,18 @@ class CorporateActionStatus(StrEnum):
     SINGLE_SOURCE = "SINGLE_SOURCE"
     PROVIDER_CONFLICT = "PROVIDER_CONFLICT"
     MANUAL_OVERRIDE = "MANUAL_OVERRIDE"
+
+
+def status_allows_adjustment(status: CorporateActionStatus) -> bool:
+    """Whether a resolution status may feed adjustment factors (DATABASE_SCHEMA 17A).
+
+    Only CONFIRMED, SINGLE_SOURCE and MANUAL_OVERRIDE do. PROVIDER_CONFLICT blocks.
+    """
+    return status in (
+        CorporateActionStatus.CONFIRMED,
+        CorporateActionStatus.SINGLE_SOURCE,
+        CorporateActionStatus.MANUAL_OVERRIDE,
+    )
 
 
 @dataclass(frozen=True, slots=True)

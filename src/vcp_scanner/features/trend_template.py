@@ -184,8 +184,8 @@ class TrendTemplateEngine:
             )
         close = closes[0].close
         if len(closes) < needed:
-            # Phase 4 SMAs are computed over partial windows on short history, so the engine
-            # enforces the warm-up itself instead of trusting non-NULL feature values.
+            # Phase 4 features are NULL until their window is full; this warm-up guard is a
+            # second layer so the engine never depends on feature values from a short history.
             return self._unavailable(
                 instrument_id,
                 as_of_date,

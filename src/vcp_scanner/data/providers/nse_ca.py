@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import logging
-import uuid
 from datetime import UTC, date, datetime
 from typing import Any
 
@@ -11,7 +10,7 @@ import requests
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
-from vcp_scanner.data.identity import mint_instrument_id
+from vcp_scanner.data.identity import deterministic_action_id, mint_instrument_id
 from vcp_scanner.domain.corporate_actions import CorporateAction
 from vcp_scanner.domain.enums import CorporateActionType
 from vcp_scanner.domain.market import Instrument
@@ -131,8 +130,19 @@ class NSECorporateActionProvider:
             # so a renamed symbol still lands on the instrument's permanent ID.
             symbol = item.get("symbol", "")
 
+            # Deterministic ID: the same NSE record maps to the same row on every fetch.
+            action_id = deterministic_action_id(
+                self.PROVIDER_NAME,
+                item.get("isin") or symbol,
+                action_type.value,
+                ex_date,
+                num,
+                den,
+                item.get("ndStartDate"),
+            )
+
             return CorporateAction(
-                corporate_action_id=str(uuid.uuid4()),
+                corporate_action_id=action_id,
                 instrument_id=mint_instrument_id("NSE", symbol),
                 isin=item.get("isin"),
                 action_type=action_type,

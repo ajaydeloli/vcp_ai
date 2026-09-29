@@ -1,4 +1,4 @@
-"""NSE Security Master Provider (DATA_SPECIFICATION §14, §14A).
+"""NSE Security Master Provider (DATA_SPECIFICATION §14; PROJECT_DESIGN §14A).
 
 Fetches instrument listing/delisting/series data from NSE's official
 equity information endpoints and archives.
@@ -49,7 +49,7 @@ class NSESecurityMasterProvider:
     For historical delistings, NSE maintains a separate archive page.
     This provider covers the primary live listing endpoint and the
     per-symbol metadata endpoint. The delisting archive is a separate
-    spike item whose coverage must be verified (DATA_SPECIFICATION §14A).
+    spike item whose coverage must be verified (PROJECT_DESIGN §14A).
     """
 
     PROVIDER_NAME = "NSE"
@@ -159,7 +159,8 @@ class NSESecurityMasterProvider:
             if resp.status_code != 200:
                 logger.warning("NSE meta-info for %s failed: %s", symbol, resp.status_code)
                 return None
-            return resp.json()
+            data: dict[str, Any] | None = resp.json()
+            return data
         except Exception as e:
             logger.warning("NSE meta-info error for %s: %s", symbol, e)
             return None

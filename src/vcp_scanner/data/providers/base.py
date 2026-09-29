@@ -94,7 +94,13 @@ class SurveillanceProvider(Protocol):
     """Surveillance flags provider, e.g. ASM/GSM/T2T/BE history (PROJECT_DESIGN section 14A)."""
 
     def get_flags(self, start: date, end: date) -> list[SurveillanceRecord]:
-        """Fetch surveillance flag events in the date range."""
+        """Fetch surveillance flag events in the date range.
+
+        Contract: a provider that returns the full set of flags active *now*, regardless of
+        the window, sets ``returns_active_snapshot = True`` (the default assumed by the
+        ingestion worker); flags absent from such a feed are closed. A provider that returns
+        only events inside the window must set it to ``False``, so absent flags are kept.
+        """
         ...
 
 

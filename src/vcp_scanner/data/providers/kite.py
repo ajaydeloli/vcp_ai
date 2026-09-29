@@ -83,7 +83,9 @@ class KiteProvider:
                     exchange=exchange,
                     name=row.get("name"),
                     isin=row.get("isin"),
-                    series=row.get("segment"),
+                    # Kite reports the market segment ("NSE"), not the series (EQ/BE/...).
+                    # Series comes from the NSE security master.
+                    series=None,
                 )
             )
 

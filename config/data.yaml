@@ -5,5 +5,5 @@ duckdb_path: data/vcp_scanner.duckdb
 raw_storage_dir: data/raw
 canonical_storage_dir: data/canonical
 primary_provider: kite
-secondary_provider: dhan
+secondary_provider: upstox
 trading_calendar: NSE

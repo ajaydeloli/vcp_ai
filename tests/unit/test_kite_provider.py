@@ -66,7 +66,8 @@ def test_get_instruments(mock_kiteconnect) -> None:
 
     assert len(instruments) == 1
     assert instruments[0].symbol == "RELIANCE"
-    assert instruments[0].instrument_id == "RELIANCE"
+    # Canonical ID minted by vcp_scanner.data.identity, shared with every NSE provider.
+    assert instruments[0].instrument_id == "NSE_EQ|RELIANCE"
 
     mock_kiteconnect.instruments.assert_called_once_with("NSE")
 

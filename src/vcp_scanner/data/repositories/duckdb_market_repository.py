@@ -23,6 +23,7 @@ from datetime import UTC, date, datetime
 from typing import TYPE_CHECKING
 
 from vcp_scanner.data.schema import (
+    DailyPriceAdjustedRow,
     IngestionRunRow,
     OHLCValidationResult,
     RawOHLCVRow,
@@ -214,6 +215,25 @@ class DuckDBMarketDataRepository:
         d = row[0]  # DuckDB returns a date object
         return datetime(d.year, d.month, d.day, tzinfo=UTC)
 
+    def earliest_timestamp(self, instrument_id: str) -> datetime | None:
+        """Return the earliest trade_date recorded for this instrument (current rows only).
+
+        Returns ``None`` if no data exists. Together with ``latest_timestamp`` this lets the
+        ingestion worker detect a backfill that reaches before the stored history.
+        """
+        row = self._store.conn.execute(
+            """
+            SELECT MIN(trade_date) FROM daily_prices
+            WHERE instrument_id = ? AND known_to IS NULL
+            """,
+            [instrument_id],
+        ).fetchone()
+
+        if row is None or row[0] is None:
+            return None
+        d = row[0]
+        return datetime(d.year, d.month, d.day, tzinfo=UTC)
+
     # ------------------------------------------------------------------
     # Extended: point-in-time read (not in Protocol, used by research layer)
     # ------------------------------------------------------------------
@@ -265,6 +285,141 @@ class DuckDBMarketDataRepository:
                 )
             )
         return candles
+
+    # ------------------------------------------------------------------
+    # Adjusted prices (derived, rebuildable; DATABASE_SCHEMA section 14)
+    # ------------------------------------------------------------------
+
+    def save_adjusted_daily(self, rows: list[DailyPriceAdjustedRow]) -> int:
+        """Persist derived adjusted bars, all-or-nothing.
+
+        Keyed by ``(instrument_id, trade_date, adjustment_version)``. A different
+        version never touches another version's rows; re-saving the same version
+        refreshes its values and ``computed_at`` (idempotent rebuild).
+
+        Returns the number of rows written.
+        """
+        if not rows:
+            return 0
+
+        params = [
+            [
+                r.instrument_id,
+                r.trade_date,
+                r.open_adj,
+                r.high_adj,
+                r.low_adj,
+                r.close_adj,
+                r.volume_adj,
+                r.adjustment_version,
+                r.price_factor_applied,
+                r.volume_factor_applied,
+                r.computed_from_snapshot_id,
+                r.computed_at,
+            ]
+            for r in rows
+        ]
+        conn = self._store.conn
+        conn.execute("BEGIN TRANSACTION")
+        try:
+            conn.executemany(
+                """
+                INSERT INTO daily_prices_adjusted (
+                    instrument_id, trade_date,
+                    open_adj, high_adj, low_adj, close_adj, volume_adj,
+                    adjustment_version,
+                    price_factor_applied, volume_factor_applied,
+                    computed_from_snapshot_id, computed_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT (instrument_id, trade_date, adjustment_version) DO UPDATE SET
+                    open_adj = EXCLUDED.open_adj,
+                    high_adj = EXCLUDED.high_adj,
+                    low_adj = EXCLUDED.low_adj,
+                    close_adj = EXCLUDED.close_adj,
+                    volume_adj = EXCLUDED.volume_adj,
+                    price_factor_applied = EXCLUDED.price_factor_applied,
+                    volume_factor_applied = EXCLUDED.volume_factor_applied,
+                    computed_from_snapshot_id = EXCLUDED.computed_from_snapshot_id,
+                    computed_at = EXCLUDED.computed_at
+                """,
+                params,
+            )
+            conn.execute("COMMIT")
+        except Exception:
+            conn.execute("ROLLBACK")
+            raise
+        return len(rows)
+
+    def load_adjusted_daily(
+        self,
+        instrument_id: str,
+        start: date,
+        end: date,
+        adjustment_version: str | None = None,
+    ) -> list[DailyPriceAdjustedRow]:
+        """Load adjusted bars in [start, end].
+
+        With no ``adjustment_version`` the instrument's *current* version is read (the
+        most recently computed one, via ``daily_prices_adjusted_current``).
+        """
+        if adjustment_version is None:
+            source, version_clause, extra = "daily_prices_adjusted_current", "", []
+        else:
+            source = "daily_prices_adjusted"
+            version_clause = "AND adjustment_version = ?"
+            extra = [adjustment_version]
+
+        result = self._store.conn.execute(
+            f"""
+            SELECT instrument_id, trade_date,
+                   open_adj, high_adj, low_adj, close_adj, volume_adj,
+                   adjustment_version, price_factor_applied, volume_factor_applied,
+                   computed_at, computed_from_snapshot_id
+            FROM {source}
+            WHERE instrument_id = ? AND trade_date >= ? AND trade_date <= ? {version_clause}
+            ORDER BY trade_date
+            """,  # noqa: S608 - source/clause are fixed literals above, values are bound
+            [instrument_id, start, end, *extra],
+        ).fetchall()
+
+        return [
+            DailyPriceAdjustedRow(
+                instrument_id=r[0],
+                trade_date=r[1],
+                open_adj=r[2],
+                high_adj=r[3],
+                low_adj=r[4],
+                close_adj=r[5],
+                volume_adj=r[6],
+                adjustment_version=r[7],
+                price_factor_applied=r[8],
+                volume_factor_applied=r[9],
+                computed_at=r[10],
+                computed_from_snapshot_id=r[11],
+            )
+            for r in result
+        ]
+
+    def current_adjustment_version(self, instrument_id: str) -> str | None:
+        """The version downstream readers use for this instrument, or None if never built."""
+        row = self._store.conn.execute(
+            """
+            SELECT adjustment_version FROM daily_prices_adjusted_current
+            WHERE instrument_id = ? LIMIT 1
+            """,
+            [instrument_id],
+        ).fetchone()
+        return None if row is None else str(row[0])
+
+    def load_priced_instrument_ids(self) -> list[str]:
+        """Instruments that have at least one current raw daily bar, sorted."""
+        rows = self._store.conn.execute(
+            """
+            SELECT DISTINCT instrument_id FROM daily_prices
+            WHERE known_to IS NULL ORDER BY instrument_id
+            """
+        ).fetchall()
+        return [str(r[0]) for r in rows]
 
     # ------------------------------------------------------------------
     # Raw OHLCV helpers (append-only, no dedup logic needed here)

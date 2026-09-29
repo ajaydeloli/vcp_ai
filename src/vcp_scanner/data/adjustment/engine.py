@@ -7,11 +7,18 @@ Applies these factors to daily_prices to yield daily_prices_adjusted.
 
 from __future__ import annotations
 
+import bisect
+import hashlib
 import logging
+from collections.abc import Callable
+from datetime import date, datetime
+from decimal import Decimal
 
+from vcp_scanner.data.schema import DailyPriceAdjustedRow
 from vcp_scanner.domain.corporate_actions import (
     CorporateActionAdjustment,
     CorporateActionResolution,
+    status_allows_adjustment,
 )
 from vcp_scanner.domain.enums import CorporateActionType
 from vcp_scanner.domain.market import Candle
@@ -44,19 +51,23 @@ class AdjustmentEngine:
         # Note: In standard price adjustment, today's price is 1.0.
         # An action in the past divides historical prices to match today's scale.
 
+        # Only CONFIRMED / SINGLE_SOURCE / MANUAL_OVERRIDE resolutions may feed factors
+        # (DATABASE_SCHEMA 17A). A PROVIDER_CONFLICT split must never move prices.
         valid = [
-            r
+            (r, r.ex_date)
             for r in resolutions
-            if r.ex_date is not None and self._is_price_affecting(r.action_type)
+            if r.ex_date is not None
+            and self._is_price_affecting(r.action_type)
+            and status_allows_adjustment(r.status)
         ]
-        valid.sort(key=lambda r: r.ex_date, reverse=True)
+        valid.sort(key=lambda pair: pair[1], reverse=True)
 
         adjustments: list[CorporateActionAdjustment] = []
         cum_pf = 1.0
         cum_vf = 1.0
 
         # We walk backwards from most recent to oldest
-        for r in valid:
+        for r, ex_date in valid:
             pf, vf = self._compute_single_factor(r)
 
             # If the action has no mathematical effect, we skip making a record
@@ -69,7 +80,7 @@ class AdjustmentEngine:
             adj = CorporateActionAdjustment(
                 resolution_id=r.resolution_id,
                 instrument_id=r.instrument_id,
-                effective_date=r.ex_date,
+                effective_date=ex_date,
                 price_factor=pf,
                 volume_factor=vf,
                 cumulative_price_factor=cum_pf,
@@ -148,6 +159,85 @@ class AdjustmentEngine:
                 adjusted_candles.append(ac)
 
         return adjusted_candles
+
+    def adjustment_version(self, adjustments: list[CorporateActionAdjustment]) -> str:
+        """Deterministic version label for a set of cumulative adjustment factors.
+
+        The label changes exactly when the factors change (a new corporate action, a
+        corrected ratio), so earlier adjusted history stays reproducible under its own
+        version while the new history is written under a new one
+        (DATABASE_SCHEMA section 14). Identical factors always give the same label, which
+        makes rebuilding idempotent.
+        """
+        if not adjustments:
+            return f"adj-{CALCULATION_VERSION}-none"
+        payload = "|".join(
+            f"{a.effective_date.isoformat()}:{a.cumulative_price_factor!r}"
+            f":{a.cumulative_volume_factor!r}"
+            for a in sorted(adjustments, key=lambda a: a.effective_date)
+        )
+        digest = hashlib.sha256(payload.encode()).hexdigest()[:8]
+        return f"adj-{CALCULATION_VERSION}-{digest}"
+
+    def build_adjusted_rows(
+        self,
+        candles: list[Candle],
+        adjustments: list[CorporateActionAdjustment],
+        *,
+        computed_at: datetime,
+    ) -> list[DailyPriceAdjustedRow]:
+        """Turn raw candles into persistable ``daily_prices_adjusted`` rows.
+
+        Same factor rule as ``apply_factors`` (a bar is adjusted by every action whose
+        ex-date is strictly after it), but each row also records the factors applied and
+        the ``adjustment_version``, and volume stays a float rather than being truncated.
+        A missing volume stays NULL, never 0 (AGENTS.md rule 4). ``computed_at`` is
+        injected by the caller; this method never reads the clock (rule 1).
+        """
+        version = self.adjustment_version(adjustments)
+        lookup = self._factor_lookup(adjustments)
+
+        rows: list[DailyPriceAdjustedRow] = []
+        for candle in candles:
+            trade_date = candle.timestamp.date()
+            pf, vf = lookup(trade_date)
+            rows.append(
+                DailyPriceAdjustedRow(
+                    instrument_id=candle.instrument_id,
+                    trade_date=trade_date,
+                    open_adj=candle.open * pf,
+                    high_adj=candle.high * pf,
+                    low_adj=candle.low * pf,
+                    close_adj=candle.close * pf,
+                    volume_adj=None if candle.volume is None else candle.volume * vf,
+                    adjustment_version=version,
+                    price_factor_applied=Decimal(str(pf)),
+                    volume_factor_applied=Decimal(str(vf)),
+                    computed_at=computed_at,
+                )
+            )
+        return rows
+
+    @staticmethod
+    def _factor_lookup(
+        adjustments: list[CorporateActionAdjustment],
+    ) -> Callable[[date], tuple[float, float]]:
+        """Return ``trade_date -> (price_factor, volume_factor)``.
+
+        The adjustment for ex-date E holds the cumulative factor of E and every later
+        action, so a bar takes the factor of the first adjustment whose ex-date is
+        strictly after it. Bars on or after the last ex-date are unadjusted.
+        """
+        ordered = sorted(adjustments, key=lambda a: a.effective_date)
+        dates = [a.effective_date for a in ordered]
+
+        def lookup(trade_date: date) -> tuple[float, float]:
+            idx = bisect.bisect_right(dates, trade_date)
+            if idx >= len(ordered):
+                return 1.0, 1.0
+            return ordered[idx].cumulative_price_factor, ordered[idx].cumulative_volume_factor
+
+        return lookup
 
     def _is_price_affecting(self, action_type: CorporateActionType) -> bool:
         """SPLIT and BONUS affect price/volume. DIVIDEND is excluded until

@@ -27,16 +27,19 @@ def test_universe_builder_filters_correctly(store):
     # Insert mock data
     now = datetime.now(UTC)
 
-    def insert_price(iid, price, vol):
+    def insert_price(iid, price, vol, bars=253):
+        # 253 consecutive bars ending 2023-01-01 satisfies UniverseConfig.min_history_days.
         store.conn.execute(
             """
             INSERT INTO daily_prices (
                 instrument_id, trade_date, open_raw, high_raw, low_raw, close_raw,
                 volume_raw, primary_provider, data_status, source_run_id, source_hash, known_from
             )
-            VALUES (?, '2023-01-01', ?, ?, ?, ?, ?, 'MOCK', 'OK', 'run', 'hash', ?)
+            SELECT CAST(? AS VARCHAR), CAST(? AS DATE) - CAST(i AS INTEGER),
+                   ?, ?, ?, ?, ?, 'MOCK', 'OK', 'run', 'hash', CAST(? AS TIMESTAMPTZ)
+            FROM range(0, ?) t(i)
             """,
-            [iid, price, price, price, price, vol, now],
+            [iid, date(2023, 1, 1), price, price, price, price, vol, now, bars],
         )
 
     def insert_sm(iid, series):
@@ -97,3 +100,86 @@ def test_universe_builder_filters_correctly(store):
     asm_stock = [m for m in memberships if m.instrument_id == "asm_stock"][0]
     assert asm_stock.eligible is False
     assert "ASM" in asm_stock.exclusion_reason
+
+
+def _seed(store, iid, bars, last=date(2023, 1, 1), price=100.0, vol=100000):
+    now = datetime.now(UTC)
+    store.conn.execute(
+        """
+        INSERT INTO daily_prices (
+                instrument_id, trade_date, open_raw, high_raw, low_raw, close_raw,
+                volume_raw, primary_provider, data_status, source_run_id, source_hash, known_from
+            )
+            SELECT CAST(? AS VARCHAR), CAST(? AS DATE) - CAST(i AS INTEGER),
+                   ?, ?, ?, ?, ?, 'MOCK', 'OK', 'run', 'hash', CAST(? AS TIMESTAMPTZ)
+            FROM range(0, ?) t(i)
+        """,
+        [iid, last, price, price, price, price, vol, now, bars],
+    )
+    store.conn.execute(
+        "INSERT INTO security_master_history (instrument_id, series, exchange, valid_from, known_from)"
+        " VALUES (?, 'EQ', 'NSE', '2000-01-01', ?)",
+        [iid, now],
+    )
+
+
+def _config(**kw):
+    return UniverseConfig(
+        exchange="NSE",
+        min_close_price=10.0,
+        min_daily_turnover_inr=5_000_000.0,
+        eligible_series=["EQ"],
+        **kw,
+    )
+
+
+def test_min_history_days_is_enforced(store):
+    _seed(store, "LONG", 253)
+    _seed(store, "SHORT", 100)
+    _, members = UniverseBuilder(store, _config()).build_snapshot(date(2023, 1, 1))
+    by_id = {m.instrument_id: m for m in members}
+    assert by_id["LONG"].eligible is True
+    assert by_id["SHORT"].eligible is False
+    assert "History" in by_id["SHORT"].exclusion_reason
+
+
+def test_staleness_limit_comes_from_config(store):
+    _seed(store, "OLD", 253, last=date(2022, 12, 1))  # 31 days before as-of
+    strict, m1 = UniverseBuilder(store, _config()).build_snapshot(date(2023, 1, 1))
+    loose, m2 = UniverseBuilder(store, _config(max_staleness_days=60)).build_snapshot(
+        date(2023, 1, 1)
+    )
+    assert m1[0].eligible is False and "Stale" in m1[0].exclusion_reason
+    assert m2[0].eligible is True
+
+
+def _add_delisting(store, iid="GONE"):
+    store.conn.execute(
+        "INSERT INTO security_master_history (instrument_id, series, exchange, valid_from,"
+        " delisting_date, known_from) VALUES (?, 'EQ', 'NSE', '2000-01-01', '2020-01-01', ?)",
+        [iid, datetime.now(UTC)],
+    )
+
+
+def test_survivorship_biased_without_delisting_data(store):
+    _seed(store, "LIVE", 253)
+    snap, _ = UniverseBuilder(store, _config()).build_snapshot(date(2023, 1, 1))
+    assert snap.survivorship_status.value == "BIASED"
+
+
+def test_survivorship_partial_until_coverage_attested(store):
+    _seed(store, "LIVE", 253)
+    _add_delisting(store)
+    snap, _ = UniverseBuilder(store, _config()).build_snapshot(date(2023, 1, 1))
+    assert snap.survivorship_status.value == "PARTIAL"
+
+
+def test_survivorship_complete_needs_data_and_attestation(store):
+    _seed(store, "LIVE", 253)
+    cfg = _config(survivorship_coverage_verified=True)
+    # attestation alone, with no delisting records, is not enough
+    snap, _ = UniverseBuilder(store, cfg).build_snapshot(date(2023, 1, 1))
+    assert snap.survivorship_status.value == "BIASED"
+    _add_delisting(store)
+    snap, _ = UniverseBuilder(store, cfg).build_snapshot(date(2023, 1, 1))
+    assert snap.survivorship_status.value == "POINT_IN_TIME_COMPLETE"

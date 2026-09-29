@@ -35,6 +35,32 @@ class UniverseBuilder:
         encoded = json.dumps(data, sort_keys=True).encode("utf-8")
         return hashlib.sha256(encoded).hexdigest()[:8]
 
+    def _survivorship_status(self, known_at: datetime) -> SurvivorshipStatus:
+        """Derive the survivorship label from what the security master actually holds.
+
+        PROJECT_DESIGN 14A: ``POINT_IN_TIME_COMPLETE`` needs delisted names and historical
+        membership. Nothing in the data can prove completeness, so it is granted only when
+        the operator attests coverage (``survivorship_coverage_verified``) AND delisting
+        records exist. Otherwise the label is honest about the gap, and results must not be
+        used to validate thresholds (``SurvivorshipStatus.may_validate_thresholds``).
+        """
+        row = self._store.conn.execute(
+            """
+            SELECT COUNT(*)
+            FROM security_master_history
+            WHERE delisting_date IS NOT NULL
+              AND known_from <= ?
+              AND (known_to IS NULL OR known_to > ?)
+            """,
+            [known_at, known_at],
+        ).fetchone()
+        delisted_known = int(row[0]) if row else 0
+        if delisted_known == 0:
+            return SurvivorshipStatus.BIASED  # current listings only
+        if not self._config.survivorship_coverage_verified:
+            return SurvivorshipStatus.PARTIAL  # some delisted names, completeness unproven
+        return SurvivorshipStatus.POINT_IN_TIME_COMPLETE
+
     def build_snapshot(self, as_of_date: date) -> tuple[UniverseSnapshot, list[UniverseMembership]]:
         """Calculate universe memberships as of the given date.
 
@@ -67,9 +93,10 @@ class UniverseBuilder:
                 MAX(CASE WHEN rn = 1 THEN close_raw END) as last_price,
                 MAX(CASE WHEN rn = 1 THEN trade_date END) as last_trade_date,
                 AVG(CASE WHEN rn <= 20 THEN traded_value END) as avg_traded_value_20d,
+                -- rn counts every bar known on or before as_of_date, so MAX(rn) is the
+                -- full history length that UniverseConfig.min_history_days is judged against.
                 MAX(rn) as days_history
             FROM windowed
-            WHERE rn <= 20
             GROUP BY instrument_id
         ),
         -- Get the security master status as of as_of_date
@@ -154,11 +181,12 @@ class UniverseBuilder:
             eligible = True
             exclusion_reason = None
 
-            # Staleness gate: if the most recent price is more than 30 calendar days
-            # before as_of_date, treat the instrument as no longer trading.
+            # Staleness gate: if the most recent price is more than max_staleness_days
+            # calendar days before as_of_date, treat the instrument as no longer trading.
+            max_stale = self._config.max_staleness_days
             if last_trade_date is not None:
                 stale_days = (as_of_date - last_trade_date).days
-                if stale_days > 30:
+                if stale_days > max_stale:
                     eligible = False
                     exclusion_reason = (
                         f"Stale: last trade {last_trade_date} is {stale_days}d before {as_of_date}"
@@ -182,9 +210,11 @@ class UniverseBuilder:
                     exclusion_reason = (
                         f"Traded value {avg_traded_value} < {self._config.min_daily_turnover_inr}"
                     )
-                elif days_history is None:
+                elif days_history is None or days_history < self._config.min_history_days:
                     eligible = False
-                    exclusion_reason = "No history"
+                    exclusion_reason = (
+                        f"History {days_history or 0} bars < {self._config.min_history_days}"
+                    )
                 elif self._config.exclude_asm_gsm and (asm_flag == "YES" or gsm_flag == "YES"):
                     eligible = False
                     exclusion_reason = "ASM/GSM flag active"
@@ -215,7 +245,7 @@ class UniverseBuilder:
             created_at=created_at,
             config_hash=self._hash_config(),
             method_version="1.0",
-            survivorship_status=SurvivorshipStatus.POINT_IN_TIME_COMPLETE,
+            survivorship_status=self._survivorship_status(created_at),
         )
 
         eligible_count = sum(m.eligible for m in memberships)

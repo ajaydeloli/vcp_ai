@@ -18,6 +18,7 @@ A PROVIDER_CONFLICT blocks signals for that symbol until superseded.
 from __future__ import annotations
 
 import logging
+import math
 import uuid
 from dataclasses import dataclass
 from datetime import date
@@ -26,6 +27,7 @@ from vcp_scanner.domain.corporate_actions import (
     CorporateAction,
     CorporateActionResolution,
     CorporateActionStatus,
+    status_allows_adjustment,
 )
 from vcp_scanner.domain.enums import CorporateActionType
 
@@ -209,10 +211,7 @@ class ReconciliationEngine:
         if primary.action_type != secondary.action_type:
             conflicts.append("action_type")
 
-        if (
-            primary.ratio_numerator != secondary.ratio_numerator
-            or primary.ratio_denominator != secondary.ratio_denominator
-        ):
+        if not self._ratios_equivalent(primary, secondary):
             conflicts.append("ratio")
 
         if primary.cash_amount != secondary.cash_amount:
@@ -225,6 +224,30 @@ class ReconciliationEngine:
             )
 
         return CorporateActionStatus.CONFIRMED, None
+
+    @staticmethod
+    def _ratios_equivalent(a: CorporateAction, b: CorporateAction) -> bool:
+        """Compare ratios by value, not by spelling: NSE's 10:2 and Upstox's 5:1 agree.
+
+        Cross-multiplication avoids dividing by zero. Both sides missing a ratio agree;
+        exactly one side missing does not.
+        """
+        pairs = (
+            (a.ratio_numerator, a.ratio_denominator),
+            (b.ratio_numerator, b.ratio_denominator),
+        )
+        a_missing = a.ratio_numerator is None or a.ratio_denominator is None
+        b_missing = b.ratio_numerator is None or b.ratio_denominator is None
+        if a_missing or b_missing:
+            return a_missing and b_missing and pairs[0] == pairs[1]
+        assert a.ratio_numerator is not None and a.ratio_denominator is not None
+        assert b.ratio_numerator is not None and b.ratio_denominator is not None
+        return math.isclose(
+            a.ratio_numerator * b.ratio_denominator,
+            b.ratio_numerator * a.ratio_denominator,
+            rel_tol=1e-9,
+            abs_tol=1e-12,
+        )
 
     def _check_grace_period(
         self,
@@ -260,8 +283,4 @@ class ReconciliationEngine:
         Per DATABASE_SCHEMA §17A: only CONFIRMED, SINGLE_SOURCE, and
         MANUAL_OVERRIDE feed corporate_action_adjustments.
         """
-        return status in (
-            CorporateActionStatus.CONFIRMED,
-            CorporateActionStatus.SINGLE_SOURCE,
-            CorporateActionStatus.MANUAL_OVERRIDE,
-        )
+        return status_allows_adjustment(status)

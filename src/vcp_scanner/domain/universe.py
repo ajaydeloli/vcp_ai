@@ -2,8 +2,7 @@
 
 from dataclasses import dataclass
 from datetime import date, datetime
-
-from vcp_scanner.domain.enums import StrEnum
+from enum import StrEnum
 
 
 class SurvivorshipStatus(StrEnum):

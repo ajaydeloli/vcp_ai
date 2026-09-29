@@ -4,8 +4,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime
+from enum import StrEnum
 
-from vcp_scanner.domain.enums import DataQualityFlag, StrEnum
+from vcp_scanner.domain.enums import DataQualityFlag
 
 
 class EventSeverity(StrEnum):

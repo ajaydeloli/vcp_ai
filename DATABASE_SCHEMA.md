@@ -2207,7 +2207,7 @@ project/
 │       └── outcomes/
 │
 ├── db/
-│   └── minervini.duckdb
+│   └── vcp_scanner.duckdb
 │
 └── migrations/
 ```
