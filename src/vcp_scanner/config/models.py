@@ -23,8 +23,12 @@ class StrictBaseModel(BaseModel):
 class TrendTemplateConfig(StrictBaseModel):
     """TREND_TEMPLATE_SPECIFICATION section 5."""
 
+    # Gate policy for downstream consumers (scanner / VCP / scoring): when True, instruments
+    # whose trend template status is not PASS are excluded. The engine itself always
+    # evaluates and stores every instrument, so it does not read this flag.
     required: bool = True
     min_rs_rank: Annotated[int, Field(ge=1, le=99)] = 70
+    # Research threshold: exposed as TrendTemplateResult.meets_stricter_rs, not a condition.
     stricter_rs_rank: Annotated[int, Field(ge=1, le=99)] = 80
     sma200_slope_lookback_days: Annotated[int, Field(ge=21)] = 21
     min_above_52w_low_pct: Annotated[float, Field(gt=0)] = 25.0

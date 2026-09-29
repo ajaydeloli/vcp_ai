@@ -72,7 +72,9 @@ class RelativeStrengthEngine:
                     d.instrument_id,
                     d.trade_date,
                     d.close_adj,
-                    ROW_NUMBER() OVER (PARTITION BY d.instrument_id ORDER BY d.trade_date DESC) as rn
+                    ROW_NUMBER() OVER (
+                        PARTITION BY d.instrument_id ORDER BY d.trade_date DESC
+                    ) AS rn
                 FROM daily_prices_adjusted_current d
                 JOIN universe_instruments u ON d.instrument_id = u.instrument_id
                 WHERE d.trade_date <= ?

@@ -244,6 +244,7 @@ class TrendTemplateEngine:
             conditions=conditions,
             algorithm_version=TREND_ALGORITHM_VERSION,
             rs_rank=rs_rank,
+            meets_stricter_rs=(rs_rank >= cfg.stricter_rs_rank if rs_rank is not None else None),
             weekly_context=weekly_context,
         )
 

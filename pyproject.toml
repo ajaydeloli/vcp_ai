@@ -55,9 +55,15 @@ markers = [
 line-length = 100
 target-version = "py311"
 src = ["src", "tests"]
+# scratch/ holds throwaway exploration scripts, not project code.
+extend-exclude = ["scratch"]
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "B", "UP", "SIM", "DTZ"]
+
+[tool.ruff.lint.per-file-ignores]
+# Column-aligned SQL window definitions read better than wrapped ones.
+"src/vcp_scanner/features/daily_features.py" = ["E501"]
 
 [tool.mypy]
 python_version = "3.11"

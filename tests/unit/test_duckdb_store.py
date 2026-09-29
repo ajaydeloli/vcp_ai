@@ -126,3 +126,28 @@ def test_store_context_manager() -> None:
         s.migrate()
         count = s.conn.execute("SELECT COUNT(*) FROM daily_prices").fetchone()
         assert count is not None and count[0] == 0
+
+
+def test_migrate_rebuilds_legacy_trend_conditions_with_config_hash() -> None:
+    store = DuckDBStore(":memory:")
+    store.conn.execute(
+        """
+        CREATE TABLE trend_template_conditions (
+            instrument_id VARCHAR NOT NULL, as_of_date DATE NOT NULL,
+            condition_id INTEGER NOT NULL, condition_name VARCHAR NOT NULL,
+            measurement DOUBLE, threshold DOUBLE, passed BOOLEAN,
+            calculation_version VARCHAR NOT NULL,
+            PRIMARY KEY (instrument_id, as_of_date, condition_id, calculation_version)
+        )
+        """
+    )
+    store.conn.execute(
+        "INSERT INTO trend_template_conditions VALUES"
+        " ('X', DATE '2024-01-02', 1, 'close_above_sma150', 2.0, 1.0, TRUE, 'trend-1.0.0')"
+    )
+    store.migrate()
+    store.migrate()  # idempotent once rebuilt
+    rows = store.conn.execute(
+        "SELECT instrument_id, condition_id, passed, config_hash FROM trend_template_conditions"
+    ).fetchall()
+    assert rows == [("X", 1, True, "LEGACY")]

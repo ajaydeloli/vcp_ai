@@ -31,15 +31,15 @@ class KiteAuthenticator:
 
     def get_login_url(self) -> str:
         """Return the Kite Connect login URL."""
-        return self.kite.login_url()
+        return str(self.kite.login_url())
 
-    def generate_and_store_token(self, request_token: str) -> str | None:
+    def generate_and_store_token(self, request_token: str) -> str:
         """Exchange the request token for an access token and store it in .env."""
         try:
             data = self.kite.generate_session(request_token, api_secret=self.api_secret)
             access_token = data.get("access_token")
 
-            if not access_token:
+            if not isinstance(access_token, str) or not access_token:
                 raise ValueError("Response did not contain an access_token")
 
             # Store in .env

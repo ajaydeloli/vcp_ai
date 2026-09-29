@@ -14,6 +14,7 @@ from vcp_scanner.data.identity import deterministic_action_id, mint_instrument_i
 from vcp_scanner.domain.corporate_actions import CorporateAction
 from vcp_scanner.domain.enums import CorporateActionType
 from vcp_scanner.domain.market import Instrument
+from vcp_scanner.infrastructure.clock import Clock, utc_now
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +26,8 @@ class NSECorporateActionProvider:
     BASE_URL = "https://www.nseindia.com"
     API_URL = "https://www.nseindia.com/api/corporates-corporateActions?index=equities"
 
-    def __init__(self) -> None:
+    def __init__(self, *, clock: Clock = utc_now) -> None:
+        self._clock = clock
         self._session = requests.Session()
 
         # Configure retries and realistic headers to bypass basic anti-scraping
@@ -147,7 +149,7 @@ class NSECorporateActionProvider:
                 isin=item.get("isin"),
                 action_type=action_type,
                 source=self.PROVIDER_NAME,
-                created_at=datetime.now(UTC),
+                created_at=self._clock(),
                 ex_date=ex_date,
                 ratio_numerator=num,
                 ratio_denominator=den,

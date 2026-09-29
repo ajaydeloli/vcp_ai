@@ -372,7 +372,8 @@ CREATE TABLE IF NOT EXISTS trend_template_conditions (
     threshold               DOUBLE,
     passed                  BOOLEAN,
     calculation_version     VARCHAR     NOT NULL,
-    PRIMARY KEY (instrument_id, as_of_date, condition_id, calculation_version)
+    config_hash             VARCHAR     NOT NULL,
+    PRIMARY KEY (instrument_id, as_of_date, condition_id, calculation_version, config_hash)
 )
 """
 
@@ -456,10 +457,48 @@ class DuckDBStore:
         DDL here; the ``CREATE … IF NOT EXISTS`` pattern guarantees no data
         loss on repeated calls.
         """
+        self._migrate_trend_conditions_config_hash()
         for table_name, ddl in _ALL_DDL:
             self.conn.execute(ddl)
             logger.debug("Ensured table: %s", table_name)
         logger.info("DuckDBStore migration complete (%d tables)", len(_ALL_DDL))
+
+    def _migrate_trend_conditions_config_hash(self) -> None:
+        """Rebuild a pre-existing ``trend_template_conditions`` that lacks ``config_hash``.
+
+        The key gained ``config_hash`` so scans with different thresholds no longer overwrite
+        each other. DuckDB cannot alter a primary key, so the table is rebuilt; legacy rows
+        keep their data under the placeholder hash ``LEGACY``.
+        """
+        cols = {
+            row[0]
+            for row in self.conn.execute(
+                "SELECT column_name FROM information_schema.columns"
+                " WHERE table_name = 'trend_template_conditions'"
+            ).fetchall()
+        }
+        if not cols or "config_hash" in cols:
+            return
+        self.conn.execute("BEGIN TRANSACTION")
+        try:
+            self.conn.execute(
+                "ALTER TABLE trend_template_conditions RENAME TO trend_template_conditions_old"
+            )
+            self.conn.execute(_DDL_TREND_TEMPLATE_CONDITIONS)
+            self.conn.execute(
+                """
+                INSERT INTO trend_template_conditions
+                SELECT instrument_id, as_of_date, condition_id, condition_name, measurement,
+                       threshold, passed, calculation_version, 'LEGACY'
+                FROM trend_template_conditions_old
+                """
+            )
+            self.conn.execute("DROP TABLE trend_template_conditions_old")
+        except Exception:
+            self.conn.execute("ROLLBACK")
+            raise
+        self.conn.execute("COMMIT")
+        logger.info("Rebuilt trend_template_conditions with config_hash in its key")
 
     # ------------------------------------------------------------------
     # Lifecycle helpers

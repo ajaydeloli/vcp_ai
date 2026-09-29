@@ -260,8 +260,9 @@ class TrendRepository(Protocol):
         instrument_id: str,
         as_of_date: date,
         calculation_version: str,
+        config_hash: str,
     ) -> list[TrendConditionResult]:
-        """Load stored condition rows ordered by condition_id."""
+        """Load stored condition rows for one config, ordered by condition_id."""
         ...
 
     def save_weekly_context(self, contexts: list[WeeklyContext]) -> None:

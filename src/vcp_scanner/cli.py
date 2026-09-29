@@ -13,6 +13,42 @@ from vcp_scanner.versioning import PACKAGE_VERSION, version_manifest
 DEFAULT_DB_PATH = "data/vcp_scanner.duckdb"  # matches data.duckdb_path in config/data.yaml
 
 
+def _add_db_arg(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "--db",
+        default=DEFAULT_DB_PATH,
+        help="Path to DuckDB database file (default: data/vcp_scanner.duckdb)",
+    )
+
+
+def _add_config_dir_arg(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "--config-dir",
+        default="config",
+        help="Path to directory containing configuration YAML files (default: config)",
+    )
+
+
+def _add_range_args(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "--start",
+        metavar="YYYY-MM-DD",
+        default="2000-01-01",
+        help="Start date (default: 2000-01-01)",
+    )
+    parser.add_argument("--end", metavar="YYYY-MM-DD", help="End date (default: today)")
+
+
+def _add_instrument_args(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "--instrument",
+        action="append",
+        metavar="ID_OR_SYMBOL",
+        help="Instrument id or symbol (repeatable). Default: all instruments",
+    )
+    parser.add_argument("--limit", type=int, help="Process at most N instruments")
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="vcp",
@@ -90,6 +126,14 @@ def build_parser() -> argparse.ArgumentParser:
         help="Date for which to build the universe snapshot",
     )
     universe_parser.add_argument(
+        "--known-at",
+        metavar="ISO_DATETIME",
+        help=(
+            "Rebuild the snapshot as it was known at this time (e.g. 2024-01-05T18:00:00+00:00 "
+            "or 2024-01-05; naive values are UTC). Default: everything known now"
+        ),
+    )
+    universe_parser.add_argument(
         "--db",
         default=DEFAULT_DB_PATH,
         help="Path to DuckDB database file (default: data/vcp_scanner.duckdb)",
@@ -135,6 +179,74 @@ def build_parser() -> argparse.ArgumentParser:
         default=DEFAULT_DB_PATH,
         help="Path to DuckDB database file (default: data/vcp_scanner.duckdb)",
     )
+
+    market_parser = ingest_subparsers.add_parser(
+        "market", help="Ingest daily OHLCV bars from Kite Connect"
+    )
+    _add_range_args(market_parser)
+    _add_instrument_args(market_parser)
+    market_parser.add_argument(
+        "--force",
+        action="store_true",
+        help="Re-fetch even if the range is already ingested",
+    )
+    _add_db_arg(market_parser)
+    market_parser.add_argument(
+        "--env-file", default=".env", help="Path to .env file with Kite credentials"
+    )
+
+    ca_parser = ingest_subparsers.add_parser(
+        "corporate-actions",
+        help="Ingest and reconcile corporate actions (NSE primary, Upstox secondary)",
+    )
+    _add_range_args(ca_parser)
+    _add_instrument_args(ca_parser)
+    _add_db_arg(ca_parser)
+    _add_config_dir_arg(ca_parser)
+    ca_parser.add_argument(
+        "--env-file", default=".env", help="Path to .env file with Upstox credentials"
+    )
+
+    # compute subcommands
+    compute_parser = subparsers.add_parser("compute", help="Feature and trend computation")
+    compute_subparsers = compute_parser.add_subparsers(
+        dest="compute_command", help="Compute operations"
+    )
+
+    features_parser = compute_subparsers.add_parser(
+        "features", help="Compute daily features and weekly price aggregates"
+    )
+    features_parser.add_argument(
+        "--instrument",
+        action="append",
+        metavar="INSTRUMENT_ID",
+        help="Instrument to compute (repeatable). Default: every instrument with adjusted prices",
+    )
+    _add_db_arg(features_parser)
+
+    rs_parser = compute_subparsers.add_parser(
+        "rs", help="Compute relative-strength ranks for a universe snapshot"
+    )
+    rs_parser.add_argument("--as-of", required=True, metavar="YYYY-MM-DD")
+    rs_parser.add_argument(
+        "--universe-snapshot-id",
+        help="Universe snapshot to rank (default: latest snapshot for --as-of)",
+    )
+    _add_db_arg(rs_parser)
+    _add_config_dir_arg(rs_parser)
+
+    tt_parser = compute_subparsers.add_parser(
+        "trend-template", help="Evaluate the trend template for eligible universe members"
+    )
+    tt_parser.add_argument("--as-of", required=True, metavar="YYYY-MM-DD")
+    tt_parser.add_argument(
+        "--instrument",
+        action="append",
+        metavar="INSTRUMENT_ID",
+        help="Restrict to an instrument (repeatable)",
+    )
+    _add_db_arg(tt_parser)
+    _add_config_dir_arg(tt_parser)
 
     return parser
 
@@ -226,7 +338,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     if args.command == "ingest":
         if args.ingest_command == "universe":
             import os
-            from datetime import date
+            from datetime import UTC, date, datetime
 
             from vcp_scanner.data.repositories.duckdb_universe_repository import (
                 DuckDBUniverseRepository,
@@ -242,6 +354,20 @@ def main(argv: Sequence[str] | None = None) -> int:
                     file=sys.stderr,
                 )
                 return 1
+
+            known_at: datetime | None = None
+            if args.known_at:
+                try:
+                    known_at = datetime.fromisoformat(args.known_at)
+                except ValueError:
+                    print(
+                        f"Error: Invalid --known-at '{args.known_at}'. "
+                        "Use an ISO date or datetime.",
+                        file=sys.stderr,
+                    )
+                    return 1
+                if known_at.tzinfo is None:
+                    known_at = known_at.replace(tzinfo=UTC)
 
             try:
                 cfg = load_scanner_config(args.config_dir)
@@ -259,7 +385,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 builder = UniverseBuilder(store, cfg.universe)
                 repo = DuckDBUniverseRepository(store)
 
-                snapshot, memberships = builder.build_snapshot(as_of_date=as_of)
+                snapshot, memberships = builder.build_snapshot(as_of_date=as_of, known_at=known_at)
                 repo.save_snapshot(snapshot, memberships)
 
                 eligible = sum(m.eligible for m in memberships)
@@ -361,9 +487,32 @@ def main(argv: Sequence[str] | None = None) -> int:
             for r in failed:
                 print(f"    {r.instrument_id}: {r.error}", file=sys.stderr)
             return 1 if failed else 0
+        elif args.ingest_command == "market":
+            from vcp_scanner.cli_pipeline import run_market_ingest
+
+            return run_market_ingest(args)
+
+        elif args.ingest_command == "corporate-actions":
+            from vcp_scanner.cli_pipeline import run_corporate_actions
+
+            return run_corporate_actions(args)
         else:
             parser.parse_args(["ingest", "--help"])
             return 0
+
+    if args.command == "compute":
+        from vcp_scanner import cli_pipeline
+
+        compute_runners = {
+            "features": cli_pipeline.run_compute_features,
+            "rs": cli_pipeline.run_compute_rs,
+            "trend-template": cli_pipeline.run_compute_trend_template,
+        }
+        runner = compute_runners.get(args.compute_command)
+        if runner is None:
+            parser.parse_args(["compute", "--help"])
+            return 0
+        return runner(args)
 
     return 0
 

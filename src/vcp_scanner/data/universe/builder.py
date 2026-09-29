@@ -6,7 +6,7 @@ import hashlib
 import json
 import logging
 import uuid
-from datetime import UTC, date, datetime
+from datetime import date, datetime
 from typing import TYPE_CHECKING
 
 from vcp_scanner.config.models import UniverseConfig
@@ -15,6 +15,7 @@ from vcp_scanner.domain.universe import (
     UniverseMembership,
     UniverseSnapshot,
 )
+from vcp_scanner.infrastructure.clock import Clock, utc_now
 
 if TYPE_CHECKING:
     from vcp_scanner.data.storage.duckdb_store import DuckDBStore
@@ -25,9 +26,12 @@ logger = logging.getLogger(__name__)
 class UniverseBuilder:
     """Builds point-in-time universe snapshots."""
 
-    def __init__(self, store: DuckDBStore, config: UniverseConfig) -> None:
+    def __init__(
+        self, store: DuckDBStore, config: UniverseConfig, *, clock: Clock = utc_now
+    ) -> None:
         self._store = store
         self._config = config
+        self._clock = clock
 
     def _hash_config(self) -> str:
         """Return a deterministic hash of the universe configuration."""
@@ -61,13 +65,23 @@ class UniverseBuilder:
             return SurvivorshipStatus.PARTIAL  # some delisted names, completeness unproven
         return SurvivorshipStatus.POINT_IN_TIME_COMPLETE
 
-    def build_snapshot(self, as_of_date: date) -> tuple[UniverseSnapshot, list[UniverseMembership]]:
+    def build_snapshot(
+        self, as_of_date: date, *, known_at: datetime | None = None
+    ) -> tuple[UniverseSnapshot, list[UniverseMembership]]:
         """Calculate universe memberships as of the given date.
 
         Evaluates liquidity, price, and exclusions purely using data known on or before as_of_date.
+
+        ``known_at`` is the knowledge cutoff: only rows with ``known_from <= known_at`` (and
+        not yet superseded at that time) are used, so a past snapshot can be rebuilt as it
+        would have looked then, ignoring later restatements and back-filled history.
+        Default: the injected clock, i.e. everything known now. It is recorded as the
+        snapshot's ``created_at``, which therefore always means "as known at".
         """
         logger.info(f"Building universe snapshot for {as_of_date}...")
-        created_at = datetime.now(UTC)
+        created_at = known_at if known_at is not None else self._clock()
+        if created_at.tzinfo is None:
+            raise ValueError("known_at must be timezone-aware")
         snapshot_id = f"uv_{as_of_date.strftime('%Y%m%d')}_{uuid.uuid4().hex[:6]}"
 
         # This query calculates the 20-day average traded value and the last close price.

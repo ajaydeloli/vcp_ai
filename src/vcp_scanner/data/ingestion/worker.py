@@ -15,7 +15,7 @@ import time
 import uuid
 from collections.abc import Callable
 from dataclasses import replace
-from datetime import UTC, date, datetime, timedelta
+from datetime import date, datetime, timedelta
 from typing import TYPE_CHECKING
 
 from vcp_scanner.data.schema import (
@@ -24,6 +24,7 @@ from vcp_scanner.data.schema import (
     candle_source_hash,
     validate_ohlc,
 )
+from vcp_scanner.infrastructure.clock import Clock, utc_now
 
 if TYPE_CHECKING:
     from vcp_scanner.data.identity import InstrumentResolver
@@ -72,6 +73,7 @@ class IngestionWorker:
         *,
         sleep: Callable[[float], None] = time.sleep,
         monotonic: Callable[[], float] = time.monotonic,
+        clock: Clock = utc_now,
     ) -> None:
         self._provider = provider
         self._repo = repository
@@ -80,6 +82,7 @@ class IngestionWorker:
         # Injected so tests can verify throttling without real waiting.
         self._sleep = sleep
         self._monotonic = monotonic
+        self._clock = clock
         self._last_request_at: float | None = None
 
     # ------------------------------------------------------------------
@@ -110,16 +113,15 @@ class IngestionWorker:
             start: Requested start date (inclusive).
             end: Requested end date (inclusive).
             ingestion_time: Explicit system timestamp for bitemporal known_from.
-                            Defaults to UTC now at call time (acceptable here
-                            because this IS the ingestion timestamp, not a
-                            research/analysis timestamp).
+                            Defaults to the injected clock (``clock``), which is the
+                            ingestion timestamp, not a research timestamp.
             force: If True, re-fetch the full range even if local data exists.
 
         Returns:
             The completed IngestionRunRow with final status and counts.
         """
         instrument = self._canonical_instrument(instrument)
-        now_utc: datetime = ingestion_time or datetime.now(UTC)
+        now_utc: datetime = ingestion_time or self._clock()
         run_id = str(uuid.uuid4())
 
         run = IngestionRunRow(
@@ -218,7 +220,7 @@ class IngestionWorker:
         completed_run = replace(
             run,
             status=status,
-            completed_at=datetime.now(UTC),
+            completed_at=self._clock(),
             records_received=records_received,
             records_written=records_written,
             records_rejected=records_rejected,
@@ -255,9 +257,7 @@ class IngestionWorker:
         )
         if resolved is None or resolved == instrument.instrument_id:
             return instrument
-        logger.info(
-            "Remapped instrument %s -> permanent id %s", instrument.instrument_id, resolved
-        )
+        logger.info("Remapped instrument %s -> permanent id %s", instrument.instrument_id, resolved)
         return replace(instrument, instrument_id=resolved)
 
     def _missing_ranges(
@@ -291,7 +291,7 @@ class IngestionWorker:
 
         earliest = earliest_ts.date()
         latest = latest_ts.date()
-        cutoff = as_of_date or datetime.now(UTC).date()
+        cutoff = as_of_date or self._clock().date()
 
         ranges: list[tuple[date, date]] = []
 

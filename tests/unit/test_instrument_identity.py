@@ -340,7 +340,32 @@ def test_upstox_queries_by_isin_and_skips_instruments_without_one() -> None:
         provider.get_actions(date(2024, 1, 1), date(2024, 3, 1), instruments)
 
     assert get.call_count == 1  # the ISIN-less instrument was skipped, not guessed at
-    assert get.call_args.kwargs["params"]["instrument_key"] == "NSE_EQ|INE002A01018"
+    assert get.call_args.args[0].endswith("/fundamentals/INE002A01018/corporate-actions")
+
+
+def test_upstox_parses_fundamentals_payload_and_filters_by_window() -> None:
+    provider = UpstoxCorporateActionProvider(access_token="token")
+    response = MagicMock(status_code=200)
+    response.json.return_value = {
+        "status": "success",
+        "data": [
+            {"name": "Dividend", "expiry_date": "14 Aug 2025", "amount": 5.5, "ratio": None},
+            {"name": "Bonus", "expiry_date": "20 Feb 2024", "amount": None, "ratio": "1:1"},
+            {"name": "Dividend", "expiry_date": "01 Jan 2020", "amount": 2.0, "ratio": None},
+            {"name": "AGM", "expiry_date": "10 Feb 2024", "amount": None, "ratio": None},
+        ],
+    }
+    instrument = Instrument("NSE_EQ|RELIANCE", "RELIANCE", "NSE", isin="INE002A01018")
+
+    with patch.object(provider._session, "get", return_value=response):
+        actions = provider.get_actions(date(2024, 1, 1), date(2025, 12, 31), [instrument])
+
+    assert {(a.action_type.value, a.ex_date) for a in actions} == {
+        ("DIVIDEND", date(2025, 8, 14)),
+        ("BONUS", date(2024, 2, 20)),
+    }
+    dividend = next(a for a in actions if a.ex_date == date(2025, 8, 14))
+    assert dividend.cash_amount == 5.5
 
 
 # ---------------------------------------------------------------------------
@@ -363,22 +388,28 @@ def test_kite_prices_join_security_master_and_universe_builder(store: DuckDBStor
                 "exchange": "NSE",
             }
         ]
+        # UniverseConfig.min_history_days is 253 (validated ge=253), so serve 253 consecutive
+        # bars ending 2024-01-02 rather than one: the test is about the identity join, and a
+        # short history would make the name ineligible for an unrelated reason.
+        last_bar = date(2024, 1, 2)
+        first_bar = last_bar - timedelta(days=252)
         kite.historical_data.return_value = [
             {
-                "date": datetime(2024, 1, 2, 0, 0, tzinfo=IST),
+                "date": datetime.combine(first_bar + timedelta(days=i), datetime.min.time(), IST),
                 "open": 2500.0,
                 "high": 2550.0,
                 "low": 2490.0,
                 "close": 2520.0,
                 "volume": 100_000,
             }
+            for i in range(253)
         ]
         provider = KiteProvider("api_key", "access_token")
         instrument = provider.get_instruments()[0]
 
         repo = DuckDBMarketDataRepository(store)
         run = IngestionWorker(provider=provider, repository=repo).ingest_instrument(
-            instrument, date(2024, 1, 1), date(2024, 1, 5), ingestion_time=NOW
+            instrument, first_bar, date(2024, 1, 5), ingestion_time=NOW
         )
     assert run.status == "SUCCESS"
 

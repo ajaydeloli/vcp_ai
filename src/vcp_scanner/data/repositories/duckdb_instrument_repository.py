@@ -6,10 +6,10 @@ Implements the InstrumentRepository Protocol.
 from __future__ import annotations
 
 import logging
-from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 from vcp_scanner.domain.market import Instrument
+from vcp_scanner.infrastructure.clock import Clock, utc_now
 
 if TYPE_CHECKING:
     from vcp_scanner.data.storage.duckdb_store import DuckDBStore
@@ -20,13 +20,14 @@ logger = logging.getLogger(__name__)
 class DuckDBInstrumentRepository:
     """InstrumentRepository backed by DuckDB."""
 
-    def __init__(self, store: DuckDBStore) -> None:
+    def __init__(self, store: DuckDBStore, *, clock: Clock = utc_now) -> None:
         self._store = store
+        self._clock = clock
 
     def save_instruments(self, instruments: list[Instrument]) -> int:
         """Upsert instruments into the 'instruments' table."""
         inserted = 0
-        now_utc = datetime.now(UTC)
+        now_utc = self._clock()
 
         for inst in instruments:
             # We use an UPSERT (INSERT OR REPLACE) or DuckDB's ON CONFLICT

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import dataclasses
 import logging
-from datetime import UTC, date, datetime
+from datetime import date, datetime
 
 from vcp_scanner.data.adjustment.engine import AdjustmentEngine
 from vcp_scanner.data.identity import InstrumentResolver, canonical_instrument_id
@@ -12,6 +12,7 @@ from vcp_scanner.data.providers.base import CorporateActionProvider
 from vcp_scanner.data.reconciliation.engine import ReconciliationEngine
 from vcp_scanner.data.repositories.base import CorporateActionRepository
 from vcp_scanner.domain.market import Instrument
+from vcp_scanner.infrastructure.clock import Clock, utc_now
 
 logger = logging.getLogger(__name__)
 
@@ -27,7 +28,10 @@ class CorporateActionIngestionWorker:
         reconciliation_engine: ReconciliationEngine,
         adjustment_engine: AdjustmentEngine,
         resolver: InstrumentResolver | None = None,
+        *,
+        clock: Clock = utc_now,
     ) -> None:
+        self._clock = clock
         self.primary_provider = primary_provider
         self.secondary_provider = secondary_provider
         self.repository = repository
@@ -45,12 +49,12 @@ class CorporateActionIngestionWorker:
     ) -> None:
         """Run the end-to-end ingestion and reconciliation for a date range.
 
-        ``known_at`` is the ingestion timestamp (default: now). It is also the reference
-        for the secondary-source grace period: an action first seen today is judged as of
+        ``known_at`` is the ingestion timestamp (default: the injected clock). It is also the
+        reference for the secondary-source grace period: an action first seen today is judged as of
         today, not as of the end of the requested window, so a backfill of old actions does
         not sit at SINGLE_SOURCE forever.
         """
-        known_at = known_at or datetime.now(UTC)
+        known_at = known_at or self._clock()
         as_of = known_at.date()
 
         logger.info(f"Fetching primary (NSE) corporate actions from {start} to {end}")
@@ -84,9 +88,7 @@ class CorporateActionIngestionWorker:
                 new_rows += 1
             saved_actions.append(action_with_ingestion)
 
-        logger.info(
-            "Fetched %d raw corporate actions, %d new.", len(saved_actions), new_rows
-        )
+        logger.info("Fetched %d raw corporate actions, %d new.", len(saved_actions), new_rows)
 
         # Group by instrument to run reconciliation per instrument
         instrument_ids = {a.instrument_id for a in saved_actions}

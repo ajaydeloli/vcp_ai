@@ -14,6 +14,7 @@ from vcp_scanner.data.identity import deterministic_action_id
 from vcp_scanner.domain.corporate_actions import CorporateAction
 from vcp_scanner.domain.enums import CorporateActionType
 from vcp_scanner.domain.market import Instrument
+from vcp_scanner.infrastructure.clock import Clock, utc_now
 
 logger = logging.getLogger(__name__)
 
@@ -24,8 +25,9 @@ class UpstoxCorporateActionProvider:
     PROVIDER_NAME = "UPSTOX"
     BASE_URL = "https://api.upstox.com/v2"
 
-    def __init__(self, access_token: str | None = None) -> None:
+    def __init__(self, access_token: str | None = None, *, clock: Clock = utc_now) -> None:
         self._access_token = access_token
+        self._clock = clock
         self._session = requests.Session()
 
         # Configure retries
@@ -47,8 +49,7 @@ class UpstoxCorporateActionProvider:
     ) -> list[CorporateAction]:
         """Fetch corporate actions reported by Upstox.
 
-        Note: Upstox typically provides corporate actions via the historical data
-        or instrument data APIs, looking up by instrument key (ISIN or trading symbol).
+        Uses the Upstox Fundamentals corporate-actions endpoint, keyed by ISIN.
         """
         if not instruments:
             logger.warning(
@@ -69,17 +70,13 @@ class UpstoxCorporateActionProvider:
                 continue
 
             try:
-                # UNVERIFIED: the exact Upstox v2 endpoint for corporate actions has not been
-                # confirmed against official docs. Treat Upstox as an unverified secondary
-                # source until the provider spike (DATA_SPECIFICATION section 18A) is done.
-                url = f"{self.BASE_URL}/corporate-actions"
-                params = {
-                    "instrument_key": f"NSE_EQ|{instrument.isin}",
-                    "from_date": start.isoformat(),
-                    "to_date": end.isoformat(),
-                }
+                # Upstox Fundamentals API: GET /v2/fundamentals/{isin}/corporate-actions
+                # (https://upstox.com/developer/api-documentation/get-corporate-actions).
+                # It takes no date parameters and returns every event for the ISIN, so the
+                # [start, end] window is applied client-side on the ex-date below.
+                url = f"{self.BASE_URL}/fundamentals/{instrument.isin}/corporate-actions"
 
-                response = self._session.get(url, params=params, timeout=10)
+                response = self._session.get(url, timeout=10)
 
                 # If unauthorized or not found, we might want to log and continue
                 if response.status_code in (401, 403):
@@ -98,7 +95,7 @@ class UpstoxCorporateActionProvider:
                 data = response.json().get("data", [])
                 for item in data:
                     action = self._parse_upstox_action(instrument, item)
-                    if action:
+                    if action and action.ex_date and start <= action.ex_date <= end:
                         actions.append(action)
 
             except Exception as e:
@@ -111,7 +108,7 @@ class UpstoxCorporateActionProvider:
     ) -> CorporateAction | None:
         """Parse a single Upstox JSON record into a CorporateAction."""
         try:
-            raw_type = str(item.get("action_type", "")).upper()
+            raw_type = str(item.get("name", "")).upper()
             action_type = None
 
             # Map Upstox types to our domain enum
@@ -127,22 +124,23 @@ class UpstoxCorporateActionProvider:
                 # Ignore types we don't care about
                 return None
 
-            ex_date_str = item.get("ex_date")
+            # ``expiry_date`` is the ex-date / effective date, formatted "14 Aug 2025".
+            ex_date_str = item.get("expiry_date")
             ex_date = (
-                datetime.strptime(ex_date_str, "%Y-%m-%d").replace(tzinfo=UTC).date()
+                datetime.strptime(ex_date_str, "%d %b %Y").replace(tzinfo=UTC).date()
                 if ex_date_str
                 else None
             )
 
             # Upstox usually provides a ratio string like "1:2"
-            ratio_str = item.get("ratio", "")
+            ratio_str = item.get("ratio") or ""  # null for dividends
             num, den = None, None
             if ":" in ratio_str:
                 parts = ratio_str.split(":")
                 num = float(parts[0])
                 den = float(parts[1])
 
-            cash_amount = float(item["amount"]) if item.get("amount") else None
+            cash_amount = float(item["amount"]) if item.get("amount") is not None else None
 
             # Deterministic ID: the same Upstox record maps to the same row on every fetch.
             action_id = deterministic_action_id(
@@ -153,7 +151,6 @@ class UpstoxCorporateActionProvider:
                 num,
                 den,
                 cash_amount,
-                item.get("id"),
             )
 
             return CorporateAction(
@@ -162,12 +159,12 @@ class UpstoxCorporateActionProvider:
                 isin=instrument.isin,
                 action_type=action_type,
                 source=self.PROVIDER_NAME,
-                created_at=datetime.now(UTC),
+                created_at=self._clock(),
                 ex_date=ex_date,
                 ratio_numerator=num,
                 ratio_denominator=den,
                 cash_amount=cash_amount,
-                source_record_id=str(item.get("id", "")),
+                source_record_id=None,
             )
         except Exception as e:
             logger.warning(f"Could not parse Upstox record {item}: {e}")

@@ -44,6 +44,9 @@ class TrendTemplateResult:
     algorithm_version: str
     #: RS rank used by condition 10 (None when RS was unavailable). Never 0-filled.
     rs_rank: int | None = None
+    #: Research flag: rs_rank >= ``stricter_rs_rank`` (None when RS was unavailable). It never
+    #: affects ``status`` or the ten conditions; it is not persisted yet.
+    meets_stricter_rs: bool | None = None
     #: Weekly Stage context for the summary row (DATABASE_SCHEMA section 30).
     weekly_context: WeeklyContext | None = None
 

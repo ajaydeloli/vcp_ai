@@ -18,7 +18,8 @@ class WeeklyAggregationEngine:
     def compute_for_instrument(self, instrument_id: str) -> int:
         """
         Aggregate weekly OHLCV for an instrument.
-        Week is defined by Monday-Sunday (ISO week). The week_end is the maximum trade_date in that week.
+        Week is defined by Monday-Sunday (ISO week). The week_end is the maximum trade_date
+        in that week.
         """
         sql = """
             WITH week_group AS (

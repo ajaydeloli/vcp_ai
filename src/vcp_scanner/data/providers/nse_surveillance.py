@@ -8,7 +8,7 @@ official surveillance endpoints.
 from __future__ import annotations
 
 import logging
-from datetime import UTC, date, datetime
+from datetime import date
 
 import requests
 from requests.adapters import HTTPAdapter
@@ -16,6 +16,7 @@ from urllib3.util.retry import Retry
 
 from vcp_scanner.data.identity import mint_instrument_id
 from vcp_scanner.domain.market import SurveillanceRecord
+from vcp_scanner.infrastructure.clock import Clock, utc_now
 
 logger = logging.getLogger(__name__)
 
@@ -43,7 +44,10 @@ class NSESurveillanceProvider:
     ASM_URL = "https://www.nseindia.com/api/reportASM?index=equities"
     SEC_LIST_URL = "https://nsearchives.nseindia.com/content/equities/sec_list.csv"
 
-    def __init__(self) -> None:
+    def __init__(self, *, clock: Clock = utc_now) -> None:
+        # ``valid_from`` of a returned flag is the clock's date: the feed is a live snapshot
+        # of what is active now, so it can never be backdated to an earlier as-of date.
+        self._clock = clock
         self._session = requests.Session()
 
         retries = Retry(
@@ -107,7 +111,7 @@ class NSESurveillanceProvider:
             elif isinstance(data, list):
                 items = data
 
-            today = datetime.now(UTC).date()
+            today = self._clock().date()
             for item in items:
                 symbol = item.get("symbol", "")
                 if not symbol:
@@ -146,7 +150,7 @@ class NSESurveillanceProvider:
                 return []
 
             reader = csv.DictReader(io.StringIO(resp.text))
-            today = datetime.now(UTC).date()
+            today = self._clock().date()
 
             for raw_row in reader:
                 row = {k.strip(): v.strip() for k, v in raw_row.items() if k and v}

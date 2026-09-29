@@ -32,6 +32,7 @@ from vcp_scanner.data.schema import (
 )
 from vcp_scanner.domain.enums import Timeframe
 from vcp_scanner.domain.market import Candle
+from vcp_scanner.infrastructure.clock import Clock, utc_now
 
 if TYPE_CHECKING:
     from vcp_scanner.data.storage.duckdb_store import DuckDBStore
@@ -46,8 +47,9 @@ class DuckDBMarketDataRepository:
     Tests inject an in-memory store so no filesystem I/O occurs.
     """
 
-    def __init__(self, store: DuckDBStore) -> None:
+    def __init__(self, store: DuckDBStore, *, clock: Clock = utc_now) -> None:
         self._store = store
+        self._clock = clock
 
     # ------------------------------------------------------------------
     # MarketDataRepository protocol methods
@@ -108,12 +110,12 @@ class DuckDBMarketDataRepository:
         3. If a *current* row (known_to IS NULL) already exists for the same
            (instrument_id, trade_date), close it by setting ``known_to`` to
            ``now_utc`` (the ingestion timestamp passed in candle.ingested_at,
-           or UTC now as fallback).
+           or the injected clock as fallback).
         4. Insert new row with ``known_from = now_utc``, ``known_to = NULL``.
 
         Returns the number of new rows actually inserted (rejections not counted).
         """
-        now_utc = datetime.now(UTC)
+        now_utc = self._clock()
         inserted = 0
 
         for candle in candles:

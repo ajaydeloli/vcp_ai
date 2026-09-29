@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import dataclasses
 import logging
-from datetime import UTC, date, datetime
+from datetime import date, datetime
 from typing import TYPE_CHECKING
 
 from vcp_scanner.data.identity import InstrumentResolver, canonical_instrument_id
@@ -18,6 +18,7 @@ from vcp_scanner.data.providers.base import (
     SecurityMasterProvider,
     SurveillanceProvider,
 )
+from vcp_scanner.infrastructure.clock import Clock, utc_now
 
 if TYPE_CHECKING:
     from vcp_scanner.data.storage.duckdb_store import DuckDBStore
@@ -46,8 +47,11 @@ class SecurityMasterIngestionWorker:
         security_master_provider: SecurityMasterProvider,
         surveillance_provider: SurveillanceProvider,
         resolver: InstrumentResolver | None = None,
+        *,
+        clock: Clock = utc_now,
     ) -> None:
         self._store = store
+        self._clock = clock
         self._sm_provider = security_master_provider
         self._surv_provider = surveillance_provider
         self._resolver = resolver
@@ -67,7 +71,7 @@ class SecurityMasterIngestionWorker:
             Dict with counts: security_inserted, security_unchanged,
             flags_inserted, flags_closed.
         """
-        known_at = datetime.now(UTC)
+        known_at = self._clock()
 
         sm_stats = self._ingest_security_master(start, end, known_at)
         surv_stats = self._ingest_surveillance_flags(start, end, known_at)

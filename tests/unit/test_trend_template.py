@@ -196,6 +196,22 @@ def test_stricter_rs_threshold_from_config() -> None:
     assert rs_cond.threshold == 80.0 and rs_cond.passed is False
 
 
+def test_meets_stricter_rs_flag_is_research_only() -> None:
+    e = Env(TrendTemplateConfig(min_rs_rank=70, stricter_rs_rank=80))
+    as_of = e.seed(_uptrend(300), rs_rank=75)
+    result = e.engine.evaluate(INSTRUMENT, as_of)
+    assert result.status is TrendTemplateStatus.PASS  # 75 >= min_rs_rank 70
+    assert result.meets_stricter_rs is False  # 75 < stricter_rs_rank 80
+    e2 = Env(TrendTemplateConfig(min_rs_rank=70, stricter_rs_rank=80))
+    as_of2 = e2.seed(_uptrend(300), rs_rank=80)
+    assert e2.engine.evaluate(INSTRUMENT, as_of2).meets_stricter_rs is True
+
+
+def test_meets_stricter_rs_is_none_without_rank(env: Env) -> None:
+    as_of = env.seed(_uptrend(300), rs_rank=None)
+    assert env.engine.evaluate(INSTRUMENT, as_of).meets_stricter_rs is None
+
+
 # --------------------------------------------------------------------------- missing data
 
 
@@ -431,10 +447,12 @@ def test_persist_results_and_conditions_round_trip(env: Env) -> None:
     ).fetchone()
     assert short_row == ("INSUFFICIENT_DATA", None, None, None)  # NULL, not FALSE
 
-    assert env.trend.load_trend_conditions("P_PASS", as_of, "trend-1.0.0") == list(
+    assert env.trend.load_trend_conditions("P_PASS", as_of, "trend-1.0.0", "hash-abc") == list(
         passed.conditions
     )
-    short_conds = env.trend.load_trend_conditions("P_SHORT", short.as_of_date, "trend-1.0.0")
+    short_conds = env.trend.load_trend_conditions(
+        "P_SHORT", short.as_of_date, "trend-1.0.0", "hash-abc"
+    )
     assert len(short_conds) == 10
     assert all(c.passed is None for c in short_conds)
     null_verdicts = env.store.conn.execute(
@@ -454,6 +472,28 @@ def test_save_is_idempotent(env: Env) -> None:
         " (SELECT COUNT(*) FROM trend_template_conditions)"
     ).fetchone()
     assert counts == (1, 10)
+
+
+def test_different_config_hashes_do_not_overwrite_each_other() -> None:
+    loose = Env(TrendTemplateConfig(min_rs_rank=70))
+    as_of = loose.seed(_uptrend(300), rs_rank=75)
+    strict_engine = TrendTemplateEngine(
+        loose.features, loose.trend, TrendTemplateConfig(min_rs_rank=80)
+    )
+    loose_res = loose.engine.evaluate(INSTRUMENT, as_of)
+    strict_res = strict_engine.evaluate(INSTRUMENT, as_of)
+    loose.trend.save_trend_template_results("s1", "hash-loose", [loose_res])
+    loose.trend.save_trend_template_results("s2", "hash-strict", [strict_res])
+
+    loose_rows = loose.trend.load_trend_conditions(INSTRUMENT, as_of, "trend-1.0.0", "hash-loose")
+    strict_rows = loose.trend.load_trend_conditions(
+        INSTRUMENT, as_of, "trend-1.0.0", "hash-strict"
+    )
+    assert loose_rows == list(loose_res.conditions) and strict_rows == list(strict_res.conditions)
+    assert loose_rows[9].threshold == 70.0 and loose_rows[9].passed is True
+    assert strict_rows[9].threshold == 80.0 and strict_rows[9].passed is False
+    count = loose.store.conn.execute("SELECT COUNT(*) FROM trend_template_conditions").fetchone()
+    assert count == (20,)
 
 
 def test_load_relative_strength_reads_snapshot(env: Env) -> None:

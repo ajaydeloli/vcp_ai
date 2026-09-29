@@ -117,7 +117,8 @@ def _seed(store, iid, bars, last=date(2023, 1, 1), price=100.0, vol=100000):
         [iid, last, price, price, price, price, vol, now, bars],
     )
     store.conn.execute(
-        "INSERT INTO security_master_history (instrument_id, series, exchange, valid_from, known_from)"
+        "INSERT INTO security_master_history "
+        "(instrument_id, series, exchange, valid_from, known_from)"
         " VALUES (?, 'EQ', 'NSE', '2000-01-01', ?)",
         [iid, now],
     )
@@ -183,3 +184,24 @@ def test_survivorship_complete_needs_data_and_attestation(store):
     _add_delisting(store)
     snap, _ = UniverseBuilder(store, cfg).build_snapshot(date(2023, 1, 1))
     assert snap.survivorship_status.value == "POINT_IN_TIME_COMPLETE"
+
+
+def test_known_at_rebuilds_snapshot_as_it_was_known(store):
+    _seed(store, "LATE", 253)  # every row has known_from = now
+    builder = UniverseBuilder(store, _config())
+
+    now_snap, now_members = builder.build_snapshot(date(2023, 1, 1))
+    assert [m.instrument_id for m in now_members] == ["LATE"]
+
+    past = datetime(2023, 1, 2, tzinfo=UTC)  # before any of the data was known
+    past_snap, past_members = builder.build_snapshot(date(2023, 1, 1), known_at=past)
+    assert past_members == []
+    assert past_snap.created_at == past
+
+
+def test_known_at_must_be_timezone_aware(store):
+    with pytest.raises(ValueError, match="timezone-aware"):
+        UniverseBuilder(store, _config()).build_snapshot(
+            date(2023, 1, 1),
+            known_at=datetime(2023, 1, 2),  # noqa: DTZ001 - naive on purpose
+        )

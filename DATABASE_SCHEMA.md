@@ -1028,7 +1028,10 @@ measurement
 threshold
 passed
 calculation_version
+config_hash             -- part of the key: scans with different thresholds coexist
 ```
+
+Primary key: `(instrument_id, as_of_date, condition_id, calculation_version, config_hash)`.
 
 The old fixed `condition_1..8` columns are removed: they did not fit ten conditions and stored no measurements.
 

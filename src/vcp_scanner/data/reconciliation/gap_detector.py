@@ -7,13 +7,14 @@ from __future__ import annotations
 
 import logging
 import uuid
-from datetime import UTC, datetime
+from datetime import datetime
 
 from vcp_scanner.config.models import UnexplainedGapConfig
 from vcp_scanner.domain.corporate_actions import CorporateActionResolution
 from vcp_scanner.domain.enums import DataQualityFlag
 from vcp_scanner.domain.events import DataQualityEvent, EventSeverity
 from vcp_scanner.domain.market import Candle
+from vcp_scanner.infrastructure.clock import Clock, utc_now
 
 logger = logging.getLogger(__name__)
 
@@ -21,8 +22,14 @@ logger = logging.getLogger(__name__)
 class GapDetector:
     """Detects unexplained gaps between consecutive daily candles."""
 
-    def __init__(self, config: UnexplainedGapConfig | None = None) -> None:
+    def __init__(
+        self,
+        config: UnexplainedGapConfig | None = None,
+        *,
+        clock: Clock = utc_now,
+    ) -> None:
         self._config = config or UnexplainedGapConfig()
+        self._clock = clock
 
     def detect(
         self,
@@ -35,7 +42,7 @@ class GapDetector:
         Args:
             candles: Raw daily candles for a single instrument, sorted by date.
             resolutions: Reconciled corporate actions for this instrument.
-            detected_at: The timestamp to stamp on generated events. Defaults to now(UTC).
+            detected_at: The timestamp to stamp on generated events. Defaults to the injected clock.
 
         Returns:
             List of DataQualityEvent for detected anomalies.
@@ -44,7 +51,7 @@ class GapDetector:
             return []
 
         if detected_at is None:
-            detected_at = datetime.now(UTC)
+            detected_at = self._clock()
 
         # Index known ex-dates for fast lookup
         known_ex_dates = {r.ex_date for r in resolutions if r.ex_date is not None}

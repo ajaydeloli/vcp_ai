@@ -44,9 +44,11 @@ _UPSERT_RESULT = """
 _UPSERT_CONDITION = """
     INSERT INTO trend_template_conditions (
         instrument_id, as_of_date, condition_id, condition_name,
-        measurement, threshold, passed, calculation_version
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    ON CONFLICT (instrument_id, as_of_date, condition_id, calculation_version) DO UPDATE SET
+        measurement, threshold, passed, calculation_version, config_hash
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ON CONFLICT (
+        instrument_id, as_of_date, condition_id, calculation_version, config_hash
+    ) DO UPDATE SET
         condition_name = EXCLUDED.condition_name,
         measurement = EXCLUDED.measurement,
         threshold = EXCLUDED.threshold,
@@ -112,6 +114,7 @@ class DuckDBTrendRepository(TrendRepository):
                     c.threshold,
                     c.passed,
                     r.algorithm_version,
+                    config_hash,
                 )
                 for c in r.conditions
             )
@@ -131,15 +134,17 @@ class DuckDBTrendRepository(TrendRepository):
         instrument_id: str,
         as_of_date: date,
         calculation_version: str,
+        config_hash: str,
     ) -> list[TrendConditionResult]:
         sql = """
             SELECT condition_id, condition_name, measurement, threshold, passed
             FROM trend_template_conditions
             WHERE instrument_id = ? AND as_of_date = ? AND calculation_version = ?
+              AND config_hash = ?
             ORDER BY condition_id
         """
         rows = self.store.conn.execute(
-            sql, [instrument_id, as_of_date, calculation_version]
+            sql, [instrument_id, as_of_date, calculation_version, config_hash]
         ).fetchall()
         return [
             TrendConditionResult(

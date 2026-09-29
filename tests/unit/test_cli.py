@@ -67,3 +67,63 @@ def test_cli_ingest_security_master_invalid_date() -> None:
         exit_code = main(["ingest", "security-master", "--start", "invalid-date"])
     assert exit_code == 1
     assert "Error parsing dates" in stderr.getvalue()
+
+
+@pytest.mark.parametrize(
+    "argv",
+    [
+        ["ingest", "market", "--start", "bad"],
+        ["ingest", "corporate-actions", "--start", "bad"],
+        ["compute", "rs", "--as-of", "bad"],
+        ["compute", "trend-template", "--as-of", "bad"],
+    ],
+)
+def test_cli_pipeline_invalid_date(argv: list[str], tmp_path) -> None:  # type: ignore[no-untyped-def]
+    stderr = io.StringIO()
+    with redirect_stderr(stderr):
+        exit_code = main([*argv, "--db", str(tmp_path / "t.duckdb")])
+    assert exit_code == 1
+    assert "Invalid date" in stderr.getvalue()
+
+
+def test_cli_compute_features_requires_adjusted_prices(tmp_path) -> None:  # type: ignore[no-untyped-def]
+    stderr = io.StringIO()
+    with redirect_stderr(stderr):
+        exit_code = main(["compute", "features", "--db", str(tmp_path / "t.duckdb")])
+    assert exit_code == 1
+    assert "adjusted-prices" in stderr.getvalue()
+
+
+def test_cli_compute_rs_requires_snapshot(tmp_path) -> None:  # type: ignore[no-untyped-def]
+    stderr = io.StringIO()
+    with redirect_stderr(stderr):
+        exit_code = main(
+            ["compute", "rs", "--as-of", "2026-01-02", "--db", str(tmp_path / "t.duckdb")]
+        )
+    assert exit_code == 1
+    assert "universe snapshot" in stderr.getvalue()
+
+
+def test_cli_compute_help() -> None:
+    with redirect_stdout(io.StringIO()), pytest.raises(SystemExit) as exc_info:
+        main(["compute", "--help"])
+    assert exc_info.value.code == 0
+
+
+def test_cli_ingest_universe_invalid_known_at(tmp_path) -> None:  # type: ignore[no-untyped-def]
+    stderr = io.StringIO()
+    with redirect_stderr(stderr):
+        exit_code = main(
+            [
+                "ingest",
+                "universe",
+                "--as-of",
+                "2024-01-02",
+                "--known-at",
+                "not-a-time",
+                "--db",
+                str(tmp_path / "t.duckdb"),
+            ]
+        )
+    assert exit_code == 1
+    assert "--known-at" in stderr.getvalue()
