@@ -249,6 +249,120 @@ CREATE TABLE IF NOT EXISTS universe_memberships (
 )
 """
 
+_DDL_TECHNICAL_FEATURES_DAILY = """
+CREATE TABLE IF NOT EXISTS technical_features_daily (
+    instrument_id           VARCHAR     NOT NULL,
+    trade_date              DATE        NOT NULL,
+    sma_20                  DOUBLE,
+    sma_50                  DOUBLE,
+    sma_150                 DOUBLE,
+    sma_200                 DOUBLE,
+    ema_10                  DOUBLE,
+    ema_20                  DOUBLE,
+    ema_50                  DOUBLE,
+    atr_14                  DOUBLE,
+    atr_pct_14              DOUBLE,
+    high_20                 DOUBLE,
+    high_50                 DOUBLE,
+    high_252                DOUBLE,
+    low_20                  DOUBLE,
+    low_50                  DOUBLE,
+    low_252                 DOUBLE,
+    volume_avg_5            DOUBLE,
+    volume_avg_10           DOUBLE,
+    volume_avg_20           DOUBLE,
+    volume_avg_50           DOUBLE,
+    volume_ratio_20         DOUBLE,
+    volume_ratio_50         DOUBLE,
+    daily_return            DOUBLE,
+    rolling_volatility_20   DOUBLE,
+    rolling_volatility_50   DOUBLE,
+    calculation_version     VARCHAR     NOT NULL,
+    PRIMARY KEY (instrument_id, trade_date, calculation_version)
+)
+"""
+
+_DDL_WEEKLY_PRICES = """
+CREATE TABLE IF NOT EXISTS weekly_prices (
+    instrument_id           VARCHAR     NOT NULL,
+    week_end                DATE        NOT NULL,
+    open                    DOUBLE      NOT NULL,
+    high                    DOUBLE      NOT NULL,
+    low                     DOUBLE      NOT NULL,
+    close                   DOUBLE      NOT NULL,
+    volume                  DOUBLE,
+    source_daily_version    VARCHAR     NOT NULL,
+    PRIMARY KEY (instrument_id, week_end, source_daily_version)
+)
+"""
+
+_DDL_RELATIVE_STRENGTH_SNAPSHOTS = """
+CREATE TABLE IF NOT EXISTS relative_strength_snapshots (
+    as_of_date              DATE        NOT NULL,
+    instrument_id           VARCHAR     NOT NULL,
+    ret_63                  DOUBLE,
+    ret_126                 DOUBLE,
+    ret_189                 DOUBLE,
+    ret_252                 DOUBLE,
+    rs_raw                  DOUBLE,
+    rs_rank                 INTEGER,
+    rs_percentile           DOUBLE,
+    population_size         INTEGER,
+    rs_status               VARCHAR,
+    universe_snapshot_id    VARCHAR     NOT NULL,
+    calculation_version     VARCHAR     NOT NULL,
+    PRIMARY KEY (as_of_date, instrument_id, calculation_version)
+)
+"""
+
+_DDL_TREND_TEMPLATE_RESULTS = """
+CREATE TABLE IF NOT EXISTS trend_template_results (
+    scan_id                 VARCHAR     NOT NULL,
+    instrument_id           VARCHAR     NOT NULL,
+    as_of_date              DATE        NOT NULL,
+    status                  VARCHAR     NOT NULL,
+    trend_template_pass     BOOLEAN,
+    weekly_stage            VARCHAR,
+    weekly_stage2_pass      BOOLEAN,
+    sma_w                   DOUBLE,
+    slope_pct               DOUBLE,
+    is_partial_week         BOOLEAN,
+    rs_rank                 INTEGER,
+    trend_score             DOUBLE,
+    calculation_version     VARCHAR     NOT NULL,
+    config_hash             VARCHAR     NOT NULL,
+    PRIMARY KEY (scan_id, instrument_id)
+)
+"""
+
+_DDL_TREND_TEMPLATE_CONDITIONS = """
+CREATE TABLE IF NOT EXISTS trend_template_conditions (
+    instrument_id           VARCHAR     NOT NULL,
+    as_of_date              DATE        NOT NULL,
+    condition_id            INTEGER     NOT NULL,
+    condition_name          VARCHAR     NOT NULL,
+    measurement             DOUBLE,
+    threshold               DOUBLE,
+    passed                  BOOLEAN,
+    calculation_version     VARCHAR     NOT NULL,
+    PRIMARY KEY (instrument_id, as_of_date, condition_id, calculation_version)
+)
+"""
+
+_DDL_WEEKLY_CONTEXT = """
+CREATE TABLE IF NOT EXISTS weekly_context (
+    instrument_id           VARCHAR     NOT NULL,
+    as_of_date              DATE        NOT NULL,
+    weekly_stage            VARCHAR     NOT NULL,
+    sma_w                   DOUBLE,
+    slope_pct               DOUBLE,
+    prior_pct               DOUBLE,
+    is_partial_week         BOOLEAN     NOT NULL,
+    algorithm_version       VARCHAR     NOT NULL,
+    PRIMARY KEY (instrument_id, as_of_date, algorithm_version)
+)
+"""
+
 _ALL_DDL: list[tuple[str, str]] = [
     ("instruments", _DDL_INSTRUMENTS),
     ("ingestion_runs", _DDL_INGESTION_RUNS),
@@ -262,6 +376,12 @@ _ALL_DDL: list[tuple[str, str]] = [
     ("surveillance_flags_history", _DDL_SURVEILLANCE_FLAGS_HISTORY),
     ("universe_snapshots", _DDL_UNIVERSE_SNAPSHOTS),
     ("universe_memberships", _DDL_UNIVERSE_MEMBERSHIPS),
+    ("technical_features_daily", _DDL_TECHNICAL_FEATURES_DAILY),
+    ("weekly_prices", _DDL_WEEKLY_PRICES),
+    ("relative_strength_snapshots", _DDL_RELATIVE_STRENGTH_SNAPSHOTS),
+    ("trend_template_results", _DDL_TREND_TEMPLATE_RESULTS),
+    ("trend_template_conditions", _DDL_TREND_TEMPLATE_CONDITIONS),
+    ("weekly_context", _DDL_WEEKLY_CONTEXT),
 ]
 
 

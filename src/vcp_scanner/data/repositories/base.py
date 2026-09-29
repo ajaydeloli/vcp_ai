@@ -18,6 +18,8 @@ from vcp_scanner.domain.fundamentals import FundamentalSnapshot
 from vcp_scanner.domain.market import Candle, Instrument
 from vcp_scanner.domain.universe import UniverseMembership, UniverseSnapshot
 
+from vcp_scanner.domain.features import DailyFeatures, WeeklyPrice
+
 
 @runtime_checkable
 class MarketDataRepository(Protocol):
@@ -167,4 +169,24 @@ class CorporateActionRepository(Protocol):
     ) -> list[CorporateActionAdjustment]:
         """Load current (or as-of known_at) adjustments for an instrument,
         ordered by effective_date ascending."""
+        ...
+
+@runtime_checkable
+class FeatureRepository(Protocol):
+    """Persistence abstraction for derived technical features."""
+
+    def save_daily_features(self, features: list[DailyFeatures]) -> None:
+        """Save computed daily features."""
+        ...
+
+    def save_weekly_prices(self, prices: list[WeeklyPrice]) -> None:
+        """Save computed weekly aggregated prices."""
+        ...
+
+    def load_daily_features(self, instrument_id: str, as_of: date) -> DailyFeatures | None:
+        """Load the daily feature vector for an instrument on a specific date."""
+        ...
+
+    def load_weekly_prices(self, instrument_id: str, start: date, end: date) -> list[WeeklyPrice]:
+        """Load weekly prices between start and end (inclusive)."""
         ...
