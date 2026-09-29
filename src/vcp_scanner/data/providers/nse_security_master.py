@@ -14,6 +14,7 @@ import requests
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
+from vcp_scanner.data.identity import mint_instrument_id
 from vcp_scanner.domain.market import SecurityRecord
 
 logger = logging.getLogger(__name__)
@@ -125,7 +126,7 @@ class NSESecurityMasterProvider:
 
                 records.append(
                     SecurityRecord(
-                        instrument_id=f"NSE_EQ|{symbol}",
+                        instrument_id=mint_instrument_id("NSE", symbol),
                         symbol=symbol,
                         exchange="NSE",
                         valid_from=listing_date or start,

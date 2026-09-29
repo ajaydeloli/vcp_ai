@@ -69,6 +69,8 @@ slope_pct  = (sma_w(t) / sma_w(t − 4w) − 1) × 100
 prior_pct  = (sma_w(t − 4w) / sma_w(t − 30w) − 1) × 100
 ```
 
+The prior lookback (30w in `prior_pct`) equals `sma_weeks`; there is no separate config key, so the config hash is unchanged. To research a different prior lookback, add a new key at that time with a version bump.
+
 Decision order (first match wins):
 
 | Stage | Rule |
@@ -82,6 +84,7 @@ Decision order (first match wins):
 - `weekly_stage2_pass = (stage == 2)`. TRANSITION is not Stage 2.
 - Known trade-off: a Stage 2 stock that dips below its 30-week SMA fails Stage 2 until it recovers. Accepted for V1 and measured in research.
 - Stored: `weekly_stage`, `sma_w`, `slope_pct`, `prior_pct`, `is_partial_week`.
+- A missing as-of bar yields `INSUFFICIENT_DATA` for the weekly stage, while the Trend Template result uses `DATA_NOT_READY`. No new enum value is added for this.
 
 ---
 

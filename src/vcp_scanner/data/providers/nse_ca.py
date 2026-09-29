@@ -11,6 +11,7 @@ import requests
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
+from vcp_scanner.data.identity import mint_instrument_id
 from vcp_scanner.domain.corporate_actions import CorporateAction
 from vcp_scanner.domain.enums import CorporateActionType
 from vcp_scanner.domain.market import Instrument
@@ -125,14 +126,14 @@ class NSECorporateActionProvider:
             # We mock the extraction here based on common formats.
             num, den = self._extract_ratio(purpose, action_type)
 
-            # Map the instrument_id. NSE only provides 'symbol'.
-            # The pipeline will need to join with security master.
-            # For now, we use the symbol as instrument_id.
+            # NSE only provides 'symbol' (plus ISIN). The ID minted here is provisional:
+            # the ingestion worker remaps it through the InstrumentResolver (ISIN first),
+            # so a renamed symbol still lands on the instrument's permanent ID.
             symbol = item.get("symbol", "")
 
             return CorporateAction(
                 corporate_action_id=str(uuid.uuid4()),
-                instrument_id=f"NSE_EQ|{symbol}",  # standardizing on our format
+                instrument_id=mint_instrument_id("NSE", symbol),
                 isin=item.get("isin"),
                 action_type=action_type,
                 source=self.PROVIDER_NAME,

@@ -8,7 +8,7 @@ logger = logging.getLogger(__name__)
 class DailyFeatureEngine:
     """Computes daily technical features entirely within DuckDB."""
 
-    def __init__(self, store: DuckDBStore, calculation_version: str = "features-1.0.0") -> None:
+    def __init__(self, store: DuckDBStore, calculation_version: str = "features-1.1.0") -> None:
         self.store = store
         self.calculation_version = calculation_version
 
@@ -38,12 +38,13 @@ class DailyFeatureEngine:
                     high_adj,
                     low_adj,
                     LAG(close_adj) OVER w_all AS prev_close,
-                    GREATEST(
+                    -- No previous close on the first bar: true range and return are NULL, not 0
+                    CASE WHEN LAG(close_adj) OVER w_all IS NULL THEN NULL ELSE GREATEST(
                         high_adj - low_adj,
-                        ABS(high_adj - COALESCE(LAG(close_adj) OVER w_all, high_adj)),
-                        ABS(low_adj - COALESCE(LAG(close_adj) OVER w_all, low_adj))
-                    ) AS true_range,
-                    COALESCE(LAG(close_adj) OVER w_all, close_adj) AS prev_close_adj
+                        ABS(high_adj - LAG(close_adj) OVER w_all),
+                        ABS(low_adj - LAG(close_adj) OVER w_all)
+                    ) END AS true_range,
+                    (close_adj - LAG(close_adj) OVER w_all) / NULLIF(LAG(close_adj) OVER w_all, 0) AS daily_return
                 FROM daily_prices_adjusted
                 WHERE instrument_id = ?
                 WINDOW w_all AS (PARTITION BY instrument_id ORDER BY trade_date)
@@ -54,39 +55,42 @@ class DailyFeatureEngine:
                     trade_date,
                     close_adj,
 
-                    -- SMAs
-                    AVG(close_adj) OVER w_20 AS sma_20,
-                    AVG(close_adj) OVER w_50 AS sma_50,
-                    AVG(close_adj) OVER w_150 AS sma_150,
-                    AVG(close_adj) OVER w_200 AS sma_200,
+                    -- SMAs: NULL until the window is full (AGENTS.md rule 4: missing is not zero)
+                    CASE WHEN COUNT(*) OVER w_20  = 20  THEN AVG(close_adj) OVER w_20  ELSE NULL END AS sma_20,
+                    CASE WHEN COUNT(*) OVER w_50  = 50  THEN AVG(close_adj) OVER w_50  ELSE NULL END AS sma_50,
+                    CASE WHEN COUNT(*) OVER w_150 = 150 THEN AVG(close_adj) OVER w_150 ELSE NULL END AS sma_150,
+                    CASE WHEN COUNT(*) OVER w_200 = 200 THEN AVG(close_adj) OVER w_200 ELSE NULL END AS sma_200,
 
                     -- ATR and PCT
-                    AVG(true_range) OVER w_14 AS atr_14,
-                    (AVG(true_range) OVER w_14) / NULLIF(close_adj, 0) * 100 AS atr_pct_14,
+                    CASE WHEN COUNT(true_range) OVER w_14 = 14 THEN AVG(true_range) OVER w_14 ELSE NULL END AS atr_14,
+                    CASE WHEN COUNT(true_range) OVER w_14 = 14
+                         THEN (AVG(true_range) OVER w_14) / NULLIF(close_adj, 0) * 100 ELSE NULL END AS atr_pct_14,
 
                     -- Highs
-                    MAX(high_adj) OVER w_20 AS high_20,
-                    MAX(high_adj) OVER w_50 AS high_50,
-                    MAX(high_adj) OVER w_252 AS high_252,
+                    CASE WHEN COUNT(*) OVER w_20 = 20 THEN MAX(high_adj) OVER w_20 ELSE NULL END AS high_20,
+                    CASE WHEN COUNT(*) OVER w_50 = 50 THEN MAX(high_adj) OVER w_50 ELSE NULL END AS high_50,
+                    CASE WHEN COUNT(*) OVER w_252 = 252 THEN MAX(high_adj) OVER w_252 ELSE NULL END AS high_252,
 
                     -- Lows
-                    MIN(low_adj) OVER w_20 AS low_20,
-                    MIN(low_adj) OVER w_50 AS low_50,
-                    MIN(low_adj) OVER w_252 AS low_252,
+                    CASE WHEN COUNT(*) OVER w_20 = 20 THEN MIN(low_adj) OVER w_20 ELSE NULL END AS low_20,
+                    CASE WHEN COUNT(*) OVER w_50 = 50 THEN MIN(low_adj) OVER w_50 ELSE NULL END AS low_50,
+                    CASE WHEN COUNT(*) OVER w_252 = 252 THEN MIN(low_adj) OVER w_252 ELSE NULL END AS low_252,
 
                     -- Volume
-                    AVG(volume_adj) OVER w_5 AS volume_avg_5,
-                    AVG(volume_adj) OVER w_10 AS volume_avg_10,
-                    AVG(volume_adj) OVER w_20 AS volume_avg_20,
-                    AVG(volume_adj) OVER w_50 AS volume_avg_50,
+                    CASE WHEN COUNT(*) OVER w_5 = 5 THEN AVG(volume_adj) OVER w_5 ELSE NULL END AS volume_avg_5,
+                    CASE WHEN COUNT(*) OVER w_10 = 10 THEN AVG(volume_adj) OVER w_10 ELSE NULL END AS volume_avg_10,
+                    CASE WHEN COUNT(*) OVER w_20 = 20 THEN AVG(volume_adj) OVER w_20 ELSE NULL END AS volume_avg_20,
+                    CASE WHEN COUNT(*) OVER w_50 = 50 THEN AVG(volume_adj) OVER w_50 ELSE NULL END AS volume_avg_50,
 
-                    volume_adj / NULLIF(AVG(volume_adj) OVER w_20, 0) AS volume_ratio_20,
-                    volume_adj / NULLIF(AVG(volume_adj) OVER w_50, 0) AS volume_ratio_50,
+                    CASE WHEN COUNT(*) OVER w_20 = 20
+                         THEN volume_adj / NULLIF(AVG(volume_adj) OVER w_20, 0) ELSE NULL END AS volume_ratio_20,
+                    CASE WHEN COUNT(*) OVER w_50 = 50
+                         THEN volume_adj / NULLIF(AVG(volume_adj) OVER w_50, 0) ELSE NULL END AS volume_ratio_50,
 
                     -- Returns and Vol
-                    (close_adj - prev_close_adj) / NULLIF(prev_close_adj, 0) AS daily_return,
-                    STDDEV_POP((close_adj - prev_close_adj) / NULLIF(prev_close_adj, 0)) OVER w_20 AS rolling_volatility_20,
-                    STDDEV_POP((close_adj - prev_close_adj) / NULLIF(prev_close_adj, 0)) OVER w_50 AS rolling_volatility_50
+                    daily_return,
+                    CASE WHEN COUNT(daily_return) OVER w_20 = 20 THEN STDDEV_POP(daily_return) OVER w_20 ELSE NULL END AS rolling_volatility_20,
+                    CASE WHEN COUNT(daily_return) OVER w_50 = 50 THEN STDDEV_POP(daily_return) OVER w_50 ELSE NULL END AS rolling_volatility_50
 
                 FROM raw_tr
                 WINDOW

@@ -39,7 +39,8 @@ class DuckDBInstrumentRepository:
                     created_at, updated_at
                 ) VALUES (?, ?, ?, ?, ?, ?, TRUE, ?, ?)
                 ON CONFLICT (instrument_id) DO UPDATE SET
-                    isin = excluded.isin,
+                    -- Kite carries no ISIN; never overwrite a known ISIN with NULL.
+                    isin = COALESCE(excluded.isin, instruments.isin),
                     exchange = excluded.exchange,
                     symbol = excluded.symbol,
                     company_name = excluded.company_name,
@@ -86,3 +87,77 @@ class DuckDBInstrumentRepository:
                 )
             )
         return instruments
+
+
+class DuckDBInstrumentResolver:
+    """InstrumentResolver backed by the instruments and security_master_history tables.
+
+    Lookup order is ISIN first, then exchange + symbol. In each case the instruments
+    table is consulted before the (current rows of the) security master. ISIN is preferred
+    because it survives a symbol rename, so a renamed instrument keeps its permanent ID
+    (see vcp_scanner.data.identity).
+    """
+
+    def __init__(self, store: DuckDBStore) -> None:
+        self._store = store
+
+    def resolve(
+        self,
+        *,
+        isin: str | None,
+        symbol: str | None,
+        exchange: str = "NSE",
+    ) -> str | None:
+        conn = self._store.conn
+
+        if isin:
+            row = conn.execute(
+                """
+                SELECT instrument_id FROM instruments
+                WHERE isin = ?
+                ORDER BY is_active DESC, updated_at DESC
+                LIMIT 1
+                """,
+                [isin],
+            ).fetchone()
+            if row:
+                return str(row[0])
+
+            row = conn.execute(
+                """
+                SELECT instrument_id FROM security_master_history
+                WHERE isin = ? AND known_to IS NULL
+                ORDER BY valid_from ASC, known_from ASC
+                LIMIT 1
+                """,
+                [isin],
+            ).fetchone()
+            if row:
+                return str(row[0])
+
+        if symbol:
+            row = conn.execute(
+                """
+                SELECT instrument_id FROM instruments
+                WHERE exchange = ? AND symbol = ?
+                ORDER BY is_active DESC, updated_at DESC
+                LIMIT 1
+                """,
+                [exchange, symbol],
+            ).fetchone()
+            if row:
+                return str(row[0])
+
+            row = conn.execute(
+                """
+                SELECT instrument_id FROM security_master_history
+                WHERE exchange = ? AND symbol = ? AND known_to IS NULL
+                ORDER BY valid_from ASC, known_from ASC
+                LIMIT 1
+                """,
+                [exchange, symbol],
+            ).fetchone()
+            if row:
+                return str(row[0])
+
+        return None

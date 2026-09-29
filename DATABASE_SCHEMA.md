@@ -990,6 +990,8 @@ rolling_volatility_50
 calculation_version
 ```
 
+Windowed features are NULL until their window is full (AGENTS.md rule 4). `atr_14` needs 14 true ranges and `rolling_volatility_N` needs N daily returns; the first bar has no previous close, so its `daily_return` and true range are NULL. Ratios are NULL when their average is NULL. Introduced in `features-1.1.0`.
+
 Additional features can be added without changing the raw market data.
 
 ---
@@ -1029,6 +1031,21 @@ calculation_version
 ```
 
 The old fixed `condition_1..8` columns are removed: they did not fit ten conditions and stored no measurements.
+
+Weekly stage context, `weekly_context`:
+
+```text
+instrument_id
+as_of_date
+weekly_stage            -- 1 | 2 | 3 | 4 | TRANSITION
+sma_w
+slope_pct
+prior_pct
+is_partial_week
+algorithm_version       -- stage algorithm version, e.g. stage-1.0.0
+```
+
+The `trend_template_results` summary row deliberately omits `prior_pct` and the stage algorithm version; both live only in `weekly_context`.
 
 ---
 

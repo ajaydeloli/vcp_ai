@@ -99,3 +99,59 @@ def test_capabilities() -> None:
 
     assert caps.daily_history is True
     assert caps.historical_requests_per_second == 3.0
+
+
+def test_historical_daily_uses_ist_trade_date(mock_kiteconnect) -> None:
+    """Regression: Kite stamps daily bars at IST midnight (+05:30).
+
+    Converting that instant to UTC gives 18:30 of the previous day, which used to
+    shift every bar back one calendar day (Monday stored as Sunday).
+    """
+    from zoneinfo import ZoneInfo
+
+    ist = ZoneInfo("Asia/Kolkata")
+    mock_kiteconnect.historical_data.return_value = [
+        {
+            "date": datetime(2024, 1, 1, 0, 0, tzinfo=ist),  # Monday
+            "open": 100.0,
+            "high": 110.0,
+            "low": 95.0,
+            "close": 105.0,
+            "volume": 1000,
+        },
+        {
+            "date": datetime(2024, 1, 5, 0, 0, tzinfo=ist),  # Friday
+            "open": 105.0,
+            "high": 112.0,
+            "low": 101.0,
+            "close": 110.0,
+            "volume": 2000,
+        },
+    ]
+
+    provider = KiteProvider("api_key", "access_token")
+    instrument = Instrument("RELIANCE", "RELIANCE", "NSE")
+    candles = provider.get_historical_daily(instrument, date(2024, 1, 1), date(2024, 1, 5))
+
+    assert [c.timestamp.date() for c in candles] == [date(2024, 1, 1), date(2024, 1, 5)]
+    assert candles[0].timestamp.weekday() == 0  # Monday, not Sunday
+    assert candles[0].timestamp == datetime(2024, 1, 1, tzinfo=UTC)
+    assert candles[1].timestamp.weekday() == 4  # Friday
+
+
+def test_historical_daily_naive_timestamp_treated_as_ist(mock_kiteconnect) -> None:
+    mock_kiteconnect.historical_data.return_value = [
+        {
+            "date": datetime(2024, 1, 1, 0, 0),  # noqa: DTZ001 - naive on purpose
+            "open": 100.0,
+            "high": 110.0,
+            "low": 95.0,
+            "close": 105.0,
+            "volume": 1000,
+        },
+    ]
+    provider = KiteProvider("api_key", "access_token")
+    instrument = Instrument("RELIANCE", "RELIANCE", "NSE")
+    candles = provider.get_historical_daily(instrument, date(2024, 1, 1), date(2024, 1, 1))
+
+    assert candles[0].timestamp == datetime(2024, 1, 1, tzinfo=UTC)

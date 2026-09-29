@@ -8,6 +8,8 @@ from __future__ import annotations
 import logging
 from datetime import UTC, date, datetime
 
+from vcp_scanner.data.identity import mint_instrument_id
+from vcp_scanner.data.providers._time import daily_bar_timestamp
 from vcp_scanner.domain.enums import Timeframe
 from vcp_scanner.domain.market import (
     Candle,
@@ -61,17 +63,24 @@ class KiteProvider:
         for row in raw_instruments:
             # We map Kite's instrument_token to a provider-specific mapping eventually,
             # but for now we store the symbol in the domain Instrument.
+            # The NSE dump also lists indices and other non-equity rows; only cash equities
+            # are tradeable instruments for this scanner.
+            if row.get("instrument_type", "EQ") != "EQ" or row.get("segment", "NSE") != "NSE":
+                continue
+
             symbol = row["tradingsymbol"]
             token = row["instrument_token"]
+            exchange = row.get("exchange", "NSE")
 
             self._symbol_to_token[symbol] = token
 
-            # Using symbol as our internal instrument_id for V1
+            # Canonical ID minted by the shared identity module. Kite has no ISIN, so the
+            # ingestion boundary later remaps via the resolver where an ISIN is known.
             instruments.append(
                 Instrument(
-                    instrument_id=symbol,
+                    instrument_id=mint_instrument_id(exchange, symbol),
                     symbol=symbol,
-                    exchange=row.get("exchange", "NSE"),
+                    exchange=exchange,
                     name=row.get("name"),
                     isin=row.get("isin"),
                     series=row.get("segment"),
@@ -127,10 +136,9 @@ class KiteProvider:
 
         candles = []
         for r in records:
-            # Kite returns timezone-aware datetimes with timezone +0530
-            # We convert to UTC
-            record_dt: datetime = r["date"]
-            dt_utc = record_dt.astimezone(UTC)
+            # Kite stamps daily bars at IST midnight; see daily_bar_timestamp for why the
+            # trade date must come from the IST calendar day, not the UTC conversion.
+            dt_utc = daily_bar_timestamp(r["date"])
 
             candles.append(
                 Candle(

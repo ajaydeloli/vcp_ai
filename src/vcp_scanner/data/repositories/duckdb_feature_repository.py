@@ -1,9 +1,10 @@
 from datetime import date
 from typing import Any
 
-from vcp_scanner.data.storage.duckdb_store import DuckDBStore
-from vcp_scanner.domain.features import DailyFeatures, WeeklyPrice
 from vcp_scanner.data.repositories.base import FeatureRepository
+from vcp_scanner.data.storage.duckdb_store import DuckDBStore
+from vcp_scanner.domain.features import AdjustedClose, DailyFeatures, WeeklyPrice
+
 
 class DuckDBFeatureRepository(FeatureRepository):
     def __init__(self, store: DuckDBStore) -> None:
@@ -12,16 +13,20 @@ class DuckDBFeatureRepository(FeatureRepository):
     def save_daily_features(self, features: list[DailyFeatures]) -> None:
         if not features:
             return
-        
+
         # We assume UPSERT by replacing rows on conflict for idempotent updates
         sql = """
             INSERT INTO technical_features_daily (
                 instrument_id, trade_date, sma_20, sma_50, sma_150, sma_200, ema_10, ema_20, ema_50,
                 atr_14, atr_pct_14, high_20, high_50, high_252, low_20, low_50, low_252,
                 volume_avg_5, volume_avg_10, volume_avg_20, volume_avg_50,
-                volume_ratio_20, volume_ratio_50, daily_return, rolling_volatility_20, rolling_volatility_50,
+                volume_ratio_20, volume_ratio_50, daily_return,
+                rolling_volatility_20, rolling_volatility_50,
                 calculation_version
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (
+                ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+                ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+            )
             ON CONFLICT (instrument_id, trade_date, calculation_version) DO UPDATE SET
                 sma_20 = EXCLUDED.sma_20,
                 sma_50 = EXCLUDED.sma_50,
@@ -48,24 +53,46 @@ class DuckDBFeatureRepository(FeatureRepository):
                 rolling_volatility_20 = EXCLUDED.rolling_volatility_20,
                 rolling_volatility_50 = EXCLUDED.rolling_volatility_50
         """
-        
+
         records = [
             (
-                f.instrument_id, f.trade_date, f.sma_20, f.sma_50, f.sma_150, f.sma_200, f.ema_10, f.ema_20, f.ema_50,
-                f.atr_14, f.atr_pct_14, f.high_20, f.high_50, f.high_252, f.low_20, f.low_50, f.low_252,
-                f.volume_avg_5, f.volume_avg_10, f.volume_avg_20, f.volume_avg_50,
-                f.volume_ratio_20, f.volume_ratio_50, f.daily_return, f.rolling_volatility_20, f.rolling_volatility_50,
-                f.calculation_version
+                f.instrument_id,
+                f.trade_date,
+                f.sma_20,
+                f.sma_50,
+                f.sma_150,
+                f.sma_200,
+                f.ema_10,
+                f.ema_20,
+                f.ema_50,
+                f.atr_14,
+                f.atr_pct_14,
+                f.high_20,
+                f.high_50,
+                f.high_252,
+                f.low_20,
+                f.low_50,
+                f.low_252,
+                f.volume_avg_5,
+                f.volume_avg_10,
+                f.volume_avg_20,
+                f.volume_avg_50,
+                f.volume_ratio_20,
+                f.volume_ratio_50,
+                f.daily_return,
+                f.rolling_volatility_20,
+                f.rolling_volatility_50,
+                f.calculation_version,
             )
             for f in features
         ]
-        
+
         self.store.conn.executemany(sql, records)
 
     def save_weekly_prices(self, prices: list[WeeklyPrice]) -> None:
         if not prices:
             return
-        
+
         sql = """
             INSERT INTO weekly_prices (
                 instrument_id, week_end, open, high, low, close, volume, source_daily_version
@@ -77,14 +104,21 @@ class DuckDBFeatureRepository(FeatureRepository):
                 close = EXCLUDED.close,
                 volume = EXCLUDED.volume
         """
-        
+
         records = [
             (
-                p.instrument_id, p.week_end, p.open, p.high, p.low, p.close, p.volume, p.source_daily_version
+                p.instrument_id,
+                p.week_end,
+                p.open,
+                p.high,
+                p.low,
+                p.close,
+                p.volume,
+                p.source_daily_version,
             )
             for p in prices
         ]
-        
+
         self.store.conn.executemany(sql, records)
 
     def load_daily_features(self, instrument_id: str, as_of: date) -> DailyFeatures | None:
@@ -93,7 +127,8 @@ class DuckDBFeatureRepository(FeatureRepository):
                 instrument_id, trade_date, sma_20, sma_50, sma_150, sma_200, ema_10, ema_20, ema_50,
                 atr_14, atr_pct_14, high_20, high_50, high_252, low_20, low_50, low_252,
                 volume_avg_5, volume_avg_10, volume_avg_20, volume_avg_50,
-                volume_ratio_20, volume_ratio_50, daily_return, rolling_volatility_20, rolling_volatility_50,
+                volume_ratio_20, volume_ratio_50, daily_return,
+                rolling_volatility_20, rolling_volatility_50,
                 calculation_version
             FROM technical_features_daily
             WHERE instrument_id = ? AND trade_date <= ?
@@ -102,7 +137,7 @@ class DuckDBFeatureRepository(FeatureRepository):
         result = self.store.conn.execute(sql, [instrument_id, as_of]).fetchone()
         if not result:
             return None
-            
+
         return DailyFeatures(
             instrument_id=result[0],
             trade_date=result[1],
@@ -139,7 +174,7 @@ class DuckDBFeatureRepository(FeatureRepository):
                 instrument_id, week_end, open, high, low, close, volume, source_daily_version
             FROM weekly_prices
             WHERE instrument_id = ? AND week_end >= ? AND week_end <= ?
-            ORDER BY week_end ASC
+            ORDER BY week_end ASC, source_daily_version ASC
         """
         results = self.store.conn.execute(sql, [instrument_id, start, end]).fetchall()
         return [
@@ -155,3 +190,61 @@ class DuckDBFeatureRepository(FeatureRepository):
             )
             for row in results
         ]
+
+    def load_daily_feature_history(
+        self,
+        instrument_id: str,
+        as_of: date,
+        limit: int,
+        calculation_version: str | None = None,
+    ) -> list[DailyFeatures]:
+        """Up to ``limit`` feature rows with trade_date <= as_of, newest first."""
+        version_clause = "AND calculation_version = ?" if calculation_version is not None else ""
+        params: list[Any] = [instrument_id, as_of]
+        if calculation_version is not None:
+            params.append(calculation_version)
+        params.append(limit)
+        sql = f"""
+            SELECT
+                instrument_id, trade_date, sma_20, sma_50, sma_150, sma_200, ema_10, ema_20, ema_50,
+                atr_14, atr_pct_14, high_20, high_50, high_252, low_20, low_50, low_252,
+                volume_avg_5, volume_avg_10, volume_avg_20, volume_avg_50,
+                volume_ratio_20, volume_ratio_50, daily_return, rolling_volatility_20,
+                rolling_volatility_50, calculation_version
+            FROM technical_features_daily
+            WHERE instrument_id = ? AND trade_date <= ? {version_clause}
+            ORDER BY trade_date DESC, calculation_version DESC
+            LIMIT ?
+        """
+        rows = self.store.conn.execute(sql, params).fetchall()
+        return [DailyFeatures(*row) for row in rows]
+
+    def load_adjusted_closes(
+        self,
+        instrument_id: str,
+        as_of: date,
+        limit: int,
+    ) -> list[AdjustedClose]:
+        """Up to ``limit`` adjusted closes with trade_date <= as_of, newest first.
+
+        If several adjustment versions exist for a date, the most recently computed
+        one wins (deterministic tie-break on version name).
+        """
+        sql = """
+            SELECT trade_date, close_adj FROM (
+                SELECT
+                    trade_date,
+                    close_adj,
+                    ROW_NUMBER() OVER (
+                        PARTITION BY trade_date
+                        ORDER BY computed_at DESC, adjustment_version DESC
+                    ) AS rn
+                FROM daily_prices_adjusted
+                WHERE instrument_id = ? AND trade_date <= ?
+            )
+            WHERE rn = 1
+            ORDER BY trade_date DESC
+            LIMIT ?
+        """
+        rows = self.store.conn.execute(sql, [instrument_id, as_of, limit]).fetchall()
+        return [AdjustedClose(trade_date=row[0], close=row[1]) for row in rows]

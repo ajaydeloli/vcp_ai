@@ -14,11 +14,16 @@ from vcp_scanner.domain.corporate_actions import (
     CorporateActionAdjustment,
     CorporateActionResolution,
 )
+from vcp_scanner.domain.features import AdjustedClose, DailyFeatures, WeeklyPrice
 from vcp_scanner.domain.fundamentals import FundamentalSnapshot
 from vcp_scanner.domain.market import Candle, Instrument
+from vcp_scanner.domain.trend import (
+    RelativeStrengthResult,
+    TrendConditionResult,
+    TrendTemplateResult,
+    WeeklyContext,
+)
 from vcp_scanner.domain.universe import UniverseMembership, UniverseSnapshot
-
-from vcp_scanner.domain.features import DailyFeatures, WeeklyPrice
 
 
 @runtime_checkable
@@ -171,6 +176,7 @@ class CorporateActionRepository(Protocol):
         ordered by effective_date ascending."""
         ...
 
+
 @runtime_checkable
 class FeatureRepository(Protocol):
     """Persistence abstraction for derived technical features."""
@@ -189,4 +195,72 @@ class FeatureRepository(Protocol):
 
     def load_weekly_prices(self, instrument_id: str, start: date, end: date) -> list[WeeklyPrice]:
         """Load weekly prices between start and end (inclusive)."""
+        ...
+
+    def load_daily_feature_history(
+        self,
+        instrument_id: str,
+        as_of: date,
+        limit: int,
+        calculation_version: str | None = None,
+    ) -> list[DailyFeatures]:
+        """Load up to ``limit`` feature rows with trade_date <= as_of, newest first."""
+        ...
+
+    def load_adjusted_closes(
+        self,
+        instrument_id: str,
+        as_of: date,
+        limit: int,
+    ) -> list[AdjustedClose]:
+        """Load up to ``limit`` adjusted closes with trade_date <= as_of, newest first."""
+        ...
+
+
+@runtime_checkable
+class TrendRepository(Protocol):
+    """Persistence abstraction for Trend Template and weekly-context results.
+
+    Every condition row keeps measurement, threshold and verdict
+    (DATABASE_SCHEMA section 30, AGENTS.md hard rule 6).
+    """
+
+    def save_trend_template_results(
+        self,
+        scan_id: str,
+        config_hash: str,
+        results: list[TrendTemplateResult],
+    ) -> None:
+        """Upsert summary rows and all condition rows, atomically."""
+        ...
+
+    def load_trend_conditions(
+        self,
+        instrument_id: str,
+        as_of_date: date,
+        calculation_version: str,
+    ) -> list[TrendConditionResult]:
+        """Load stored condition rows ordered by condition_id."""
+        ...
+
+    def save_weekly_context(self, contexts: list[WeeklyContext]) -> None:
+        """Upsert weekly Stage classifications."""
+        ...
+
+    def load_weekly_context(
+        self,
+        instrument_id: str,
+        as_of_date: date,
+        algorithm_version: str,
+    ) -> WeeklyContext | None:
+        """Load the stored weekly classification for an exact as-of date."""
+        ...
+
+    def load_relative_strength(
+        self,
+        instrument_id: str,
+        as_of_date: date,
+        calculation_version: str,
+    ) -> RelativeStrengthResult | None:
+        """Load the RS snapshot for an exact as-of date, or None if not computed."""
         ...

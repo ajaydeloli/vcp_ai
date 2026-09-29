@@ -42,6 +42,10 @@ class TrendTemplateResult:
     status: TrendTemplateStatus
     conditions: tuple[TrendConditionResult, ...]
     algorithm_version: str
+    #: RS rank used by condition 10 (None when RS was unavailable). Never 0-filled.
+    rs_rank: int | None = None
+    #: Weekly Stage context for the summary row (DATABASE_SCHEMA section 30).
+    weekly_context: WeeklyContext | None = None
 
     @property
     def passed(self) -> bool:
@@ -51,6 +55,18 @@ class TrendTemplateResult:
             and len(self.conditions) == len(TREND_CONDITION_NAMES)
             and all(c.passed is True for c in self.conditions)
         )
+
+    @property
+    def trend_template_pass(self) -> bool | None:
+        """Tri-state gate flag for storage: True / False, or None when data is missing.
+
+        Missing data is NULL, never False (AGENTS.md hard rule 4).
+        """
+        if self.status is TrendTemplateStatus.PASS:
+            return self.passed
+        if self.status is TrendTemplateStatus.FAIL:
+            return False
+        return None
 
 
 @dataclass(frozen=True, slots=True)

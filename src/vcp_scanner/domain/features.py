@@ -60,3 +60,11 @@ class WeeklyPrice:
     close: float
     volume: float | None
     source_daily_version: str
+
+
+@dataclass(frozen=True, slots=True)
+class AdjustedClose:
+    """One adjusted daily close, read from ``daily_prices_adjusted``."""
+
+    trade_date: date
+    close: float
