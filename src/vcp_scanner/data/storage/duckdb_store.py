@@ -189,6 +189,66 @@ CREATE TABLE IF NOT EXISTS corporate_action_adjustments (
 )
 """
 
+_DDL_SECURITY_MASTER_HISTORY = """
+CREATE TABLE IF NOT EXISTS security_master_history (
+    instrument_id     VARCHAR NOT NULL,
+    isin              VARCHAR,
+    symbol            VARCHAR,
+    exchange          VARCHAR,
+    listing_date      DATE,
+    delisting_date    DATE,
+    delisting_reason  VARCHAR,
+    series            VARCHAR,
+    valid_from        DATE NOT NULL,
+    valid_to          DATE,
+    source            VARCHAR,
+    known_from        TIMESTAMPTZ NOT NULL,
+    known_to          TIMESTAMPTZ
+)
+"""
+
+_DDL_SURVEILLANCE_FLAGS_HISTORY = """
+CREATE TABLE IF NOT EXISTS surveillance_flags_history (
+    instrument_id     VARCHAR NOT NULL,
+    flag_type         VARCHAR NOT NULL,
+    stage             VARCHAR,
+    valid_from        DATE NOT NULL,
+    valid_to          DATE,
+    source            VARCHAR,
+    known_from        TIMESTAMPTZ NOT NULL,
+    known_to          TIMESTAMPTZ
+)
+"""
+
+_DDL_UNIVERSE_SNAPSHOTS = """
+CREATE TABLE IF NOT EXISTS universe_snapshots (
+    universe_snapshot_id  VARCHAR PRIMARY KEY,
+    universe_name         VARCHAR NOT NULL,
+    as_of_date            DATE NOT NULL,
+    created_at            TIMESTAMPTZ NOT NULL,
+    config_hash           VARCHAR NOT NULL,
+    method_version        VARCHAR NOT NULL,
+    survivorship_status   VARCHAR NOT NULL
+)
+"""
+
+_DDL_UNIVERSE_MEMBERSHIPS = """
+CREATE TABLE IF NOT EXISTS universe_memberships (
+    universe_snapshot_id  VARCHAR NOT NULL,
+    instrument_id         VARCHAR NOT NULL,
+    eligible              BOOLEAN NOT NULL,
+    exclusion_reason      VARCHAR,
+    avg_traded_value      DOUBLE,
+    price                 DOUBLE,
+    instrument_type       VARCHAR,
+    series                VARCHAR,
+    asm_flag              VARCHAR,
+    gsm_flag              VARCHAR,
+    t2t_flag              VARCHAR,
+    PRIMARY KEY (universe_snapshot_id, instrument_id)
+)
+"""
+
 _ALL_DDL: list[tuple[str, str]] = [
     ("instruments", _DDL_INSTRUMENTS),
     ("ingestion_runs", _DDL_INGESTION_RUNS),
@@ -198,6 +258,10 @@ _ALL_DDL: list[tuple[str, str]] = [
     ("corporate_actions", _DDL_CORPORATE_ACTIONS),
     ("corporate_action_resolution", _DDL_CORPORATE_ACTION_RESOLUTION),
     ("corporate_action_adjustments", _DDL_CORPORATE_ACTION_ADJUSTMENTS),
+    ("security_master_history", _DDL_SECURITY_MASTER_HISTORY),
+    ("surveillance_flags_history", _DDL_SURVEILLANCE_FLAGS_HISTORY),
+    ("universe_snapshots", _DDL_UNIVERSE_SNAPSHOTS),
+    ("universe_memberships", _DDL_UNIVERSE_MEMBERSHIPS),
 ]
 
 

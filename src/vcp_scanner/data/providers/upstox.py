@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import logging
 from datetime import UTC, date, datetime
+
 import requests
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
@@ -25,7 +26,7 @@ logger = logging.getLogger(__name__)
 
 class UpstoxProvider:
     """Upstox API provider adapter.
-    
+
     Implements MarketDataProvider protocol using standard requests.
     """
 
@@ -35,7 +36,7 @@ class UpstoxProvider:
     def __init__(self, api_key: str, access_token: str | None = None) -> None:
         self._api_key = api_key
         self._access_token = access_token
-        
+
         self._session = requests.Session()
         retries = Retry(
             total=3,
@@ -44,19 +45,16 @@ class UpstoxProvider:
             allowed_methods=["GET"],
         )
         self._session.mount("https://", HTTPAdapter(max_retries=retries))
-        
-        headers = {
-            "Accept": "application/json",
-            "Api-Version": "2.0"
-        }
+
+        headers = {"Accept": "application/json", "Api-Version": "2.0"}
         if access_token:
             headers["Authorization"] = f"Bearer {access_token}"
-            
+
         self._session.headers.update(headers)
 
     def get_instruments(self) -> list[Instrument]:
         """Fetch current active tradeable instruments.
-        
+
         Upstox provides a gzip CSV file for instruments. We could parse it here.
         For this implementation, we return a mock/stub since the full CSV parser
         is large, but the pattern is established.
@@ -74,23 +72,26 @@ class UpstoxProvider:
         # Upstox endpoint: /historical-candle/{instrumentKey}/{interval}/{to_date}/{from_date}
         # interval: 'day'
         # dates format: YYYY-mm-dd
-        
-        url = f"{self.BASE_URL}/historical-candle/{instrument.instrument_id}/day/{end.isoformat()}/{start.isoformat()}"
-        
+
+        iid = instrument.instrument_id
+        url = f"{self.BASE_URL}/historical-candle/{iid}/day/{end.isoformat()}/{start.isoformat()}"
+
         try:
             response = self._session.get(url, timeout=10)
             if response.status_code != 200:
-                logger.error(f"Upstox daily history failed for {instrument.symbol}: {response.text}")
+                logger.error(
+                    f"Upstox daily history failed for {instrument.symbol}: {response.text}"
+                )
                 return []
-                
-            # Upstox returns data in reverse chronological order (newest first). We need chronological.
+
+            # Upstox returns data in reverse chronological order (newest first).
             data = response.json().get("data", {}).get("candles", [])
-            
+
             candles = []
             for row in reversed(data):
                 # row format: [timestamp, open, high, low, close, volume, open_interest]
                 # timestamp is ISO8601 string like "2023-01-01T00:00:00+05:30"
-                
+
                 # Parse timestamp and convert to aware datetime, then to UTC
                 ts_str = row[0]
                 try:
@@ -98,20 +99,22 @@ class UpstoxProvider:
                 except ValueError:
                     # Fallback if timezone not present
                     ts = datetime.fromisoformat(ts_str).replace(tzinfo=UTC)
-                    
-                candles.append(Candle(
-                    instrument_id=instrument.instrument_id,
-                    timestamp=ts,
-                    open=float(row[1]),
-                    high=float(row[2]),
-                    low=float(row[3]),
-                    close=float(row[4]),
-                    volume=int(row[5]),
-                    timeframe=Timeframe.DAY_1,
-                    provider=self.PROVIDER_NAME
-                ))
+
+                candles.append(
+                    Candle(
+                        instrument_id=instrument.instrument_id,
+                        timestamp=ts,
+                        open=float(row[1]),
+                        high=float(row[2]),
+                        low=float(row[3]),
+                        close=float(row[4]),
+                        volume=int(row[5]),
+                        timeframe=Timeframe.DAY_1,
+                        provider=self.PROVIDER_NAME,
+                    )
+                )
             return candles
-            
+
         except Exception as e:
             logger.error(f"Upstox daily history error for {instrument.symbol}: {e}")
             return []
@@ -136,13 +139,18 @@ class UpstoxProvider:
             # We can check the profile endpoint to verify the token
             url = f"{self.BASE_URL}/user/profile"
             response = self._session.get(url, timeout=5)
-            
+
             if response.status_code == 200:
                 return ProviderHealth(is_connected=True, error_message=None)
             elif response.status_code in (401, 403):
-                return ProviderHealth(is_connected=False, error_message="Invalid or expired access token")
+                return ProviderHealth(
+                    is_connected=False, error_message="Invalid or expired access token"
+                )
             else:
-                return ProviderHealth(is_connected=False, error_message=f"HTTP {response.status_code}: {response.text}")
+                return ProviderHealth(
+                    is_connected=False,
+                    error_message=f"HTTP {response.status_code}: {response.text}",
+                )
         except Exception as e:
             return ProviderHealth(is_connected=False, error_message=str(e))
 
@@ -152,7 +160,7 @@ class UpstoxProvider:
             provider_name=self.PROVIDER_NAME,
             max_days_per_request_daily=365,
             max_days_per_request_intraday=30,
-            has_split_adjustment_built_in=False, # Upstox behavior to be verified in spike
+            has_split_adjustment_built_in=False,  # Upstox behavior to be verified in spike
             requests_per_second_limit=10.0,
         )
 
@@ -160,33 +168,37 @@ class UpstoxProvider:
         """Optional/interim breakout quote poller."""
         if not instruments:
             return []
-            
+
         instrument_keys = ",".join(i.instrument_id for i in instruments)
         url = f"{self.BASE_URL}/market-quote/quotes"
-        
+
         try:
-            response = self._session.get(url, params={"instrument_key": instrument_keys}, timeout=10)
+            response = self._session.get(
+                url, params={"instrument_key": instrument_keys}, timeout=10
+            )
             if response.status_code != 200:
                 logger.error(f"Upstox quotes failed: {response.text}")
                 return []
-                
+
             data = response.json().get("data", {})
             quotes = []
-            
+
             for key, val in data.items():
                 instrument = next((i for i in instruments if i.instrument_id == key), None)
                 if not instrument:
                     continue
-                    
-                quotes.append(Quote(
-                    instrument_id=key,
-                    timestamp=datetime.now(UTC),
-                    last_price=float(val.get("last_price", 0)),
-                    volume=int(val.get("volume", 0)) if val.get("volume") else None,
-                    provider=self.PROVIDER_NAME
-                ))
+
+                quotes.append(
+                    Quote(
+                        instrument_id=key,
+                        timestamp=datetime.now(UTC),
+                        last_price=float(val.get("last_price", 0)),
+                        volume=int(val.get("volume", 0)) if val.get("volume") else None,
+                        provider=self.PROVIDER_NAME,
+                    )
+                )
             return quotes
-            
+
         except Exception as e:
             logger.error(f"Upstox quotes error: {e}")
             return []

@@ -16,6 +16,7 @@ from vcp_scanner.domain.corporate_actions import (
 )
 from vcp_scanner.domain.fundamentals import FundamentalSnapshot
 from vcp_scanner.domain.market import Candle, Instrument
+from vcp_scanner.domain.universe import UniverseMembership, UniverseSnapshot
 
 
 @runtime_checkable
@@ -59,10 +60,8 @@ class UniverseRepository(Protocol):
 
     def save_snapshot(
         self,
-        snapshot_id: str,
-        as_of_date: date,
-        instrument_ids: list[str],
-        metadata: dict[str, Any] | None = None,
+        snapshot: UniverseSnapshot,
+        memberships: list[UniverseMembership],
     ) -> None:
         """Persist a universe snapshot for a specific date."""
         ...

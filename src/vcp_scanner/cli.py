@@ -72,6 +72,52 @@ def build_parser() -> argparse.ArgumentParser:
         help="Path to .env file to store the access token (default: .env)",
     )
 
+    # ingest subcommands
+    ingest_parser = subparsers.add_parser("ingest", help="Data ingestion commands")
+    ingest_subparsers = ingest_parser.add_subparsers(
+        dest="ingest_command", help="Ingest operations"
+    )
+
+    universe_parser = ingest_subparsers.add_parser(
+        "universe", help="Build a point-in-time universe snapshot"
+    )
+    universe_parser.add_argument(
+        "--as-of",
+        required=True,
+        metavar="YYYY-MM-DD",
+        help="Date for which to build the universe snapshot",
+    )
+    universe_parser.add_argument(
+        "--db",
+        default="data/minervini.duckdb",
+        help="Path to DuckDB database file (default: data/minervini.duckdb)",
+    )
+    universe_parser.add_argument(
+        "--config-dir",
+        default="config",
+        help="Path to directory containing configuration YAML files (default: config)",
+    )
+
+    sm_parser = ingest_subparsers.add_parser(
+        "security-master", help="Ingest NSE security master and surveillance flags"
+    )
+    sm_parser.add_argument(
+        "--start",
+        metavar="YYYY-MM-DD",
+        default="2000-01-01",
+        help="Start date for ingestion range (default: 2000-01-01)",
+    )
+    sm_parser.add_argument(
+        "--end",
+        metavar="YYYY-MM-DD",
+        help="End date for ingestion range (default: today)",
+    )
+    sm_parser.add_argument(
+        "--db",
+        default="data/minervini.duckdb",
+        help="Path to DuckDB database file (default: data/minervini.duckdb)",
+    )
+
     return parser
 
 
@@ -157,6 +203,99 @@ def main(argv: Sequence[str] | None = None) -> int:
                 return 1
         else:
             parser.parse_args(["auth", "--help"])
+            return 0
+
+    if args.command == "ingest":
+        if args.ingest_command == "universe":
+            import os
+            from datetime import date
+
+            from vcp_scanner.data.repositories.duckdb_universe_repository import (
+                DuckDBUniverseRepository,
+            )
+            from vcp_scanner.data.storage.duckdb_store import DuckDBStore
+            from vcp_scanner.data.universe.builder import UniverseBuilder
+
+            try:
+                as_of = date.fromisoformat(args.as_of)
+            except ValueError:
+                print(
+                    f"Error: Invalid date '{args.as_of}'. Use YYYY-MM-DD format.",
+                    file=sys.stderr,
+                )
+                return 1
+
+            try:
+                cfg = load_scanner_config(args.config_dir)
+            except Exception as e:
+                print(f"Configuration error: {e}", file=sys.stderr)
+                return 1
+
+            db_path = args.db
+            os.makedirs(
+                os.path.dirname(db_path) if os.path.dirname(db_path) else ".", exist_ok=True
+            )
+
+            with DuckDBStore(db_path) as store:
+                store.migrate()
+                builder = UniverseBuilder(store, cfg.universe)
+                repo = DuckDBUniverseRepository(store)
+
+                snapshot, memberships = builder.build_snapshot(as_of_date=as_of)
+                repo.save_snapshot(snapshot, memberships)
+
+                eligible = sum(m.eligible for m in memberships)
+                excluded = len(memberships) - eligible
+                print(f"Universe snapshot built for {as_of}")
+                print(f"  Snapshot ID    : {snapshot.universe_snapshot_id}")
+                print(f"  Total screened : {len(memberships)}")
+                print(f"  Eligible       : {eligible}")
+                print(f"  Excluded       : {excluded}")
+                print(f"  Survivorship   : {snapshot.survivorship_status.value}")
+                return 0
+
+        elif args.ingest_command == "security-master":
+            import os
+            from datetime import UTC, date, datetime
+
+            from vcp_scanner.data.ingestion.sm_worker import SecurityMasterIngestionWorker
+            from vcp_scanner.data.providers.nse_security_master import (
+                NSESecurityMasterProvider,
+            )
+            from vcp_scanner.data.providers.nse_surveillance import NSESurveillanceProvider
+            from vcp_scanner.data.storage.duckdb_store import DuckDBStore
+
+            try:
+                start_date = date.fromisoformat(args.start)
+                end_date = date.fromisoformat(args.end) if args.end else datetime.now(UTC).date()
+            except ValueError as err:
+                print(f"Error parsing dates: {err}", file=sys.stderr)
+                return 1
+
+            db_path = args.db
+            os.makedirs(
+                os.path.dirname(db_path) if os.path.dirname(db_path) else ".",
+                exist_ok=True,
+            )
+
+            with DuckDBStore(db_path) as store:
+                store.migrate()
+                worker = SecurityMasterIngestionWorker(
+                    store=store,
+                    security_master_provider=NSESecurityMasterProvider(),
+                    surveillance_provider=NSESurveillanceProvider(),
+                )
+                print(
+                    f"Ingesting security master and surveillance flags "
+                    f"from {start_date} to {end_date}..."
+                )
+                stats = worker.run(start=start_date, end=end_date)
+                print("Ingestion complete:")
+                for k, v in stats.items():
+                    print(f"  {k}: {v}")
+                return 0
+        else:
+            parser.parse_args(["ingest", "--help"])
             return 0
 
     return 0

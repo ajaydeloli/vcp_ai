@@ -39,7 +39,11 @@ class NSECorporateActionProvider:
 
         self._session.headers.update(
             {
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                "User-Agent": (
+                    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                    "AppleWebKit/537.36 (KHTML, like Gecko) "
+                    "Chrome/120.0.0.0 Safari/537.36"
+                ),
                 "Accept": "application/json, text/plain, */*",
                 "Accept-Language": "en-US,en;q=0.9",
             }
@@ -113,14 +117,16 @@ class NSECorporateActionProvider:
             ex_date_str = item.get("exDate")
             ex_date = None
             if ex_date_str and ex_date_str != "-":
-                ex_date = datetime.strptime(ex_date_str, "%d-%b-%Y").date()
+                ex_date = datetime.strptime(ex_date_str, "%d-%b-%Y").replace(tzinfo=UTC).date()
 
-            # Ratios are usually embedded in the purpose string, e.g. "BONUS 1:2" or "FACE VALUE SPLIT FROM RS.10/- TO RS.2/-"
+            # Ratios are usually embedded in the purpose string,
+            # e.g. "BONUS 1:2" or "FACE VALUE SPLIT FROM RS.10/- TO RS.2/-"
             # In a production system, this requires robust regex parsing.
             # We mock the extraction here based on common formats.
             num, den = self._extract_ratio(purpose, action_type)
 
-            # Map the instrument_id. NSE only provides 'symbol'. The pipeline will need to join with security master.
+            # Map the instrument_id. NSE only provides 'symbol'.
+            # The pipeline will need to join with security master.
             # For now, we use the symbol as instrument_id.
             symbol = item.get("symbol", "")
 

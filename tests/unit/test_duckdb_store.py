@@ -24,13 +24,23 @@ def store() -> DuckDBStore:
 
 
 def test_migrate_creates_all_tables(store: DuckDBStore) -> None:
-    """migrate() must create all five Phase 1 tables."""
+    """migrate() must create all Phase 1, 2, and 3 tables."""
     expected_tables = {
+        # Phase 1
         "instruments",
         "ingestion_runs",
         "raw_ohlcv",
         "daily_prices",
         "daily_prices_adjusted",
+        # Phase 2
+        "corporate_actions",
+        "corporate_action_resolution",
+        "corporate_action_adjustments",
+        # Phase 3
+        "security_master_history",
+        "surveillance_flags_history",
+        "universe_snapshots",
+        "universe_memberships",
     }
     result = store.conn.execute(
         "SELECT table_name FROM information_schema.tables WHERE table_schema = 'main'"
@@ -48,7 +58,7 @@ def test_migrate_is_idempotent(store: DuckDBStore) -> None:
         "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'main'"
     ).fetchone()
     assert row_count is not None
-    assert row_count[0] >= 5
+    assert row_count[0] >= 12  # 5 Phase 1 + 3 Phase 2 + 4 Phase 3
 
 
 # ---------------------------------------------------------------------------

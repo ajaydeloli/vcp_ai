@@ -61,7 +61,7 @@ class UpstoxCorporateActionProvider:
         for instrument in instruments:
             try:
                 # The exact Upstox v2 endpoint for corporate actions can vary.
-                # Often it's part of historical market data or a specific corporate-actions endpoint.
+                # Often it's part of historical market data or a specific endpoint.
                 # Assuming a theoretical /corporate-actions endpoint for this implementation.
                 url = f"{self.BASE_URL}/corporate-actions"
                 params = {
@@ -79,7 +79,10 @@ class UpstoxCorporateActionProvider:
 
                 if response.status_code != 200:
                     logger.warning(
-                        f"Failed to fetch Upstox actions for {instrument.symbol}: {response.status_code} {response.text}"
+                        "Failed to fetch Upstox actions for %s: %s %s",
+                        instrument.symbol,
+                        response.status_code,
+                        response.text,
                     )
                     continue
 
@@ -116,7 +119,11 @@ class UpstoxCorporateActionProvider:
                 return None
 
             ex_date_str = item.get("ex_date")
-            ex_date = datetime.strptime(ex_date_str, "%Y-%m-%d").date() if ex_date_str else None
+            ex_date = (
+                datetime.strptime(ex_date_str, "%Y-%m-%d").replace(tzinfo=UTC).date()
+                if ex_date_str
+                else None
+            )
 
             # Upstox usually provides a ratio string like "1:2"
             ratio_str = item.get("ratio", "")

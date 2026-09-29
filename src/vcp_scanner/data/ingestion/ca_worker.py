@@ -93,7 +93,8 @@ class CorporateActionIngestionWorker:
                     ):
                         needs_adjustment_recalc = True
 
-            # 3. If any price-affecting resolution changed, recalculate all factors for this instrument
+            # 3. If any price-affecting resolution changed,
+            # recalculate all factors for this instrument
             if needs_adjustment_recalc:
                 current_resolutions = self.repository.load_resolutions(iid)
                 new_adjustments = self.adjustment_engine.compute_factors(current_resolutions)
@@ -103,5 +104,7 @@ class CorporateActionIngestionWorker:
                     adjusted_count += 1
 
         logger.info(
-            f"Reconciliation complete. Generated {reconciled_count} new/updated resolutions and {adjusted_count} adjustment factors."
+            "Reconciliation complete: %d resolutions, %d adjustment factors.",
+            reconciled_count,
+            adjusted_count,
         )
