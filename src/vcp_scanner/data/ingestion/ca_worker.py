@@ -78,8 +78,26 @@ class CorporateActionIngestionWorker:
         # Which instruments the secondary source was actually asked about (audit P0-2). A
         # provider that does not report coverage (e.g. no Upstox token) covers nothing, so its
         # silence never escalates an NSE-only split/bonus to PROVIDER_CONFLICT.
+        # Coverage is also bounded in time: a provider may only serve recent events (Upstox
+        # returns about 12 months), so its silence counts only from the earliest date it
+        # actually returned for that instrument (``coverage_start``; found in audit Fix 5b).
+        # A provider that reports queried ids but no coverage dates is trusted for the whole
+        # requested window.
         queried = getattr(self.secondary_provider, "queried_instrument_ids", None) or set()
-        secondary_covered = {canonical_instrument_id(self.resolver, iid) for iid in queried}
+        coverage = getattr(self.secondary_provider, "coverage_start", None)
+        secondary_windows: dict[str, tuple[date, date]] = {}
+        for provider_iid in queried:
+            if coverage is None:
+                window_start = start
+            elif provider_iid in coverage:
+                window_start = max(start, coverage[provider_iid])
+            else:
+                continue  # asked, but no records at all: its silence proves nothing
+            if window_start <= end:
+                secondary_windows[canonical_instrument_id(self.resolver, provider_iid)] = (
+                    window_start,
+                    end,
+                )
 
         if not all_new_actions:
             logger.info("No corporate actions found in this period.")
@@ -127,7 +145,7 @@ class CorporateActionIngestionWorker:
                 actions=all_historical_actions,
                 as_of_date=as_of,
                 existing_resolutions=existing_resolutions,
-                secondary_window=(start, end) if iid in secondary_covered else None,
+                secondary_window=secondary_windows.get(iid),
             )
 
             # Any changed resolution, new OR updated, is persisted. Updates matter: a

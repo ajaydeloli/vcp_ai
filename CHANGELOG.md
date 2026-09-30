@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed (Upstox corporate actions, found on live data)
+- Upstox serves only about the last 12 months of corporate actions per ISIN. Its silence about an older NSE split/bonus was treated as evidence, so with a token configured every historical split/bonus would have become `PROVIDER_CONFLICT` after the 3-day grace period (blocked, factor withdrawn). `UpstoxCorporateActionProvider.coverage_start` records the earliest ex-date Upstox returned per instrument; the CA worker only counts Upstox's silence from that date (no records = no evidence).
+- Upstox split ratios are share ratios (`"1:5"` for KOTAKBANK's face value 5 -> 1); they are now converted to the engine/NSE convention `(old face value, new face value)`. Before, every split reported by both sources was a ratio conflict. Bonus ratios are unchanged.
+
 ### Fixed (found by the first real-data run, audit 2026-09-30 Fix 5b)
 - Same-day split and bonus (BAJFINANCE 2025-06-16: 1:2 split + 4:1 bonus) lost a factor: `save_adjustment` closes any row with the same (instrument, effective_date), so the bonus closed the split and the stored factor was 0.5 instead of 0.1. `AdjustmentEngine.compute_factors` now combines all actions of one ex-date into one factor (`resolution_id` = ids joined by `+`). The corporate-action worker also rebuilds an instrument's factors whenever they differ from what the engine computes now, so existing databases are repaired on the next `vcp ingest corporate-actions`.
 - `--instrument` accepted only full ids in `compute features`, `compute trend-template`, `quality scan`, `quality list`, `ingest adjusted-prices` and the post-ingest quality scan of `ingest corporate-actions`; a symbol such as `RELIANCE` silently selected nothing (the quality scan checked 0 instruments). All now accept an id or a symbol, any case.

@@ -453,3 +453,39 @@ without the action; NSE subject formats parse to the verified ratios.
 | D4 | Demergers (RELIANCE/Jio Financial 2023, ITC Hotels 2025, HINDUNILVR) are unhandled by the local engine. | Fine for Kite-sourced bars (already adjusted); wrong for any raw source; gap net only catches ≥ 30 %. |
 
 **Verification.** Full suite: 635 passed, 0 failed (was 568). `ruff check`, `ruff format --check`, `mypy --strict src` clean.
+
+---
+
+## Follow-up — Upstox coverage window and split-ratio convention (2026-09-30)
+
+**Found** after the owner added Upstox credentials. Live responses for TATASTEEL, RELIANCE,
+HDFCBANK, BAJFINANCE, KOTAKBANK: each returns only ~12 months of events (one 2026 dividend each;
+none of their 2022–2025 splits/bonuses), and KOTAKBANK's face-value 5 → 1 split arrives as
+`"1:5"`. Owner approved the fix.
+
+**Problems.** (1) Fix 2 escalates an NSE-only split/bonus to `PROVIDER_CONFLICT` when Upstox was
+asked and stayed silent; with Upstox's 12-month depth, every older split/bonus would have been
+blocked and its factor withdrawn after 3 days. (2) Upstox split ratios are `old:new` shares, the
+reverse of the engine/NSE `(old FV, new FV)`, so every split reported by both would conflict on
+ratio.
+
+**Change.**
+- `data/providers/upstox_ca.py`: `coverage_start[instrument_id]` = earliest ex-date among *all*
+  records Upstox returned (before the window filter); split ratio parts swapped on parse.
+- `data/ingestion/ca_worker.py`: secondary window per instrument = `[max(start,
+  coverage_start), end]`; instrument asked but with no records → no window (silence proves
+  nothing); providers without `coverage_start` keep the full window (unchanged behavior).
+- DATA_SPECIFICATION §18A note; CHANGELOG.
+
+**Tests.** `tests/unit/test_upstox_coverage.py` (8, payload shapes from the live responses):
+split `"1:5"` → (5, 1); bonus `"4:1"` unchanged; coverage from the earliest record even outside
+the window; no records → no coverage; NSE+Upstox same split → CONFIRMED; 2022 split before
+coverage stays SINGLE_SOURCE after grace (factor kept); split inside coverage that Upstox lacks
+→ PROVIDER_CONFLICT; instrument with no Upstox records never escalates.
+
+**Real-data verification** (`data/fix5b.duckdb`, token active): 221 actions (NSE 187, Upstox 34);
+KOTAKBANK split CONFIRMED, 31 dividends CONFIRMED, historical splits/bonuses SINGLE_SOURCE,
+0 conflicts, 0 blocking events. Simulated run 10 days later (past the grace period) on a copy with
+live feeds: still 0 conflicts, 0 blocks, all 8 split/bonus factors kept.
+
+**Verification.** Full suite: 643 passed, 0 failed (was 635). `ruff check`, `ruff format --check`, `mypy --strict src` clean.

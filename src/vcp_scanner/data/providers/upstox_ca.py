@@ -34,6 +34,11 @@ class UpstoxCorporateActionProvider:
         #: "no record"). Reconciliation treats Upstox's silence about a split/bonus as
         #: evidence only for these instruments (audit P0-2).
         self.queried_instrument_ids: set[str] = set()
+        #: Earliest ex-date Upstox returned per queried instrument, over ALL its records (before
+        #: the date-window filter). Upstox only serves about the last 12 months of events, so
+        #: its silence is evidence only from this date on (found in audit Fix 5b). An
+        #: instrument with no records has no entry: its silence proves nothing.
+        self.coverage_start: dict[str, date] = {}
 
         # Configure retries
         retries = Retry(
@@ -65,6 +70,7 @@ class UpstoxCorporateActionProvider:
         actions: list[CorporateAction] = []
         failures: list[str] = []
         self.queried_instrument_ids = set()
+        self.coverage_start = {}
 
         for instrument in instruments:
             # Upstox keys equities by ISIN ("NSE_EQ|<ISIN>"), never by trading symbol
@@ -106,6 +112,11 @@ class UpstoxCorporateActionProvider:
                 data = response.json().get("data", [])
                 self.queried_instrument_ids.add(instrument.instrument_id)
                 for item in data:
+                    seen = _parse_date(item.get("expiry_date"))
+                    if seen is not None:
+                        held = self.coverage_start.get(instrument.instrument_id)
+                        if held is None or seen < held:
+                            self.coverage_start[instrument.instrument_id] = seen
                     action = self._parse_upstox_action(instrument, item)
                     if action and action.ex_date and start <= action.ex_date <= end:
                         actions.append(action)
@@ -155,13 +166,18 @@ class UpstoxCorporateActionProvider:
                 else None
             )
 
-            # Upstox usually provides a ratio string like "1:2"
+            # Upstox ratio strings: SPLIT "old:new" in shares (KOTAKBANK's face-value 5 -> 1
+            # split is "1:5"); BONUS "bonus:held" ("1:1"). The adjustment engine and the NSE
+            # parser use SPLIT = (old face value, new face value), which is the reverse of the
+            # share ratio, so a split's parts are swapped (found on live data, audit Fix 5b).
             ratio_str = item.get("ratio") or ""  # null for dividends
             num, den = None, None
             if ":" in ratio_str:
                 parts = ratio_str.split(":")
                 num = float(parts[0])
                 den = float(parts[1])
+                if action_type == CorporateActionType.SPLIT:
+                    num, den = den, num
 
             cash_amount = float(item["amount"]) if item.get("amount") is not None else None
 
@@ -192,3 +208,13 @@ class UpstoxCorporateActionProvider:
         except Exception as e:
             logger.warning(f"Could not parse Upstox record {item}: {e}")
             return None
+
+
+def _parse_date(raw: object) -> date | None:
+    """Upstox ``expiry_date`` ("14 Aug 2025") -> date; None if absent or unreadable."""
+    if not raw:
+        return None
+    try:
+        return datetime.strptime(str(raw), "%d %b %Y").replace(tzinfo=UTC).date()
+    except ValueError:
+        return None

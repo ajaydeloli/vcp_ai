@@ -570,6 +570,8 @@ Compare per (instrument, action type): `ex_date`, action type, ratio (numerator/
 | Sources disagree on ex-date, type, ratio, or cash amount (only when both report one); or only Upstox has it; or an NSE-only split/bonus past the grace period that Upstox was queried about and does not report | `PROVIDER_CONFLICT` | split/bonus: **signals blocked for that symbol** until resolved; dividend/rights: warning only |
 | Human decision recorded | `MANUAL_OVERRIDE` | factor applied from the override, audited (§77) |
 
+Upstox coverage (verified live 2026-09-30): Upstox returns only about the last 12 months of events per ISIN, so "asked" means asked **and within Upstox's coverage**: from the earliest ex-date Upstox returned for that ISIN to the end of the window; an ISIN with no Upstox records gives no evidence. Upstox writes a split as the share ratio `old:new` ("1:5" for face value 5 -> 1); it is converted to this spec's `(old face value, new face value)` convention on ingestion.
+
 Policy (audit P0-2, 2026-09-30): only price-scaling actions (split, bonus) can block, because only they change adjusted prices; the secondary source's silence counts as evidence only when it was actually asked. Blocking means the symbol emits `NO_SIGNAL` with `CORPORATE_ACTION_UNRESOLVED` (critical data-quality failure, §55). The pipeline continues for all other symbols.
 
 Point-in-time application: an action adjusts prices only when `ex_date <= as_of_date` **and** `known_from <= known_at`. Never apply a future action to earlier observations.
