@@ -514,3 +514,36 @@ files live in `data/spike/` (git-ignored, not committed).
   - DEMERGER factor = ex-date open / prior close, taken from the special pre-open. This is only a *suggestion*; it must be CONFIRMED by NSE's announcement or set by MANUAL_OVERRIDE. The gap detector blocks until then.
   - RIGHTS is also in scope: raw prices now show rights gaps (BHARTIARTL 2021). Factor = theoretical ex-rights price / cum price.
 - **2.6 migration:** expect adjusted-history changes for dividend residuals (now absent), plus new blocking gaps for demergers and rights (ITC 2025-01, RELIANCE 2023-07, BHARTIARTL 2021) until they are resolved.
+
+## Step 2.1 — bhavcopy provider, raw cache and manifest (2026-09-30)
+
+**Change.**
+- New `domain/bhavcopy.py`: `BhavcopyRow`, `RejectedBhavcopyRow`, `ParsedBhavcopy`, `BhavcopyFileRecord`, `BhavcopyFormat`, `BhavcopyFileStatus` and `EQUITY_SERIES`.
+- New `data/providers/nse_bhavcopy.py`:
+  - URL and layout chosen by date;
+  - one parser for both layouts;
+  - series filter;
+  - row rejects with reasons;
+  - the whole file is refused on a wrong session date, missing columns or a non-zip payload;
+  - `fetch_day` with an unchanged zip cache plus sha256, a `refresh` option and 1 s spacing;
+  - `NOT_FOUND` on 404, `ProviderError` on any other failure;
+  - `classify_missing` (holiday list, or at least 3 days old → NO_SESSION; else PENDING);
+  - `get_trading_holidays`.
+- Table `bhavcopy_files` (PK trade_date + sha256; missing-file entries use sha256 '' and are updated in place) and `DuckDBBhavcopyRepository` (`record_file`, `latest_file(s)`).
+- DATA_SPECIFICATION §21.2; CHANGELOG.
+- Not yet wired into any CLI or worker (that is 2.3).
+
+**Tests.** New `tests/unit/test_nse_bhavcopy.py` (16) against two real NSE files trimmed to 11 rows each (`tests/fixtures/bhavcopy/`). They check:
+- TATASTEEL's split ex-date bar is raw, and `PREVCLOSE` is unadjusted at 959.40;
+- 2026-09-29 TITAN and TATASTEEL closes and volumes equal Kite's;
+- the layout switch date and URLs;
+- the series filter;
+- wrong-date, missing-column and non-zip files are refused;
+- duplicate, inverted, NaN, blank, zero and fractional-volume rows are rejected with reasons;
+- 404 classification;
+- the cache hit, refresh, 404, HTTP 500 and connection-error paths;
+- rate-limit spacing;
+- holiday parsing;
+- manifest upsert and versioning.
+
+**Verification.** Full suite: 659 passed, 0 failed (was 643). `ruff check`, `ruff format --check`, `mypy --strict src` clean.

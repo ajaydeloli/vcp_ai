@@ -726,6 +726,36 @@ Rules (owner decision, "fetch-time aware"):
 - Known limit: Kite also adjusts for rights, spin-offs and extraordinary dividends, which the local layer does not model; those remain in Kite-sourced history and cannot be undone for the price filter.
 - **Verified on live data (audit Fix 5b, 2026-09-30).** `vcp verify kite-adjustment` on TATASTEEL, IRCTC and RELIANCE: all ADJUSTED. Golden fixture (`tests/fixtures/corporate_actions/golden_actions.json`, 7 real actions) shows NSE bhavcopy raw close × our factor = Kite close within 0.01 % for 6 actions. The exception, TATASTEEL, shows that Kite also rescales history for large *ordinary* dividends (₹3.60 in 2024 and 2025, ~2.2 % of price each; Nestlé's ~1 % dividends are not adjusted), so Kite's adjustment set is wider than "extraordinary" dividends. Consequence (open, owner decision pending): bars fetched before such a dividend and bars fetched after it differ by that factor, and the local engine cannot reconcile them, leaving a ~2 % step in incrementally ingested history.
 
+
+## 21.2 NSE bhavcopy: the raw price source of truth (audit step 2, D1)
+
+Owner decision (2026-09-30): raw daily bars come from NSE's capital-market bhavcopy. Adjusted prices are produced only by the local engine from reconciled corporate actions. Kite provides today's provisional bar before the bhavcopy is published, and serves as a cross-check. This removes the dependence on Kite's fetch-time adjustment set (§21.1), which includes dividends, demergers and rights.
+
+Source (`data/providers/nse_bhavcopy.py`):
+
+- **Layouts.**
+  - Legacy `content/historical/EQUITIES/YYYY/MON/cmDDMONYYYYbhav.csv.zip` for sessions up to 2024-07-05.
+  - UDiFF `content/cm/BhavCopy_NSE_CM_0_0_0_YYYYMMDD_F_0000.csv.zip` from 2024-07-08.
+  - Both are parsed to one row type: symbol, series, ISIN, OHLC, last, previous close, volume, turnover and trades.
+- **Series kept:** EQ, BE, BZ, SM, ST (`domain.bhavcopy.EQUITY_SERIES`). Other series are counted and skipped.
+- **Validation.** Every kept row passes `validate_ohlc`. Failing, unparseable or duplicate (symbol, series) rows are returned as rejects with a reason and are never dropped silently. A file whose layout or session date is wrong is refused as a whole.
+- **Raw zips** are cached unchanged under the cache directory (`YYYY/<file name>`). The manifest `bhavcopy_files` records one row per (date, sha256), with status OK / NO_SESSION / PENDING / ERROR. A re-published file with different bytes becomes a new row.
+- **Missing files.**
+  - A holiday, a weekend and a not-yet-published file all answer HTTP 404.
+  - A 404 means NO_SESSION if the date is on NSE's holiday list (current year only) or is at least 3 days old; otherwise it means PENDING (`classify_missing`).
+  - Sessions also happen on weekends (Muhurat Sunday 2023-11-12, special Saturday 2024-01-20), so the ingest probes every calendar day.
+- **Rate limit:** at least 1 s between requests. A file takes about 1.2–1.5 s and is 70–210 KB.
+- **`PREVCLOSE` is not adjusted** on corporate-action ex-dates (verified on 7 splits/bonuses and the RELIANCE demerger). It is kept for reference and must not be used as an adjustment factor.
+- **ISINs change 0–1 trading day after a face-value split.** Identity therefore follows symbol continuity, with an ISIN history (step 2.2).
+
+Still to come in step 2 (see `AUDIT_FIX_LOG.md`):
+
+- identity and `isin_history` (2.2);
+- daily-file ingestion and precedence over Kite bars (2.3);
+- demerger and rights factors (2.4);
+- Kite's provisional/cross-check role (2.5);
+- migration (2.6).
+
 ---
 
 # 22. Split/Gaps Anomaly Detection

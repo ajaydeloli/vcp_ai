@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (audit step 2.1: NSE bhavcopy as the raw price source)
+- `data/providers/nse_bhavcopy.py`:
+  - `NseBhavcopyProvider` downloads NSE capital-market bhavcopy files in both layouts (legacy up to 2024-07-05, UDiFF from 2024-07-08). Each zip is cached unchanged with its sha256, and requests are rate-limited (1 s).
+  - `parse_bhavcopy` normalises both layouts, keeps equity series EQ/BE/BZ/SM/ST, and returns invalid or duplicate rows as rejects with reasons.
+  - `classify_missing` decides what a 404 means: NO_SESSION or PENDING.
+  - `get_trading_holidays` reads NSE's current-year holiday list.
+- `domain/bhavcopy.py`: bhavcopy row, file status and manifest types.
+- Table `bhavcopy_files` (manifest, one row per date and file hash) and `DuckDBBhavcopyRepository`.
+- DATA_SPECIFICATION §21.2.
+- Nothing is wired into ingestion yet (step 2.3).
+
 ### Fixed (Upstox corporate actions, found on live data)
 - Upstox serves only about the last 12 months of corporate actions per ISIN. Its silence about an older NSE split/bonus was treated as evidence, so with a token configured every historical split/bonus would have become `PROVIDER_CONFLICT` after the 3-day grace period (blocked, factor withdrawn). `UpstoxCorporateActionProvider.coverage_start` records the earliest ex-date Upstox returned per instrument; the CA worker only counts Upstox's silence from that date (no records = no evidence).
 - Upstox split ratios are share ratios (`"1:5"` for KOTAKBANK's face value 5 -> 1); they are now converted to the engine/NSE convention `(old face value, new face value)`. Before, every split reported by both sources was a ratio conflict. Bonus ratios are unchanged.

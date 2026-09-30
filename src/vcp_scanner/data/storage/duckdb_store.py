@@ -475,6 +475,26 @@ CREATE TABLE IF NOT EXISTS provider_instruments (
 )
 """
 
+
+# Manifest of NSE bhavcopy files (audit step 2). One row per (calendar date, file hash):
+# a re-published file with different bytes is a new row, so what was ingested stays provable.
+# Dates with no file carry sha256 = '' and status NO_SESSION / PENDING / ERROR.
+_DDL_BHAVCOPY_FILES = """
+CREATE TABLE IF NOT EXISTS bhavcopy_files (
+    trade_date      DATE        NOT NULL,
+    sha256          VARCHAR     NOT NULL,
+    status          VARCHAR     NOT NULL,
+    url             VARCHAR     NOT NULL,
+    file_format     VARCHAR     NOT NULL,
+    row_count       INTEGER     NOT NULL DEFAULT 0,
+    rejected_count  INTEGER     NOT NULL DEFAULT 0,
+    cache_path      VARCHAR,
+    detail          VARCHAR,
+    recorded_at     TIMESTAMPTZ NOT NULL,
+    PRIMARY KEY (trade_date, sha256)
+)
+"""
+
 _ALL_DDL: list[tuple[str, str]] = [
     ("instruments", _DDL_INSTRUMENTS),
     ("provider_instruments", _DDL_PROVIDER_INSTRUMENTS),
@@ -498,6 +518,7 @@ _ALL_DDL: list[tuple[str, str]] = [
     ("trend_template_results", _DDL_TREND_TEMPLATE_RESULTS),
     ("trend_template_conditions", _DDL_TREND_TEMPLATE_CONDITIONS),
     ("weekly_context", _DDL_WEEKLY_CONTEXT),
+    ("bhavcopy_files", _DDL_BHAVCOPY_FILES),
 ]
 
 
