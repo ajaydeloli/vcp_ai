@@ -342,6 +342,71 @@ def run_market_ingest(args: argparse.Namespace) -> int:
 
 
 # ---------------------------------------------------------------------------
+# ingest bhavcopy
+# ---------------------------------------------------------------------------
+
+
+def run_bhavcopy_ingest(args: argparse.Namespace) -> int:
+    from pathlib import Path
+
+    from vcp_scanner.data.ingestion.bhavcopy_worker import BhavcopyIngestionWorker
+    from vcp_scanner.data.providers.nse_bhavcopy import NseBhavcopyProvider
+    from vcp_scanner.data.repositories.duckdb_bhavcopy_repository import (
+        DuckDBBhavcopyRepository,
+    )
+    from vcp_scanner.data.repositories.duckdb_identity_repository import (
+        DuckDBIdentityRepository,
+    )
+    from vcp_scanner.data.repositories.duckdb_market_repository import (
+        DuckDBMarketDataRepository,
+    )
+
+    start = _parse_date(args.start)
+    end = _parse_date(args.end) if args.end else date(2999, 12, 31)
+    if start is None or end is None:
+        return 1
+    cache_dir = args.cache_dir
+    if not cache_dir:
+        raw_dir = "data/raw"
+        try:
+            raw_dir = load_scanner_config(
+                getattr(args, "config_dir", "config")
+            ).data.raw_storage_dir
+        except Exception as e:
+            _err(f"Warning: using default raw storage dir ({e})")
+        cache_dir = str(Path(raw_dir) / "bhavcopy")
+
+    def clock() -> datetime:
+        return datetime.now(UTC)
+
+    with _open_store(args.db) as store:
+        worker = BhavcopyIngestionWorker(
+            NseBhavcopyProvider(cache_dir),
+            DuckDBMarketDataRepository(store),
+            DuckDBBhavcopyRepository(store),
+            DuckDBIdentityRepository(store),
+            clock=clock,
+            code_version=PACKAGE_VERSION,
+        )
+        s = worker.run(start, end, refresh=args.refresh)
+
+    print("Bhavcopy ingestion:")
+    print(f"  Run id            : {s.run_id}")
+    print(f"  Sessions ingested : {s.days_ok}")
+    print(f"  No session        : {s.days_no_session}")
+    print(f"  Already ingested  : {s.days_skipped}")
+    print(f"  Rows / rejected   : {s.rows_received} / {s.rows_rejected}")
+    print(f"  Bars written      : {s.bars_written} (unchanged {s.bars_unchanged})")
+    superseded = ", ".join(f"{k} {v}" for k, v in sorted(s.superseded.items())) or "none"
+    print(f"  Bars superseded   : {superseded}")
+    print(f"  New instruments   : {s.new_instruments} (inactive until listed in EQUITY_L)")
+    print(f"  Identifier changes: {s.identifier_changes}")
+    if s.stopped_at is not None:
+        _err(f"  Stopped at {s.stopped_at}: {s.stop_status} ({s.stop_detail})")
+    return 1 if s.status == "FAILED" or s.status == "PARTIAL" else 0
+
+
+# ---------------------------------------------------------------------------
 # ingest corporate-actions
 # ---------------------------------------------------------------------------
 

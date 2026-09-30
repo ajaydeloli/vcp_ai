@@ -762,9 +762,25 @@ Storage and follow-up:
 - `daily_series` maps every kept row of every day to its instrument and series. Re-running a day replays that mapping. A re-run with rows the first run did not have, or a day earlier than the last one resolved, is refused.
 - The quality scan raises `SYMBOL_MAPPING_UNCERTAIN` (a WARNING that never blocks) for an ISIN change with no split whose ex-date falls between 7 days before and 1 day after it.
 
+Ingestion (`vcp ingest bhavcopy --start D [--end D] [--refresh]`, step 2.3):
+
+- **Order.** Calendar days are processed in date order and never beyond today (IST). A day the manifest has as OK (with a cached file) or NO_SESSION is skipped unless `--refresh` is given.
+- **What a 404 means** (`classify_missing`):
+  - today's 404 is PENDING;
+  - an earlier weekend day is NO_SESSION;
+  - a listed holiday, or a weekday at least 3 days old, is NO_SESSION;
+  - a recent weekday is PENDING.
+- **PENDING or ERROR stops the run** (exit 0 for PENDING, 1 for ERROR). Identity must advance in date order, so a later day is never written before an earlier one.
+- **Precedence.** `NSE_BHAVCOPY` (`domain.market.FINAL_PRICE_SOURCE`) is final for its session.
+  - It closes (`known_to`) any other current bar for that (instrument, date), whatever the provider.
+  - An identical bhavcopy bar (same source hash) is left as is.
+  - `save_daily` never lets another provider's bar supersede a bhavcopy bar.
+- **One bar per instrument and day.** When a stock has rows in two series, the most regular series wins (EQ > BE > BZ > SM > ST); `selection_reason` records `series=..`.
+- **Raw provenance** is the cached zip plus its sha256 in `bhavcopy_files`. Bhavcopy rows are not copied into `raw_ohlcv`.
+- **Crash safety.** The manifest row is written last, so an interrupted day is redone; identity is replayed from `daily_series`.
+
 Still to come in step 2 (see `AUDIT_FIX_LOG.md`):
 
-- daily-file ingestion and precedence over Kite bars (2.3);
 - demerger and rights factors (2.4);
 - Kite's provisional/cross-check role (2.5);
 - migration (2.6).

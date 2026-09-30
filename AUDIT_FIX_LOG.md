@@ -570,3 +570,36 @@ files live in `data/spike/` (git-ignored, not committed).
 - Plus 1 ETF-skip test in `test_nse_bhavcopy.py`.
 
 **Verification.** Full suite: 673 passed, 0 failed (was 659). `ruff check`, `ruff format --check`, `mypy --strict src` clean.
+
+## Step 2.3 — bhavcopy ingestion and precedence over Kite (2026-09-30)
+
+**Change.**
+- New `data/ingestion/bhavcopy_worker.py` (`BhavcopyIngestionWorker`) and CLI `vcp ingest bhavcopy`. Per calendar day, in order:
+  1. skip if the manifest has the day as OK (cached) or NO_SESSION;
+  2. download or read the cache;
+  3. classify 404s;
+  4. parse;
+  5. resolve (or replay) identity;
+  6. pick one bar per instrument by series priority;
+  7. write bars;
+  8. mark the day OK last.
+  PENDING or ERROR stops the run. An `ingestion_runs` row is written per run.
+- `DuckDBMarketDataRepository.save_final_daily` (set-based, one transaction): an identical current bar stays; any other current bar is closed and the bhavcopy bar inserted. It returns the superseded counts per provider.
+- `save_daily` guard: a non-bhavcopy bar never supersedes a current bhavcopy bar (Kite re-fetches are ignored for final sessions).
+- `DuckDBStore.registered` (Arrow-backed view); `insert_rows` now uses it. `save_adjusted_daily` is set-based (D3).
+- **Small fix (owner rule).** `classify_missing` would have held every Monday run on the weekend's 404s (PENDING for 3 days). An earlier weekend day is now NO_SESSION; today's 404 is PENDING.
+
+**Real-data check** (copy `data/fix5b_bhav.duckdb` of the Fix 5b DB, `--start 2026-09-01`, not committed):
+- 30 days in 32 s (21 sessions, 9 no-session): 63,783 bars, 0 rejects.
+- All 400 Kite bars for the 20 stocks superseded. Every one had identical OHLCV to the bhavcopy bar (0 mismatches).
+- 585 new inactive instruments and 7 identifier changes; a re-run is a no-op.
+
+**D3 (throughput).**
+- Ingest: 1 file per session covers ~3,000 stocks, about 1.5 s per day including download, where Kite needed about 25 s per stock.
+- Adjust: 5 stocks took 0.69 s instead of about 40 s, and the rows are identical to the old code's (7,120 compared, 0 differences).
+
+**Tests.**
+- New `tests/unit/test_bhavcopy_worker.py` (6): order with a weekend as NO_SESSION and series priority; bhavcopy supersedes Kite and Kite never supersedes bhavcopy; re-run and refresh write nothing new; a recent missing weekday stops the run before later days (exit 0); a bad file is an ERROR and stops; future days are never requested.
+- `test_classify_missing` extended with the weekend rules.
+
+**Verification.** Full suite: 679 passed, 0 failed (was 673). `ruff check`, `ruff format --check`, `mypy --strict src` clean.

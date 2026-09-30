@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (audit step 2.3: bhavcopy ingestion)
+- `vcp ingest bhavcopy --start D [--end D] [--refresh] [--cache-dir]` (`BhavcopyIngestionWorker`) ingests NSE bhavcopy files day by day. It records the manifest and resolves identity. It writes final bars with `DuckDBMarketDataRepository.save_final_daily`, which is set-based and supersedes other providers' bars for the same session. It stops at the first PENDING or ERROR day, and re-runs are idempotent.
+- `domain.market.FINAL_PRICE_SOURCE = "NSE_BHAVCOPY"`.
+
+### Changed (audit step 2.3)
+- `save_daily` no longer lets another provider (Kite) supersede a bhavcopy bar.
+- `save_adjusted_daily` writes set-based through Arrow instead of `executemany`. Adjusting 5 stocks × 1,424 bars now takes 0.7 s instead of about 40 s, with identical values (D3).
+- `classify_missing`: an earlier weekend day is NO_SESSION at once, so a Monday run is not held up by Saturday/Sunday 404s. Today's 404 is always PENDING.
+
 ### Added (audit step 2.2: identity for bhavcopy history)
 - `data/ingestion/bhavcopy_identity.py` maps each day's bhavcopy rows to permanent instruments. It matches by known ISIN first, then by same symbol and same issuer when the ISIN changes after a face-value split. Otherwise it creates a new, inactive instrument, disambiguated as `NSE_EQ|SYMBOL#ISIN` when NSE reused the symbol. Re-runs replay the stored mapping.
 - Tables `instrument_identifier_history` (symbol/ISIN periods) and `daily_series` (per-day instrument and series), plus `DuckDBIdentityRepository`.

@@ -52,6 +52,7 @@ from vcp_scanner.domain.bhavcopy import (
     RejectedBhavcopyRow,
 )
 from vcp_scanner.domain.errors import ProviderError
+from vcp_scanner.domain.market import FINAL_PRICE_SOURCE
 
 logger = logging.getLogger(__name__)
 
@@ -130,10 +131,18 @@ def classify_missing(
 ) -> BhavcopyFileStatus:
     """What a 404 for ``trade_date`` means, seen on ``today`` (IST).
 
+    * today -> ``PENDING``: NSE publishes the file in the evening;
+    * an earlier Saturday or Sunday -> ``NO_SESSION``. Special weekend sessions (Muhurat,
+      special Saturdays) are published the same evening, so a weekend file still missing the
+      next day was not a session;
     * a listed exchange holiday -> ``NO_SESSION``;
     * old enough that the archive is settled -> ``NO_SESSION``;
-    * otherwise the file may still be published -> ``PENDING`` (retry later).
+    * otherwise (a recent weekday) the file may still be published -> ``PENDING``.
     """
+    if trade_date >= today:
+        return BhavcopyFileStatus.PENDING
+    if trade_date.weekday() >= 5:  # noqa: PLR2004 - Saturday, Sunday
+        return BhavcopyFileStatus.NO_SESSION
     if holidays is not None and trade_date in set(holidays):
         return BhavcopyFileStatus.NO_SESSION
     if (today - trade_date).days >= settle_days:
@@ -296,7 +305,7 @@ class BhavcopyDownload:
 class NseBhavcopyProvider:
     """Downloads bhavcopy files, caches them unchanged and rate-limits requests to NSE."""
 
-    PROVIDER_NAME = "NSE_BHAVCOPY"
+    PROVIDER_NAME = FINAL_PRICE_SOURCE
 
     def __init__(
         self,

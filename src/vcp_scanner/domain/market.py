@@ -23,6 +23,11 @@ from vcp_scanner.domain.enums import Timeframe
 #: ``vcp verify kite-adjustment``.
 PROVIDER_ADJUSTED_SOURCES: frozenset[str] = frozenset({"KITE"})
 
+#: The raw price source of truth (audit step 2, DATA_SPECIFICATION 21.2). Its bar for a session
+#: is final: it supersedes any other provider's bar for that date, and no other provider's bar
+#: ever supersedes it.
+FINAL_PRICE_SOURCE = "NSE_BHAVCOPY"
+
 
 @dataclass(frozen=True, slots=True)
 class Instrument:

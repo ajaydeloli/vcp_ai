@@ -153,12 +153,18 @@ def test_bad_rows_are_rejected_with_reasons() -> None:
 
 
 def test_classify_missing() -> None:
-    today = date(2026, 9, 30)
+    today = date(2026, 9, 30)  # Wednesday
     assert classify_missing(date(2026, 9, 30), today) is BhavcopyFileStatus.PENDING
-    assert classify_missing(date(2026, 9, 28), today) is BhavcopyFileStatus.PENDING
-    assert classify_missing(date(2026, 9, 27), today) is BhavcopyFileStatus.NO_SESSION
+    assert classify_missing(date(2026, 9, 28), today) is BhavcopyFileStatus.PENDING  # Monday
+    assert classify_missing(date(2026, 9, 25), today) is BhavcopyFileStatus.NO_SESSION  # settled
     holiday = date(2026, 9, 29)
     assert classify_missing(holiday, today, {holiday}) is BhavcopyFileStatus.NO_SESSION
+    # A weekend is final the next day (Monday 2026-09-28 looking at Saturday and Sunday) ...
+    monday = date(2026, 9, 28)
+    assert classify_missing(date(2026, 9, 26), monday) is BhavcopyFileStatus.NO_SESSION
+    assert classify_missing(date(2026, 9, 27), monday) is BhavcopyFileStatus.NO_SESSION
+    # ... but not on the day itself: a special weekend session publishes in the evening.
+    assert classify_missing(date(2026, 9, 27), date(2026, 9, 27)) is BhavcopyFileStatus.PENDING
 
 
 # --- Downloads, cache and rate limit ---------------------------------------------------

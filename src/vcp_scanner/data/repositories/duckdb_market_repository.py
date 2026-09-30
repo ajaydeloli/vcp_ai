@@ -19,6 +19,7 @@ Rules:
 from __future__ import annotations
 
 import logging
+from dataclasses import dataclass, field
 from datetime import UTC, date, datetime
 from typing import TYPE_CHECKING
 
@@ -31,7 +32,7 @@ from vcp_scanner.data.schema import (
     validate_ohlc,
 )
 from vcp_scanner.domain.enums import Timeframe
-from vcp_scanner.domain.market import Candle
+from vcp_scanner.domain.market import FINAL_PRICE_SOURCE, Candle
 from vcp_scanner.domain.snapshot import LIVE_SNAPSHOT_ID
 from vcp_scanner.infrastructure.clock import Clock, utc_now
 
@@ -39,6 +40,27 @@ if TYPE_CHECKING:
     from vcp_scanner.data.storage.duckdb_store import DuckDBStore
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass(frozen=True, slots=True)
+class FinalDailyBar:
+    """One session's final raw bar for an instrument, from the NSE bhavcopy."""
+
+    instrument_id: str
+    trade_date: date
+    open: float
+    high: float
+    low: float
+    close: float
+    volume: int
+    series: str
+
+
+@dataclass(frozen=True, slots=True)
+class FinalDailySave:
+    written: int = 0  # new current bars
+    unchanged: int = 0  # identical bar already current
+    superseded: dict[str, int] = field(default_factory=dict)  # closed bars by provider
 
 
 class DuckDBMarketDataRepository:
@@ -152,7 +174,7 @@ class DuckDBMarketDataRepository:
             # --- dedup: if hash already exists and row is current, skip ---
             existing = self._store.conn.execute(
                 """
-                SELECT source_hash FROM daily_prices
+                SELECT source_hash, primary_provider FROM daily_prices
                 WHERE instrument_id = ? AND trade_date = ? AND known_to IS NULL
                 """,
                 [candle.instrument_id, trade_date],
@@ -160,6 +182,14 @@ class DuckDBMarketDataRepository:
 
             if existing is not None and existing[0] == src_hash:
                 # Exact duplicate — idempotent, skip silently.
+                continue
+            if (
+                existing is not None
+                and existing[1] == FINAL_PRICE_SOURCE
+                and candle.provider != FINAL_PRICE_SOURCE
+            ):
+                # The bhavcopy bar for a session is final (audit step 2.3): never superseded
+                # by another provider's bar for the same date.
                 continue
 
             # --- close the superseded current row if one exists ---
@@ -202,6 +232,108 @@ class DuckDBMarketDataRepository:
             inserted += 1
 
         return inserted
+
+    def save_final_daily(
+        self, rows: list[FinalDailyBar], *, known_from: datetime, source_run_id: str
+    ) -> FinalDailySave:
+        """Write one batch of final (bhavcopy) bars set-based (audit step 2.3).
+
+        Per (instrument_id, trade_date): an identical current bar (same source hash) is kept;
+        any other current bar, from any provider, is closed at ``known_from`` and the new bar
+        becomes current. Bars must be valid (the parser already ran ``validate_ohlc``) and
+        unique per (instrument_id, trade_date).
+        """
+        if not rows:
+            return FinalDailySave()
+        columns = (
+            "instrument_id",
+            "trade_date",
+            "open_raw",
+            "high_raw",
+            "low_raw",
+            "close_raw",
+            "volume_raw",
+            "selection_reason",
+            "source_hash",
+        )
+        payload = [
+            (
+                r.instrument_id,
+                r.trade_date,
+                r.open,
+                r.high,
+                r.low,
+                r.close,
+                r.volume,
+                f"series={r.series}",
+                candle_source_hash(
+                    instrument_id=r.instrument_id,
+                    timestamp_iso=datetime(
+                        r.trade_date.year, r.trade_date.month, r.trade_date.day, tzinfo=UTC
+                    ).isoformat(),
+                    timeframe=str(Timeframe.DAILY),
+                    open_=r.open,
+                    high=r.high,
+                    low=r.low,
+                    close=r.close,
+                    volume=r.volume,
+                    provider=FINAL_PRICE_SOURCE,
+                ),
+            )
+            for r in rows
+        ]
+        conn = self._store.conn
+        with self._store.registered("_final_daily", columns, payload) as new:
+            conn.execute("BEGIN TRANSACTION")
+            try:
+                superseded = {
+                    str(provider): int(n)
+                    for provider, n in conn.execute(
+                        f"""
+                        SELECT d.primary_provider, count(*)
+                        FROM daily_prices d JOIN {new} n USING (instrument_id, trade_date)
+                        WHERE d.known_to IS NULL AND d.source_hash <> n.source_hash
+                        GROUP BY 1
+                        """
+                    ).fetchall()
+                }
+                conn.execute(
+                    f"""
+                    UPDATE daily_prices SET known_to = ?
+                    FROM {new} n
+                    WHERE daily_prices.instrument_id = n.instrument_id
+                      AND daily_prices.trade_date = n.trade_date
+                      AND daily_prices.known_to IS NULL
+                      AND daily_prices.source_hash <> n.source_hash
+                    """,
+                    [known_from],
+                )
+                inserted = conn.execute(
+                    f"""
+                    INSERT INTO daily_prices (
+                        instrument_id, trade_date, open_raw, high_raw, low_raw, close_raw,
+                        volume_raw, primary_provider, selection_reason, data_status,
+                        source_run_id, source_hash, known_from, known_to
+                    )
+                    SELECT n.instrument_id, n.trade_date, n.open_raw, n.high_raw, n.low_raw,
+                           n.close_raw, n.volume_raw, ?, n.selection_reason, 'OK', ?,
+                           n.source_hash, ?, NULL
+                    FROM {new} n
+                    WHERE NOT EXISTS (
+                        SELECT 1 FROM daily_prices d
+                        WHERE d.instrument_id = n.instrument_id
+                          AND d.trade_date = n.trade_date
+                          AND d.known_to IS NULL
+                    )
+                    """,
+                    [FINAL_PRICE_SOURCE, source_run_id, known_from],
+                ).fetchone()
+            except Exception:
+                conn.execute("ROLLBACK")
+                raise
+            conn.execute("COMMIT")
+        written = int(inserted[0]) if inserted else 0
+        return FinalDailySave(written=written, unchanged=len(rows) - written, superseded=superseded)
 
     def latest_timestamp(self, instrument_id: str) -> datetime | None:
         """Return the latest trade_date recorded for this instrument (current rows only).
@@ -313,8 +445,25 @@ class DuckDBMarketDataRepository:
         if not rows:
             return 0
 
-        params = [
-            [
+        columns = (
+            "instrument_id",
+            "trade_date",
+            "open_adj",
+            "high_adj",
+            "low_adj",
+            "close_adj",
+            "volume_adj",
+            "adjustment_version",
+            "price_factor_applied",
+            "volume_factor_applied",
+            "computed_from_snapshot_id",
+            "computed_at",
+        )
+        # Last row wins per key, as the former row-by-row upsert did.
+        by_key: dict[tuple[object, ...], tuple[object, ...]] = {}
+        for r in rows:
+            snapshot = r.computed_from_snapshot_id or LIVE_SNAPSHOT_ID
+            by_key[(r.instrument_id, r.trade_date, r.adjustment_version, snapshot)] = (
                 r.instrument_id,
                 r.trade_date,
                 r.open_adj,
@@ -325,41 +474,36 @@ class DuckDBMarketDataRepository:
                 r.adjustment_version,
                 r.price_factor_applied,
                 r.volume_factor_applied,
-                r.computed_from_snapshot_id or LIVE_SNAPSHOT_ID,
+                snapshot,
                 r.computed_at,
-            ]
-            for r in rows
-        ]
-        conn = self._store.conn
-        conn.execute("BEGIN TRANSACTION")
-        try:
-            conn.executemany(
-                """
-                INSERT INTO daily_prices_adjusted (
-                    instrument_id, trade_date,
-                    open_adj, high_adj, low_adj, close_adj, volume_adj,
-                    adjustment_version,
-                    price_factor_applied, volume_factor_applied,
-                    computed_from_snapshot_id, computed_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                ON CONFLICT (
-                    instrument_id, trade_date, adjustment_version, computed_from_snapshot_id
-                ) DO UPDATE SET
-                    open_adj = EXCLUDED.open_adj,
-                    high_adj = EXCLUDED.high_adj,
-                    low_adj = EXCLUDED.low_adj,
-                    close_adj = EXCLUDED.close_adj,
-                    volume_adj = EXCLUDED.volume_adj,
-                    price_factor_applied = EXCLUDED.price_factor_applied,
-                    volume_factor_applied = EXCLUDED.volume_factor_applied,
-                    computed_at = EXCLUDED.computed_at
-                """,
-                params,
             )
-            conn.execute("COMMIT")
-        except Exception:
-            conn.execute("ROLLBACK")
-            raise
+        conn = self._store.conn
+        cols = ", ".join(columns)
+        # Set-based through Arrow (audit step 2.3, D3): executemany upserted row by row.
+        with self._store.registered("_adjusted_rows", columns, list(by_key.values())) as view:
+            conn.execute("BEGIN TRANSACTION")
+            try:
+                conn.execute(
+                    f"""
+                    INSERT INTO daily_prices_adjusted ({cols})
+                    SELECT {cols} FROM {view}
+                    ON CONFLICT (
+                        instrument_id, trade_date, adjustment_version, computed_from_snapshot_id
+                    ) DO UPDATE SET
+                        open_adj = EXCLUDED.open_adj,
+                        high_adj = EXCLUDED.high_adj,
+                        low_adj = EXCLUDED.low_adj,
+                        close_adj = EXCLUDED.close_adj,
+                        volume_adj = EXCLUDED.volume_adj,
+                        price_factor_applied = EXCLUDED.price_factor_applied,
+                        volume_factor_applied = EXCLUDED.volume_factor_applied,
+                        computed_at = EXCLUDED.computed_at
+                    """
+                )
+                conn.execute("COMMIT")
+            except Exception:
+                conn.execute("ROLLBACK")
+                raise
         return len(rows)
 
     def load_adjusted_daily(

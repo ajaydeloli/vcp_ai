@@ -282,6 +282,26 @@ def build_parser() -> argparse.ArgumentParser:
         "--env-file", default=".env", help="Path to .env file with Kite credentials"
     )
 
+    bhav_parser = ingest_subparsers.add_parser(
+        "bhavcopy",
+        help="Ingest raw daily bars from NSE bhavcopy files (the price source of truth)",
+    )
+    bhav_parser.add_argument(
+        "--start", metavar="YYYY-MM-DD", required=True, help="First calendar day to ingest"
+    )
+    bhav_parser.add_argument("--end", metavar="YYYY-MM-DD", help="Last day (default: today, IST)")
+    bhav_parser.add_argument(
+        "--refresh",
+        action="store_true",
+        help="Re-download files even if cached / already ingested",
+    )
+    bhav_parser.add_argument(
+        "--cache-dir",
+        help="Where raw bhavcopy zips are kept (default: <raw_storage_dir>/bhavcopy)",
+    )
+    _add_db_arg(bhav_parser)
+    _add_config_dir_arg(bhav_parser)
+
     ca_parser = ingest_subparsers.add_parser(
         "corporate-actions",
         help="Ingest and reconcile corporate actions (NSE primary, Upstox secondary)",
@@ -729,6 +749,11 @@ def main(argv: Sequence[str] | None = None) -> int:
             from vcp_scanner.cli_pipeline import run_market_ingest
 
             return run_market_ingest(args)
+
+        elif args.ingest_command == "bhavcopy":
+            from vcp_scanner.cli_pipeline import run_bhavcopy_ingest
+
+            return run_bhavcopy_ingest(args)
 
         elif args.ingest_command == "corporate-actions":
             from vcp_scanner.cli_pipeline import run_corporate_actions

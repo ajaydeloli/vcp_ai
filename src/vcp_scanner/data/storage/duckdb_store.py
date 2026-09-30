@@ -12,7 +12,8 @@ Rules obeyed (AGENTS.md):
 from __future__ import annotations
 
 import logging
-from collections.abc import Sequence
+from collections.abc import Iterator, Sequence
+from contextlib import contextmanager
 from pathlib import Path
 
 from vcp_scanner.domain.snapshot import LIVE_SNAPSHOT_ID
@@ -604,6 +605,24 @@ class DuckDBStore:
     # Schema migration
     # ------------------------------------------------------------------
 
+    @contextmanager
+    def registered(
+        self, name: str, columns: Sequence[str], rows: Sequence[Sequence[object]]
+    ) -> Iterator[str]:
+        """Expose ``rows`` to SQL as the view ``name`` for the duration of the block.
+
+        Backed by an Arrow table, so set-based SQL over thousands of rows runs in
+        milliseconds; ``executemany`` goes row by row (about 24 s for one bhavcopy day).
+        """
+        import pyarrow as pa  # type: ignore[import-untyped]  # noqa: PLC0415
+
+        data = {c: [r[i] for r in rows] for i, c in enumerate(columns)}
+        self.conn.register(name, pa.table(data))
+        try:
+            yield name
+        finally:
+            self.conn.unregister(name)
+
     def insert_rows(
         self,
         table: str,
@@ -612,26 +631,17 @@ class DuckDBStore:
         *,
         ignore_conflicts: bool = False,
     ) -> int:
-        """Bulk-insert ``rows`` into ``table`` through an Arrow table.
+        """Bulk-insert ``rows`` into ``table`` (through :meth:`registered`).
 
-        ``executemany`` inserts row by row (about 24 s for one bhavcopy day of ~3,400 rows);
-        a registered Arrow table inserts the same rows in milliseconds. Column types come from
-        the target table, so values only need to be castable to them. ``ignore_conflicts``
-        skips rows whose key already exists (``INSERT OR IGNORE``).
+        Column types come from the target table, so values only need to be castable to them.
+        ``ignore_conflicts`` skips rows whose key already exists (``INSERT OR IGNORE``).
         """
         if not rows:
             return 0
-        import pyarrow as pa  # type: ignore[import-untyped]  # noqa: PLC0415
-
-        data = {c: [r[i] for r in rows] for i, c in enumerate(columns)}
-        view = f"_bulk_{table}"
-        self.conn.register(view, pa.table(data))
-        try:
+        with self.registered(f"_bulk_{table}", columns, rows) as view:
             cols = ", ".join(columns)
             verb = "INSERT OR IGNORE" if ignore_conflicts else "INSERT"
             self.conn.execute(f"{verb} INTO {table} ({cols}) SELECT {cols} FROM {view}")
-        finally:
-            self.conn.unregister(view)
         return len(rows)
 
     def migrate(self) -> None:
