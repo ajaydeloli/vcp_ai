@@ -11,7 +11,7 @@ by the project owner before work starts.
 | 1 | P0-3 | Gap safety net ignores non-applied actions; unknown split/bonus ratios block | Done |
 | 2 | P0-2 | Reconciliation policy: dividends/rights and primary-only actions | Done |
 | 3 | P1-9 | Reject NaN / zero / negative OHLC; NaN inputs are INSUFFICIENT_DATA | Done |
-| 4 | P0-1 | Kite candles are provider-adjusted: stop double adjustment | Done (live check pending: run `vcp verify kite-adjustment`) |
+| 4 | P0-1 | Kite candles are provider-adjusted: stop double adjustment | Done; verified on live Kite data 2026-09-30 |
 | 5 | P1-1 | Seed `instruments`; first real end-to-end run; real golden fixtures | 5a done; 5b pending (needs credentials) |
 | 6 | P1-3 / P1-4 | Architecture boundary test covers real packages; package layout | Done |
 | 7 | P1-7 / P1-6 | VCP config shape per VCP_SPEC §60; real RS tests | Done |
@@ -338,3 +338,32 @@ Still open from the audit (not started; each needs owner approval):
 | P1-2 | Quality-gate blocks need an end date and bitemporal history; suspension ≠ data hole | Phase 6B |
 | P1-10 | Surface per-record NSE/Upstox parse failures as events; small bonuses (< 30 %) missed by the gap net | — |
 | P2-1…P2-6, P3 | EMA, ATR method, config-driven windows; staleness policy + trading calendar; provenance (`source_run_id`); batch `save_daily`; Parquet lake; duplicate hashes/versions; `scratch/`, `.env` perms | — |
+
+---
+
+## Verification — Fix 4 on live Kite data (2026-09-30)
+
+Command (read-only, nothing written to the database):
+
+```text
+vcp verify kite-adjustment --action TATASTEEL:2022-07-28:SPLIT:10:1 \
+    --action IRCTC:2021-10-28:SPLIT:10:2 --action RELIANCE:2024-10-28:BONUS:1:1
+```
+
+| Symbol | Action (ex-date) | Factor | Ex-date open / prev close | Verdict |
+|---|---|---|---|---|
+| TATASTEEL | 1:10 split (2022-07-28) | 0.10 | 1.023 | ADJUSTED |
+| IRCTC | 1:5 split (2021-10-28) | 0.20 | 0.989 | ADJUSTED |
+| RELIANCE | 1:1 bonus (2024-10-28) | 0.50 | 1.007 | ADJUSTED |
+
+Exit code 0: "Kite history is adjusted, as the adjustment engine assumes."
+
+Independent check on the raw Kite bars (script outside the repo): pre-action closes are on the
+post-action scale — TATASTEEL ~87–90 (×10 ≈ ₹900 actually traded), IRCTC ~826 (×5 ≈ ₹4,130),
+RELIANCE ~1,328 (×2 ≈ ₹2,656) — and the ex-date moves match contemporaneous reports (TATASTEEL
+closed +4.8 % on the ex-date; IRCTC traded up to +19 % intraday). Volumes are rescaled too
+(TATASTEEL pre-split 50–126 M shares/day). Conclusion: Kite returns split/bonus-adjusted prices
+**and volumes**, so without Fix 4 any history downloaded today would have been adjusted twice.
+
+Still unverified: whether a bar fetched on the ex-date morning (IST) is already adjusted (the
+engine assumes yes). This needs a fetch on the morning of a future ex-date.
