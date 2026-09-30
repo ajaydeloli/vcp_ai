@@ -16,6 +16,7 @@ from vcp_scanner.data.repositories.duckdb_instrument_repository import (
     DuckDBInstrumentRepository,
 )
 from vcp_scanner.data.repositories.duckdb_market_repository import DuckDBMarketDataRepository
+from vcp_scanner.data.repositories.duckdb_universe_repository import DuckDBUniverseRepository
 from vcp_scanner.data.storage.duckdb_store import DuckDBStore
 from vcp_scanner.data.universe.builder import UniverseBuilder
 from vcp_scanner.domain.market import Candle, Instrument
@@ -131,7 +132,7 @@ def test_universe_snapshot_created_at_uses_injected_clock(store: DuckDBStore) ->
         min_avg_traded_value_50d_inr=5_000_000.0,
         eligible_series=["EQ"],
     )
-    snapshot, _ = UniverseBuilder(store, config, clock=_fixed_clock).build_snapshot(
-        date(2024, 1, 2)
-    )
+    snapshot, _ = UniverseBuilder(
+        DuckDBUniverseRepository(store), config, clock=_fixed_clock
+    ).build_snapshot(date(2024, 1, 2))
     assert snapshot.created_at == FIXED

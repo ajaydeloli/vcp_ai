@@ -543,10 +543,10 @@ def main(argv: Sequence[str] | None = None) -> int:
 
             with DuckDBStore(db_path) as store:
                 store.migrate()
-                builder = UniverseBuilder(
-                    store, cfg.universe, quality_gate=DuckDBDataQualityRepository(store)
-                )
                 repo = DuckDBUniverseRepository(store)
+                builder = UniverseBuilder(
+                    repo, cfg.universe, quality_gate=DuckDBDataQualityRepository(store)
+                )
 
                 snapshot, memberships = builder.build_snapshot(as_of_date=as_of, known_at=known_at)
                 repo.save_snapshot(snapshot, memberships)

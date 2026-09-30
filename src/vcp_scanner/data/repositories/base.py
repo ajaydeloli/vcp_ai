@@ -25,11 +25,17 @@ from vcp_scanner.domain.market import (
 )
 from vcp_scanner.domain.trend import (
     RelativeStrengthResult,
+    RSPriceInput,
+    RSRow,
     TrendConditionResult,
     TrendTemplateResult,
     WeeklyContext,
 )
-from vcp_scanner.domain.universe import UniverseMembership, UniverseSnapshot
+from vcp_scanner.domain.universe import (
+    UniverseCandidate,
+    UniverseMembership,
+    UniverseSnapshot,
+)
 
 
 @runtime_checkable
@@ -296,6 +302,55 @@ class TrendRepository(Protocol):
         ``universe_snapshot_id`` selects the ranking universe; without it the most recently
         created universe snapshot's row is returned.
         """
+        ...
+
+
+@runtime_checkable
+class RelativeStrengthRepository(Protocol):
+    """Inputs and persistence for the RS ranking, bound to one data snapshot (audit Fix 6).
+
+    The ranking formula lives in ``features.relative_strength`` as a pure function; this
+    interface only fetches prices and stores rows.
+    """
+
+    def eligible_members(self, universe_snapshot_id: str) -> list[str]:
+        """Instrument ids marked eligible in the universe snapshot."""
+        ...
+
+    def load_rs_inputs(
+        self, instrument_ids: Sequence[str], as_of_date: date, lags: Sequence[int]
+    ) -> list[RSPriceInput]:
+        """Newest adjusted close on/before ``as_of_date`` and the closes ``lags`` sessions
+        earlier, for each instrument that has at least one bar."""
+        ...
+
+    def save_relative_strength(
+        self,
+        as_of_date: date,
+        universe_snapshot_id: str,
+        calculation_version: str,
+        rows: Sequence[RSRow],
+    ) -> int:
+        """Upsert the rows; returns the number written."""
+        ...
+
+
+@runtime_checkable
+class UniverseInputRepository(Protocol):
+    """Point-in-time facts the universe rules are evaluated on (audit Fix 6)."""
+
+    def load_universe_candidates(
+        self,
+        as_of_date: date,
+        known_at: datetime,
+        provider_adjusted_sources: Sequence[str],
+    ) -> list[UniverseCandidate]:
+        """One candidate per instrument with a raw bar on/before ``as_of_date`` known at
+        ``known_at``, with its liquidity/price statistics, series and surveillance flags."""
+        ...
+
+    def count_known_delistings(self, known_at: datetime) -> int:
+        """Security-master rows with a delisting date, as known at ``known_at``."""
         ...
 
 

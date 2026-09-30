@@ -20,7 +20,7 @@ If code and spec disagree: stop, name the conflict, propose the smallest change.
 
 1. **No look-ahead.** Functions take an explicit `as_of_date`. Never use `datetime.now()` in research code.
 2. **Raw data is immutable.** Canonical tables are append-only/bitemporal. Adjusted prices are derived from stored adjustment factors, in their own table. Never flush and re-fetch history. Kite candles arrive adjusted as of their fetch time: the engine applies only actions after each bar's fetch date (DATA_SPECIFICATION §21.1); never apply a factor to a bar the provider already rescaled.
-3. **Providers stay behind interfaces.** Strategy code never imports Kite/Dhan SDKs or touches DuckDB/Parquet directly. Use repositories.
+3. **Providers stay behind interfaces.** Strategy code never imports Kite/Dhan SDKs or touches DuckDB/Parquet directly. Use repositories. Strategy code = `domain/`, `features/`, `data/universe/`, `patterns/`, `scoring/`, `fundamentals/` (PROJECT_DESIGN §6); indicator SQL lives in `data/features/`. `tests/unit/test_architecture_rules.py` enforces this.
 4. **Missing is not zero.** Use NULL plus a status. Keep `NO_VCP` distinct from `INSUFFICIENT_DATA`, `DATA_NOT_READY` and `STALE_DATA`.
 5. **Detector decides, scorer ranks.** Never gate on a score. Fundamentals, ML and LLMs cannot override technical gates.
 6. **Store measurements, not just verdicts.** Raw values, thresholds, ratios and versions.

@@ -12,12 +12,12 @@ from datetime import date, timedelta
 import pytest
 
 from vcp_scanner.config.models import StageConfig
+from vcp_scanner.data.features.weekly_aggregation import WeeklyAggregationEngine
 from vcp_scanner.data.repositories.duckdb_feature_repository import DuckDBFeatureRepository
 from vcp_scanner.data.repositories.duckdb_trend_repository import DuckDBTrendRepository
 from vcp_scanner.data.storage.duckdb_store import DuckDBStore
 from vcp_scanner.domain.enums import WeeklyStage
 from vcp_scanner.domain.trend import WeeklyContext
-from vcp_scanner.features.weekly_aggregation import WeeklyAggregationEngine
 from vcp_scanner.features.weekly_stage import (
     STAGE_ALGORITHM_VERSION,
     WeeklyStageEngine,

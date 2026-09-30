@@ -1,5 +1,5 @@
+from vcp_scanner.data.features.weekly_aggregation import WeeklyAggregationEngine
 from vcp_scanner.data.storage.duckdb_store import DuckDBStore
-from vcp_scanner.features.weekly_aggregation import WeeklyAggregationEngine
 
 
 def test_weekly_aggregation():

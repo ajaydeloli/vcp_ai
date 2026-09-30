@@ -19,7 +19,9 @@ from vcp_scanner.config.models import UniverseConfig
 from vcp_scanner.data.providers.fake import make_candle
 from vcp_scanner.data.repositories.duckdb_market_repository import DuckDBMarketDataRepository
 from vcp_scanner.data.repositories.duckdb_quality_repository import DuckDBDataQualityRepository
+from vcp_scanner.data.repositories.duckdb_rs_repository import DuckDBRelativeStrengthRepository
 from vcp_scanner.data.repositories.duckdb_trend_repository import DuckDBTrendRepository
+from vcp_scanner.data.repositories.duckdb_universe_repository import DuckDBUniverseRepository
 from vcp_scanner.data.storage.duckdb_store import DuckDBStore
 from vcp_scanner.data.universe.builder import UniverseBuilder
 from vcp_scanner.domain.enums import DataQualityFlag, TrendTemplateStatus
@@ -178,7 +180,7 @@ def test_rs_leaves_blocked_instruments_out_of_the_population(store: DuckDBStore)
     quality = DuckDBDataQualityRepository(store)
     quality.sync_events("T3", GAP, [_event("T3")], at=T0)
 
-    engine = RelativeStrengthEngine(store, quality_gate=quality)
+    engine = RelativeStrengthEngine(DuckDBRelativeStrengthRepository(store), quality_gate=quality)
     engine.compute_for_date(AS_OF, "uni")
 
     rows = dict(
@@ -195,7 +197,7 @@ def test_rs_without_a_gate_ranks_everyone(store: DuckDBStore) -> None:
     _seed_universe(store, ["T1", "T2", "T3"])
     DuckDBDataQualityRepository(store).sync_events("T3", GAP, [_event("T3")], at=T0)
 
-    RelativeStrengthEngine(store).compute_for_date(AS_OF, "uni")
+    RelativeStrengthEngine(DuckDBRelativeStrengthRepository(store)).compute_for_date(AS_OF, "uni")
     count = store.conn.execute("SELECT COUNT(*) FROM relative_strength_snapshots").fetchone()
     assert count == (3,)
 
@@ -243,7 +245,9 @@ def test_universe_excludes_blocked_instruments_with_a_reason(store: DuckDBStore)
     quality = DuckDBDataQualityRepository(store)
     quality.sync_events("BAD", GAP, [_event("BAD", detected_at=known, trade_date=EARLY)], at=known)
 
-    builder = UniverseBuilder(store, _universe_config(), quality_gate=quality)
+    builder = UniverseBuilder(
+        DuckDBUniverseRepository(store), _universe_config(), quality_gate=quality
+    )
     _, members = builder.build_snapshot(as_of_date=date(2023, 1, 1))
 
     by_id = {m.instrument_id: m for m in members}
@@ -261,7 +265,9 @@ def test_universe_gate_is_point_in_time(store: DuckDBStore) -> None:
         "BAD", GAP, [_event("BAD", detected_at=detected, trade_date=EARLY)], at=detected
     )
 
-    builder = UniverseBuilder(store, _universe_config(), quality_gate=quality)
+    builder = UniverseBuilder(
+        DuckDBUniverseRepository(store), _universe_config(), quality_gate=quality
+    )
     _, before = builder.build_snapshot(
         as_of_date=date(2023, 1, 1), known_at=known + timedelta(days=1)
     )
@@ -276,9 +282,9 @@ def test_universe_without_a_gate_is_unchanged(store: DuckDBStore) -> None:
     DuckDBDataQualityRepository(store).sync_events(
         "BAD", GAP, [_event("BAD", trade_date=EARLY)], at=known
     )
-    _, members = UniverseBuilder(store, _universe_config()).build_snapshot(
-        as_of_date=date(2023, 1, 1)
-    )
+    _, members = UniverseBuilder(
+        DuckDBUniverseRepository(store), _universe_config()
+    ).build_snapshot(as_of_date=date(2023, 1, 1))
     assert members[0].eligible is True
 
 

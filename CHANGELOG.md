@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed (audit 2026-09-30 P1-3 / P1-4, architecture boundary and layout)
+- RS ranking is now a pure function (`features.relative_strength.compute_rs_rows`) behind the new `RelativeStrengthRepository` Protocol; `DuckDBRelativeStrengthRepository` does only data access. `RelativeStrengthEngine(repository, calculation_version=None, config=None, quality_gate=None)` replaces `RelativeStrengthEngine(store, ..., data_snapshot_id=...)` (the data snapshot now binds the repository).
+- Universe rules are a pure function (`data.universe.builder.evaluate_eligibility`) over `domain.universe.UniverseCandidate`; point-in-time SQL moved to `DuckDBUniverseRepository.load_universe_candidates` / `count_known_delistings` (new `UniverseInputRepository` Protocol). `UniverseBuilder(repository, config, ...)` replaces `UniverseBuilder(store, config, ...)`.
+- SQL feature builders moved: `features.daily_features` -> `data.features.daily_features`, `features.weekly_aggregation` -> `data.features.weekly_aggregation`.
+- Removed the empty duplicate packages `indicators/`, `trend/`, `universe/`, `data/normalization/`. PROJECT_DESIGN §6/§49 and AGENTS.md rule 3 describe the real layout.
+- `test_architecture_rules.py` now scans `domain/`, `features/`, `data/universe/` (must contain code) plus future strategy packages, and forbids storage/ingestion/concrete-adapter imports as well as SDKs. The old version scanned only empty packages.
+- No behavior change: new `tests/regression/test_rs_universe_golden.py` was recorded from the SQL implementations before the refactor and passes unchanged after it (RS statuses, returns, ranks, ties, staleness, NaN, gate exclusion; every universe exclusion reason; Kite price undo; survivorship label).
+
 ### Fixed (audit 2026-09-30 P1-1, pipeline could not start from an empty database)
 - `vcp ingest security-master` now seeds `instruments` from NSE's current listing (`SecurityMasterIngestionWorker._sync_instruments`): upsert with ISIN-first canonical ids, so a symbol rename updates the existing instrument; instruments missing from a non-empty listing become `is_active = FALSE` (history kept); delisted-list records never create instruments. New stats `instruments_upserted`, `instruments_deactivated`. Why: nothing populated `instruments`, so `vcp ingest market` / `corporate-actions` stopped with "no instruments found".
 - New `tests/integration/test_pipeline_e2e.py`: all eight pipeline commands through the real CLI from an empty database with synthetic providers.

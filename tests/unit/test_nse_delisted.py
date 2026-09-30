@@ -19,6 +19,7 @@ import pytest
 from vcp_scanner.config.models import UniverseConfig
 from vcp_scanner.data.ingestion.sm_worker import SecurityMasterIngestionWorker
 from vcp_scanner.data.providers.nse_delisted import NSEDelistedProvider
+from vcp_scanner.data.repositories.duckdb_universe_repository import DuckDBUniverseRepository
 from vcp_scanner.data.storage.duckdb_store import DuckDBStore
 from vcp_scanner.data.universe.builder import UniverseBuilder
 from vcp_scanner.domain.errors import ProviderError
@@ -386,7 +387,7 @@ def test_earlier_live_row_with_another_isin_blocks_delisted_record(store):
 
 
 def test_ingesting_delisted_names_moves_survivorship_off_biased(store):
-    builder = UniverseBuilder(store, UniverseConfig(), clock=CLOCK)
+    builder = UniverseBuilder(DuckDBUniverseRepository(store), UniverseConfig(), clock=CLOCK)
     _worker(store, [_live("LIVE", "INE111A01011")], None).run(START, END)
     assert builder._survivorship_status(CLOCK()).value == "BIASED"
 

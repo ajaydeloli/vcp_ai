@@ -20,6 +20,8 @@ from vcp_scanner.data.adjustment.builder import (
     AdjustedPriceBuilder,
 )
 from vcp_scanner.data.adjustment.engine import AdjustmentEngine
+from vcp_scanner.data.features.daily_features import DailyFeatureEngine
+from vcp_scanner.data.features.weekly_aggregation import WeeklyAggregationEngine
 from vcp_scanner.data.providers.fake import make_candle
 from vcp_scanner.data.repositories.duckdb_corporate_action_repository import (
     DuckDBCorporateActionRepository,
@@ -27,8 +29,6 @@ from vcp_scanner.data.repositories.duckdb_corporate_action_repository import (
 from vcp_scanner.data.repositories.duckdb_market_repository import DuckDBMarketDataRepository
 from vcp_scanner.data.storage.duckdb_store import DuckDBStore
 from vcp_scanner.domain.corporate_actions import CorporateActionAdjustment
-from vcp_scanner.features.daily_features import DailyFeatureEngine
-from vcp_scanner.features.weekly_aggregation import WeeklyAggregationEngine
 
 IID = "NSE_EQ|TESTCO"
 T1 = datetime(2024, 2, 1, 12, 0, tzinfo=UTC)

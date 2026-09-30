@@ -1,5 +1,6 @@
 from datetime import date
 
+from vcp_scanner.data.repositories.duckdb_rs_repository import DuckDBRelativeStrengthRepository
 from vcp_scanner.data.storage.duckdb_store import DuckDBStore
 from vcp_scanner.features.relative_strength import RelativeStrengthEngine
 
@@ -49,7 +50,7 @@ def test_relative_strength():
         FROM range(0, 260) t(i)
     """)
 
-    engine = RelativeStrengthEngine(store)
+    engine = RelativeStrengthEngine(DuckDBRelativeStrengthRepository(store))
     engine.compute_for_date(date(2023, 12, 31), "snap_1")
 
     res = store.conn.execute(

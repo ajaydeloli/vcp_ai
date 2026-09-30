@@ -84,7 +84,7 @@ def test_delisted_stock_appears_in_historical_snapshot(store, config):
 
     This is the core survivorship-bias rule (DATABASE_SCHEMA §60).
     """
-    builder = UniverseBuilder(store, config)
+    builder = UniverseBuilder(DuckDBUniverseRepository(store), config)
 
     # DEAD_CO traded in Jan 2022 but delisted. ALIVE_CO is current.
     _add_security(store, "DEAD_CO")
@@ -122,7 +122,7 @@ def test_future_price_data_does_not_affect_past_snapshot(store, config):
 
     This protects the no-look-ahead rule (AGENTS.md hard rule 1).
     """
-    builder = UniverseBuilder(store, config)
+    builder = UniverseBuilder(DuckDBUniverseRepository(store), config)
 
     _add_security(store, "FUTURE_CO")
     _add_security(store, "CURRENT_CO")
@@ -148,7 +148,7 @@ def test_future_price_data_does_not_affect_past_snapshot(store, config):
 
 def test_load_snapshot_returns_point_in_time_members(store, config):
     """Universe saved for a date must be retrievable and unchanged later."""
-    builder = UniverseBuilder(store, config)
+    builder = UniverseBuilder(DuckDBUniverseRepository(store), config)
     repo = DuckDBUniverseRepository(store)
 
     _add_security(store, "SNAP_CO")
@@ -164,7 +164,7 @@ def test_load_snapshot_returns_point_in_time_members(store, config):
 
 def test_multiple_snapshots_same_date_returns_latest(store, config):
     """If two snapshots exist for the same date, load_snapshot returns the newest one."""
-    builder = UniverseBuilder(store, config)
+    builder = UniverseBuilder(DuckDBUniverseRepository(store), config)
     repo = DuckDBUniverseRepository(store)
 
     _add_security(store, "MULTI_CO")

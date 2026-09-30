@@ -214,6 +214,8 @@ api/
 frontend/
 ```
 
+These are *conceptual* modules. The concrete package layout is PROJECT_DESIGN §6 (audit 2026-09-30 Fix 6): universe rules in `data/universe/`, indicator SQL in `data/features/`, RS / Trend Template / weekly Stage in `features/`. Do not create `universe/`, `indicators/` or `trend/` packages; `tests/unit/test_architecture_rules.py` fails if they reappear.
+
 Modules must have clear responsibilities.
 
 ---

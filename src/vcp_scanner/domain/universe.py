@@ -34,3 +34,24 @@ class UniverseMembership:
     asm_flag: str | None = None
     gsm_flag: str | None = None
     t2t_flag: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class UniverseCandidate:
+    """Everything the universe rules need about one instrument at an as-of date.
+
+    Prices are the prices that actually traded (a provider-adjusted close has its provider's
+    split/bonus factors undone). Traded values are raw close x raw volume averages.
+    """
+
+    instrument_id: str
+    last_price: float | None
+    avg_traded_value_20d: float | None
+    avg_traded_value_50d: float | None
+    days_history: int | None
+    last_trade_date: date | None
+    series: str | None
+    exchange: str | None
+    asm_flag: str | None
+    gsm_flag: str | None
+    t2t_flag: str | None

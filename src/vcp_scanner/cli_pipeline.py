@@ -439,8 +439,8 @@ def run_corporate_actions(args: argparse.Namespace) -> int:
 
 
 def run_compute_features(args: argparse.Namespace) -> int:
-    from vcp_scanner.features.daily_features import DailyFeatureEngine
-    from vcp_scanner.features.weekly_aggregation import WeeklyAggregationEngine
+    from vcp_scanner.data.features.daily_features import DailyFeatureEngine
+    from vcp_scanner.data.features.weekly_aggregation import WeeklyAggregationEngine
 
     with _open_store(args.db) as store:
         snapshot_id = _resolve_data_snapshot(store, getattr(args, "data_snapshot_id", None))
@@ -471,6 +471,9 @@ def run_compute_features(args: argparse.Namespace) -> int:
 
 
 def run_compute_rs(args: argparse.Namespace) -> int:
+    from vcp_scanner.data.repositories.duckdb_rs_repository import (
+        DuckDBRelativeStrengthRepository,
+    )
     from vcp_scanner.features.relative_strength import RelativeStrengthEngine
 
     as_of = _parse_date(args.as_of)
@@ -494,9 +497,8 @@ def run_compute_rs(args: argparse.Namespace) -> int:
             )
             return 1
         engine = RelativeStrengthEngine(
-            store,
+            DuckDBRelativeStrengthRepository(store, data_snapshot_id),
             config=cfg.strategy.rs,
-            data_snapshot_id=data_snapshot_id,
             quality_gate=_quality_gate(store, data_snapshot_id),
         )
         rows = engine.compute_for_date(as_of, snapshot_id)

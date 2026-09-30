@@ -1,0 +1,300 @@
+{
+ "rs": [
+  {
+   "instrument_id": "R1",
+   "population_size": 9,
+   "ret_126": 0.2483574244415243,
+   "ret_189": 0.425356339084771,
+   "ret_252": 0.6608391608391608,
+   "ret_63": 0.1104617182933958,
+   "rs_percentile": 0.9444444444444444,
+   "rs_rank": 93,
+   "rs_raw": 0.3110952721904496,
+   "rs_status": "PASS"
+  },
+  {
+   "instrument_id": "R2",
+   "population_size": 9,
+   "ret_126": 0.10732538330494035,
+   "ret_189": 0.1701170117011701,
+   "ret_252": 0.24045801526717558,
+   "ret_63": 0.05092966855295056,
+   "rs_percentile": 0.4444444444444444,
+   "rs_rank": 44,
+   "rs_raw": 0.12395194947583743,
+   "rs_status": "PASS"
+  },
+  {
+   "instrument_id": "R3",
+   "population_size": 9,
+   "ret_126": -0.06900328587075577,
+   "ret_189": -0.10005293806246696,
+   "ret_252": -0.12909836065573765,
+   "ret_63": -0.035734543391945595,
+   "rs_percentile": 0.16666666666666666,
+   "rs_rank": 17,
+   "rs_raw": -0.07392473427457032,
+   "rs_status": "PASS"
+  },
+  {
+   "instrument_id": "R4",
+   "population_size": 9,
+   "ret_126": -0.15308858244380463,
+   "ret_189": 0.2476788081355059,
+   "ret_252": -0.13398264188446063,
+   "ret_63": 0.1197746255287353,
+   "rs_percentile": 0.2777777777777778,
+   "rs_rank": 28,
+   "rs_raw": 0.04003136697294225,
+   "rs_status": "PASS"
+  },
+  {
+   "instrument_id": "R5",
+   "population_size": 9,
+   "ret_126": 0.10732538330494035,
+   "ret_189": 0.1701170117011701,
+   "ret_252": 0.24045801526717558,
+   "ret_63": 0.05092966855295056,
+   "rs_percentile": 0.4444444444444444,
+   "rs_rank": 44,
+   "rs_raw": 0.12395194947583743,
+   "rs_status": "PASS"
+  },
+  {
+   "instrument_id": "R6",
+   "population_size": 9,
+   "ret_126": -0.09502262443438914,
+   "ret_189": -0.13606911447084236,
+   "ret_252": -0.17355371900826444,
+   "ret_63": -0.04988123515439424,
+   "rs_percentile": 0.05555555555555555,
+   "rs_rank": 6,
+   "rs_raw": -0.1008815856444569,
+   "rs_status": "PASS"
+  },
+  {
+   "instrument_id": "R_GAPPY",
+   "population_size": 9,
+   "ret_126": 0.14988104678826342,
+   "ret_189": 0.24303471924560638,
+   "ret_252": 0.3526119402985075,
+   "ret_63": 0.06971597196606405,
+   "rs_percentile": 0.6111111111111112,
+   "rs_rank": 60,
+   "rs_raw": 0.1769919300529011,
+   "rs_status": "PASS"
+  },
+  {
+   "instrument_id": "R_NAN",
+   "population_size": 9,
+   "ret_126": null,
+   "ret_189": null,
+   "ret_252": null,
+   "ret_63": null,
+   "rs_percentile": null,
+   "rs_rank": null,
+   "rs_raw": null,
+   "rs_status": "INSUFFICIENT_DATA"
+  },
+  {
+   "instrument_id": "R_SHORT",
+   "population_size": 9,
+   "ret_126": -0.5575221238938053,
+   "ret_189": -0.6539792387543253,
+   "ret_252": null,
+   "ret_63": -0.38650306748466257,
+   "rs_percentile": null,
+   "rs_rank": null,
+   "rs_raw": null,
+   "rs_status": "INSUFFICIENT_DATA"
+  },
+  {
+   "instrument_id": "R_STALE",
+   "population_size": 9,
+   "ret_126": -0.11190053285968027,
+   "ret_189": -0.15895710681244746,
+   "ret_252": -0.20127795527156556,
+   "ret_63": -0.059266227657572834,
+   "rs_percentile": null,
+   "rs_rank": null,
+   "rs_raw": null,
+   "rs_status": "STALE_DATA"
+  },
+  {
+   "instrument_id": "R_TIE1",
+   "population_size": 9,
+   "ret_126": 0.18694362017804145,
+   "ret_189": 0.30932896890343686,
+   "ret_252": 0.45985401459854014,
+   "ret_63": 0.08548168249660781,
+   "rs_percentile": 0.7777777777777778,
+   "rs_rank": 77,
+   "rs_raw": 0.22541799373464683,
+   "rs_status": "PASS"
+  },
+  {
+   "instrument_id": "R_TIE2",
+   "population_size": 9,
+   "ret_126": 0.18694362017804145,
+   "ret_189": 0.30932896890343686,
+   "ret_252": 0.45985401459854014,
+   "ret_63": 0.08548168249660781,
+   "rs_percentile": 0.7777777777777778,
+   "rs_rank": 77,
+   "rs_raw": 0.22541799373464683,
+   "rs_status": "PASS"
+  }
+ ],
+ "universe": {
+  "members": [
+   {
+    "asm_flag": "YES",
+    "avg_traded_value": 100000000.0,
+    "eligible": false,
+    "exclusion_reason": "ASM/GSM flag active",
+    "gsm_flag": null,
+    "instrument_id": "U_ASM",
+    "price": 100.0,
+    "series": "EQ",
+    "t2t_flag": null
+   },
+   {
+    "asm_flag": null,
+    "avg_traded_value": 100000000.0,
+    "eligible": false,
+    "exclusion_reason": "Series BE not in ['EQ']",
+    "gsm_flag": null,
+    "instrument_id": "U_BE",
+    "price": 100.0,
+    "series": "BE",
+    "t2t_flag": null
+   },
+   {
+    "asm_flag": null,
+    "avg_traded_value": 100000000.0,
+    "eligible": false,
+    "exclusion_reason": "Data quality blocked: UNEXPLAINED_GAP",
+    "gsm_flag": null,
+    "instrument_id": "U_BLOCKED",
+    "price": 100.0,
+    "series": "EQ",
+    "t2t_flag": null
+   },
+   {
+    "asm_flag": null,
+    "avg_traded_value": 100000000.0,
+    "eligible": false,
+    "exclusion_reason": "Exchange BSE != NSE",
+    "gsm_flag": null,
+    "instrument_id": "U_BSE",
+    "price": 100.0,
+    "series": "EQ",
+    "t2t_flag": null
+   },
+   {
+    "asm_flag": null,
+    "avg_traded_value": 100000.0,
+    "eligible": false,
+    "exclusion_reason": "Traded value 100000.0 < 10000000.0",
+    "gsm_flag": null,
+    "instrument_id": "U_ILLIQ20",
+    "price": 100.0,
+    "series": "EQ",
+    "t2t_flag": null
+   },
+   {
+    "asm_flag": null,
+    "avg_traded_value": 11000000.0,
+    "eligible": false,
+    "exclusion_reason": "50d traded value 4400600.0 < 10000000.0",
+    "gsm_flag": null,
+    "instrument_id": "U_ILLIQ50",
+    "price": 100.0,
+    "series": "EQ",
+    "t2t_flag": null
+   },
+   {
+    "asm_flag": null,
+    "avg_traded_value": 150000000.0,
+    "eligible": true,
+    "exclusion_reason": null,
+    "gsm_flag": null,
+    "instrument_id": "U_KITE",
+    "price": 149.99999999999997,
+    "series": "EQ",
+    "t2t_flag": null
+   },
+   {
+    "asm_flag": null,
+    "avg_traded_value": 100000000.0,
+    "eligible": false,
+    "exclusion_reason": "Price 10.0 < 20.0",
+    "gsm_flag": null,
+    "instrument_id": "U_LOWPRICE",
+    "price": 10.0,
+    "series": "EQ",
+    "t2t_flag": null
+   },
+   {
+    "asm_flag": null,
+    "avg_traded_value": 100000000.0,
+    "eligible": false,
+    "exclusion_reason": "Exchange None != NSE",
+    "gsm_flag": null,
+    "instrument_id": "U_NOSM",
+    "price": 100.0,
+    "series": null,
+    "t2t_flag": null
+   },
+   {
+    "asm_flag": null,
+    "avg_traded_value": 100000000.0,
+    "eligible": true,
+    "exclusion_reason": null,
+    "gsm_flag": null,
+    "instrument_id": "U_OK",
+    "price": 100.0,
+    "series": "EQ",
+    "t2t_flag": null
+   },
+   {
+    "asm_flag": null,
+    "avg_traded_value": 100000000.0,
+    "eligible": false,
+    "exclusion_reason": "History 100 bars < 253",
+    "gsm_flag": null,
+    "instrument_id": "U_SHORT",
+    "price": 100.0,
+    "series": "EQ",
+    "t2t_flag": null
+   },
+   {
+    "asm_flag": null,
+    "avg_traded_value": 100000000.0,
+    "eligible": false,
+    "exclusion_reason": "Stale: last trade 2024-04-26 is 63d before 2024-06-28",
+    "gsm_flag": null,
+    "instrument_id": "U_STALE",
+    "price": 100.0,
+    "series": "EQ",
+    "t2t_flag": null
+   },
+   {
+    "asm_flag": null,
+    "avg_traded_value": 100000000.0,
+    "eligible": false,
+    "exclusion_reason": "T2T flag active",
+    "gsm_flag": null,
+    "instrument_id": "U_T2T",
+    "price": 100.0,
+    "series": "EQ",
+    "t2t_flag": "YES"
+   }
+  ],
+  "snapshot": {
+   "config_hash": "8e48ffca",
+   "method_version": "1.1",
+   "survivorship_status": "PARTIAL"
+  }
+ }
+}

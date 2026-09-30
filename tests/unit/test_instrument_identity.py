@@ -37,6 +37,7 @@ from vcp_scanner.data.repositories.duckdb_instrument_repository import (
     DuckDBInstrumentResolver,
 )
 from vcp_scanner.data.repositories.duckdb_market_repository import DuckDBMarketDataRepository
+from vcp_scanner.data.repositories.duckdb_universe_repository import DuckDBUniverseRepository
 from vcp_scanner.data.storage.duckdb_store import DuckDBStore
 from vcp_scanner.data.universe.builder import UniverseBuilder
 from vcp_scanner.domain.corporate_actions import CorporateAction, CorporateActionStatus
@@ -416,7 +417,7 @@ def test_kite_prices_join_security_master_and_universe_builder(store: DuckDBStor
     ).run(date(2000, 1, 1), date(2024, 1, 5))
 
     _, memberships = UniverseBuilder(
-        store, UniverseConfig(exchange="NSE", eligible_series=["EQ"])
+        DuckDBUniverseRepository(store), UniverseConfig(exchange="NSE", eligible_series=["EQ"])
     ).build_snapshot(as_of_date=date(2024, 1, 10))
 
     assert [m.instrument_id for m in memberships] == ["NSE_EQ|RELIANCE"]

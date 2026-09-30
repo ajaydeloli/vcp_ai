@@ -1,10 +1,31 @@
+"""Relative strength ranking (``rs-1.0.0``, TREND_TEMPLATE_SPECIFICATION section 3).
+
+Pure strategy code (audit Fix 6): the formula and ranking live here as plain Python; prices
+come from and rows go to a ``RelativeStrengthRepository``. No storage engine is imported.
+
+    R_n     = adj_close(t) / adj_close(t - n) - 1
+    rs_raw  = sum(weight_k * R_k)        (default 0.40/0.20/0.20/0.20 over 63/126/189/252)
+    pct     = (count_below + 0.5 * count_equal) / N     over instruments with an rs_raw
+    rs_rank = 1 + floor(98 * pct)
+
+Statuses (AGENTS.md rule 4, missing is not zero):
+- PASS               ranked; rs_raw / rs_rank / rs_percentile are set
+- INSUFFICIENT_DATA  a window is missing or not finite; rs_raw, rank and percentile NULL and
+                     the instrument is not in the ranking population
+- STALE_DATA         latest bar older than ``max_staleness_days`` before the as-of date;
+                     returns are kept, rs_raw is NULL, not ranked
+"""
+
+from __future__ import annotations
+
 import logging
+import math
+from collections.abc import Sequence
 from datetime import date
 
 from vcp_scanner.config.models import RSConfig
-from vcp_scanner.data.repositories.base import DataQualityGate
-from vcp_scanner.data.storage.duckdb_store import DuckDBStore
-from vcp_scanner.domain.snapshot import LIVE_SNAPSHOT_ID, validate_snapshot_id
+from vcp_scanner.data.repositories.base import DataQualityGate, RelativeStrengthRepository
+from vcp_scanner.domain.trend import RSPriceInput, RSRow
 
 logger = logging.getLogger(__name__)
 
@@ -12,26 +33,69 @@ logger = logging.getLogger(__name__)
 _RETURN_COLUMNS = 4
 
 
-class RelativeStrengthEngine:
-    """Calculates relative strength across a universe snapshot.
+def _window_return(last: float, lagged: float | None) -> float | None:
+    """``last / lagged - 1``; None when unavailable, zero-based or not finite (audit P1-9)."""
+    if lagged is None or lagged == 0:
+        return None
+    value = last / lagged - 1
+    return value if math.isfinite(value) else None
 
-    Prices come from one *data* snapshot (``LIVE`` = unfrozen working data), which is
-    distinct from the *universe* snapshot that defines the ranking population.
+
+def compute_rs_rows(
+    inputs: Sequence[RSPriceInput], as_of_date: date, config: RSConfig
+) -> list[RSRow]:
+    """Returns, raw score, status and rank for every input. Deterministic, no I/O."""
+    staged: list[tuple[str, tuple[float | None, ...], float | None, str]] = []
+    for item in inputs:
+        returns = tuple(_window_return(item.last_close, lag) for lag in item.lagged_closes)
+        candidate: float | None = None
+        present = [r for r in returns if r is not None]
+        if len(present) == len(returns):
+            # Left-to-right sum, the same evaluation order as the original SQL expression.
+            terms = [w * r for w, r in zip(config.weights, present, strict=True)]
+            candidate = terms[0]
+            for term in terms[1:]:
+                candidate += term
+        if (as_of_date - item.last_trade_date).days > config.max_staleness_days:
+            staged.append((item.instrument_id, returns, None, "STALE_DATA"))
+        elif candidate is None:
+            staged.append((item.instrument_id, returns, None, "INSUFFICIENT_DATA"))
+        else:
+            staged.append((item.instrument_id, returns, candidate, "PASS"))
+
+    ranked = [raw for _, _, raw, _ in staged if raw is not None]
+    population = len(ranked)
+    rows: list[RSRow] = []
+    for iid, returns, raw, status in staged:
+        pct: float | None = None
+        rank: int | None = None
+        if raw is not None and population:
+            below = sum(1 for other in ranked if other < raw)
+            equal = sum(1 for other in ranked if other == raw)
+            pct = (below + 0.5 * equal) / population
+            rank = 1 + math.floor(98 * pct)
+        rows.append(RSRow(iid, returns, raw, rank, pct, population, status))
+    return rows
+
+
+class RelativeStrengthEngine:
+    """Ranks the eligible members of a universe snapshot by relative strength.
+
+    Prices come from the repository's data snapshot (``LIVE`` = unfrozen working data), which
+    is distinct from the universe snapshot that defines the ranking population.
     """
 
     def __init__(
         self,
-        store: DuckDBStore,
+        repository: RelativeStrengthRepository,
         calculation_version: str | None = None,
         config: RSConfig | None = None,
-        data_snapshot_id: str = LIVE_SNAPSHOT_ID,
         quality_gate: DataQualityGate | None = None,
     ) -> None:
-        self.store = store
+        self._repo = repository
         # Instruments blocked by an unresolved data-quality event are left out of the ranking
         # population (audit P0-2): a suspected missed split would distort everyone's percentile.
         self._quality_gate = quality_gate
-        self.data_snapshot_id = validate_snapshot_id(data_snapshot_id)
         self.config = config or RSConfig()
         self.calculation_version = calculation_version or self.config.version
         if len(self.config.windows_days) != _RETURN_COLUMNS:
@@ -40,18 +104,20 @@ class RelativeStrengthEngine:
                 f"RSConfig.windows_days has {len(self.config.windows_days)}"
             )
 
-    def _blocked_members(self, universe_snapshot_id: str, as_of_date: date) -> list[str]:
-        """Eligible members the quality gate blocks at ``as_of_date`` (empty without a gate)."""
+    def compute_for_date(self, as_of_date: date, universe_snapshot_id: str) -> int:
+        """Compute and store RS for all eligible, unblocked members; returns rows written."""
+        members = self._repo.eligible_members(universe_snapshot_id)
+        blocked = self._blocked(members, as_of_date)
+        population = [m for m in members if m not in blocked]
+        inputs = self._repo.load_rs_inputs(population, as_of_date, self.config.windows_days)
+        rows = compute_rs_rows(inputs, as_of_date, self.config)
+        return self._repo.save_relative_strength(
+            as_of_date, universe_snapshot_id, self.calculation_version, rows
+        )
+
+    def _blocked(self, members: Sequence[str], as_of_date: date) -> set[str]:
         if self._quality_gate is None:
-            return []
-        members = [
-            r[0]
-            for r in self.store.conn.execute(
-                "SELECT instrument_id FROM universe_memberships"
-                " WHERE universe_snapshot_id = ? AND eligible = TRUE",
-                [universe_snapshot_id],
-            ).fetchall()
-        ]
+            return set()
         blocked = sorted(self._quality_gate.blocked_instruments(members, as_of_date))
         if blocked:
             logger.warning(
@@ -59,156 +125,4 @@ class RelativeStrengthEngine:
                 len(blocked),
                 ", ".join(blocked[:10]) + (" ..." if len(blocked) > 10 else ""),
             )
-        return blocked
-
-    def compute_for_date(self, as_of_date: date, universe_snapshot_id: str) -> int:
-        """
-        Compute RS for all eligible instruments in the universe as of a specific date.
-
-        Formula (windows and weights come from RSConfig, TREND_TEMPLATE_SPECIFICATION 3):
-        R_n = adj_close(t) / adj_close(t - n) - 1
-        rs_raw = sum(weight_i * R_window_i)   (default 0.40/0.20/0.20/0.20 over 63/126/189/252)
-
-        Statuses (AGENTS.md rule 4, missing is not zero):
-        - PASS               ranked; rs_raw / rs_rank / rs_percentile are set
-        - INSUFFICIENT_DATA  not enough history for the longest window; rs_raw, rs_rank and
-                             rs_percentile are NULL, and the instrument is not in the
-                             ranking population
-        - STALE_DATA         latest bar older than max_staleness_days before as_of_date;
-                             treated like INSUFFICIENT_DATA for ranking
-        """
-        windows = self.config.windows_days
-        weights = self.config.weights
-        max_stale = int(self.config.max_staleness_days)
-
-        # Only ints/floats from validated config are interpolated; values from data are bound.
-        join_sql = "\n".join(
-            f"LEFT JOIN (SELECT * FROM daily_series WHERE rn = {int(n) + 1}) w{k} "
-            f"ON t0.instrument_id = w{k}.instrument_id"
-            for k, n in enumerate(windows)
-        )
-        # A non-finite return (NaN/inf from a bad adjusted close) is missing data, not a value:
-        # NULL keeps the instrument out of the ranking population (audit P1-9). Without this,
-        # NaN sorts above every number in DuckDB and distorts everyone's percentile.
-        ret_sql = ",\n".join(
-            f"CASE WHEN isfinite((t0.close_adj / NULLIF(w{k}.close_adj, 0)) - 1) "
-            f"THEN (t0.close_adj / NULLIF(w{k}.close_adj, 0)) - 1 END AS ret_{k}"
-            for k in range(_RETURN_COLUMNS)
-        )
-        # NULL propagates: one missing return makes rs_raw NULL.
-        raw_sql = " + ".join(f"{float(w)!r} * ret_{k}" for k, w in enumerate(weights))
-
-        sql = f"""
-            WITH universe_instruments AS (
-                SELECT instrument_id
-                FROM universe_memberships
-                WHERE universe_snapshot_id = ? AND eligible = TRUE
-                  AND NOT list_contains(CAST(? AS VARCHAR[]), instrument_id)
-            ),
-            daily_series AS (
-                SELECT
-                    d.instrument_id,
-                    d.trade_date,
-                    d.close_adj,
-                    ROW_NUMBER() OVER (
-                        PARTITION BY d.instrument_id ORDER BY d.trade_date DESC
-                    ) AS rn
-                FROM daily_prices_adjusted_current d
-                JOIN universe_instruments u ON d.instrument_id = u.instrument_id
-                WHERE d.trade_date <= ? AND d.computed_from_snapshot_id = ?
-            ),
-            returns AS (
-                SELECT
-                    t0.instrument_id,
-                    t0.trade_date AS last_trade_date,
-                    {ret_sql}
-                FROM (SELECT * FROM daily_series WHERE rn = 1) t0
-                {join_sql}
-            ),
-            rs_calc AS (
-                SELECT
-                    instrument_id,
-                    ret_0, ret_1, ret_2, ret_3,
-                    (CAST(? AS DATE) - last_trade_date) > {max_stale} AS is_stale,
-                    {raw_sql} AS rs_raw_candidate
-                FROM returns
-            ),
-            rs_final AS (
-                SELECT
-                    instrument_id,
-                    ret_0, ret_1, ret_2, ret_3,
-                    CASE WHEN is_stale THEN NULL ELSE rs_raw_candidate END AS rs_raw,
-                    CASE
-                        WHEN is_stale THEN 'STALE_DATA'
-                        WHEN rs_raw_candidate IS NULL THEN 'INSUFFICIENT_DATA'
-                        ELSE 'PASS'
-                    END AS rs_status
-                FROM rs_calc
-            ),
-            population AS (
-                SELECT COUNT(*) as pop_size FROM rs_final WHERE rs_raw IS NOT NULL
-            ),
-            rankings AS (
-                SELECT
-                    r.*,
-                    (SELECT pop_size FROM population) AS population_size,
-                    -- pct = (count_below + 0.5*count_equal) / N; NULL when not ranked.
-                    -- COUNT(*) over a NULL comparison is 0, so guard explicitly: an
-                    -- unranked instrument must get NULL, never 0.0.
-                    CASE WHEN r.rs_raw IS NULL THEN NULL ELSE (
-                        (SELECT COUNT(*) FROM rs_final WHERE rs_raw < r.rs_raw) +
-                        0.5 * (SELECT COUNT(*) FROM rs_final WHERE rs_raw = r.rs_raw)
-                    ) / NULLIF((SELECT pop_size FROM population), 0) END AS rs_percentile
-                FROM rs_final r
-            )
-            INSERT INTO relative_strength_snapshots (
-                as_of_date, instrument_id, ret_63, ret_126, ret_189, ret_252,
-                rs_raw, rs_rank, rs_percentile, population_size, rs_status,
-                universe_snapshot_id, calculation_version, data_snapshot_id
-            )
-            SELECT
-                ? AS as_of_date,
-                instrument_id,
-                ret_0, ret_1, ret_2, ret_3,
-                rs_raw,
-                CASE WHEN rs_percentile IS NOT NULL
-                     THEN 1 + CAST(FLOOR(98 * rs_percentile) AS INTEGER) ELSE NULL END AS rs_rank,
-                rs_percentile,
-                population_size,
-                rs_status,
-                ? AS universe_snapshot_id,
-                ? AS calculation_version,
-                ? AS data_snapshot_id
-            FROM rankings
-            ON CONFLICT (
-                as_of_date, instrument_id, calculation_version, data_snapshot_id,
-                universe_snapshot_id
-            ) DO UPDATE SET
-                ret_63 = EXCLUDED.ret_63,
-                ret_126 = EXCLUDED.ret_126,
-                ret_189 = EXCLUDED.ret_189,
-                ret_252 = EXCLUDED.ret_252,
-                rs_raw = EXCLUDED.rs_raw,
-                rs_rank = EXCLUDED.rs_rank,
-                rs_percentile = EXCLUDED.rs_percentile,
-                population_size = EXCLUDED.population_size,
-                rs_status = EXCLUDED.rs_status
-        """
-
-        blocked_ids = self._blocked_members(universe_snapshot_id, as_of_date)
-        cursor = self.store.conn.cursor()
-        result = cursor.execute(
-            sql,
-            [
-                universe_snapshot_id,
-                blocked_ids,
-                as_of_date,
-                self.data_snapshot_id,
-                as_of_date,  # staleness reference
-                as_of_date,
-                universe_snapshot_id,
-                self.calculation_version,
-                self.data_snapshot_id,
-            ],
-        ).fetchone()
-        return int(result[0]) if result else 0
+        return set(blocked)

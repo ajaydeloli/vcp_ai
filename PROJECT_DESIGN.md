@@ -330,10 +330,17 @@ src/vcp_scanner/
 ├── config/
 ├── domain/
 ├── data/
-├── universe/
-├── indicators/
-├── trend/
-├── patterns/
+│   ├── providers/        adapters behind Protocols in providers/base.py
+│   ├── repositories/     Protocols in repositories/base.py + DuckDB implementations
+│   ├── ingestion/        provider -> raw/canonical workers
+│   ├── adjustment/       corporate-action factors -> adjusted prices
+│   ├── reconciliation/   NSE/Upstox reconciliation, gap safety net
+│   ├── quality/          completeness, data-quality events, verification
+│   ├── features/         SQL feature builders (SMA/ATR/volume/volatility, weekly bars)
+│   ├── storage/          DuckDB catalogue, Parquet archiver
+│   └── universe/         universe rules (strategy code, DB-free)
+├── features/             strategy engines: RS ranking, Trend Template, weekly Stage
+├── patterns/             VCP detector (Phase 6)
 ├── scoring/
 ├── fundamentals/
 ├── research/
@@ -345,6 +352,8 @@ src/vcp_scanner/
 ├── api/
 └── infrastructure/
 ```
+
+Layout amended by audit 2026-09-30 Fix 6 to match the implementation. The earlier `universe/`, `indicators/`, `trend/` and `data/normalization/` packages were empty and have been removed so no agent writes a second implementation there: universe rules live in `data/universe/`, indicator builders in `data/features/`, and RS / Trend Template / weekly Stage in `features/`. Indicator *computation* is storage-side SQL (data layer); every *strategy decision* (eligibility, RS ranking, the ten conditions, Stage, later VCP and scoring) is pure Python over domain objects and repository Protocols. `tests/unit/test_architecture_rules.py` enforces this for `domain/`, `features/`, `data/universe/`, and `patterns/`, `scoring/`, `fundamentals/` as they gain code.
 
 Recommended dependency direction:
 
@@ -1805,11 +1814,13 @@ vcp_scanner/
 │       │   │   └── dhan.py
 │       │   ├── repositories/
 │       │   ├── ingestion/
-│       │   ├── normalization/
-│       │   └── quality/
-│       ├── universe/
-│       ├── indicators/
-│       ├── trend/
+│       │   ├── adjustment/
+│       │   ├── reconciliation/
+│       │   ├── quality/
+│       │   ├── features/      (SQL indicator builders)
+│       │   ├── storage/
+│       │   └── universe/      (universe rules, DB-free)
+│       ├── features/          (RS, Trend Template, weekly Stage)
 │       ├── patterns/
 │       │   └── vcp/
 │       ├── fundamentals/

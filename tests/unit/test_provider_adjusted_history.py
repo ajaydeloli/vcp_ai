@@ -26,6 +26,7 @@ from vcp_scanner.data.repositories.duckdb_corporate_action_repository import (
     DuckDBCorporateActionRepository,
 )
 from vcp_scanner.data.repositories.duckdb_market_repository import DuckDBMarketDataRepository
+from vcp_scanner.data.repositories.duckdb_universe_repository import DuckDBUniverseRepository
 from vcp_scanner.data.storage.duckdb_store import DuckDBStore
 from vcp_scanner.data.universe.builder import UniverseBuilder
 from vcp_scanner.domain.corporate_actions import CorporateActionAdjustment
@@ -199,7 +200,9 @@ def test_universe_min_price_uses_the_price_that_actually_traded(
     provider: str, eligible: bool, price: float
 ) -> None:
     store = _universe_db(provider)
-    builder = UniverseBuilder(store, UniverseConfig(), clock=lambda: datetime.now(UTC))
+    builder = UniverseBuilder(
+        DuckDBUniverseRepository(store), UniverseConfig(), clock=lambda: datetime.now(UTC)
+    )
     _, memberships = builder.build_snapshot(date(2023, 12, 29))
     (m,) = memberships
     assert m.price == pytest.approx(price)

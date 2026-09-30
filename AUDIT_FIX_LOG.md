@@ -13,7 +13,7 @@ by the project owner before work starts.
 | 3 | P1-9 | Reject NaN / zero / negative OHLC; NaN inputs are INSUFFICIENT_DATA | Done |
 | 4 | P0-1 | Kite candles are provider-adjusted: stop double adjustment | Done (live check pending: run `vcp verify kite-adjustment`) |
 | 5 | P1-1 | Seed `instruments`; first real end-to-end run; real golden fixtures | 5a done; 5b pending (needs credentials) |
-| 6 | P1-3 / P1-4 | Architecture boundary test covers real packages; package layout | Pending |
+| 6 | P1-3 / P1-4 | Architecture boundary test covers real packages; package layout | Done |
 | 7 | P1-7 / P1-6 | VCP config shape per VCP_SPEC §60; real RS tests | Pending |
 
 ---
@@ -234,3 +234,48 @@ database and had never run end-to-end.
 
 **Verification.** Full suite: 534 passed, 0 failed. `ruff check`, `ruff format --check`,
 `mypy --strict src` clean.
+
+---
+
+## Fix 6 — P1-3 / P1-4: architecture boundary and package layout
+
+**Owner decision (2026-09-30).** "Keep layout, enforce boundary": adopt the real layout in
+PROJECT_DESIGN §6, delete the empty duplicates, move SQL indicator builders to the data layer,
+make RS ranking and universe rules pure functions behind repositories, and point the boundary
+test at the real packages. Requirement: identical RS and universe results before and after.
+
+**Problem.** Strategy formulas (RS ranking, universe eligibility) and indicator builders were
+raw DuckDB SQL inside `features/` and `data/universe/`, taking `DuckDBStore` directly (AGENTS
+rule 3). `test_architecture_rules.py` scanned only `domain` and empty packages (`trend/`,
+`indicators/`, `universe/`, ...), so it passed without checking anything. The empty packages
+matched PROJECT_DESIGN §6, inviting a Phase 6 agent to write a second implementation there.
+
+**Change.**
+- Safety net first: `tests/regression/test_rs_universe_golden.py` + `tests/fixtures/
+  rs_universe_golden.json`, **recorded from the old SQL implementations** (12 RS cases: ranks,
+  ties, short history, stale, NaN, gappy sessions, gate exclusion, ineligible and price-less
+  members; 13 universe cases: every exclusion reason, Kite price undo, PARTIAL label). After the
+  refactor the fixture is byte-identical and the test passes (rel tol 1e-12 on floats).
+- RS: `domain.trend.RSPriceInput` / `RSRow`; pure `features.relative_strength.compute_rs_rows`;
+  `RelativeStrengthEngine(repository, ...)`; new Protocol `RelativeStrengthRepository`; new
+  `data/repositories/duckdb_rs_repository.py` (fetch newest + lagged closes, upsert rows).
+- Universe: `domain.universe.UniverseCandidate`; pure `evaluate_eligibility`; `UniverseBuilder(
+  repository, ...)`; new Protocol `UniverseInputRepository`; SQL moved verbatim to
+  `DuckDBUniverseRepository.load_universe_candidates` / `count_known_delistings`.
+- Moved `features/daily_features.py`, `features/weekly_aggregation.py` → `data/features/`.
+- Removed `indicators/`, `trend/`, `universe/`, `data/normalization/`.
+- `tests/unit/test_architecture_rules.py` rewritten: scans `domain/`, `features/`,
+  `data/universe/` (each must contain code) and `patterns/`, `scoring/`, `fundamentals/`; forbids
+  SDKs/HTTP/DuckDB/pyarrow, `data.storage`, `data.ingestion`, `data.features`, `auth`, `cli`, and
+  concrete `data.repositories.*` / `data.providers.*` (only the `*.base` Protocols allowed); a
+  test asserts the removed packages stay removed; a self-test proves the checker catches the old
+  violation.
+- Call sites: `cli.py` (universe), `cli_pipeline.py` (RS, feature imports), 11 test modules
+  (constructor changes only), `pyproject.toml` per-file ignore path.
+- Docs: PROJECT_DESIGN §6 (real layout + rationale) and §49, AGENTS.md rule 3, AI_AGENT_RULES
+  §8 note, CHANGELOG.
+
+**Behavior.** None intended; proven by the golden regression.
+
+**Verification.** Full suite: 543 passed, 0 failed. `ruff check`, `ruff format --check`,
+`mypy --strict src` clean (92 files). Golden fixture unchanged (`cmp`).

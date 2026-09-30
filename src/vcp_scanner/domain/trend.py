@@ -104,3 +104,30 @@ class WeeklyContext:
     @property
     def weekly_stage2_pass(self) -> bool:
         return self.weekly_stage is WeeklyStage.STAGE_2
+
+
+@dataclass(frozen=True, slots=True)
+class RSPriceInput:
+    """Adjusted closes one instrument contributes to an RS calculation (``rs-1.0.0``).
+
+    ``last_close`` is the newest bar on or before the as-of date; ``lagged_closes[k]`` is the
+    close ``windows_days[k]`` sessions before it, or None when the history is too short.
+    """
+
+    instrument_id: str
+    last_trade_date: date
+    last_close: float
+    lagged_closes: tuple[float | None, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class RSRow:
+    """One ``relative_strength_snapshots`` row before it is tagged with its snapshot ids."""
+
+    instrument_id: str
+    returns: tuple[float | None, ...]
+    rs_raw: float | None
+    rs_rank: int | None
+    rs_percentile: float | None
+    population_size: int
+    rs_status: str  # PASS | INSUFFICIENT_DATA | STALE_DATA

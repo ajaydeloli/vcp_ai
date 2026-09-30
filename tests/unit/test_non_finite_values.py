@@ -13,6 +13,7 @@ import pytest
 
 from vcp_scanner.config.models import StageConfig, TrendTemplateConfig
 from vcp_scanner.data.repositories.duckdb_market_repository import DuckDBMarketDataRepository
+from vcp_scanner.data.repositories.duckdb_rs_repository import DuckDBRelativeStrengthRepository
 from vcp_scanner.data.schema import validate_ohlc
 from vcp_scanner.data.storage.duckdb_store import DuckDBStore
 from vcp_scanner.domain.enums import Timeframe, TrendTemplateStatus, WeeklyStage
@@ -135,7 +136,9 @@ def test_nan_close_is_excluded_from_the_rs_population() -> None:
     bad[0] = NAN  # corrupt as-of close
     _seed_rs(store, {**good, "BAD": bad})
 
-    RelativeStrengthEngine(store).compute_for_date(date(2023, 12, 31), "u1")
+    RelativeStrengthEngine(DuckDBRelativeStrengthRepository(store)).compute_for_date(
+        date(2023, 12, 31), "u1"
+    )
     rows = dict(
         (r[0], r[1:])
         for r in store.conn.execute(

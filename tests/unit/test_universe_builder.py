@@ -3,6 +3,7 @@ from datetime import UTC, date, datetime
 import pytest
 
 from vcp_scanner.config.models import UniverseConfig
+from vcp_scanner.data.repositories.duckdb_universe_repository import DuckDBUniverseRepository
 from vcp_scanner.data.storage.duckdb_store import DuckDBStore
 from vcp_scanner.data.universe.builder import UniverseBuilder
 
@@ -23,7 +24,7 @@ def test_universe_builder_filters_correctly(store):
         eligible_series=["EQ"],
         exclude_asm_gsm=True,
     )
-    builder = UniverseBuilder(store, config)
+    builder = UniverseBuilder(DuckDBUniverseRepository(store), config)
 
     # Insert mock data
     now = datetime.now(UTC)
@@ -139,7 +140,9 @@ def _config(**kw):
 def test_min_history_days_is_enforced(store):
     _seed(store, "LONG", 253)
     _seed(store, "SHORT", 100)
-    _, members = UniverseBuilder(store, _config()).build_snapshot(date(2023, 1, 1))
+    _, members = UniverseBuilder(DuckDBUniverseRepository(store), _config()).build_snapshot(
+        date(2023, 1, 1)
+    )
     by_id = {m.instrument_id: m for m in members}
     assert by_id["LONG"].eligible is True
     assert by_id["SHORT"].eligible is False
@@ -148,10 +151,12 @@ def test_min_history_days_is_enforced(store):
 
 def test_staleness_limit_comes_from_config(store):
     _seed(store, "OLD", 253, last=date(2022, 12, 1))  # 31 days before as-of
-    strict, m1 = UniverseBuilder(store, _config()).build_snapshot(date(2023, 1, 1))
-    loose, m2 = UniverseBuilder(store, _config(max_staleness_days=60)).build_snapshot(
+    strict, m1 = UniverseBuilder(DuckDBUniverseRepository(store), _config()).build_snapshot(
         date(2023, 1, 1)
     )
+    loose, m2 = UniverseBuilder(
+        DuckDBUniverseRepository(store), _config(max_staleness_days=60)
+    ).build_snapshot(date(2023, 1, 1))
     assert m1[0].eligible is False and "Stale" in m1[0].exclusion_reason
     assert m2[0].eligible is True
 
@@ -166,14 +171,18 @@ def _add_delisting(store, iid="GONE"):
 
 def test_survivorship_biased_without_delisting_data(store):
     _seed(store, "LIVE", 253)
-    snap, _ = UniverseBuilder(store, _config()).build_snapshot(date(2023, 1, 1))
+    snap, _ = UniverseBuilder(DuckDBUniverseRepository(store), _config()).build_snapshot(
+        date(2023, 1, 1)
+    )
     assert snap.survivorship_status.value == "BIASED"
 
 
 def test_survivorship_partial_until_coverage_attested(store):
     _seed(store, "LIVE", 253)
     _add_delisting(store)
-    snap, _ = UniverseBuilder(store, _config()).build_snapshot(date(2023, 1, 1))
+    snap, _ = UniverseBuilder(DuckDBUniverseRepository(store), _config()).build_snapshot(
+        date(2023, 1, 1)
+    )
     assert snap.survivorship_status.value == "PARTIAL"
 
 
@@ -181,16 +190,16 @@ def test_survivorship_complete_needs_data_and_attestation(store):
     _seed(store, "LIVE", 253)
     cfg = _config(survivorship_coverage_verified=True)
     # attestation alone, with no delisting records, is not enough
-    snap, _ = UniverseBuilder(store, cfg).build_snapshot(date(2023, 1, 1))
+    snap, _ = UniverseBuilder(DuckDBUniverseRepository(store), cfg).build_snapshot(date(2023, 1, 1))
     assert snap.survivorship_status.value == "BIASED"
     _add_delisting(store)
-    snap, _ = UniverseBuilder(store, cfg).build_snapshot(date(2023, 1, 1))
+    snap, _ = UniverseBuilder(DuckDBUniverseRepository(store), cfg).build_snapshot(date(2023, 1, 1))
     assert snap.survivorship_status.value == "POINT_IN_TIME_COMPLETE"
 
 
 def test_known_at_rebuilds_snapshot_as_it_was_known(store):
     _seed(store, "LATE", 253)  # every row has known_from = now
-    builder = UniverseBuilder(store, _config())
+    builder = UniverseBuilder(DuckDBUniverseRepository(store), _config())
 
     now_snap, now_members = builder.build_snapshot(date(2023, 1, 1))
     assert [m.instrument_id for m in now_members] == ["LATE"]
@@ -203,7 +212,7 @@ def test_known_at_rebuilds_snapshot_as_it_was_known(store):
 
 def test_known_at_must_be_timezone_aware(store):
     with pytest.raises(ValueError, match="timezone-aware"):
-        UniverseBuilder(store, _config()).build_snapshot(
+        UniverseBuilder(DuckDBUniverseRepository(store), _config()).build_snapshot(
             date(2023, 1, 1),
             known_at=datetime(2023, 1, 2),  # noqa: DTZ001 - naive on purpose
         )
@@ -253,7 +262,9 @@ def test_fifty_day_liquidity_gate(store):
         " VALUES ('SPIKE', 'EQ', 'NSE', '2000-01-01', ?)",
         [now],
     )
-    _, members = UniverseBuilder(store, UniverseConfig()).build_snapshot(date(2023, 1, 1))
+    _, members = UniverseBuilder(DuckDBUniverseRepository(store), UniverseConfig()).build_snapshot(
+        date(2023, 1, 1)
+    )
     m = members[0]
     assert m.eligible is False
     assert "50d" in m.exclusion_reason

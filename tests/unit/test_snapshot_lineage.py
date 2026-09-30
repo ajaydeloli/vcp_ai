@@ -11,15 +11,16 @@ from datetime import UTC, date, datetime, timedelta
 
 import pytest
 
+from vcp_scanner.data.features.daily_features import DailyFeatureEngine
+from vcp_scanner.data.features.weekly_aggregation import WeeklyAggregationEngine
 from vcp_scanner.data.repositories.duckdb_feature_repository import DuckDBFeatureRepository
+from vcp_scanner.data.repositories.duckdb_rs_repository import DuckDBRelativeStrengthRepository
 from vcp_scanner.data.repositories.duckdb_trend_repository import DuckDBTrendRepository
 from vcp_scanner.data.storage.duckdb_store import DuckDBStore
 from vcp_scanner.domain.enums import TrendTemplateStatus, WeeklyStage
 from vcp_scanner.domain.snapshot import LIVE_SNAPSHOT_ID
 from vcp_scanner.domain.trend import TrendConditionResult, TrendTemplateResult, WeeklyContext
-from vcp_scanner.features.daily_features import DailyFeatureEngine
 from vcp_scanner.features.relative_strength import RelativeStrengthEngine
-from vcp_scanner.features.weekly_aggregation import WeeklyAggregationEngine
 
 SNAP_A = "snap-20240201T180000Z"
 SNAP_B = "snap-20240206T120000Z"
@@ -163,7 +164,7 @@ def test_rs_same_date_two_universes_do_not_overwrite(store: DuckDBStore) -> None
     _seed_universe(store, "uni-old", "2024-03-30T00:00:00Z", ["T1", "T2"])
     _seed_universe(store, "uni-new", "2024-03-31T00:00:00Z", ["T1", "T2", "T3"])
 
-    engine = RelativeStrengthEngine(store, data_snapshot_id=SNAP_A)
+    engine = RelativeStrengthEngine(DuckDBRelativeStrengthRepository(store, SNAP_A))
     engine.compute_for_date(AS_OF, "uni-old")
     engine.compute_for_date(AS_OF, "uni-new")
 
@@ -186,8 +187,8 @@ def test_rs_is_scoped_to_data_snapshot(store: DuckDBStore) -> None:
         _seed_rising(store, SNAP_B, iid, 3.0 - slope)  # reversed ranking under B
     _seed_universe(store, "uni", "2024-03-30T00:00:00Z", ["T1", "T2"])
 
-    ea = RelativeStrengthEngine(store, data_snapshot_id=SNAP_A)
-    eb = RelativeStrengthEngine(store, data_snapshot_id=SNAP_B)
+    ea = RelativeStrengthEngine(DuckDBRelativeStrengthRepository(store, SNAP_A))
+    eb = RelativeStrengthEngine(DuckDBRelativeStrengthRepository(store, SNAP_B))
     ea.compute_for_date(AS_OF, "uni")
     eb.compute_for_date(AS_OF, "uni")
 

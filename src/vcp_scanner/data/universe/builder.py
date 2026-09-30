@@ -1,4 +1,9 @@
-"""Universe calculation and generation (Phase 3)."""
+"""Universe calculation and generation (Phase 3).
+
+Strategy code (audit Fix 6): the eligibility rules are a pure function
+(``evaluate_eligibility``) over ``UniverseCandidate`` facts; all point-in-time data access is
+behind ``UniverseInputRepository``. No storage engine is imported here.
+"""
 
 from __future__ import annotations
 
@@ -13,14 +18,51 @@ from typing import TYPE_CHECKING
 from vcp_scanner.config.models import UniverseConfig
 from vcp_scanner.domain.enums import SurvivorshipStatus
 from vcp_scanner.domain.market import PROVIDER_ADJUSTED_SOURCES
-from vcp_scanner.domain.universe import UniverseMembership, UniverseSnapshot
+from vcp_scanner.domain.universe import UniverseCandidate, UniverseMembership, UniverseSnapshot
 from vcp_scanner.infrastructure.clock import Clock, utc_now
 
 if TYPE_CHECKING:
-    from vcp_scanner.data.repositories.base import DataQualityGate
-    from vcp_scanner.data.storage.duckdb_store import DuckDBStore
+    from vcp_scanner.data.repositories.base import DataQualityGate, UniverseInputRepository
 
 logger = logging.getLogger(__name__)
+
+UNIVERSE_METHOD_VERSION = "1.1"
+
+
+def evaluate_eligibility(
+    candidate: UniverseCandidate, config: UniverseConfig, as_of_date: date
+) -> tuple[bool, str | None]:
+    """Apply the universe rules in order; the first failing rule names the exclusion.
+
+    Order: staleness, exchange, series, minimum price (price that actually traded), 20-day
+    and 50-day average traded value (raw close x raw volume), history length, ASM/GSM, T2T.
+    """
+    c = config
+    if c_last := candidate.last_trade_date:
+        stale_days = (as_of_date - c_last).days
+        if stale_days > c.max_staleness_days:
+            return False, f"Stale: last trade {c_last} is {stale_days}d before {as_of_date}"
+    if candidate.exchange != c.exchange:
+        return False, f"Exchange {candidate.exchange} != {c.exchange}"
+    if candidate.series not in c.eligible_series:
+        return False, f"Series {candidate.series} not in {c.eligible_series}"
+    price = candidate.last_price
+    if price is None or price < c.min_close_price:
+        return False, f"Price {price} < {c.min_close_price}"
+    tv20 = candidate.avg_traded_value_20d
+    if tv20 is None or tv20 < c.min_daily_turnover_inr:
+        return False, f"Traded value {tv20} < {c.min_daily_turnover_inr}"
+    tv50 = candidate.avg_traded_value_50d
+    if tv50 is None or tv50 < c.min_avg_traded_value_50d_inr:
+        return False, f"50d traded value {tv50} < {c.min_avg_traded_value_50d_inr}"
+    history = candidate.days_history
+    if history is None or history < c.min_history_days:
+        return False, f"History {history or 0} bars < {c.min_history_days}"
+    if c.exclude_asm_gsm and (candidate.asm_flag == "YES" or candidate.gsm_flag == "YES"):
+        return False, "ASM/GSM flag active"
+    if c.exclude_trade_to_trade and candidate.t2t_flag == "YES":
+        return False, "T2T flag active"
+    return True, None
 
 
 class UniverseBuilder:
@@ -28,13 +70,13 @@ class UniverseBuilder:
 
     def __init__(
         self,
-        store: DuckDBStore,
+        repository: UniverseInputRepository,
         config: UniverseConfig,
         *,
         clock: Clock = utc_now,
         quality_gate: DataQualityGate | None = None,
     ) -> None:
-        self._store = store
+        self._repo = repository
         self._config = config
         self._clock = clock
         # Optional (audit P0-2). When set, instruments with an unresolved signal-blocking
@@ -79,18 +121,7 @@ class UniverseBuilder:
         records exist. Otherwise the label is honest about the gap, and results must not be
         used to validate thresholds (``SurvivorshipStatus.may_validate_thresholds``).
         """
-        row = self._store.conn.execute(
-            """
-            SELECT COUNT(*)
-            FROM security_master_history
-            WHERE delisting_date IS NOT NULL
-              AND known_from <= ?
-              AND (known_to IS NULL OR known_to > ?)
-            """,
-            [known_at, known_at],
-        ).fetchone()
-        delisted_known = int(row[0]) if row else 0
-        if delisted_known == 0:
+        if self._repo.count_known_delistings(known_at) == 0:
             return SurvivorshipStatus.BIASED  # current listings only
         if not self._config.survivorship_coverage_verified:
             return SurvivorshipStatus.PARTIAL  # some delisted names, completeness unproven
@@ -109,217 +140,33 @@ class UniverseBuilder:
         Default: the injected clock, i.e. everything known now. It is recorded as the
         snapshot's ``created_at``, which therefore always means "as known at".
         """
-        logger.info(f"Building universe snapshot for {as_of_date}...")
+        logger.info("Building universe snapshot for %s...", as_of_date)
         created_at = known_at if known_at is not None else self._clock()
         if created_at.tzinfo is None:
             raise ValueError("known_at must be timezone-aware")
         snapshot_id = f"uv_{as_of_date.strftime('%Y%m%d')}_{uuid.uuid4().hex[:6]}"
 
-        # This query calculates the 20- and 50-day average traded value and the last close price.
-        # We enforce point-in-time correctness by bounding the trade_date.
-        # Because we're looking at historical point in time, we use `close_raw` and `volume_raw`.
-
-        query = """
-        WITH windowed AS (
-            SELECT
-                instrument_id,
-                trade_date,
-                close_raw,
-                primary_provider,
-                CAST(timezone('Asia/Kolkata', known_from) AS DATE) AS fetched_date,
-                -- close x volume is unchanged by a split/bonus adjustment (price and volume
-                -- factors cancel), so it is the true traded value for raw and
-                -- provider-adjusted bars alike.
-                (close_raw * volume_raw) as traded_value,
-                ROW_NUMBER() OVER(PARTITION BY instrument_id ORDER BY trade_date DESC) as rn
-            FROM daily_prices
-            WHERE trade_date <= ?
-              AND known_from <= ?
-              AND (known_to IS NULL OR known_to > ?)
-        ),
-        -- Audit P0-1: a provider-adjusted bar (Kite) was already scaled by every split/bonus
-        -- with trade_date < ex_date <= its fetch date. Undo those factors to recover the price
-        -- that actually traded, which is what the minimum-price rule is about.
-        provider_undo AS (
-            SELECT
-                w.instrument_id,
-                EXP(SUM(LN(CAST(a.price_factor AS DOUBLE)))) AS applied_pf
-            FROM windowed w
-            JOIN corporate_action_adjustments a
-              ON a.instrument_id = w.instrument_id
-             AND a.effective_date > w.trade_date
-             AND a.effective_date <= w.fetched_date
-             AND a.known_from <= ?
-             AND (a.known_to IS NULL OR a.known_to > ?)
-            WHERE w.rn = 1
-              AND list_contains(CAST(? AS VARCHAR[]), upper(w.primary_provider))
-            GROUP BY w.instrument_id
-        ),
-        recent_stats AS (
-            SELECT
-                w.instrument_id,
-                MAX(CASE WHEN rn = 1 THEN close_raw / COALESCE(u.applied_pf, 1.0) END)
-                    as last_price,
-                MAX(CASE WHEN rn = 1 THEN trade_date END) as last_trade_date,
-                AVG(CASE WHEN rn <= 20 THEN traded_value END) as avg_traded_value_20d,
-                AVG(CASE WHEN rn <= 50 THEN traded_value END) as avg_traded_value_50d,
-                -- rn counts every bar known on or before as_of_date, so MAX(rn) is the
-                -- full history length that UniverseConfig.min_history_days is judged against.
-                MAX(rn) as days_history
-            FROM windowed w
-            LEFT JOIN provider_undo u ON u.instrument_id = w.instrument_id
-            GROUP BY w.instrument_id
-        ),
-        -- Get the security master status as of as_of_date
-        sec_master AS (
-            SELECT
-                instrument_id,
-                series,
-                exchange
-            FROM security_master_history
-            WHERE valid_from <= ?
-              AND (valid_to IS NULL OR valid_to >= ?)
-              AND known_from <= ?
-              AND (known_to IS NULL OR known_to > ?)
-            -- Use the most recent entry if there are overlaps
-            QUALIFY ROW_NUMBER() OVER(
-                PARTITION BY instrument_id ORDER BY valid_from DESC, known_from DESC
-            ) = 1
-        ),
-        -- Get active surveillance flags
-        surv_flags AS (
-            SELECT
-                instrument_id,
-                MAX(CASE WHEN flag_type = 'ASM' THEN 'YES' END) as asm_flag,
-                MAX(CASE WHEN flag_type = 'GSM' THEN 'YES' END) as gsm_flag,
-                MAX(CASE WHEN flag_type = 'T2T' THEN 'YES' END) as t2t_flag
-            FROM surveillance_flags_history
-            WHERE valid_from <= ?
-              AND (valid_to IS NULL OR valid_to >= ?)
-              AND known_from <= ?
-              AND (known_to IS NULL OR known_to > ?)
-            GROUP BY instrument_id
+        candidates = self._repo.load_universe_candidates(
+            as_of_date, created_at, sorted(PROVIDER_ADJUSTED_SOURCES)
         )
-        SELECT
-            r.instrument_id,
-            r.last_price,
-            r.avg_traded_value_20d,
-            r.avg_traded_value_50d,
-            r.days_history,
-            r.last_trade_date,
-            sm.series,
-            sm.exchange,
-            sf.asm_flag,
-            sf.gsm_flag,
-            sf.t2t_flag
-        FROM recent_stats r
-        LEFT JOIN sec_master sm ON r.instrument_id = sm.instrument_id
-        LEFT JOIN surv_flags sf ON r.instrument_id = sf.instrument_id
-        """
-
-        # Execute query passing as_of_date and created_at correctly
-        rows = self._store.conn.execute(
-            query,
-            [
-                as_of_date,
-                created_at,
-                created_at,  # windowed
-                created_at,
-                created_at,
-                sorted(PROVIDER_ADJUSTED_SOURCES),  # provider_undo
-                as_of_date,
-                as_of_date,
-                created_at,
-                created_at,  # sec_master
-                as_of_date,
-                as_of_date,
-                created_at,
-                created_at,  # surv_flags
-            ],
-        ).fetchall()
-
         memberships = []
-        for row in rows:
-            (
-                instrument_id,
-                last_price,
-                avg_traded_value,
-                avg_traded_value_50d,
-                days_history,
-                last_trade_date,
-                series,
-                exchange,
-                asm_flag,
-                gsm_flag,
-                t2t_flag,
-            ) = row
-
-            eligible = True
-            exclusion_reason = None
-
-            # Staleness gate: if the most recent price is more than max_staleness_days
-            # calendar days before as_of_date, treat the instrument as no longer trading.
-            max_stale = self._config.max_staleness_days
-            if last_trade_date is not None:
-                stale_days = (as_of_date - last_trade_date).days
-                if stale_days > max_stale:
-                    eligible = False
-                    exclusion_reason = (
-                        f"Stale: last trade {last_trade_date} is {stale_days}d before {as_of_date}"
-                    )
-
-            if eligible:
-                if exchange != self._config.exchange:
-                    eligible = False
-                    exclusion_reason = f"Exchange {exchange} != {self._config.exchange}"
-                elif series not in self._config.eligible_series:
-                    eligible = False
-                    exclusion_reason = f"Series {series} not in {self._config.eligible_series}"
-                elif last_price is None or last_price < self._config.min_close_price:
-                    eligible = False
-                    exclusion_reason = f"Price {last_price} < {self._config.min_close_price}"
-                elif (
-                    avg_traded_value is None
-                    or avg_traded_value < self._config.min_daily_turnover_inr
-                ):
-                    eligible = False
-                    exclusion_reason = (
-                        f"Traded value {avg_traded_value} < {self._config.min_daily_turnover_inr}"
-                    )
-                elif (
-                    avg_traded_value_50d is None
-                    or avg_traded_value_50d < self._config.min_avg_traded_value_50d_inr
-                ):
-                    eligible = False
-                    exclusion_reason = (
-                        f"50d traded value {avg_traded_value_50d} < "
-                        f"{self._config.min_avg_traded_value_50d_inr}"
-                    )
-                elif days_history is None or days_history < self._config.min_history_days:
-                    eligible = False
-                    exclusion_reason = (
-                        f"History {days_history or 0} bars < {self._config.min_history_days}"
-                    )
-                elif self._config.exclude_asm_gsm and (asm_flag == "YES" or gsm_flag == "YES"):
-                    eligible = False
-                    exclusion_reason = "ASM/GSM flag active"
-                elif self._config.exclude_trade_to_trade and t2t_flag == "YES":
-                    eligible = False
-                    exclusion_reason = "T2T flag active"
-
+        for cand in candidates:
+            eligible, reason = evaluate_eligibility(cand, self._config, as_of_date)
             memberships.append(
                 UniverseMembership(
                     universe_snapshot_id=snapshot_id,
-                    instrument_id=instrument_id,
+                    instrument_id=cand.instrument_id,
                     eligible=eligible,
-                    exclusion_reason=exclusion_reason,
-                    avg_traded_value=float(avg_traded_value) if avg_traded_value else None,
-                    price=float(last_price) if last_price else None,
+                    exclusion_reason=reason,
+                    avg_traded_value=(
+                        float(cand.avg_traded_value_20d) if cand.avg_traded_value_20d else None
+                    ),
+                    price=float(cand.last_price) if cand.last_price else None,
                     instrument_type="EQUITY",
-                    series=series,
-                    asm_flag=asm_flag,
-                    gsm_flag=gsm_flag,
-                    t2t_flag=t2t_flag,
+                    series=cand.series,
+                    asm_flag=cand.asm_flag,
+                    gsm_flag=cand.gsm_flag,
+                    t2t_flag=cand.t2t_flag,
                 )
             )
 
@@ -331,7 +178,7 @@ class UniverseBuilder:
             as_of_date=as_of_date,
             created_at=created_at,
             config_hash=self._hash_config(),
-            method_version="1.1",
+            method_version=UNIVERSE_METHOD_VERSION,
             survivorship_status=self._survivorship_status(created_at),
         )
 

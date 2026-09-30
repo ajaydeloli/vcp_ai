@@ -1,5 +1,5 @@
+from vcp_scanner.data.features.daily_features import DailyFeatureEngine
 from vcp_scanner.data.storage.duckdb_store import DuckDBStore
-from vcp_scanner.features.daily_features import DailyFeatureEngine
 
 
 def test_daily_feature_computation():

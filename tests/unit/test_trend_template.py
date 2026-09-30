@@ -15,12 +15,12 @@ from pathlib import Path
 import pytest
 
 from vcp_scanner.config.models import TrendTemplateConfig
+from vcp_scanner.data.features.daily_features import DailyFeatureEngine
 from vcp_scanner.data.repositories.duckdb_feature_repository import DuckDBFeatureRepository
 from vcp_scanner.data.repositories.duckdb_trend_repository import DuckDBTrendRepository
 from vcp_scanner.data.storage.duckdb_store import DuckDBStore
 from vcp_scanner.domain.enums import TrendTemplateStatus, WeeklyStage
 from vcp_scanner.domain.trend import TREND_CONDITION_NAMES, TrendConditionResult, WeeklyContext
-from vcp_scanner.features.daily_features import DailyFeatureEngine
 from vcp_scanner.features.trend_template import (
     TREND_ALGORITHM_VERSION,
     TrendInputs,
