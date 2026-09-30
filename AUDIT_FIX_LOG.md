@@ -489,3 +489,28 @@ KOTAKBANK split CONFIRMED, 31 dividends CONFIRMED, historical splits/bonuses SIN
 live feeds: still 0 conflicts, 0 blocks, all 8 split/bonus factors kept.
 
 **Verification.** Full suite: 643 passed, 0 failed (was 635). `ruff check`, `ruff format --check`, `mypy --strict src` clean.
+
+## Step 2.0 — spike: NSE bhavcopy as the raw price source (2026-09-30)
+
+Read-only checks before any code (plan: bhavcopy = raw source of truth; Kite = provisional
+today-bar + cross-check; equity series EQ/BE/BZ/SM/ST; demergers in scope). Scripts and cached
+files live in `data/spike/` (git-ignored, not committed).
+
+| # | Assumption | Result |
+|---|---|---|
+| 1 | Both formats parse to the same bars | **Yes.** 2026-09-29 bhavcopy vs Kite bars in `data/fix5b.duckdb`: 20/20 identical close and volume. |
+| 2 | `PREVCLOSE` on an ex-date is exchange-adjusted (gives an implied factor) | **No.** 7/7 golden splits/bonuses and the RELIANCE demerger: ex-date `PREVCLOSE` = unadjusted prior close. **Plan 2.4 changed:** no implied factor from `PREVCLOSE`; factors keep coming from reconciled actions. |
+| 3 | ISIN changes on face-value splits | **Yes, with a lag of 0–1 trading day** (NESTLEIND 2024, BAJFINANCE 2025 on the ex-date; IRCTC 2021, TATASTEEL 2022 the day after). `instruments.isin` is the *current* ISIN, so old files never match it: identity must follow symbol continuity, with an `isin_history`. |
+| 4 | A 404 means holiday | **Ambiguous.** Holidays and weekends both return 404 (no body difference). NSE's `holiday-master` API works but lists the current year only. Past dates: a 404 once the archive is settled (T+3) = `NO_SESSION`. Current year: cross-check holiday-master, and treat an unexpected 404 as an error. |
+| 5 | Sessions happen only on weekdays | **No.** Muhurat Sunday 2023-11-12 and special Saturday 2024-01-20 have files. The ingest must probe every calendar day, which is about 2,100 requests for 2021 to now. |
+| 6 | Cost and size | About 1.2–1.5 s per file and 70–210 KB zipped. There are 2,000 (2021) to 3,700 (2026) rows per day; EQ 1,490 → 2,671, SM 62 → 384, BE ~200–290, ST up to 115, BZ 16–61. The rest are debt/ETF series (GB, GS, N*, TB …), which are excluded. |
+| 7 | Kite history differs from raw only by splits/bonuses | **No, and this confirms D1.** Kite/raw close ratios on past dates are INFY 0.9789 and TATASTEEL 0.977 (dividends), ITC 0.8246 (ITC Hotels demerger, 2025-01), RELIANCE 0.4766 = 0.5 bonus × 0.953, and BHARTIARTL 0.9816 (2021 rights). Kite also rescales volume for demergers and rights. |
+| 8 | Demerger factor can be derived | **Yes, from the ex-date special pre-open.** RELIANCE ex 2023-07-20 opened at 2580.00 against a 2841.85 prior close. 2841.85 − 2580 = 261.85, which is exactly JIOFIN's base price when it listed on 2023-08-21 (series BE). Factor = 0.9079. |
+
+**Consequences for the plan.**
+- **2.2 identity:** the primary link is symbol continuity, with ISIN changes recorded in `isin_history`. An ISIN change without a nearby split/FV action raises a WARNING.
+- **2.3 ingestion:** probe every calendar day; `bhavcopy_files.status` ∈ {OK, NO_SESSION, ERROR}.
+- **2.4 implied factor dropped:**
+  - DEMERGER factor = ex-date open / prior close, taken from the special pre-open. This is only a *suggestion*; it must be CONFIRMED by NSE's announcement or set by MANUAL_OVERRIDE. The gap detector blocks until then.
+  - RIGHTS is also in scope: raw prices now show rights gaps (BHARTIARTL 2021). Factor = theoretical ex-rights price / cum price.
+- **2.6 migration:** expect adjusted-history changes for dividend residuals (now absent), plus new blocking gaps for demergers and rights (ITC 2025-01, RELIANCE 2023-07, BHARTIARTL 2021) until they are resolved.
