@@ -51,6 +51,7 @@ stored in DuckDB, so order matters.
 | 2 | `vcp ingest security-master --start YYYY-MM-DD` | Loads the NSE security master, NSE's delisted-companies list and ASM/T2T surveillance flags into `security_master_history` / `surveillance_flags_history`. `--delisted-file PATH` uses a downloaded copy of the delisted list; `--no-delisted` skips it. | Network |
 | 3 | `vcp ingest market --start YYYY-MM-DD` | Fetches daily OHLCV from Kite, re-fetches gaps, reports incomplete instruments. | Instruments (see note), Kite token |
 | 4 | `vcp ingest corporate-actions --start YYYY-MM-DD` | Ingests and reconciles splits/bonuses (NSE primary, Upstox secondary), then runs the gap safety net and publishes conflicts to the signal gate. | Instruments (see note) |
+| 4a | `vcp verify kite-adjustment [--action SYMBOL:DATE:SPLIT:NUM:DEN]` | Read-only check that Kite returns split/bonus-adjusted history, which the adjustment engine assumes (exit 2 = assumption wrong, stop). Run once after `vcp auth kite`. | Kite token |
 | 5 | `vcp ingest adjusted-prices [--known-at ISO]` | Builds adjusted daily prices from raw prices and stored adjustment factors. With `--known-at` it freezes a data snapshot and prints its id; otherwise it builds `LIVE`. | Steps 3–4 |
 | 6 | `vcp compute features [--data-snapshot-id ID]` | Daily features (SMA, ATR, volume, volatility, highs/lows) and weekly bars. | Step 5 |
 | 7 | `vcp ingest universe --as-of YYYY-MM-DD` | Builds the eligible-universe snapshot (liquidity, series, surveillance). | Steps 2–3 |

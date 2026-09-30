@@ -668,6 +668,138 @@ def run_quality_resolve(args: argparse.Namespace) -> int:
     return 0
 
 
+# ---------------------------------------------------------------------------
+# verify kite-adjustment (audit 2026-09-30 P0-1)
+# ---------------------------------------------------------------------------
+
+
+def _parse_action_spec(spec: str) -> tuple[str, date, Any, float, float] | None:
+    """``SYMBOL:YYYY-MM-DD:SPLIT|BONUS:NUM:DEN`` -> parts, or None after printing an error."""
+    from vcp_scanner.domain.enums import CorporateActionType
+
+    parts = spec.split(":")
+    try:
+        symbol, ex, kind, num, den = parts
+        action_type = CorporateActionType(kind.upper())
+        if action_type not in (CorporateActionType.SPLIT, CorporateActionType.BONUS):
+            raise ValueError(kind)
+        return symbol.upper(), date.fromisoformat(ex), action_type, float(num), float(den)
+    except ValueError:
+        _err(f"Error: bad --action '{spec}'. Use SYMBOL:YYYY-MM-DD:SPLIT|BONUS:NUM:DEN.")
+        return None
+
+
+def run_verify_kite_adjustment(args: argparse.Namespace) -> int:
+    """Read-only: classify Kite's history around known splits/bonuses as ADJUSTED or RAW.
+
+    Exit codes: 0 all ADJUSTED (matches ``PROVIDER_ADJUSTED_SOURCES``), 2 at least one RAW
+    (the assumption is wrong: stop and fix the adjustment policy), 1 nothing conclusive/error.
+    """
+    from datetime import timedelta
+
+    from vcp_scanner.data.adjustment.engine import AdjustmentEngine
+    from vcp_scanner.data.identity import symbol_from_instrument_id
+    from vcp_scanner.data.quality.provider_adjustment import (
+        AdjustmentVerdict,
+        classify_adjustment,
+    )
+    from vcp_scanner.data.repositories.duckdb_corporate_action_repository import (
+        DuckDBCorporateActionRepository,
+    )
+    from vcp_scanner.domain.corporate_actions import (
+        CorporateActionResolution,
+        CorporateActionStatus,
+        explains_price_gap,
+    )
+    from vcp_scanner.domain.market import Instrument
+
+    _load_env(args.env_file)
+    api_key, access_token = os.getenv("KITE_API_KEY"), os.getenv("KITE_ACCESS_TOKEN")
+    if not api_key or not access_token:
+        _err("Error: KITE_API_KEY and KITE_ACCESS_TOKEN are required (run `vcp auth kite`).")
+        return 1
+
+    today = datetime.now(UTC).date()
+    resolutions: list[CorporateActionResolution] = []
+    if args.action:
+        for spec in args.action:
+            parsed = _parse_action_spec(spec)
+            if parsed is None:
+                return 1
+            symbol, ex, action_type, num, den = parsed
+            resolutions.append(
+                CorporateActionResolution(
+                    resolution_id=f"cli-{symbol}-{ex}",
+                    instrument_id=f"NSE_EQ|{symbol}",
+                    action_type=action_type,
+                    status=CorporateActionStatus.MANUAL_OVERRIDE,
+                    ex_date=ex,
+                    ratio_numerator=num,
+                    ratio_denominator=den,
+                )
+            )
+    else:
+        with _open_store(args.db) as store:
+            ids = [
+                r[0]
+                for r in store.conn.execute(
+                    "SELECT DISTINCT instrument_id FROM corporate_action_resolution"
+                    " WHERE known_to IS NULL"
+                ).fetchall()
+            ]
+            repo = DuckDBCorporateActionRepository(store)
+            stored = [r for iid in ids for r in repo.load_resolutions(iid)]
+        usable = [r for r in stored if explains_price_gap(r) and r.ex_date and r.ex_date < today]
+        usable.sort(key=lambda r: r.ex_date or today, reverse=True)
+        resolutions = usable[: args.limit]
+        if not resolutions:
+            _err(
+                "Error: no applied split/bonus in the database to test. Pass --action "
+                "SYMBOL:YYYY-MM-DD:SPLIT|BONUS:NUM:DEN."
+            )
+            return 1
+
+    engine = AdjustmentEngine()
+    provider = _build_market_provider(api_key, access_token)
+    verdicts: list[AdjustmentVerdict] = []
+    for r in resolutions:
+        assert r.ex_date is not None
+        symbol = symbol_from_instrument_id(r.instrument_id) or r.instrument_id
+        price_factor, _ = engine.single_factor(r)
+        try:
+            bars = provider.get_historical_daily(
+                Instrument(instrument_id=r.instrument_id, symbol=symbol),
+                r.ex_date - timedelta(days=14),
+                r.ex_date + timedelta(days=7),
+            )
+        except Exception as e:  # noqa: BLE001 - report per action, keep checking the rest
+            _err(f"  {symbol} {r.ex_date}: fetch failed: {e}")
+            continue
+        check = classify_adjustment(symbol, r.ex_date, price_factor, bars)
+        verdicts.append(check.verdict)
+        ratio = f"{check.observed_ratio:.3f}" if check.observed_ratio is not None else "n/a"
+        print(
+            f"{symbol:<14} ex {r.ex_date} {r.action_type.value:<5} factor {price_factor:.4f} "
+            f"open/prev_close {ratio}: {check.verdict.value} ({check.detail})"
+        )
+
+    print(
+        "Note: this cannot show whether Kite adjusts on the ex-date itself; the engine assumes "
+        "a bar fetched on the ex-date (IST) is already adjusted."
+    )
+    if AdjustmentVerdict.RAW in verdicts:
+        _err(
+            "RESULT: Kite returned UNADJUSTED history for at least one action. The adjustment "
+            "policy (PROVIDER_ADJUSTED_SOURCES) is wrong for this data; do not build signals."
+        )
+        return 2
+    if verdicts and all(v is AdjustmentVerdict.ADJUSTED for v in verdicts):
+        print("RESULT: Kite history is adjusted, as the adjustment engine assumes.")
+        return 0
+    _err("RESULT: inconclusive; add more --action cases with large ratios.")
+    return 1
+
+
 __all__ = [
     "run_compute_features",
     "run_compute_rs",
@@ -677,4 +809,5 @@ __all__ = [
     "run_quality_list",
     "run_quality_resolve",
     "run_quality_scan",
+    "run_verify_kite_adjustment",
 ]

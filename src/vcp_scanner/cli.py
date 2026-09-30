@@ -318,6 +318,34 @@ def build_parser() -> argparse.ArgumentParser:
     _add_config_dir_arg(tt_parser)
     _add_data_snapshot_arg(tt_parser)
 
+    # verify subcommands (audit 2026-09-30 P0-1)
+    verify_parser = subparsers.add_parser(
+        "verify", help="Read-only checks of provider behavior against assumptions"
+    )
+    verify_subparsers = verify_parser.add_subparsers(
+        dest="verify_command", help="Verification checks"
+    )
+    vka = verify_subparsers.add_parser(
+        "kite-adjustment",
+        help=(
+            "Check whether Kite returns split/bonus-adjusted history (fetches a few bars around "
+            "known ex-dates; writes nothing)"
+        ),
+    )
+    vka.add_argument(
+        "--action",
+        action="append",
+        metavar="SYMBOL:YYYY-MM-DD:SPLIT|BONUS:NUM:DEN",
+        help=(
+            "A known action to test (repeatable), e.g. ABC:2024-05-10:SPLIT:10:1 (face value "
+            "10 -> 1) or XYZ:2023-09-01:BONUS:1:1. Default: recent applied splits/bonuses "
+            "stored in the database."
+        ),
+    )
+    vka.add_argument("--limit", type=int, default=3, help="Actions to take from the database")
+    _add_db_arg(vka)
+    vka.add_argument("--env-file", default=".env", help="Path to .env file with Kite credentials")
+
     # quality subcommands (audit P0-2)
     quality_parser = subparsers.add_parser("quality", help="Data-quality events that block signals")
     quality_subparsers = quality_parser.add_subparsers(
@@ -693,6 +721,14 @@ def main(argv: Sequence[str] | None = None) -> int:
             parser.parse_args(["compute", "--help"])
             return 0
         return runner(args)
+
+    if args.command == "verify":
+        if args.verify_command == "kite-adjustment":
+            from vcp_scanner import cli_pipeline
+
+            return cli_pipeline.run_verify_kite_adjustment(args)
+        parser.parse_args(["verify", "--help"])
+        return 0
 
     if args.command == "quality":
         from vcp_scanner import cli_pipeline

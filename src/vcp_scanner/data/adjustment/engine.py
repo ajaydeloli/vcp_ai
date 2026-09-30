@@ -13,6 +13,7 @@ import logging
 from collections.abc import Callable
 from datetime import date, datetime
 from decimal import Decimal
+from zoneinfo import ZoneInfo
 
 from vcp_scanner.data.schema import DailyPriceAdjustedRow
 from vcp_scanner.domain.corporate_actions import (
@@ -21,11 +22,37 @@ from vcp_scanner.domain.corporate_actions import (
     status_allows_adjustment,
 )
 from vcp_scanner.domain.enums import CorporateActionType
-from vcp_scanner.domain.market import Candle
+from vcp_scanner.domain.market import PROVIDER_ADJUSTED_SOURCES, Candle
 
 logger = logging.getLogger(__name__)
 
-CALCULATION_VERSION = "1.0"
+#: 1.1 (audit P0-1): factors are fetch-time aware for provider-adjusted sources. A bar from a
+#: provider in ``PROVIDER_ADJUSTED_SOURCES`` is only adjusted for actions whose ex-date is after
+#: both its trade date and its fetch date (IST); the provider already applied the earlier ones.
+CALCULATION_VERSION = "1.1"
+
+_IST = ZoneInfo("Asia/Kolkata")
+
+
+def provider_applied_through(candle: Candle) -> date | None:
+    """Last ex-date the provider had already applied to this bar, or None for raw sources.
+
+    A provider-adjusted bar fetched on IST date F already reflects every action with
+    ex-date <= F (Kite adjusts before the ex-date session). Without a known fetch time the bar
+    is treated as raw, which is the historical behavior.
+    """
+    if candle.provider.upper() not in PROVIDER_ADJUSTED_SOURCES or candle.ingested_at is None:
+        return None
+    return candle.ingested_at.astimezone(_IST).date()
+
+
+def _factor_threshold(candle: Candle) -> date:
+    """Actions with ex-date strictly after this date still need to be applied locally."""
+    trade_date = candle.timestamp.date()
+    applied_through = provider_applied_through(candle)
+    if applied_through is None:
+        return trade_date
+    return max(trade_date, applied_through)
 
 
 class AdjustmentEngine:
@@ -120,28 +147,10 @@ class AdjustmentEngine:
         # backwards, the adjustment record for ex_date E holds the multiplier to apply
         # to all candles prior to E.
 
-        adj_idx = 0
-
+        lookup = self._factor_lookup(adjustments)
         adjusted_candles = []
         for candle in candles:
-            # Advance the adjustment pointer if we have passed the ex_date
-            while (
-                adj_idx < len(adjustments)
-                and candle.timestamp.date() >= adjustments[adj_idx].effective_date
-            ):
-                adj_idx += 1
-
-            if adj_idx < len(adjustments):
-                # We are before this ex_date, so we apply its cumulative factor
-                # (which inherently includes all subsequent ex_dates because of the backward walk)
-                active = adjustments[adj_idx]
-                pf = active.cumulative_price_factor
-                vf = active.cumulative_volume_factor
-            else:
-                # We are at or after the last ex_date, so no historical adjustment applies
-                pf = 1.0
-                vf = 1.0
-
+            pf, vf = lookup(candle)
             if pf == 1.0 and vf == 1.0:
                 adjusted_candles.append(candle)
             else:
@@ -155,6 +164,7 @@ class AdjustmentEngine:
                     volume=int(candle.volume * vf) if candle.volume is not None else None,
                     timeframe=candle.timeframe,
                     provider=candle.provider,
+                    ingested_at=candle.ingested_at,
                 )
                 adjusted_candles.append(ac)
 
@@ -204,7 +214,7 @@ class AdjustmentEngine:
         rows: list[DailyPriceAdjustedRow] = []
         for candle in candles:
             trade_date = candle.timestamp.date()
-            pf, vf = lookup(trade_date)
+            pf, vf = lookup(candle)
             rows.append(
                 DailyPriceAdjustedRow(
                     instrument_id=candle.instrument_id,
@@ -226,18 +236,20 @@ class AdjustmentEngine:
     @staticmethod
     def _factor_lookup(
         adjustments: list[CorporateActionAdjustment],
-    ) -> Callable[[date], tuple[float, float]]:
-        """Return ``trade_date -> (price_factor, volume_factor)``.
+    ) -> Callable[[Candle], tuple[float, float]]:
+        """Return ``candle -> (price_factor, volume_factor)``; the single factor rule.
 
         The adjustment for ex-date E holds the cumulative factor of E and every later
-        action, so a bar takes the factor of the first adjustment whose ex-date is
-        strictly after it. Bars on or after the last ex-date are unadjusted.
+        action, so a bar takes the factor of the first adjustment whose ex-date is strictly
+        after its threshold: the trade date for raw sources, and ``max(trade date, fetch
+        date)`` for provider-adjusted sources (audit P0-1). Bars on or after the last
+        ex-date are unadjusted.
         """
         ordered = sorted(adjustments, key=lambda a: a.effective_date)
         dates = [a.effective_date for a in ordered]
 
-        def lookup(trade_date: date) -> tuple[float, float]:
-            idx = bisect.bisect_right(dates, trade_date)
+        def lookup(candle: Candle) -> tuple[float, float]:
+            idx = bisect.bisect_right(dates, _factor_threshold(candle))
             if idx >= len(ordered):
                 return 1.0, 1.0
             return ordered[idx].cumulative_price_factor, ordered[idx].cumulative_volume_factor
@@ -251,6 +263,10 @@ class AdjustmentEngine:
             CorporateActionType.SPLIT,
             CorporateActionType.BONUS,
         )
+
+    def single_factor(self, resolution: CorporateActionResolution) -> tuple[float, float]:
+        """Public (price_factor, volume_factor) of one action; (1.0, 1.0) if not applicable."""
+        return self._compute_single_factor(resolution)
 
     def _compute_single_factor(self, resolution: CorporateActionResolution) -> tuple[float, float]:
         """Compute (price_factor, volume_factor) for a single action.

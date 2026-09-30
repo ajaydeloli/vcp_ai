@@ -11,7 +11,7 @@ by the project owner before work starts.
 | 1 | P0-3 | Gap safety net ignores non-applied actions; unknown split/bonus ratios block | Done |
 | 2 | P0-2 | Reconciliation policy: dividends/rights and primary-only actions | Done |
 | 3 | P1-9 | Reject NaN / zero / negative OHLC; NaN inputs are INSUFFICIENT_DATA | Done |
-| 4 | P0-1 | Kite candles are provider-adjusted: stop double adjustment | Pending (needs live Kite check + sourcing decision) |
+| 4 | P0-1 | Kite candles are provider-adjusted: stop double adjustment | Done (live check pending: run `vcp verify kite-adjustment`) |
 | 5 | P1-1 | Seed `instruments`; first real end-to-end run; real golden fixtures | Pending |
 | 6 | P1-3 / P1-4 | Architecture boundary test covers real packages; package layout | Pending |
 | 7 | P1-7 / P1-6 | VCP config shape per VCP_SPEC §60; real RS tests | Pending |
@@ -143,3 +143,59 @@ they are now neutralised downstream). A later `vcp ingest market --force` supers
 
 **Verification.** Full suite: 509 passed, 0 failed. `ruff check`, `ruff format --check`,
 `mypy --strict src` clean.
+
+---
+
+## Fix 4 — P0-1: Kite history adjusted twice
+
+**Owner decisions (2026-09-30).** Approach: *fetch-time aware* (keep Kite bars as received;
+apply local factors only for actions after each bar's fetch date; rebuild true raw price for the
+universe). Verification: code now, live check later via a new read-only command.
+
+**Evidence.** Zerodha states Kite Connect historical prices are adjusted for bonuses, splits,
+rights, spin-offs and extraordinary dividends (https://x.com/zerodha/status/1952292763929874868;
+Kite forum discussion 5004). The code declared `adjusted_prices=False` and applied NSE factors on
+top of every stored bar.
+
+**Problem.** A bar fetched after an ex-date is already rescaled by Kite; applying the local factor
+again halves (2:1) it a second time. A bar fetched before the ex-date is genuinely raw. So the
+adjusted series depended on the download date, and the gap safety net (which reads stored bars)
+could not see the error. The universe's minimum-price rule also ran on Kite-rescaled prices.
+
+**Change.**
+- `domain/market.py`: `PROVIDER_ADJUSTED_SOURCES = {"KITE"}`; `Candle.ingested_at` documented
+  as fetch time.
+- `data/providers/kite.py`: `adjusted_prices=True`.
+- `data/repositories/duckdb_market_repository.py`: `load_daily` / `load_daily_as_of` return
+  `known_from` as `Candle.ingested_at`.
+- `data/adjustment/engine.py`: `CALCULATION_VERSION` 1.1; `provider_applied_through` /
+  `_factor_threshold`; one `_factor_lookup(candle)` used by both `build_adjusted_rows` and
+  `apply_factors`; public `single_factor`.
+- `data/universe/builder.py`: `provider_undo` CTE divides the latest provider-adjusted close by
+  the factors with ex-date in `(trade_date, fetch_date_IST]` known at `known_at`.
+- New `data/quality/provider_adjustment.py` (`classify_adjustment`) and CLI
+  `vcp verify kite-adjustment [--action SYMBOL:YYYY-MM-DD:SPLIT|BONUS:NUM:DEN] [--limit N]`
+  (default: recent applied splits/bonuses from the DB). Read-only. Exit 0 = ADJUSTED, 2 = RAW,
+  1 = inconclusive/error. Verdict requires the observed ex-date move within a quarter of the
+  expected log jump of one hypothesis.
+- Docs: DATA_SPECIFICATION §21.1 (new) and §18A note, PROJECT_DESIGN §10 and §14A,
+  DATABASE_SCHEMA §14, AGENTS.md rule 2, README pipeline table, CHANGELOG.
+
+**Tests.** New `tests/unit/test_provider_adjusted_history.py` (20): capability ↔ registry
+invariant; Kite backfill after split not double-adjusted (was 25 → now 50); bars fetched before
+the split adjusted locally; IST ex-date boundary (fetched on ex-date vs eve); raw sources
+unchanged; `apply_factors` agrees; repository + builder end-to-end for backfill and
+incremental-across-split; universe min-price uses true raw for KITE (150 eligible) but not for a
+raw source (15 excluded); classifier verdicts; CLI exit codes 0/2 and bad spec. No existing test
+changed.
+
+**Operator action.** (1) `vcp auth kite`, then `vcp verify kite-adjustment --action ...` with 2–3
+known splits/bonuses (large ratios). If it exits 2, stop and report. (2) Rebuild adjusted prices;
+new rows are `adj-1.1-*`.
+
+**Not done here.** The ex-date-morning boundary is assumed, not verified. Kite's rights/spin-off/
+dividend adjustments are not undone for the price filter. Upstox candles are still treated as raw
+(unverified). NSE bhavcopy as a true-raw source remains an option (see Fix 8).
+
+**Verification.** Full suite: 529 passed, 0 failed. `ruff check`, `ruff format --check`,
+`mypy --strict src` clean (94 files).

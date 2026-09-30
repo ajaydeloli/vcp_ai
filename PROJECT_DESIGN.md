@@ -501,7 +501,7 @@ Current Kite documentation/forum information indicates:
 **Kite limitations that shape this design (verify against current Kite documentation before relying on them):**
 
 - The instrument dump lists *currently tradable* instruments. Delisted securities and historical series/segment states cannot be reconstructed from it.
-- Kite is not a corporate-action feed. Store returned candles exactly as received, determine empirically (on known past splits/bonuses) whether they are split/bonus-adjusted, and treat any provider adjustment as an independent observation (DATA_SPECIFICATION §21).
+- Kite is not a corporate-action feed. Store returned candles exactly as received. Zerodha states they are adjusted for splits, bonuses and other capital actions as of fetch time, so the adjustment engine applies only actions after each bar's fetch date (DATA_SPECIFICATION §21.1; audit 2026-09-30 P0-1). Verify with `vcp verify kite-adjustment`.
 - Instrument tokens can change or be reused, so identity must go through `provider_instruments` with `valid_from`/`valid_to`.
 - Access tokens expire daily and need a login/refresh workflow (DATA_SPECIFICATION §28A).
 
@@ -735,7 +735,7 @@ Source layering (details and verification checklist: DATA_SPECIFICATION §4A, §
 - **Corporate actions:** NSE feed (primary, daily pre-market job) + Upstox by ISIN (secondary). Disagreement raises `PROVIDER_CONFLICT` and blocks signals for that symbol. A raw-price gap detector (`UNEXPLAINED_GAP`) is the safety net for actions both feeds miss.
 - **Security master, delistings, symbol history:** NSE files (candidate; coverage to be verified). BSE later as reconciliation only.
 - **Historical raw OHLCV incl. delisted names:** NSE bhavcopy archive (candidate; two formats around 8 Jul 2024; verify coverage and terms of use). Kite for incremental updates and cross-checks.
-- Provider-adjusted candles (Kite, Upstox) are cross-checks only. Raw candles stay immutable and adjusted prices are derived from stored factors.
+- Stored candles stay immutable and adjusted prices are derived from stored factors. For Kite, factors are applied only for actions after each bar's fetch date, because Kite had already applied the earlier ones (DATA_SPECIFICATION §21.1).
 
 **Survivorship status** is stamped on every scan and backtest:
 

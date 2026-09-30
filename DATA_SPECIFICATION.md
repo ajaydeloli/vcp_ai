@@ -609,7 +609,7 @@ corporate_actions:
 
 ## Stored per action
 
-`adjustment_factor` (price and volume), `source`, `source_record_id`, `calculation_version`, `reconciliation_status`. Provider-adjusted candles (Kite, Upstox) are **cross-check only**, never the truth (§21).
+`adjustment_factor` (price and volume), `source`, `source_record_id`, `calculation_version`, `reconciliation_status`. Provider-adjusted candles are never the truth for actions *after* their fetch time; for Kite, the actions it had already applied at fetch time are not applied again (§21.1). Upstox candles are treated as raw until verified.
 
 ## Verify before relying on any source (Phase 2 spike, record results here)
 
@@ -709,6 +709,19 @@ provider adjustment
 ```
 
 and create a reconciliation record.
+
+## 21.1 Kite: adjusted as of fetch time (audit 2026-09-30 P0-1)
+
+Zerodha states that Kite Connect historical prices are adjusted for bonuses, splits, rights issues, spin-offs and extraordinary dividends. The adjustment applies to the bars *as they are served at fetch time*: a bar fetched after an ex-date is already rescaled for that action; a bar fetched before it is not. Treating Kite bars as raw and applying local factors to all of them adjusted pre-split history twice, depending on when it was downloaded.
+
+Rules (owner decision, "fetch-time aware"):
+
+- Kite bars are still stored exactly as received (`raw_ohlcv`, `daily_prices.*_raw` = "as received"). `daily_prices.known_from` is the fetch time of each version.
+- Providers listed in `domain.market.PROVIDER_ADJUSTED_SOURCES` (currently `KITE`; must match `ProviderCapabilities.adjusted_prices`) are treated as having applied every action with ex-date on or before the bar's fetch date in IST. The adjustment engine applies a stored factor to a bar only if its ex-date is after **both** the trade date and that fetch date (`adjustment.engine`, `CALCULATION_VERSION` 1.1). Raw sources keep the old rule (ex-date after the trade date).
+- The universe's minimum-price rule divides the latest bar's close by the factors Kite had applied (ex-date in `(trade_date, fetch_date]`) to recover the price that actually traded. Traded value (close × volume) is unaffected by split/bonus scaling.
+- Local factors from the NSE/Upstox layer remain the source for actions after the fetch, and for the gap safety net.
+- Unverified: whether Kite has already rescaled a bar fetched on the ex-date itself before the session. The engine assumes yes. Run `vcp verify kite-adjustment` (read-only) against known splits/bonuses; exit code 2 means Kite returned unadjusted history and this policy must be revisited before any signal is trusted.
+- Known limit: Kite also adjusts for rights, spin-offs and extraordinary dividends, which the local layer does not model; those remain in Kite-sourced history and cannot be undone for the price filter.
 
 ---
 

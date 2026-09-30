@@ -424,7 +424,7 @@ the canonical layer decides which record is trusted.
 
 # 14. Daily Canonical OHLCV (raw, bitemporal, append-only)
 
-`daily_prices` holds one trusted **raw** record per instrument/trade date per system-time version. Rows are never updated in place. A correction inserts a new row and closes the previous one by setting `known_to`.
+`daily_prices` holds one trusted **raw** record per instrument/trade date per system-time version. "Raw" means *as received*: for a provider-adjusted source (Kite) the values are adjusted for actions with ex-date on or before `known_from` (the fetch time); see DATA_SPECIFICATION §21.1. Rows are never updated in place. A correction inserts a new row and closes the previous one by setting `known_to`.
 
 ```text
 instrument_id

@@ -73,7 +73,7 @@ class DuckDBMarketDataRepository:
             SELECT
                 instrument_id, trade_date,
                 open_raw, high_raw, low_raw, close_raw,
-                volume_raw, primary_provider
+                volume_raw, primary_provider, known_from
             FROM daily_prices
             WHERE instrument_id = ?
               AND trade_date   >= ?
@@ -86,7 +86,7 @@ class DuckDBMarketDataRepository:
 
         candles: list[Candle] = []
         for row in rows:
-            iid, td, open_val, high_val, low_val, close_val, vol, prov = row
+            iid, td, open_val, high_val, low_val, close_val, vol, prov, known_from = row
             candles.append(
                 Candle(
                     instrument_id=iid,
@@ -98,6 +98,9 @@ class DuckDBMarketDataRepository:
                     close=close_val,
                     volume=vol,
                     provider=prov,
+                    # Fetch time of this version: tells the adjustment engine which actions a
+                    # provider-adjusted source had already applied (audit P0-1).
+                    ingested_at=known_from,
                 )
             )
         return candles
@@ -259,7 +262,7 @@ class DuckDBMarketDataRepository:
             SELECT
                 instrument_id, trade_date,
                 open_raw, high_raw, low_raw, close_raw,
-                volume_raw, primary_provider
+                volume_raw, primary_provider, known_from
             FROM daily_prices
             WHERE instrument_id = ?
               AND trade_date   >= ?
@@ -273,7 +276,7 @@ class DuckDBMarketDataRepository:
 
         candles: list[Candle] = []
         for row in rows:
-            iid, td, open_val, high_val, low_val, close_val, vol, prov = row
+            iid, td, open_val, high_val, low_val, close_val, vol, prov, known_from = row
             candles.append(
                 Candle(
                     instrument_id=iid,
@@ -285,6 +288,9 @@ class DuckDBMarketDataRepository:
                     close=close_val,
                     volume=vol,
                     provider=prov,
+                    # Fetch time of this version: tells the adjustment engine which actions a
+                    # provider-adjusted source had already applied (audit P0-1).
+                    ingested_at=known_from,
                 )
             )
         return candles

@@ -12,6 +12,17 @@ from datetime import date, datetime
 
 from vcp_scanner.domain.enums import Timeframe
 
+#: Providers whose historical candles arrive already adjusted, *as of the fetch time*, for every
+#: split/bonus (and other capital action) with an ex-date on or before the fetch date (IST).
+#: Zerodha states that Kite Connect historical prices are adjusted for bonuses, splits, rights
+#: issues, spin-offs and extraordinary dividends (audit 2026-09-30 P0-1). Bars from these
+#: providers are stored exactly as received; the adjustment engine then applies only the actions
+#: whose ex-date falls *after* each bar's fetch date, and the universe undoes the provider's
+#: factors to recover true raw prices. Must agree with each provider's
+#: ``ProviderCapabilities.adjusted_prices`` (a test enforces this). Verify with
+#: ``vcp verify kite-adjustment``.
+PROVIDER_ADJUSTED_SOURCES: frozenset[str] = frozenset({"KITE"})
+
 
 @dataclass(frozen=True, slots=True)
 class Instrument:
@@ -39,6 +50,9 @@ class Candle:
     volume: int | None  # None = missing. Never coerced to 0.
     provider: str
     source_timestamp: datetime | None = None
+    #: When this bar was fetched/stored (``daily_prices.known_from`` on reads). For a
+    #: provider in ``PROVIDER_ADJUSTED_SOURCES`` it fixes which corporate actions the provider
+    #: had already applied to the bar.
     ingested_at: datetime | None = None
     provider_request_id: str | None = None
     data_version: str | None = None

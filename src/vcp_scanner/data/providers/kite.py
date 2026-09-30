@@ -227,7 +227,11 @@ class KiteProvider:
             daily_history=True,
             intraday_history=True,
             corporate_actions=False,
-            adjusted_prices=False,
+            # Zerodha: Kite historical prices are adjusted for bonuses, splits, rights,
+            # spin-offs and extraordinary dividends, as of the fetch time (audit P0-1). Must
+            # match domain.market.PROVIDER_ADJUSTED_SOURCES; check with
+            # `vcp verify kite-adjustment`.
+            adjusted_prices=True,
             instrument_master=True,
             delisted_history=False,
         )

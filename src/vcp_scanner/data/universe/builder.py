@@ -12,6 +12,7 @@ from typing import TYPE_CHECKING
 
 from vcp_scanner.config.models import UniverseConfig
 from vcp_scanner.domain.enums import SurvivorshipStatus
+from vcp_scanner.domain.market import PROVIDER_ADJUSTED_SOURCES
 from vcp_scanner.domain.universe import UniverseMembership, UniverseSnapshot
 from vcp_scanner.infrastructure.clock import Clock, utc_now
 
@@ -124,6 +125,11 @@ class UniverseBuilder:
                 instrument_id,
                 trade_date,
                 close_raw,
+                primary_provider,
+                CAST(timezone('Asia/Kolkata', known_from) AS DATE) AS fetched_date,
+                -- close x volume is unchanged by a split/bonus adjustment (price and volume
+                -- factors cancel), so it is the true traded value for raw and
+                -- provider-adjusted bars alike.
                 (close_raw * volume_raw) as traded_value,
                 ROW_NUMBER() OVER(PARTITION BY instrument_id ORDER BY trade_date DESC) as rn
             FROM daily_prices
@@ -131,18 +137,38 @@ class UniverseBuilder:
               AND known_from <= ?
               AND (known_to IS NULL OR known_to > ?)
         ),
+        -- Audit P0-1: a provider-adjusted bar (Kite) was already scaled by every split/bonus
+        -- with trade_date < ex_date <= its fetch date. Undo those factors to recover the price
+        -- that actually traded, which is what the minimum-price rule is about.
+        provider_undo AS (
+            SELECT
+                w.instrument_id,
+                EXP(SUM(LN(CAST(a.price_factor AS DOUBLE)))) AS applied_pf
+            FROM windowed w
+            JOIN corporate_action_adjustments a
+              ON a.instrument_id = w.instrument_id
+             AND a.effective_date > w.trade_date
+             AND a.effective_date <= w.fetched_date
+             AND a.known_from <= ?
+             AND (a.known_to IS NULL OR a.known_to > ?)
+            WHERE w.rn = 1
+              AND list_contains(CAST(? AS VARCHAR[]), upper(w.primary_provider))
+            GROUP BY w.instrument_id
+        ),
         recent_stats AS (
             SELECT
-                instrument_id,
-                MAX(CASE WHEN rn = 1 THEN close_raw END) as last_price,
+                w.instrument_id,
+                MAX(CASE WHEN rn = 1 THEN close_raw / COALESCE(u.applied_pf, 1.0) END)
+                    as last_price,
                 MAX(CASE WHEN rn = 1 THEN trade_date END) as last_trade_date,
                 AVG(CASE WHEN rn <= 20 THEN traded_value END) as avg_traded_value_20d,
                 AVG(CASE WHEN rn <= 50 THEN traded_value END) as avg_traded_value_50d,
                 -- rn counts every bar known on or before as_of_date, so MAX(rn) is the
                 -- full history length that UniverseConfig.min_history_days is judged against.
                 MAX(rn) as days_history
-            FROM windowed
-            GROUP BY instrument_id
+            FROM windowed w
+            LEFT JOIN provider_undo u ON u.instrument_id = w.instrument_id
+            GROUP BY w.instrument_id
         ),
         -- Get the security master status as of as_of_date
         sec_master AS (
@@ -198,6 +224,9 @@ class UniverseBuilder:
                 as_of_date,
                 created_at,
                 created_at,  # windowed
+                created_at,
+                created_at,
+                sorted(PROVIDER_ADJUSTED_SOURCES),  # provider_undo
                 as_of_date,
                 as_of_date,
                 created_at,

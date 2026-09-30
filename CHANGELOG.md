@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed (audit 2026-09-30 P0-1, Kite history adjusted twice)
+- Kite historical candles are adjusted by Zerodha for splits/bonuses (and rights, spin-offs, extraordinary dividends) as of the fetch time. The engine treated them as raw and applied NSE factors on top, so any history downloaded after a split was adjusted twice while history downloaded before it was right.
+- `KiteProvider.get_capabilities().adjusted_prices` is now `True`; `domain.market.PROVIDER_ADJUSTED_SOURCES = {"KITE"}` (a test keeps the two in step).
+- Adjustment is fetch-time aware (`CALCULATION_VERSION` 1.0 -> 1.1): a provider-adjusted bar gets only the factors of actions whose ex-date is after both its trade date and its IST fetch date (`daily_prices.known_from`, now carried on loaded candles as `ingested_at`). `apply_factors` and `build_adjusted_rows` share one factor rule.
+- Universe minimum price uses the price that actually traded: the latest Kite close is divided by the factors Kite had applied. Traded value is unchanged (split scaling cancels).
+- New read-only command `vcp verify kite-adjustment` classifies Kite's history around known splits/bonuses as ADJUSTED / RAW / INCONCLUSIVE (exit 0 / 2 / 1).
+- Behavior change: rebuild adjusted prices (`vcp ingest adjusted-prices`) to get version `adj-1.1-*`; older `adj-1.0-*` rows stay for reproducibility. Docs: DATA_SPECIFICATION §21.1, PROJECT_DESIGN §10/§14A, DATABASE_SCHEMA §14, AGENTS.md rule 2, README.
+
 ### Fixed (audit 2026-09-30 P1-9, non-finite and non-positive values)
 - `validate_ohlc` rejects NaN/inf prices or volume and any price <= 0. Rejected bars stay in `raw_ohlcv` for audit but never reach `daily_prices`. Why: NaN compared False with every ordering rule, so NaN bars looked valid.
 - Trend Template: a non-finite input is stored as NULL and the result is `INSUFFICIENT_DATA`, not `FAIL`; the `close` extreme basis ignores a window containing a non-finite close. Weekly Stage returns `INSUFFICIENT_DATA` for a non-finite weekly close. RS stores non-finite returns as NULL, so the instrument is `INSUFFICIENT_DATA` and leaves the ranking population instead of sorting NaN above every value.
