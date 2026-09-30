@@ -42,9 +42,12 @@ class KiteAuthenticator:
             if not isinstance(access_token, str) or not access_token:
                 raise ValueError("Response did not contain an access_token")
 
-            # Store in .env
+            # Store in .env. The file holds secrets: create it owner-only, and tighten an
+            # existing one that other users could read.
             if not self.env_file.exists():
-                self.env_file.touch()
+                self.env_file.touch(mode=0o600)
+            if self.env_file.stat().st_mode & 0o077:
+                self.env_file.chmod(0o600)
 
             set_key(str(self.env_file), "KITE_ACCESS_TOKEN", access_token)
 

@@ -147,7 +147,8 @@ def build_parser() -> argparse.ArgumentParser:
     kite_auth_parser.add_argument(
         "--env-file",
         default=".env",
-        help="Path to .env file to store the access token (default: .env)",
+        help="Path to .env file to read the API key/secret from and store the access token in "
+        "(default: .env)",
     )
 
     # ingest subcommands
@@ -452,15 +453,21 @@ def main(argv: Sequence[str] | None = None) -> int:
         if args.auth_command == "kite":
             import os
 
+            from dotenv import load_dotenv
+
             from vcp_scanner.auth.kite_auth import KiteAuthenticator
 
+            # Read KITE_API_KEY / KITE_API_SECRET from --env-file like every other command.
+            # Variables already set in the environment win (load_dotenv does not override).
+            load_dotenv(args.env_file)
             api_key = args.api_key or os.getenv("KITE_API_KEY")
             api_secret = args.api_secret or os.getenv("KITE_API_SECRET")
 
             if not api_key or not api_secret:
                 print(
                     "Error: Kite API Key and Secret are required "
-                    "(via arguments or KITE_API_KEY/KITE_API_SECRET env vars).",
+                    f"(set KITE_API_KEY/KITE_API_SECRET in {args.env_file}, the environment, "
+                    "or pass --api-key/--api-secret).",
                     file=sys.stderr,
                 )
                 return 1

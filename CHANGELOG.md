@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed (`vcp auth kite` ignored .env)
+- `vcp auth kite` now loads `--env-file` (default `.env`) before reading `KITE_API_KEY` / `KITE_API_SECRET`, like every other command; `--api-key`/`--api-secret` and variables already in the environment still take precedence. Before, it read only the process environment and failed with "Kite API Key and Secret are required" although both were in `.env`.
+- `KiteAuthenticator` creates `.env` owner-only (0600) and tightens an existing group/world-readable one before writing the access token (audit P3: `.env` permissions).
+
 ### Changed (audit 2026-09-30 P1-7, VCP configuration contract)
 - `vcp:` and `classification:` now follow VCP_SPECIFICATION §60 verbatim: nested `contractions`, `swing`, `volatility`, `volume`, `pivot`, `confirmation` blocks and per-tier `max_contractions` / `require_*` flags (`VCPThresholdsConfig`, `ClassificationConfig`, new `VCP*Config` sub-models). The flat keys `min_contractions`, `max_contractions`, `require_volume_dryup`, `require_tight_pivot` under `vcp:` are gone (`extra="forbid"` rejects them). New validation: volume periods ordered, ratios in (0, 1], tiers inside `vcp.contractions`, stricter tiers never looser. A test parses the §60 YAML from the spec and requires it to validate. No detector code yet (Phase 6).
 - Behavior change: the configuration hash changes, so new `trend-template` scan ids differ from earlier ones; earlier rows are kept.

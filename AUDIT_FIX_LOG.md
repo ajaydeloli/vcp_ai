@@ -367,3 +367,29 @@ closed +4.8 % on the ex-date; IRCTC traded up to +19 % intraday). Volumes are re
 
 Still unverified: whether a bar fetched on the ex-date morning (IST) is already adjusted (the
 engine assumes yes). This needs a fetch on the morning of a future ex-date.
+
+---
+
+## Follow-up — `vcp auth kite` did not read `.env` (2026-09-30)
+
+**Found while running Fix 4's live check.** `vcp auth kite` read `KITE_API_KEY` /
+`KITE_API_SECRET` only from the process environment; unlike the other commands it never loaded
+`--env-file`, so it failed with "Kite API Key and Secret are required" while both were set in
+`.env`. Workaround used once: `set -a && source .env && set +a`. Owner asked for the fix.
+
+**Change.**
+- `cli.py`: the `auth kite` branch calls `load_dotenv(args.env_file)` before reading the
+  variables (precedence: `--api-key/--api-secret` > existing environment > `--env-file`); the
+  error names the env file; `--env-file` help says it is read as well as written.
+- `auth/kite_auth.py`: a new `.env` is created with mode 0600 and an existing one readable by
+  group/others is tightened to 0600 before the token is written (audit P3 item).
+- CHANGELOG.
+
+**Tests.** `tests/unit/test_kite_auth.py` (+5): credentials read from the env file (regression);
+arguments and environment take precedence; clear failure naming the file when nothing is set;
+new `.env` is 0600; an existing 0644 `.env` becomes 0600 with its content kept.
+Manual check on the real `.env` with the variables removed from the shell: the command reached
+the login-URL step (then stopped for lack of a request token); stored access token unchanged,
+file mode 600.
+
+**Verification.** Full suite: 568 passed, 0 failed. `ruff check`, `ruff format --check`, `mypy --strict src` clean.
