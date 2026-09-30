@@ -1,0 +1,134 @@
+"""Audit P1-1: the whole CLI pipeline runs from an EMPTY database.
+
+Before the fix no command populated ``instruments``, so ``vcp ingest market`` stopped with "no
+instruments found" and nothing downstream could run. This test drives every stage through the
+real CLI in README order, with only the external providers replaced by synthetic fakes
+(AGENTS.md rule 10): security-master -> market -> corporate-actions -> adjusted-prices ->
+features -> universe -> rs -> trend-template.
+"""
+
+from __future__ import annotations
+
+from datetime import date, timedelta
+from pathlib import Path
+from typing import Any
+
+import pytest
+
+from vcp_scanner import cli_pipeline
+from vcp_scanner.cli import main as cli_main
+from vcp_scanner.data.providers import nse_security_master, nse_surveillance
+from vcp_scanner.data.providers.fake import FakeMarketDataProvider, make_candle
+from vcp_scanner.data.storage.duckdb_store import DuckDBStore
+from vcp_scanner.domain.market import SecurityRecord
+
+pytestmark = pytest.mark.integration
+
+CONFIG_DIR = str(Path(__file__).resolve().parents[2] / "config")
+AS_OF = date(2024, 6, 28)  # a Friday
+DAYS = [d for d in (AS_OF - timedelta(days=i) for i in range(480)) if d.weekday() < 5][
+    ::-1
+]  # ~343 sessions, oldest first
+SYMBOLS = ["S0", "S1", "S2", "S3", "S4", "S5"]
+# Daily drift per symbol: S0 is a steady strong advance (should pass), others weaker or falling.
+DRIFT = {"S0": 0.6, "S1": 0.2, "S2": 0.05, "S3": -0.05, "S4": -0.2, "S5": 0.0}
+
+
+def _series(symbol: str) -> list[Any]:
+    iid = f"NSE_EQ|{symbol}"
+    out = []
+    for i, d in enumerate(DAYS):
+        close = 150.0 + DRIFT[symbol] * i + (i % 3) * 0.1
+        out.append(
+            make_candle(iid, d, open_=close, high=close + 1, low=close - 1, close=close,
+                        volume=1_000_000)
+        )  # fmt: skip
+    return out
+
+
+class _FakeSecurityMaster:
+    def get_security_history(self, start: date, end: date) -> list[SecurityRecord]:
+        return [
+            SecurityRecord(
+                instrument_id=f"NSE_EQ|{s}", symbol=s, exchange="NSE",
+                valid_from=date(2010, 1, 1), isin=f"INE00000{s}", series="EQ",
+                listing_date=date(2010, 1, 1), source="NSE",
+            )
+            for s in SYMBOLS
+        ]  # fmt: skip
+
+
+class _NoFlags:
+    returns_active_snapshot = True
+
+    def get_flags(self, start: date, end: date) -> list[Any]:
+        return []
+
+
+class _NoActions:
+    unparsed_ratios: list[str] = []
+    unhandled_records: list[str] = []
+
+    def get_actions(self, start: date, end: date, instruments: Any = None) -> list[Any]:
+        return []
+
+
+def test_full_pipeline_from_an_empty_database(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    db = str(tmp_path / "e2e.duckdb")
+    env = str(tmp_path / "missing.env")
+    monkeypatch.setenv("KITE_API_KEY", "k")
+    monkeypatch.setenv("KITE_ACCESS_TOKEN", "t")
+    monkeypatch.delenv("UPSTOX_ACCESS_TOKEN", raising=False)
+    monkeypatch.setattr(
+        nse_security_master, "NSESecurityMasterProvider", lambda: _FakeSecurityMaster()
+    )
+    monkeypatch.setattr(nse_surveillance, "NSESurveillanceProvider", lambda: _NoFlags())
+    fake_market = FakeMarketDataProvider({f"NSE_EQ|{s}": _series(s) for s in SYMBOLS})
+    monkeypatch.setattr(cli_pipeline, "_build_market_provider", lambda key, tok: fake_market)
+    monkeypatch.setattr(
+        cli_pipeline, "_build_ca_providers", lambda tok: (_NoActions(), _NoActions())
+    )
+
+    start, end, as_of = DAYS[0].isoformat(), AS_OF.isoformat(), AS_OF.isoformat()
+    steps = [
+        ["ingest", "security-master", "--start", start, "--end", end, "--no-delisted",
+         "--db", db],
+        ["ingest", "market", "--start", start, "--end", end, "--db", db,
+         "--config-dir", CONFIG_DIR, "--env-file", env],
+        ["ingest", "corporate-actions", "--start", start, "--end", end, "--db", db,
+         "--config-dir", CONFIG_DIR, "--env-file", env],
+        ["ingest", "adjusted-prices", "--db", db],
+        ["compute", "features", "--db", db],
+        ["ingest", "universe", "--as-of", as_of, "--db", db, "--config-dir", CONFIG_DIR],
+        ["compute", "rs", "--as-of", as_of, "--db", db, "--config-dir", CONFIG_DIR],
+        ["compute", "trend-template", "--as-of", as_of, "--db", db, "--config-dir", CONFIG_DIR],
+    ]  # fmt: skip
+    for argv in steps:
+        code = cli_main(argv)
+        captured = capsys.readouterr()
+        assert code == 0, f"{' '.join(argv[:2])} failed:\n{captured.out}\n{captured.err}"
+
+    with DuckDBStore(db) as store:
+        q = store.conn.execute
+        assert q("SELECT COUNT(*) FROM instruments WHERE is_active").fetchone() == (6,)
+        assert q("SELECT COUNT(DISTINCT instrument_id) FROM daily_prices").fetchone() == (6,)
+        assert q(
+            "SELECT COUNT(*) FROM data_quality_events WHERE blocks_signal AND status = 'OPEN'"
+        ).fetchone() == (0,)
+        assert q("SELECT survivorship_status FROM universe_snapshots").fetchall() == [("BIASED",)]
+        eligible = q("SELECT COUNT(*) FROM universe_memberships WHERE eligible").fetchone()
+        assert eligible == (6,)
+        ranked = q(
+            "SELECT COUNT(*) FROM relative_strength_snapshots WHERE rs_rank IS NOT NULL"
+        ).fetchone()
+        assert ranked == (6,)
+        statuses = dict(q("SELECT instrument_id, status FROM trend_template_results").fetchall())
+        conditions = q("SELECT COUNT(*) FROM trend_template_conditions").fetchone()
+
+    assert set(statuses) == {f"NSE_EQ|{s}" for s in SYMBOLS}
+    assert set(statuses.values()) <= {"PASS", "FAIL"}  # data was sufficient everywhere
+    assert statuses["NSE_EQ|S0"] == "PASS"
+    assert statuses["NSE_EQ|S4"] == "FAIL"
+    assert conditions == (60,)

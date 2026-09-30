@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed (audit 2026-09-30 P1-1, pipeline could not start from an empty database)
+- `vcp ingest security-master` now seeds `instruments` from NSE's current listing (`SecurityMasterIngestionWorker._sync_instruments`): upsert with ISIN-first canonical ids, so a symbol rename updates the existing instrument; instruments missing from a non-empty listing become `is_active = FALSE` (history kept); delisted-list records never create instruments. New stats `instruments_upserted`, `instruments_deactivated`. Why: nothing populated `instruments`, so `vcp ingest market` / `corporate-actions` stopped with "no instruments found".
+- New `tests/integration/test_pipeline_e2e.py`: all eight pipeline commands through the real CLI from an empty database with synthetic providers.
+
 ### Fixed (audit 2026-09-30 P0-1, Kite history adjusted twice)
 - Kite historical candles are adjusted by Zerodha for splits/bonuses (and rights, spin-offs, extraordinary dividends) as of the fetch time. The engine treated them as raw and applied NSE factors on top, so any history downloaded after a split was adjusted twice while history downloaded before it was right.
 - `KiteProvider.get_capabilities().adjusted_prices` is now `True`; `domain.market.PROVIDER_ADJUSTED_SOURCES = {"KITE"}` (a test keeps the two in step).

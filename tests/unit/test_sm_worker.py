@@ -384,3 +384,99 @@ def test_record_without_source_uses_default_provider_name(store):
         "SELECT source FROM surveillance_flags_history WHERE instrument_id = 'NSE_EQ|NOSRC'"
     ).fetchone()
     assert row == ("NSE",)
+
+
+# ---------------------------------------------------------------------------
+# Audit P1-1: the live listing seeds the instruments table
+# ---------------------------------------------------------------------------
+
+
+def _listed(symbol: str, isin: str, series: str = "EQ") -> SecurityRecord:
+    return SecurityRecord(
+        instrument_id=f"NSE_EQ|{symbol}",
+        symbol=symbol,
+        exchange="NSE",
+        valid_from=date(2010, 1, 1),
+        isin=isin,
+        series=series,
+        listing_date=date(2010, 1, 1),
+        source="NSE",
+    )
+
+
+def _instrument_rows(store):
+    return store.conn.execute(
+        "SELECT instrument_id, symbol, isin, segment, is_active FROM instruments "
+        "ORDER BY instrument_id"
+    ).fetchall()
+
+
+def test_live_listing_seeds_instruments(store):
+    from vcp_scanner.data.repositories.duckdb_instrument_repository import (
+        DuckDBInstrumentRepository,
+    )
+
+    stats = _sm_worker(store, [_listed("AAA", "INE000A"), _listed("BBB", "INE000B", "BE")]).run(
+        start=date(2020, 1, 1), end=date(2024, 1, 1)
+    )
+    assert stats["instruments_upserted"] == 2
+    assert _instrument_rows(store) == [
+        ("NSE_EQ|AAA", "AAA", "INE000A", "EQ", True),
+        ("NSE_EQ|BBB", "BBB", "INE000B", "BE", True),
+    ]
+    # what `vcp ingest market` reads
+    loaded = DuckDBInstrumentRepository(store).load_instruments()
+    assert {(i.instrument_id, i.isin, i.series) for i in loaded} == {
+        ("NSE_EQ|AAA", "INE000A", "EQ"),
+        ("NSE_EQ|BBB", "INE000B", "BE"),
+    }
+
+
+def test_symbol_rename_keeps_the_instrument_id(store):
+    from vcp_scanner.data.repositories.duckdb_instrument_repository import (
+        DuckDBInstrumentResolver,
+    )
+
+    def worker(records):
+        return SecurityMasterIngestionWorker(
+            store=store,
+            security_master_provider=FakeSecurityMasterProvider(records),
+            surveillance_provider=FakeSurveillanceProvider([]),
+            resolver=DuckDBInstrumentResolver(store),
+        )
+
+    worker([_listed("OLDNAME", "INE123X")]).run(start=date(2020, 1, 1), end=date(2024, 1, 1))
+    worker([_listed("NEWNAME", "INE123X")]).run(start=date(2020, 1, 1), end=date(2024, 1, 1))
+
+    assert _instrument_rows(store) == [("NSE_EQ|OLDNAME", "NEWNAME", "INE123X", "EQ", True)]
+
+
+def test_instrument_that_left_the_listing_is_deactivated_not_deleted(store):
+    _sm_worker(store, [_listed("AAA", "INE000A"), _listed("GONE", "INE000G")]).run(
+        start=date(2020, 1, 1), end=date(2024, 1, 1)
+    )
+    stats = _sm_worker(store, [_listed("AAA", "INE000A")]).run(
+        start=date(2020, 1, 1), end=date(2024, 1, 1)
+    )
+    assert stats["instruments_deactivated"] == 1
+    assert _instrument_rows(store)[1] == ("NSE_EQ|GONE", "GONE", "INE000G", "EQ", False)
+
+
+def test_delisted_records_never_create_instruments(store):
+    delisted = SecurityRecord(
+        instrument_id="NSE_EQ|DEAD",
+        symbol="DEAD",
+        exchange="NSE",
+        valid_from=date(2005, 1, 1),
+        valid_to=date(2015, 1, 1),
+        isin="INE000D",
+        delisting_date=date(2015, 1, 1),
+        source="NSE_DELISTED",
+    )
+    SecurityMasterIngestionWorker(
+        store=store,
+        security_master_provider=FakeSecurityMasterProvider([_listed("AAA", "INE000A")]),
+        surveillance_provider=FakeSurveillanceProvider([]),
+        delisting_provider=FakeSecurityMasterProvider([delisted]),
+    ).run(start=date(2000, 1, 1), end=date(2024, 1, 1))
+    assert [r[0] for r in _instrument_rows(store)] == ["NSE_EQ|AAA"]

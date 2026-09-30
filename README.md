@@ -48,7 +48,7 @@ stored in DuckDB, so order matters.
 | # | Command | What it does | Needs |
 |---|---|---|---|
 | 1 | `vcp auth kite` | Interactive Kite login; stores the access token in `.env`. | Kite API key/secret |
-| 2 | `vcp ingest security-master --start YYYY-MM-DD` | Loads the NSE security master, NSE's delisted-companies list and ASM/T2T surveillance flags into `security_master_history` / `surveillance_flags_history`. `--delisted-file PATH` uses a downloaded copy of the delisted list; `--no-delisted` skips it. | Network |
+| 2 | `vcp ingest security-master --start YYYY-MM-DD` | Seeds `instruments` from NSE's current listing and loads the NSE security master, NSE's delisted-companies list and ASM/T2T surveillance flags into `security_master_history` / `surveillance_flags_history`. `--delisted-file PATH` uses a downloaded copy of the delisted list; `--no-delisted` skips it. | Network |
 | 3 | `vcp ingest market --start YYYY-MM-DD` | Fetches daily OHLCV from Kite, re-fetches gaps, reports incomplete instruments. | Instruments (see note), Kite token |
 | 4 | `vcp ingest corporate-actions --start YYYY-MM-DD` | Ingests and reconciles splits/bonuses (NSE primary, Upstox secondary), then runs the gap safety net and publishes conflicts to the signal gate. | Instruments (see note) |
 | 4a | `vcp verify kite-adjustment [--action SYMBOL:DATE:SPLIT:NUM:DEN]` | Read-only check that Kite returns split/bonus-adjusted history, which the adjustment engine assumes (exit 2 = assumption wrong, stop). Run once after `vcp auth kite`. | Kite token |
@@ -58,12 +58,10 @@ stored in DuckDB, so order matters.
 | 8 | `vcp compute rs --as-of YYYY-MM-DD [--data-snapshot-id ID]` | Relative-strength ranks over that universe snapshot. | Steps 5–7 |
 | 9 | `vcp compute trend-template --as-of YYYY-MM-DD [--data-snapshot-id ID]` | Weekly stage plus the ten Trend Template conditions for eligible members. | Steps 6–8 |
 
-> **Known gap: the `instruments` table is not populated by any command.** Steps 3 and 4 read
-> instruments from the `instruments` table, and `vcp ingest market` tells you to run
-> `vcp ingest security-master` first, but that command only writes the security-master and
-> surveillance history tables. On an empty database, steps 3 and 4 stop with
-> "no instruments found". Until this is fixed, `instruments` has to be seeded another way
-> (`DuckDBInstrumentRepository.save_instruments`). Remove this note once a command fills it.
+> Step 2 also fills the `instruments` table that steps 3 and 4 iterate over: every security in
+> NSE's current listing is upserted (ISIN first, so a renamed symbol keeps its id) and anything
+> that left the listing is marked inactive. `tests/integration/test_pipeline_e2e.py` runs steps
+> 2–9 from an empty database with synthetic providers.
 
 Steps 6 and 7 are independent of each other. Several commands accept `--instrument` (repeatable) to
 work on a subset, and the two ingest commands also accept `--limit`; run `vcp <command> --help` for
@@ -109,9 +107,9 @@ ruff format --check src tests
 mypy src
 ```
 
-Tests use synthetic fixtures only (labelled as such); `tests/integration`, `tests/regression` and
-`tests/backtest` are placeholders. Coverage is not measured and there is no CI yet, so run the four
-commands above yourself before committing.
+Tests use synthetic fixtures only (labelled as such); `tests/regression` and `tests/backtest` are
+placeholders; `tests/integration` holds the end-to-end pipeline test. Coverage is not measured
+and there is no CI yet, so run the four commands above yourself before committing.
 
 ## Known limitations
 

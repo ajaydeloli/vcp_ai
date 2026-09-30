@@ -12,7 +12,7 @@ by the project owner before work starts.
 | 2 | P0-2 | Reconciliation policy: dividends/rights and primary-only actions | Done |
 | 3 | P1-9 | Reject NaN / zero / negative OHLC; NaN inputs are INSUFFICIENT_DATA | Done |
 | 4 | P0-1 | Kite candles are provider-adjusted: stop double adjustment | Done (live check pending: run `vcp verify kite-adjustment`) |
-| 5 | P1-1 | Seed `instruments`; first real end-to-end run; real golden fixtures | Pending |
+| 5 | P1-1 | Seed `instruments`; first real end-to-end run; real golden fixtures | 5a done; 5b pending (needs credentials) |
 | 6 | P1-3 / P1-4 | Architecture boundary test covers real packages; package layout | Pending |
 | 7 | P1-7 / P1-6 | VCP config shape per VCP_SPEC §60; real RS tests | Pending |
 
@@ -199,3 +199,38 @@ dividend adjustments are not undone for the price filter. Upstox candles are sti
 
 **Verification.** Full suite: 529 passed, 0 failed. `ruff check`, `ruff format --check`,
 `mypy --strict src` clean (94 files).
+
+---
+
+## Fix 5a — P1-1: seed `instruments`; offline end-to-end pipeline test
+
+**Owner decisions (2026-09-30).** Source: NSE `EQUITY_L` through `vcp ingest security-master`.
+Split: 5a (code, offline test) now; 5b (real run on ~20 names, `vcp verify kite-adjustment`,
+5–10 real golden split/bonus fixtures) once `.env` credentials exist.
+
+**Problem.** No command wrote the `instruments` table, but `vcp ingest market` and
+`vcp ingest corporate-actions` iterate over it, so the pipeline could not start from an empty
+database and had never run end-to-end.
+
+**Change.**
+- `data/ingestion/sm_worker.py`: `_sync_instruments` upserts the live (non-delisted) listing into
+  `instruments` using the already-canonicalised ids (ISIN first → a symbol rename updates the
+  existing instrument's symbol, same id), then marks instruments absent from the non-empty
+  listing `is_active = FALSE`. Delisted-list records never create instruments. Stats
+  `instruments_upserted` / `instruments_deactivated` (printed by the CLI).
+- New `tests/integration/test_pipeline_e2e.py`: security-master → market → corporate-actions →
+  adjusted-prices → features → universe → rs → trend-template through `vcp_scanner.cli.main`, from
+  an empty DuckDB file; only NSE/Kite/Upstox providers are faked. Asserts 6 active instruments,
+  prices for all, no blocking events, 6 eligible, 6 ranked, 60 condition rows, strong uptrend
+  PASS, decliner FAIL, survivorship BIASED.
+- Unit tests in `test_sm_worker.py`: seeding, rename keeps id, deactivation, delisted records
+  don't create instruments.
+- README: "Known gap" note replaced; step 2 description; test-layout sentence. CHANGELOG.
+
+**Observation.** The e2e test takes ~50 s for 6 instruments × ~340 bars, mostly row-by-row
+`save_daily` (audit P2-4). Expect a real 2,000-name backfill to be slow until that is batched.
+
+**Still open (5b).** Real-data run, Kite verification, golden fixtures from real NSE payloads.
+
+**Verification.** Full suite: 534 passed, 0 failed. `ruff check`, `ruff format --check`,
+`mypy --strict src` clean.

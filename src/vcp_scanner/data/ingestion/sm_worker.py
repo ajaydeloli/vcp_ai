@@ -18,7 +18,7 @@ from vcp_scanner.data.providers.base import (
     SecurityMasterProvider,
     SurveillanceProvider,
 )
-from vcp_scanner.domain.market import SecurityRecord
+from vcp_scanner.domain.market import Instrument, SecurityRecord
 from vcp_scanner.infrastructure.clock import Clock, utc_now
 
 if TYPE_CHECKING:
@@ -119,12 +119,14 @@ class SecurityMasterIngestionWorker:
             for rec in records
         ]
 
-        extra_stats: dict[str, int] = {}
+        # Audit P1-1: the live listing is what `vcp ingest market` / `corporate-actions`
+        # iterate over, so it seeds the ``instruments`` table (nothing else did).
+        extra_stats: dict[str, int] = self._sync_instruments(records, known_at)
         if self._delisting_provider is not None:
             delisted = self._delisting_provider.get_security_history(start, end)
             accepted, skipped = self._accept_delisted(records, delisted)
             records = records + accepted
-            extra_stats = {"delisted_records": len(accepted), "delisted_skipped": skipped}
+            extra_stats |= {"delisted_records": len(accepted), "delisted_skipped": skipped}
 
         inserted = 0
         unchanged = 0
@@ -224,6 +226,57 @@ class SecurityMasterIngestionWorker:
             "security_unchanged": unchanged,
             **extra_stats,
         }
+
+    def _sync_instruments(self, live: list[SecurityRecord], known_at: datetime) -> dict[str, int]:
+        """Upsert the current listing into ``instruments`` and deactivate what left it.
+
+        ``live`` is already canonicalised (ISIN first), so a renamed symbol updates its
+        existing instrument (new symbol, same id) instead of creating a second one. An
+        instrument absent from a non-empty live listing is marked inactive, so market and
+        corporate-action ingestion stop requesting it; its history is kept. Delisted-list
+        records never create instruments: they have no tradable symbol to fetch.
+        """
+        from vcp_scanner.data.repositories.duckdb_instrument_repository import (
+            DuckDBInstrumentRepository,
+        )
+
+        latest: dict[str, SecurityRecord] = {}
+        for rec in live:
+            if rec.delisting_date is not None:
+                continue
+            held = latest.get(rec.instrument_id)
+            if held is None or rec.valid_from >= held.valid_from:
+                latest[rec.instrument_id] = rec
+        if not latest:
+            return {"instruments_upserted": 0, "instruments_deactivated": 0}
+
+        repo = DuckDBInstrumentRepository(self._store, clock=lambda: known_at)
+        upserted = repo.save_instruments(
+            [
+                Instrument(
+                    instrument_id=rec.instrument_id,
+                    symbol=rec.symbol,
+                    exchange=rec.exchange,
+                    isin=rec.isin,
+                    series=rec.series,
+                )
+                for rec in latest.values()
+            ]
+        )
+        deactivated = self._store.conn.execute(
+            """
+            UPDATE instruments SET is_active = FALSE, updated_at = ?
+            WHERE is_active AND NOT list_contains(CAST(? AS VARCHAR[]), instrument_id)
+            RETURNING instrument_id
+            """,
+            [known_at, sorted(latest)],
+        ).fetchall()
+        logger.info(
+            "Instruments: %d upserted from the live listing, %d deactivated",
+            upserted,
+            len(deactivated),
+        )
+        return {"instruments_upserted": upserted, "instruments_deactivated": len(deactivated)}
 
     def _accept_delisted(
         self,
