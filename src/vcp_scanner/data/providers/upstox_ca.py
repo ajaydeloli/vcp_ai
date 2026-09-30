@@ -30,6 +30,10 @@ class UpstoxCorporateActionProvider:
         self._access_token = access_token
         self._clock = clock
         self._session = requests.Session()
+        #: Instrument ids actually queried by the last ``get_actions`` call (HTTP 200, or 404 =
+        #: "no record"). Reconciliation treats Upstox's silence about a split/bonus as
+        #: evidence only for these instruments (audit P0-2).
+        self.queried_instrument_ids: set[str] = set()
 
         # Configure retries
         retries = Retry(
@@ -60,6 +64,7 @@ class UpstoxCorporateActionProvider:
 
         actions: list[CorporateAction] = []
         failures: list[str] = []
+        self.queried_instrument_ids = set()
 
         for instrument in instruments:
             # Upstox keys equities by ISIN ("NSE_EQ|<ISIN>"), never by trading symbol
@@ -91,6 +96,7 @@ class UpstoxCorporateActionProvider:
                 # 404 = Upstox has no record for this ISIN, which is a legitimate "no actions".
                 if response.status_code == 404:
                     logger.info("Upstox has no corporate-action record for %s", instrument.symbol)
+                    self.queried_instrument_ids.add(instrument.instrument_id)
                     continue
 
                 if response.status_code != 200:
@@ -98,6 +104,7 @@ class UpstoxCorporateActionProvider:
                     continue
 
                 data = response.json().get("data", [])
+                self.queried_instrument_ids.add(instrument.instrument_id)
                 for item in data:
                     action = self._parse_upstox_action(instrument, item)
                     if action and action.ex_date and start <= action.ex_date <= end:

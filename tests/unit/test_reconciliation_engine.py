@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import UTC, date, datetime, timedelta
 
 import pytest
@@ -104,11 +105,99 @@ class TestReconciliationEngine:
             )
         ]
 
-        results = engine.reconcile("TEST", actions, as_of)
+        # The secondary was queried over a window containing the ex-date and stayed silent.
+        results = engine.reconcile(
+            "TEST", actions, as_of, secondary_window=(date(2024, 1, 1), date(2024, 6, 1))
+        )
 
         assert len(results) == 1
         res = results[0].resolution
         assert res.status == CorporateActionStatus.PROVIDER_CONFLICT
+        assert res.conflict_fields == "secondary_source_missing"
+
+    def test_primary_only_past_grace_without_secondary_query_stays_single_source(
+        self, engine: ReconciliationEngine
+    ) -> None:
+        """Audit P0-2 policy: an unasked secondary is not evidence against NSE."""
+        created = date(2024, 5, 5)
+        actions = [
+            _make_raw_action(
+                "NSE",
+                CorporateActionType.BONUS,
+                date(2024, 5, 15),
+                1.0,
+                1.0,
+                created_at_date=created,
+            )
+        ]
+        (not_asked,) = engine.reconcile("TEST", actions, date(2024, 5, 10))
+        assert not_asked.resolution.status == CorporateActionStatus.SINGLE_SOURCE
+        # queried, but over a window that does not contain the ex-date: still not evidence
+        (outside,) = engine.reconcile(
+            "TEST",
+            actions,
+            date(2024, 5, 10),
+            secondary_window=(date(2023, 1, 1), date(2023, 12, 31)),
+        )
+        assert outside.resolution.status == CorporateActionStatus.SINGLE_SOURCE
+
+    @pytest.mark.parametrize(
+        "action_type", [CorporateActionType.DIVIDEND, CorporateActionType.RIGHTS]
+    )
+    def test_primary_only_non_price_scaling_action_never_escalates(
+        self, engine: ReconciliationEngine, action_type: CorporateActionType
+    ) -> None:
+        actions = [
+            _make_raw_action(
+                "NSE", action_type, date(2024, 5, 15), created_at_date=date(2024, 1, 1)
+            )
+        ]
+        (result,) = engine.reconcile(
+            "TEST",
+            actions,
+            date(2024, 5, 10),
+            secondary_window=(date(2024, 1, 1), date(2024, 6, 1)),
+        )
+        assert result.resolution.status == CorporateActionStatus.SINGLE_SOURCE
+
+    def test_dividend_missing_cash_on_one_side_is_not_a_conflict(
+        self, engine: ReconciliationEngine
+    ) -> None:
+        """Audit P0-2: NSE carries no parsed amount; that alone must not be a disagreement."""
+        ex = date(2024, 5, 10)
+        nse = _make_raw_action("NSE", CorporateActionType.DIVIDEND, ex)
+        upstox = replace(
+            _make_raw_action("UPSTOX", CorporateActionType.DIVIDEND, ex), cash_amount=5.0
+        )
+        nse = replace(nse, ratio_numerator=None, ratio_denominator=None)
+        upstox = replace(upstox, ratio_numerator=None, ratio_denominator=None)
+        (result,) = engine.reconcile("TEST", [nse, upstox], date(2024, 5, 5))
+        assert result.resolution.status == CorporateActionStatus.CONFIRMED
+
+    @pytest.mark.parametrize(
+        ("a", "b", "status"),
+        [
+            (5.0, 5.004, CorporateActionStatus.CONFIRMED),  # within half a paisa
+            (5.0, 5.5, CorporateActionStatus.PROVIDER_CONFLICT),
+        ],
+    )
+    def test_cash_amounts_compared_with_tolerance_when_both_present(
+        self,
+        engine: ReconciliationEngine,
+        a: float,
+        b: float,
+        status: CorporateActionStatus,
+    ) -> None:
+        ex = date(2024, 5, 10)
+        nse = replace(
+            _make_raw_action("NSE", CorporateActionType.DIVIDEND, ex),
+            ratio_numerator=None,
+            ratio_denominator=None,
+            cash_amount=a,
+        )
+        upstox = replace(nse, corporate_action_id="U", source="UPSTOX", cash_amount=b)
+        (result,) = engine.reconcile("TEST", [nse, upstox], date(2024, 5, 5))
+        assert result.resolution.status == status
 
     def test_secondary_only_conflict(self, engine: ReconciliationEngine) -> None:
         as_of = date(2024, 5, 5)

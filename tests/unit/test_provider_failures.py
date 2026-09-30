@@ -120,3 +120,12 @@ def test_upstox_partial_failures_raise_instead_of_returning_partial_list() -> No
 def test_upstox_404_means_no_actions_not_failure() -> None:
     p = _with_session(UpstoxCorporateActionProvider("tok"), _resp(404, text="none"))
     assert p.get_actions(START, END, [_inst("AAA")]) == []
+
+
+def test_upstox_records_which_instruments_it_actually_queried() -> None:
+    """Audit P0-2: only a queried instrument lets Upstox's silence escalate an NSE-only split."""
+    p = _with_session(UpstoxCorporateActionProvider("tok"), _resp(200, json_data={"data": []}))
+    p._session.get.side_effect = [_resp(200, json_data={"data": []}), _resp(404, text="none")]
+    no_isin = Instrument(instrument_id="NSE_EQ|CCC", symbol="CCC", exchange="NSE")
+    p.get_actions(START, END, [_inst("AAA"), _inst("BBB"), no_isin])
+    assert p.queried_instrument_ids == {"NSE_EQ|AAA", "NSE_EQ|BBB"}  # no ISIN -> not asked

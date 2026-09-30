@@ -34,7 +34,7 @@ Run all commands from the repository root: the defaults `--config-dir config`,
 |---|---|---|
 | `KITE_API_KEY`, `KITE_API_SECRET` | `vcp auth kite` | Kite Connect app credentials. |
 | `KITE_ACCESS_TOKEN` | `vcp ingest market` | Written to `.env` by `vcp auth kite`. Kite tokens are short-lived; re-run auth when it expires. |
-| `UPSTOX_ACCESS_TOKEN` | `vcp ingest corporate-actions` | Optional. Without it, corporate actions come from NSE only and stay `SINGLE_SOURCE` (not cross-confirmed). |
+| `UPSTOX_ACCESS_TOKEN` | `vcp ingest corporate-actions` | Optional. Without it, corporate actions come from NSE only and stay `SINGLE_SOURCE` (not cross-confirmed, never escalated to a conflict). With it, an NSE-only split/bonus that Upstox was asked about and still lacks after 3 days becomes `PROVIDER_CONFLICT` and blocks. |
 
 `.env.example` also lists reserved settings (`DHAN_*`, `UPSTOX_API_KEY`/`UPSTOX_API_SECRET`,
 `VCP_ENV`, `VCP_LOG_LEVEL`, `VCP_LOG_JSON`). **The code does not read these yet.** Configure logging
@@ -134,8 +134,9 @@ current status of each.
   universe marks the symbol ineligible, RS leaves it out of the ranking, and the Trend Template
   reports `DATA_QUALITY_BLOCKED`. Review with `vcp quality list`; `vcp quality scan` re-runs the
   gap check; `vcp quality resolve EVENT_ID --by NAME --note TEXT` closes a gap you have confirmed
-  is genuine. A corporate-action conflict cannot be closed by hand and blocks until the feeds
-  agree (no manual-override command yet). The gate only knows what has been scanned: run
+  is genuine. A split/bonus conflict, or an applied split/bonus whose ratio could not be read,
+  cannot be closed by hand and blocks until the feeds agree or a ratio arrives (no
+  manual-override command yet). Dividend and rights disagreements are warnings only. The gate only knows what has been scanned: run
   `vcp quality scan` after ingesting prices. Missing-session detection infers sessions from the
   data (no official NSE holiday calendar), and bad-bar and stale-data events are not recorded.
 - **Provider mapping is Kite-only.** `provider_instruments` records Kite token to instrument

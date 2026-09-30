@@ -5,9 +5,15 @@ Implements the cross-source reconciliation rules:
   → CONFIRMED
 - Only primary (NSE) has it, within secondary_grace_days
   → SINGLE_SOURCE
-- Sources disagree on ex_date, type, or ratio; or only secondary has it;
-  or primary-only past grace period
-  → PROVIDER_CONFLICT (signals blocked)
+- Sources disagree on ex_date, type, ratio, or (when both report one) cash amount;
+  or only secondary has it
+  → PROVIDER_CONFLICT
+- Only primary has a split/bonus past the grace period AND the secondary source was
+  actually queried for this instrument over a window containing the ex-date
+  → PROVIDER_CONFLICT. Otherwise (secondary not configured / not queried, or a
+  dividend/rights action) it stays SINGLE_SOURCE (audit P0-2 policy, 2026-09-30).
+- Only split/bonus conflicts block signals; dividend/rights conflicts are warnings
+  (``data.quality.events``).
 - Human override recorded
   → MANUAL_OVERRIDE
 
@@ -24,6 +30,7 @@ from dataclasses import dataclass
 from datetime import date
 
 from vcp_scanner.domain.corporate_actions import (
+    PRICE_SCALING_ACTIONS,
     CorporateAction,
     CorporateActionResolution,
     CorporateActionStatus,
@@ -68,6 +75,8 @@ class ReconciliationEngine:
         actions: list[CorporateAction],
         as_of_date: date,
         existing_resolutions: list[CorporateActionResolution] | None = None,
+        *,
+        secondary_window: tuple[date, date] | None = None,
     ) -> list[ReconciliationResult]:
         """Reconcile raw actions for one instrument.
 
@@ -80,6 +89,10 @@ class ReconciliationEngine:
             as_of_date: The reference date for grace-period calculation.
             existing_resolutions: Already-stored resolutions to detect
                 changes vs new entries.
+            secondary_window: ``(start, end)`` ex-date window over which the secondary
+                source was actually queried for this instrument in this run, or ``None``
+                when it was not queried (not configured, no ISIN). Only then can the
+                secondary's silence about a primary-only split/bonus count as a conflict.
 
         Returns:
             List of ReconciliationResult, one per distinct
@@ -113,6 +126,7 @@ class ReconciliationEngine:
                 group_actions=group_actions,
                 as_of_date=as_of_date,
                 existing=existing_by_key.get((action_type, ex_date)),
+                secondary_window=secondary_window,
             )
             if result is not None:
                 results.append(result)
@@ -127,6 +141,7 @@ class ReconciliationEngine:
         group_actions: list[CorporateAction],
         as_of_date: date,
         existing: CorporateActionResolution | None,
+        secondary_window: tuple[date, date] | None = None,
     ) -> ReconciliationResult | None:
         """Reconcile a single (action_type, ex_date) group."""
         primary = self._config.primary_source.upper()
@@ -148,9 +163,15 @@ class ReconciliationEngine:
                 primary_actions[0], secondary_actions[0]
             )
         elif has_primary and not has_secondary:
-            # Only primary — check grace period
-            status = self._check_grace_period(primary_actions[0], as_of_date)
-            conflict_fields = None
+            # Only primary — grace period, then escalate only if the secondary was asked
+            status = self._check_grace_period(
+                primary_actions[0], as_of_date, secondary_window=secondary_window
+            )
+            conflict_fields = (
+                "secondary_source_missing"
+                if status is CorporateActionStatus.PROVIDER_CONFLICT
+                else None
+            )
         elif has_secondary and not has_primary:
             # Only secondary has it — conflict per §18A
             status = CorporateActionStatus.PROVIDER_CONFLICT
@@ -214,7 +235,7 @@ class ReconciliationEngine:
         if not self._ratios_equivalent(primary, secondary):
             conflicts.append("ratio")
 
-        if primary.cash_amount != secondary.cash_amount:
+        if not self._cash_equivalent(primary.cash_amount, secondary.cash_amount):
             conflicts.append("cash_amount")
 
         if conflicts:
@@ -224,6 +245,18 @@ class ReconciliationEngine:
             )
 
         return CorporateActionStatus.CONFIRMED, None
+
+    @staticmethod
+    def _cash_equivalent(a: float | None, b: float | None) -> bool:
+        """Cash amounts disagree only when both sources report one and they differ.
+
+        NSE's feed carries no parsed amount; treating its ``None`` as a disagreement made every
+        dividend reported by both sources a PROVIDER_CONFLICT (audit P0-2). Half a paisa
+        absorbs float formatting.
+        """
+        if a is None or b is None:
+            return True
+        return math.isclose(a, b, rel_tol=1e-6, abs_tol=0.005)
 
     @staticmethod
     def _ratios_equivalent(a: CorporateAction, b: CorporateAction) -> bool:
@@ -253,11 +286,16 @@ class ReconciliationEngine:
         self,
         action: CorporateAction,
         as_of_date: date,
+        *,
+        secondary_window: tuple[date, date] | None = None,
     ) -> CorporateActionStatus:
         """Determine status when only the primary source has the action.
 
         Within secondary_grace_days of first sighting → SINGLE_SOURCE.
-        Past grace period → PROVIDER_CONFLICT.
+        Past the grace period → PROVIDER_CONFLICT only for a split/bonus whose ex-date lies
+        in ``secondary_window`` (the secondary was asked and stayed silent). Otherwise
+        SINGLE_SOURCE: an unasked source is not evidence, and a dividend/rights action does
+        not rescale prices (audit P0-2 policy).
 
         Uses ``ingested_at`` (when we first saw the action) rather than the
         provider's ``created_at``, to avoid premature conflict when the
@@ -271,8 +309,14 @@ class ReconciliationEngine:
 
         if days_since <= self._config.secondary_grace_days:
             return CorporateActionStatus.SINGLE_SOURCE
-        else:
+        secondary_was_asked = (
+            secondary_window is not None
+            and action.ex_date is not None
+            and secondary_window[0] <= action.ex_date <= secondary_window[1]
+        )
+        if action.action_type in PRICE_SCALING_ACTIONS and secondary_was_asked:
             return CorporateActionStatus.PROVIDER_CONFLICT
+        return CorporateActionStatus.SINGLE_SOURCE
 
     @staticmethod
     def status_allows_adjustment(

@@ -566,10 +566,11 @@ Compare per (instrument, action type): `ex_date`, action type, ratio (numerator/
 |---|---|---|
 | Both sources agree | `CONFIRMED` | factor applied |
 | Only NSE has it, within `secondary_grace_days` of first sighting | `SINGLE_SOURCE` | factor applied, warning flag |
-| Sources disagree on ex-date, type or ratio; or only Upstox has it; or NSE-only past the grace period | `PROVIDER_CONFLICT` | **signals blocked for that symbol** until resolved |
+| Only NSE has it past the grace period, and Upstox was **not** queried for that instrument over a window containing the ex-date (no token, no ISIN), or the action is a dividend/rights | `SINGLE_SOURCE` | factor applied (split/bonus), warning flag |
+| Sources disagree on ex-date, type, ratio, or cash amount (only when both report one); or only Upstox has it; or an NSE-only split/bonus past the grace period that Upstox was queried about and does not report | `PROVIDER_CONFLICT` | split/bonus: **signals blocked for that symbol** until resolved; dividend/rights: warning only |
 | Human decision recorded | `MANUAL_OVERRIDE` | factor applied from the override, audited (§77) |
 
-Blocking means the symbol emits `NO_SIGNAL` with `CORPORATE_ACTION_UNRESOLVED` (critical data-quality failure, §55). The pipeline continues for all other symbols.
+Policy (audit P0-2, 2026-09-30): only price-scaling actions (split, bonus) can block, because only they change adjusted prices; the secondary source's silence counts as evidence only when it was actually asked. Blocking means the symbol emits `NO_SIGNAL` with `CORPORATE_ACTION_UNRESOLVED` (critical data-quality failure, §55). The pipeline continues for all other symbols.
 
 Point-in-time application: an action adjusts prices only when `ex_date <= as_of_date` **and** `known_from <= known_at`. Never apply a future action to earlier observations.
 

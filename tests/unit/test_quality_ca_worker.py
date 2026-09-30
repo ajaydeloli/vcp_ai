@@ -93,6 +93,7 @@ def test_single_source_within_grace_does_not_block() -> None:
 
 def test_grace_expiry_blocks_and_a_later_confirmation_clears_it() -> None:
     worker, repo, quality = _env([_action("NSE")], [])
+    worker.secondary_provider.queried_instrument_ids = {IID}  # Upstox asked, stayed silent
     worker.run(*WINDOW, known_at=T0)
     worker.run(*WINDOW, known_at=T0 + timedelta(days=10))  # NSE-only past the grace period
     assert quality.blocked_instruments([IID], EX) == {IID: (FLAG.value,)}
@@ -127,3 +128,42 @@ def test_worker_without_repository_still_works() -> None:
     )
     worker.run(*WINDOW, known_at=T0)
     assert store.conn.execute("SELECT COUNT(*) FROM data_quality_events").fetchone() == (0,)
+
+
+def _dividend(source: str, cash: float | None) -> CorporateAction:
+    return CorporateAction(
+        corporate_action_id=deterministic_action_id(source, IID, "DIVIDEND", EX, cash),
+        instrument_id=IID,
+        action_type=CorporateActionType.DIVIDEND,
+        source=source,
+        created_at=T0,
+        ex_date=EX,
+        cash_amount=cash,
+    )
+
+
+def test_dividend_reported_by_both_sources_does_not_block() -> None:
+    """Audit P0-2: NSE has no parsed amount, Upstox does; that used to block every payer."""
+    worker, repo, quality = _env([_dividend("NSE", None)], [_dividend("UPSTOX", 5.0)])
+    worker.run(*WINDOW, known_at=T0)
+    assert repo.load_resolutions(IID)[0].status is CorporateActionStatus.CONFIRMED
+    assert quality.load_events() == []
+    assert quality.blocked_instruments([IID], EX) == {}
+
+
+def test_dividend_conflict_is_recorded_as_a_warning_not_a_block() -> None:
+    worker, repo, quality = _env([_dividend("NSE", 4.0)], [_dividend("UPSTOX", 5.0)])
+    worker.run(*WINDOW, known_at=T0)
+    assert repo.load_resolutions(IID)[0].status is CorporateActionStatus.PROVIDER_CONFLICT
+    (event,) = quality.load_events()
+    assert event.blocks_signal is False
+    assert quality.blocked_instruments([IID], EX) == {}
+
+
+def test_nse_only_dividend_past_grace_never_blocks() -> None:
+    worker, repo, quality = _env([_dividend("NSE", None)], [])
+    worker.secondary_provider.queried_instrument_ids = {IID}
+    worker.run(*WINDOW, known_at=T0)
+    worker.run(*WINDOW, known_at=T0 + timedelta(days=30))
+    assert repo.load_resolutions(IID)[0].status is CorporateActionStatus.SINGLE_SOURCE
+    assert quality.blocked_instruments([IID], EX) == {}

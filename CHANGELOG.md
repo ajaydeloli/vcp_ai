@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed (audit 2026-09-30 P0-2, reconciliation policy)
+- Cash amounts are compared only when both sources report one (tolerance half a paisa). NSE's feed carries no parsed amount, so every dividend reported by both NSE and Upstox used to become `PROVIDER_CONFLICT`.
+- Only SPLIT/BONUS conflicts block signals. DIVIDEND/RIGHTS conflicts are still recorded (`CORPORATE_ACTION_UNRESOLVED`, severity WARNING) but never gate the universe, RS or Trend Template.
+- An NSE-only action past `secondary_grace_days` becomes `PROVIDER_CONFLICT` only if it is a split/bonus and the secondary source was actually queried for that instrument over a window containing the ex-date (`UpstoxCorporateActionProvider.queried_instrument_ids`, `ReconciliationEngine.reconcile(secondary_window=...)`). Without an Upstox token, or for an instrument without an ISIN, it stays `SINGLE_SOURCE` and keeps its factor, as the README always said. `conflict_fields = secondary_source_missing` marks the escalated case.
+- Behavior change: existing conflicts are re-evaluated on the next `vcp ingest corporate-actions`; dividend-driven and unqueried NSE-only blocks clear, and withheld split factors come back. Why: the old rules systematically removed dividend payers from the universe and RS population.
+
 ### Fixed (audit 2026-09-30 P0-3, gap safety net and unknown split ratios)
 - `GapDetector` treats a gap as explained only by an *applied* split/bonus: status CONFIRMED / SINGLE_SOURCE / MANUAL_OVERRIDE and a present, finite, positive ratio (`domain.corporate_actions.explains_price_gap`). Before, any resolution on the ex-date (dividend, rights, PROVIDER_CONFLICT, or a split whose ratio NSE text could not be parsed) silenced the detector while the adjustment engine applied factor 1.0, so an unadjusted split passed through as a normal-looking crash.
 - `corporate_action_events` also emits a `CORPORATE_ACTION_UNRESOLVED` event (`cause = ratio_unknown`, distinct event id) for every adjustable split/bonus without a usable ratio. It always blocks from the ex-date, cannot be hand-resolved, and clears when a later resolution carries a ratio. Producers (CA worker, `vcp quality scan`) pick it up automatically.

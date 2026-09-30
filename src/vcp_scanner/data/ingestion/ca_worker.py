@@ -74,6 +74,12 @@ class CorporateActionIngestionWorker:
 
         all_new_actions = primary_actions + secondary_actions
 
+        # Which instruments the secondary source was actually asked about (audit P0-2). A
+        # provider that does not report coverage (e.g. no Upstox token) covers nothing, so its
+        # silence never escalates an NSE-only split/bonus to PROVIDER_CONFLICT.
+        queried = getattr(self.secondary_provider, "queried_instrument_ids", None) or set()
+        secondary_covered = {canonical_instrument_id(self.resolver, iid) for iid in queried}
+
         if not all_new_actions:
             logger.info("No corporate actions found in this period.")
             return
@@ -120,6 +126,7 @@ class CorporateActionIngestionWorker:
                 actions=all_historical_actions,
                 as_of_date=as_of,
                 existing_resolutions=existing_resolutions,
+                secondary_window=(start, end) if iid in secondary_covered else None,
             )
 
             # Any changed resolution, new OR updated, is persisted. Updates matter: a

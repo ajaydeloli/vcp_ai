@@ -603,7 +603,7 @@ known_from
 known_to
 ```
 
-Only `CONFIRMED`, `SINGLE_SOURCE` and `MANUAL_OVERRIDE` rows feed `corporate_action_adjustments`. A `PROVIDER_CONFLICT` row blocks signals for the instrument until superseded by a new row.
+Only `CONFIRMED`, `SINGLE_SOURCE` and `MANUAL_OVERRIDE` rows feed `corporate_action_adjustments`. A `PROVIDER_CONFLICT` row for a SPLIT or BONUS blocks signals for the instrument from its ex-date until superseded by a new row; a DIVIDEND or RIGHTS conflict is recorded as a non-blocking warning (audit P0-2 policy, 2026-09-30). `cash_amount` differences count only when both sources report an amount.
 
 `isin_history` (`instrument_id`, `isin`, `valid_from`, `valid_to`, `source`, `known_from`) maps ISINs to the permanent `instrument_id`.
 

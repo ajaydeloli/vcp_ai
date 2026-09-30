@@ -162,6 +162,8 @@ class TestWorker:
 
     def test_grace_period_expiry_becomes_conflict_and_retires_factors(self) -> None:
         worker, repo, store = _worker([_action("NSE")], [])
+        # Upstox is configured and was asked about this instrument, but never reports it.
+        worker.secondary_provider.queried_instrument_ids = {IID}
         worker.run(*WINDOW, known_at=T0)
         assert len(repo.load_adjustments(IID)) == 1
 
@@ -173,6 +175,14 @@ class TestWorker:
         assert repo.load_adjustments(IID) == []
         closed = "SELECT COUNT(*) FROM corporate_action_adjustments WHERE known_to IS NOT NULL"
         assert _count(store, closed) == 1
+
+    def test_grace_expiry_without_secondary_coverage_keeps_the_factor(self) -> None:
+        """Audit P0-2 policy: with no Upstox coverage an NSE-only split stays SINGLE_SOURCE."""
+        worker, repo, _ = _worker([_action("NSE")], [])  # fake reports no coverage
+        worker.run(*WINDOW, known_at=T0)
+        worker.run(*WINDOW, known_at=T0 + timedelta(days=10))
+        assert repo.load_resolutions(IID)[0].status == CorporateActionStatus.SINGLE_SOURCE
+        assert len(repo.load_adjustments(IID)) == 1
 
     def test_grace_period_uses_ingestion_time_not_window_end(self) -> None:
         # A backfill window that ended long ago must not make a just-seen action stale.
