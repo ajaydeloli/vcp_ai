@@ -18,12 +18,14 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import date, datetime
 
+from vcp_scanner.data.adjustment.engine import ex_date_prices
 from vcp_scanner.data.quality.events import corporate_action_events, identity_events
 from vcp_scanner.data.reconciliation.gap_detector import GapDetector
 from vcp_scanner.data.repositories.base import CorporateActionRepository
 from vcp_scanner.data.repositories.duckdb_identity_repository import DuckDBIdentityRepository
 from vcp_scanner.data.repositories.duckdb_market_repository import DuckDBMarketDataRepository
 from vcp_scanner.data.repositories.duckdb_quality_repository import DuckDBDataQualityRepository
+from vcp_scanner.domain.corporate_actions import PRICE_DERIVED_ACTIONS
 from vcp_scanner.domain.enums import DataQualityFlag
 
 _FAR_PAST = date(1900, 1, 1)
@@ -74,11 +76,17 @@ class QualityScanner:
         resolutions = self._ca.load_resolutions(instrument_id)
 
         gap_events = self._gaps.detect(candles, resolutions, detected_at)
+        derived_dates = [
+            r.ex_date
+            for r in resolutions
+            if r.action_type in PRICE_DERIVED_ACTIONS and r.ex_date is not None
+        ]
         conflict_events = corporate_action_events(
             instrument_id,
             resolutions,
             detected_at,
             conflict_blocks_signals=self._conflict_blocks,
+            ex_prices=ex_date_prices(candles, derived_dates),
         )
         gap_sync = self._quality.sync_events(
             instrument_id, DataQualityFlag.UNEXPLAINED_GAP, gap_events, at=detected_at

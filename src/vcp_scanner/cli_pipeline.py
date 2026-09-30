@@ -480,6 +480,7 @@ def run_corporate_actions(args: argparse.Namespace) -> int:
             resolver=DuckDBInstrumentResolver(store),
             quality_repository=DuckDBDataQualityRepository(store),
             conflict_blocks_signals=ca_cfg.conflict_blocks_signals,
+            market=DuckDBMarketDataRepository(store),
         )
         print(
             f"Ingesting corporate actions for {len(instruments)} instruments, {start} to {end}..."

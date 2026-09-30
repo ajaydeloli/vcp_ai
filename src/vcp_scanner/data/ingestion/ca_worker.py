@@ -5,17 +5,23 @@ from __future__ import annotations
 import dataclasses
 import logging
 from datetime import date, datetime
+from typing import Protocol
 
-from vcp_scanner.data.adjustment.engine import AdjustmentEngine
+from vcp_scanner.data.adjustment.engine import AdjustmentEngine, ex_date_prices
 from vcp_scanner.data.identity import InstrumentResolver, canonical_instrument_id
 from vcp_scanner.data.providers.base import CorporateActionProvider
 from vcp_scanner.data.quality.events import corporate_action_events
 from vcp_scanner.data.reconciliation.engine import ReconciliationEngine
 from vcp_scanner.data.repositories.base import CorporateActionRepository
 from vcp_scanner.data.repositories.duckdb_quality_repository import DuckDBDataQualityRepository
-from vcp_scanner.domain.corporate_actions import CorporateActionAdjustment
+from vcp_scanner.domain.corporate_actions import (
+    PRICE_DERIVED_ACTIONS,
+    CorporateActionAdjustment,
+    CorporateActionResolution,
+    ExDatePrices,
+)
 from vcp_scanner.domain.enums import DataQualityFlag
-from vcp_scanner.domain.market import Instrument
+from vcp_scanner.domain.market import Candle, Instrument
 from vcp_scanner.infrastructure.clock import Clock, utc_now
 
 logger = logging.getLogger(__name__)
@@ -36,8 +42,12 @@ class CorporateActionIngestionWorker:
         clock: Clock = utc_now,
         quality_repository: DuckDBDataQualityRepository | None = None,
         conflict_blocks_signals: bool = True,
+        market: DailyBarSource | None = None,
     ) -> None:
         self._clock = clock
+        # Optional (audit step 2.4): raw bars, from which rights and demerger factors are
+        # derived. Without it those actions get no factor (the pre-2.4 behavior).
+        self._market = market
         # Optional (audit P0-2): keep CORPORATE_ACTION_UNRESOLVED events in step with the
         # current PROVIDER_CONFLICT resolutions so the signal gate can see them.
         self._quality = quality_repository
@@ -163,9 +173,9 @@ class CorporateActionIngestionWorker:
             # now (e.g. after an engine fix: same-day split+bonus used to lose a factor,
             # found in audit Fix 5b). compute_factors drops non-adjustable statuses, and
             # replace_adjustments retires factors that no longer apply.
-            new_adjustments = self.adjustment_engine.compute_factors(
-                self.repository.load_resolutions(iid)
-            )
+            current = self.repository.load_resolutions(iid)
+            prices = self._ex_prices(iid, current)
+            new_adjustments = self.adjustment_engine.compute_factors(current, prices)
             if changed or _factor_key(new_adjustments) != _factor_key(
                 self.repository.load_adjustments(iid)
             ):
@@ -184,6 +194,7 @@ class CorporateActionIngestionWorker:
                         self.repository.load_resolutions(iid),
                         known_at,
                         conflict_blocks_signals=self._conflict_blocks_signals,
+                        ex_prices=prices,
                     ),
                     at=known_at,
                 )
@@ -193,6 +204,24 @@ class CorporateActionIngestionWorker:
             reconciled_count,
             adjusted_count,
         )
+
+    def _ex_prices(
+        self, instrument_id: str, resolutions: list[CorporateActionResolution]
+    ) -> dict[date, ExDatePrices]:
+        """Raw prices around the ex-dates of this instrument's rights issues and demergers."""
+        ex_dates = [
+            r.ex_date
+            for r in resolutions
+            if r.action_type in PRICE_DERIVED_ACTIONS and r.ex_date is not None
+        ]
+        if self._market is None or not ex_dates:
+            return {}
+        candles = self._market.load_daily(instrument_id, date(1900, 1, 1), date(2999, 12, 31))
+        return ex_date_prices(candles, ex_dates)
+
+
+class DailyBarSource(Protocol):
+    def load_daily(self, instrument_id: str, start: date, end: date) -> list[Candle]: ...
 
 
 def _factor_key(adjustments: list[CorporateActionAdjustment]) -> list[tuple[str, float, float]]:

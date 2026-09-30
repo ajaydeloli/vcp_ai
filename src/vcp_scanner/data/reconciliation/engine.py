@@ -27,7 +27,7 @@ import logging
 import math
 import uuid
 from dataclasses import dataclass
-from datetime import date
+from datetime import UTC, date, datetime
 
 from vcp_scanner.domain.corporate_actions import (
     PRICE_SCALING_ACTIONS,
@@ -151,8 +151,15 @@ class ReconciliationEngine:
         for a in group_actions:
             by_source.setdefault(a.source.upper(), []).append(a)
 
-        primary_actions = by_source.get(primary, [])
-        secondary_actions = by_source.get(secondary, [])
+        # Several observations from one source can share a key when a parser improves and the
+        # same NSE record is re-read with more detail (audit step 2.4: rights ratios and issue
+        # prices). The most recently seen one carries the values; the earliest one dates the
+        # grace period.
+        def first_seen(a: CorporateAction) -> tuple[datetime, str]:
+            return (a.ingested_at or datetime.min.replace(tzinfo=UTC), a.corporate_action_id)
+
+        primary_actions = sorted(by_source.get(primary, []), key=first_seen)
+        secondary_actions = sorted(by_source.get(secondary, []), key=first_seen)
 
         has_primary = len(primary_actions) > 0
         has_secondary = len(secondary_actions) > 0
@@ -160,7 +167,7 @@ class ReconciliationEngine:
         if has_primary and has_secondary:
             # Both sources present — check agreement
             status, conflict_fields = self._check_agreement(
-                primary_actions[0], secondary_actions[0]
+                primary_actions[-1], secondary_actions[-1]
             )
         elif has_primary and not has_secondary:
             # Only primary — grace period, then escalate only if the secondary was asked
@@ -180,10 +187,10 @@ class ReconciliationEngine:
             return None  # No actions in this group
 
         # Pick the primary action values if available, else secondary
-        reference = primary_actions[0] if has_primary else secondary_actions[0]
+        reference = primary_actions[-1] if has_primary else secondary_actions[-1]
 
-        nse_id = primary_actions[0].corporate_action_id if has_primary else None
-        upstox_id = secondary_actions[0].corporate_action_id if has_secondary else None
+        nse_id = primary_actions[-1].corporate_action_id if has_primary else None
+        upstox_id = secondary_actions[-1].corporate_action_id if has_secondary else None
 
         resolution = CorporateActionResolution(
             resolution_id=str(uuid.uuid4()),

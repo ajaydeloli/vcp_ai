@@ -127,13 +127,96 @@ def ratio_unknown(resolution: CorporateActionResolution) -> bool:
 def explains_price_gap(resolution: CorporateActionResolution) -> bool:
     """Whether a resolution accounts for a raw overnight gap on its ex-date (audit P0-3).
 
-    Only a split or bonus that actually feeds an adjustment factor explains a gap: its status
+    A split or bonus explains a gap only if it actually feeds an adjustment factor: its status
     allows adjustment and its ratio is usable. A dividend, a conflict, or a split whose ratio
     could not be read leaves the raw gap unadjusted, so it must not silence the safety net.
+
+    A rights issue or demerger with an adjustable status also explains its ex-date gap: its
+    factor comes from the ex-date prices (:func:`derived_factor`), and when that fails a
+    separate blocking event (cause ``factor_unknown``) is raised instead (audit step 2.4).
+    """
+    if resolution.ex_date is None or not status_allows_adjustment(resolution.status):
+        return False
+    if resolution.action_type in PRICE_DERIVED_ACTIONS:
+        return True
+    return resolution.action_type in PRICE_SCALING_ACTIONS and has_usable_ratio(
+        resolution.ratio_numerator, resolution.ratio_denominator
+    )
+
+
+#: Actions whose factor is derived from prices around the ex-date rather than from a ratio
+#: alone (audit step 2.4). With raw (bhavcopy) prices their ex-date gaps are visible.
+PRICE_DERIVED_ACTIONS: frozenset[CorporateActionType] = frozenset(
+    {CorporateActionType.RIGHTS, CorporateActionType.DEMERGER}
+)
+
+# A demerger that takes more than 95 % of the parent's value is implausible; treat the open
+# price as unusable rather than apply it.
+_MIN_DEMERGER_FACTOR = 0.05
+
+
+@dataclass(frozen=True, slots=True)
+class ExDatePrices:
+    """Raw prices around an ex-date: the last close before it and the ex-date open.
+
+    ``raw`` is True only when both bars come from the raw price source of truth (NSE
+    bhavcopy). Bars from a provider-adjusted source (Kite) may already include the action, so
+    no factor is derived from them.
+    """
+
+    prior_close: float | None
+    ex_open: float | None
+    raw: bool
+
+
+def derived_factor(
+    resolution: CorporateActionResolution, prices: ExDatePrices
+) -> tuple[float, float] | None:
+    """(price_factor, volume_factor) of a rights issue or demerger, or None if underivable.
+
+    * RIGHTS ``a:b`` at issue price ``S`` (``cash_amount`` = face value + premium) with prior
+      close ``P``: theoretical ex-rights price ``TERP = (b*P + a*S) / (a + b)``. The price factor
+      is ``TERP / P`` and the volume factor its inverse (the bonus element adds shares). If
+      ``S >= P`` the rights have no bonus element and the factor is 1.0. BHARTIARTL 2021-09-27
+      (1:14 at Rs 535, P = 739.40) gives 0.98157, the same as Kite's 0.98156.
+    * DEMERGER: NSE runs a special pre-open session on the ex-date that discovers the parent's
+      price without the demerged business, so the ex-date open ``O`` over ``P`` is the factor
+      (RELIANCE 2023-07-20: 2580 / 2841.85 = 0.9079; the 261.85 difference is JIOFIN's listing
+      base price). The share count does not change, so the volume factor is 1.0. ``O >= P``
+      or an implausibly small factor means the open is not usable.
+    """
+    p = prices.prior_close
+    if p is None or not math.isfinite(p) or p <= 0:
+        return None
+    if resolution.action_type is CorporateActionType.RIGHTS:
+        a, b, s = resolution.ratio_numerator, resolution.ratio_denominator, resolution.cash_amount
+        if not has_usable_ratio(a, b) or s is None or not math.isfinite(s) or s < 0:
+            return None
+        assert a is not None and b is not None
+        if s >= p:
+            return 1.0, 1.0
+        pf = (b * p + a * s) / ((a + b) * p)
+        return pf, 1.0 / pf
+    if resolution.action_type is CorporateActionType.DEMERGER:
+        o = prices.ex_open
+        if o is None or not math.isfinite(o) or o <= 0 or o >= p:
+            return None
+        pf = o / p
+        if pf < _MIN_DEMERGER_FACTOR:
+            return None
+        return pf, 1.0
+    return None
+
+
+def factor_unknown(resolution: CorporateActionResolution, prices: ExDatePrices | None) -> bool:
+    """A rights issue or demerger that should adjust raw prices but whose factor cannot be
+    derived. Only raw prices count: a provider-adjusted series already contains the action.
     """
     return (
-        resolution.action_type in PRICE_SCALING_ACTIONS
+        resolution.action_type in PRICE_DERIVED_ACTIONS
         and resolution.ex_date is not None
         and status_allows_adjustment(resolution.status)
-        and has_usable_ratio(resolution.ratio_numerator, resolution.ratio_denominator)
+        and prices is not None
+        and prices.raw
+        and derived_factor(resolution, prices) is None
     )

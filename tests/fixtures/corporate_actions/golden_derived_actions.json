@@ -1,0 +1,35 @@
+{
+  "description": "Real rights issues and demergers (audit step 2.4). NSE corporate-action records as served by /api/corporates-corporateActions, and raw prices from the NSE bhavcopy (prior session close, ex-date open). Captured 2026-09-30.",
+  "actions": [
+    {
+      "symbol": "BHARTIARTL",
+      "isin": "INE397D01024",
+      "ex_date": "2021-09-27",
+      "nse_record": {"symbol": "BHARTIARTL", "isin": "INE397D01024", "exDate": "27-Sep-2021", "faceVal": "5", "subject": " Rights 1:14 @ Premium Rs 530/-", "series": "EQ", "ndStartDate": "-"},
+      "prior": {"date": "2021-09-24", "close": 739.4},
+      "ex": {"date": "2021-09-27", "open": 731.0},
+      "expected": {"ratio": [1.0, 14.0], "issue_price": 535.0, "price_factor": 0.98157},
+      "kite": {"price_ratio": 0.98156, "volume_ratio": 0.98157, "note": "Kite/raw on 2021-01-01, the only price-scaling action since: our TERP factor matches Kite to 1e-5."}
+    },
+    {
+      "symbol": "RELIANCE",
+      "isin": "INE002A01018",
+      "ex_date": "2023-07-20",
+      "nse_record": {"symbol": "RELIANCE", "isin": "INE002A01018", "exDate": "20-Jul-2023", "faceVal": "10", "subject": "Demerger", "series": "EQ", "ndStartDate": "-"},
+      "prior": {"date": "2023-07-19", "close": 2841.85},
+      "ex": {"date": "2023-07-20", "open": 2580.0},
+      "expected": {"price_factor": 0.907859},
+      "kite": {"note": "Kite's history implies about 0.9532, i.e. RIL's announced cost-of-acquisition split (4.68 % to JIOFIN). We follow NSE's special pre-open price discovery: 2841.85 - 2580.00 = 261.85, JIOFIN's listing base price on 2023-08-21."}
+    },
+    {
+      "symbol": "ITC",
+      "isin": "INE154A01025",
+      "ex_date": "2025-01-06",
+      "nse_record": {"symbol": "ITC", "isin": "INE154A01025", "exDate": "06-Jan-2025", "faceVal": "1", "subject": "Demerger", "series": "EQ", "ndStartDate": "-"},
+      "prior": {"date": "2025-01-03", "close": 481.6},
+      "ex": {"date": "2025-01-06", "open": 455.6},
+      "expected": {"price_factor": 0.946013},
+      "kite": {"note": "ITC Hotels: 1 share per 10 ITC; 481.60 - 455.60 = 26.00 per ITC share, i.e. about Rs 260 per ITCHOTELS share."}
+    }
+  ]
+}

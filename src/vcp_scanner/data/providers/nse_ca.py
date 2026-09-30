@@ -25,12 +25,14 @@ _AMOUNT_RE = re.compile(r"(?:RS|RE|INR)\.?\s*(\d+(?:\.\d+)?)")
 # "Bonus 1:2", "Bonus Issue 1 : 1", or the reverse spelling "1:1 Bonus".
 _BONUS_AFTER_RE = re.compile(r"BONUS[^\d]*(\d+)\s*:\s*(\d+)")
 _BONUS_BEFORE_RE = re.compile(r"(\d+)\s*:\s*(\d+)\s*BONUS")
+# "Rights 1:14 @ Premium Rs 530/-", "Rights 1:19.07 @ Premium Rs 0", "Rights 21:20@ Premium ..."
+_RIGHTS_RE = re.compile(r"RIGHTS\s*(\d+(?:\.\d+)?)\s*:\s*(\d+(?:\.\d+)?)")
+_PREMIUM_RE = re.compile(r"PREMIUM\s*(?:(?:RS|RE|INR)\.?)?\s*(\d+(?:\.\d+)?)")
 # Price-affecting events this provider does not model. Dropping them silently would leave the
 # price series unadjusted with no trace, so they are reported instead (audit P1-2).
 _UNHANDLED_MARKERS = (
     "CONSOLIDAT",
     "REDUCTION",
-    "DEMERGER",
     "AMALGAMAT",
     "MERGER",
     "ARRANGEMENT",
@@ -45,6 +47,7 @@ def parse_ratio(text: str, action_type: CorporateActionType) -> tuple[float, flo
     * SPLIT: ``(old face value, new face value)``. Rs 10 -> Re 1 gives ``(10, 1)``, i.e. one
       share becomes ten and prices are multiplied by ``1/10``.
     * BONUS: ``(bonus shares, shares held)``. ``Bonus 1:2`` gives ``(1, 2)``.
+    * RIGHTS: ``(rights shares, shares held)``. ``Rights 1:14`` gives ``(1, 14)``.
 
     Returns ``None`` when the text does not contain a usable, positive ratio; callers must treat
     that as "ratio unknown", never as "no adjustment".
@@ -60,8 +63,11 @@ def parse_ratio(text: str, action_type: CorporateActionType) -> tuple[float, flo
         if old_fv <= 0 or new_fv <= 0 or old_fv == new_fv:
             return None
         return old_fv, new_fv
-    if action_type == CorporateActionType.BONUS:
-        m = _BONUS_AFTER_RE.search(upper) or _BONUS_BEFORE_RE.search(upper)
+    if action_type in (CorporateActionType.BONUS, CorporateActionType.RIGHTS):
+        if action_type == CorporateActionType.BONUS:
+            m = _BONUS_AFTER_RE.search(upper) or _BONUS_BEFORE_RE.search(upper)
+        else:
+            m = _RIGHTS_RE.search(upper)
         if m is None:
             return None
         num, den = float(m.group(1)), float(m.group(2))
@@ -69,6 +75,20 @@ def parse_ratio(text: str, action_type: CorporateActionType) -> tuple[float, flo
             return None
         return num, den
     return None
+
+
+def rights_issue_price(text: str, face_value: object) -> float | None:
+    """Rights issue price = face value + premium ("Rights 1:14 @ Premium Rs 530/-", face value 5
+    -> 535; BHARTIARTL 2021). None when either part is missing: the factor is then unknown.
+    """
+    m = _PREMIUM_RE.search(text.upper().replace("\u20b9", "RS"))
+    try:
+        fv = float(str(face_value))
+    except (TypeError, ValueError):
+        return None
+    if m is None or not fv > 0:
+        return None
+    return fv + float(m.group(1))
 
 
 class NSECorporateActionProvider:
@@ -166,7 +186,10 @@ class NSECorporateActionProvider:
 
             text = f"{subject} {purpose}"
             action_type = None
-            if "SPLIT" in text or "SUB-DIVISION" in text or "SUBDIVISION" in text:
+            if "DEMERGER" in text:
+                # Factor derived from the ex-date special pre-open price (audit step 2.4).
+                action_type = CorporateActionType.DEMERGER
+            elif "SPLIT" in text or "SUB-DIVISION" in text or "SUBDIVISION" in text:
                 action_type = CorporateActionType.SPLIT
             elif "BONUS" in text:
                 action_type = CorporateActionType.BONUS
@@ -191,9 +214,15 @@ class NSECorporateActionProvider:
             # "Face Value Split (Sub-Division) - From Rs 10/- Per Share To Re 1/- Per Share".
             ratio = parse_ratio(text, action_type)
             num, den = ratio if ratio else (None, None)
-            if ratio is None and action_type in (
+            cash_amount = None
+            if action_type == CorporateActionType.RIGHTS:
+                cash_amount = rights_issue_price(text, item.get("faceVal"))
+            if (
+                ratio is None or (action_type == CorporateActionType.RIGHTS and cash_amount is None)
+            ) and action_type in (
                 CorporateActionType.SPLIT,
                 CorporateActionType.BONUS,
+                CorporateActionType.RIGHTS,
             ):
                 # Kept (a split with an unknown ratio must stay visible to reconciliation) but
                 # never silent: without a ratio the adjustment engine applies factor 1.0.
@@ -229,6 +258,7 @@ class NSECorporateActionProvider:
                 ex_date=ex_date,
                 ratio_numerator=num,
                 ratio_denominator=den,
+                cash_amount=cash_amount,
                 source_record_id=item.get(
                     "ndStartDate"
                 ),  # Using their internal date as a weak ID if present

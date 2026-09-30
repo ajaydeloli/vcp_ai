@@ -603,3 +603,43 @@ files live in `data/spike/` (git-ignored, not committed).
 - `test_classify_missing` extended with the weekend rules.
 
 **Verification.** Full suite: 679 passed, 0 failed (was 673). `ruff check`, `ruff format --check`, `mypy --strict src` clean.
+
+## Step 2.4 — rights issues and demergers (D4) (2026-09-30)
+
+**Owner decisions.** DEMERGER is applied automatically when NSE's feed lists it, with factor = ex-date special pre-open price / prior close. RIGHTS uses TERP from NSE's text. Anything that cannot be derived stays blocked.
+
+**What NSE's feed says** (live, `data/spike/ca_samples.py`):
+- Demergers arrive as subject `Demerger` (RELIANCE 2023-07-20, ITC 2025-01-06, SAREGAMA, STAR).
+- Rights arrive as `Rights a:b @ Premium Rs X/-` plus `faceVal` (BHARTIARTL `1:14 @ Premium Rs 530/-`, face value 5).
+- Variants seen: `21:20@`, `1:19.07`, `Premium Rs 0`, and `Rights 613:399` with no premium.
+
+**Change.**
+- `domain/corporate_actions.py`:
+  - `PRICE_DERIVED_ACTIONS = {RIGHTS, DEMERGER}` and `ExDatePrices(prior_close, ex_open, raw)`;
+  - `derived_factor` (TERP for rights with volume factor 1/pf, and 1.0 when the issue price ≥ P; ex-open/prior-close for demergers with volume factor 1.0, rejecting O ≥ P and pf < 0.05);
+  - `factor_unknown` (only on raw prices);
+  - `explains_price_gap` now includes adjustable RIGHTS/DEMERGER.
+- `adjustment/engine.py`: `compute_factors(resolutions, ex_prices=None)`; `ex_date_prices(candles, ex_dates)` (raw only when both bars are `NSE_BHAVCOPY`); `CALCULATION_VERSION` 1.2.
+- `ca_worker`: optional `market` (bars) → ex-date prices → factors and `factor_unknown` events. `QualityScanner` derives the same events from the bars it already loads, so both sync the same event set.
+- `nse_ca`: `DEMERGER` is parsed (removed from the unhandled markers); rights ratio via `_RIGHTS_RE`; `rights_issue_price` = face value + premium. A rights record without a premium is listed in `unparsed_ratios`.
+- **Reconciliation.** When one source has several records for one key, values come from the most recently seen record and the grace period from the earliest. After this parser upgrade, existing DBs hold both the old record (no ratio) and the new one for the same rights issue.
+- **Policy change in an existing test.** A rights issue with an adjustable status now explains its gap (`test_quality_events`). A rights *conflict* still does not.
+
+**Real-data check** (`data/fix24.duckdb`: a copy of the Fix 5b DB plus bhavcopy windows 2021-09-20..30, 2023-07-17..21 and 2025-01-01..07, then `ingest corporate-actions` for the three stocks):
+- Resolutions: BHARTIARTL RIGHTS (1, 14, ₹535); RELIANCE and ITC DEMERGER, all SINGLE_SOURCE.
+- Factors: BHARTIARTL 0.98157064 (volume 1.01877538, the same as Kite's volume ratio 1.01877); ITC 0.94601329; RELIANCE 0.90785932 (cumulative 0.45393 with the 2024 bonus).
+- Adjusted series: RELIANCE and ITC ex-date open equals the adjusted prior close exactly (ratio 1.0000). For BHARTIARTL the ex-date open is 0.7 % above TERP, which is an ordinary market move.
+- The 4 UNEXPLAINED_GAP events in that DB (RELIANCE) are an artifact of the test setup: short raw bhavcopy windows sit between Kite bars that were already halved for the 2024 bonus. **Consequence for 2.6:** the migration must backfill bhavcopy over the whole history in one continuous run, never in patches.
+
+**Tests.** New `tests/unit/test_derived_factors.py` (22):
+- parsing: the real BHARTIARTL, RELIANCE and ITC records, plus 3 rights text variants;
+- math: TERP = Kite to 2e-5; demerger factors from the golden JSON; rights above market; 5 underivable cases;
+- no factor and no block on Kite prices;
+- `ex_date_prices` edge cases;
+- the engine combining a demerger with a bonus (cumulative);
+- `factor_unknown` blocks only on raw prices;
+- worker end-to-end: bhavcopy bars give RELIANCE a factor of 0.907859;
+- reconciliation using the newest record.
+Plus 2 gap-detector tests in `test_quality_events.py`.
+
+**Verification.** Full suite: 702 passed, 0 failed (was 679). `ruff check`, `ruff format --check`, `mypy --strict src` clean.

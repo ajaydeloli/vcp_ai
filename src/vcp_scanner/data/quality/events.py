@@ -2,13 +2,15 @@
 
 from __future__ import annotations
 
-from collections.abc import Sequence
-from datetime import datetime, timedelta
+from collections.abc import Mapping, Sequence
+from datetime import date, datetime, timedelta
 
 from vcp_scanner.domain.corporate_actions import (
     PRICE_SCALING_ACTIONS,
     CorporateActionResolution,
     CorporateActionStatus,
+    ExDatePrices,
+    factor_unknown,
     ratio_unknown,
 )
 from vcp_scanner.domain.enums import CorporateActionType, DataQualityFlag
@@ -22,8 +24,13 @@ def corporate_action_events(
     detected_at: datetime,
     *,
     conflict_blocks_signals: bool = True,
+    ex_prices: Mapping[date, ExDatePrices] | None = None,
 ) -> list[DataQualityEvent]:
     """CORPORATE_ACTION_UNRESOLVED events for the instrument's current resolutions.
+
+    A third cause (audit step 2.4): a rights issue or demerger on raw prices whose factor cannot
+    be derived from ``ex_prices`` (:func:`factor_unknown`). It always blocks from the ex-date,
+    like an unknown split ratio, because the adjusted series would keep the raw gap.
 
     Two causes, one event each:
 
@@ -52,6 +59,9 @@ def corporate_action_events(
             continue
         if ratio_unknown(r):
             events.append(_ratio_unknown_event(instrument_id, r, detected_at))
+            continue
+        if r.ex_date is not None and factor_unknown(r, (ex_prices or {}).get(r.ex_date)):
+            events.append(_factor_unknown_event(instrument_id, r, detected_at))
             continue
         if r.status is not CorporateActionStatus.PROVIDER_CONFLICT:
             continue
@@ -121,6 +131,42 @@ def _ratio_unknown_event(
             "cause": "ratio_unknown",
             "nse_action_id": r.nse_action_id,
             "upstox_action_id": r.upstox_action_id,
+        },
+        trade_date=r.ex_date,
+        blocks_signal=True,
+        dataset="corporate_actions",
+    )
+
+
+def _factor_unknown_event(
+    instrument_id: str, r: CorporateActionResolution, detected_at: datetime
+) -> DataQualityEvent:
+    """Blocking event for a rights issue / demerger whose factor cannot be derived (step 2.4)."""
+    ex = r.ex_date.isoformat() if r.ex_date else "unknown"
+    return DataQualityEvent(
+        event_id=make_event_id(
+            DataQualityFlag.CORPORATE_ACTION_UNRESOLVED,
+            instrument_id,
+            r.action_type.value,
+            ex,
+            "factor_unknown",
+        ),
+        instrument_id=instrument_id,
+        flag=DataQualityFlag.CORPORATE_ACTION_UNRESOLVED,
+        severity=EventSeverity.CRITICAL,
+        detected_at=detected_at,
+        description=(
+            f"{r.action_type.value} ex-date {ex} ({r.status.value}): no factor can be derived "
+            "(missing issue price / ratio, or no usable ex-date open); prices are left unadjusted"
+        ),
+        context={
+            "resolution_id": r.resolution_id,
+            "action_type": r.action_type.value,
+            "status": r.status.value,
+            "cause": "factor_unknown",
+            "ratio_numerator": r.ratio_numerator,
+            "ratio_denominator": r.ratio_denominator,
+            "cash_amount": r.cash_amount,
         },
         trade_date=r.ex_date,
         blocks_signal=True,

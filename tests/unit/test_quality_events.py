@@ -382,9 +382,12 @@ def _gap_resolution(
         _gap_resolution(num=float("nan"), den=1.0),
         _gap_resolution(status=CorporateActionStatus.PROVIDER_CONFLICT),  # factor withheld
         _gap_resolution(action_type=CorporateActionType.DIVIDEND, num=None, den=None),
-        _gap_resolution(action_type=CorporateActionType.RIGHTS),
+        _gap_resolution(
+            action_type=CorporateActionType.RIGHTS,
+            status=CorporateActionStatus.PROVIDER_CONFLICT,
+        ),
     ],
-    ids=["no-ratio", "zero-ratio", "nan-ratio", "conflict", "dividend", "rights"],
+    ids=["no-ratio", "zero-ratio", "nan-ratio", "conflict", "dividend", "rights-conflict"],
 )
 def test_gap_is_not_explained_by_an_action_that_does_not_adjust_prices(
     resolution: CorporateActionResolution,
@@ -621,3 +624,12 @@ def test_worker_without_repository_persists_nothing(store: DuckDBStore) -> None:
     assert worker.quality_events  # still reported in memory, as before
     count = store.conn.execute("SELECT COUNT(*) FROM data_quality_events").fetchone()
     assert count == (0,)
+
+
+@pytest.mark.parametrize("action_type", [CorporateActionType.RIGHTS, CorporateActionType.DEMERGER])
+def test_rights_and_demerger_explain_their_ex_date_gap(action_type: CorporateActionType) -> None:
+    """Audit step 2.4: their factor is derived from raw ex-date prices; when it cannot be, a
+    separate blocking CORPORATE_ACTION_UNRESOLVED event (cause factor_unknown) is raised."""
+    detector = GapDetector(UnexplainedGapConfig(gap_pct=30))
+    resolution = _gap_resolution(action_type=action_type, num=None, den=None)
+    assert detector.detect(_bars([(100, 100), (50, 50)]), [resolution], T0) == []

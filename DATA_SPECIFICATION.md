@@ -779,9 +779,26 @@ Ingestion (`vcp ingest bhavcopy --start D [--end D] [--refresh]`, step 2.3):
 - **Raw provenance** is the cached zip plus its sha256 in `bhavcopy_files`. Bhavcopy rows are not copied into `raw_ohlcv`.
 - **Crash safety.** The manifest row is written last, so an interrupted day is redone; identity is replayed from `daily_series`.
 
+Rights issues and demergers (step 2.4; owner decisions: automatic when NSE's feed lists the action, TERP for rights). With raw prices their ex-date gaps are visible, so they get factors (`domain.corporate_actions.derived_factor`, `CALCULATION_VERSION` 1.2):
+
+- **RIGHTS** `a:b` (NSE subject `Rights a:b @ Premium Rs X/-`):
+  - Issue price `S` = face value (`faceVal`) + premium, stored as `cash_amount`.
+  - With prior close `P`: `TERP = (b·P + a·S)/(a+b)`, price factor `TERP/P`, volume factor `P/TERP`.
+  - `S ≥ P` gives factor 1.0 (no bonus element).
+  - Check: BHARTIARTL 2021-09-27 (1:14 at ₹535, P 739.40) gives 0.98157; Kite's history implies 0.98156.
+- **DEMERGER** (NSE subject `Demerger`):
+  - Price factor = ex-date open / prior close. On the ex-date NSE runs a special pre-open session that discovers the parent's price without the demerged business. The volume factor is 1.0 because the share count does not change.
+  - RELIANCE 2023-07-20: 2580 / 2841.85 = 0.90786. The 261.85 difference is JIOFIN's listing base price.
+  - ITC 2025-01-06: 455.60 / 481.60 = 0.94601.
+  - Kite differs for RELIANCE (about 0.9532, from RIL's 4.68 % cost-of-acquisition split). We follow NSE's price discovery, the basis NSE used for its own index and F&O adjustments.
+- **When factors are derived.** Only from raw prices: both the prior bar and the ex-date bar must be `NSE_BHAVCOPY`. Provider-adjusted bars (Kite) already contain the action, so no factor is derived from them and no event is raised.
+- **Underivable on raw prices** (no issue price, as in `Rights 613:399`; no ex-date trade; open not below prior close; factor under 0.05): a blocking `CORPORATE_ACTION_UNRESOLVED` event (cause `factor_unknown`) from the ex-date.
+- **Gap detector.** An adjustable rights issue or demerger explains its ex-date gap, because either its factor or the `factor_unknown` block covers it.
+- **Pipeline order:** `ingest bhavcopy` → `ingest corporate-actions` (derives the factors from the stored bars) → `ingest adjusted-prices`.
+- **Other price-affecting actions** (consolidation, capital reduction, amalgamation, scheme of arrangement) are still reported as unhandled NSE records and left to the gap detector.
+
 Still to come in step 2 (see `AUDIT_FIX_LOG.md`):
 
-- demerger and rights factors (2.4);
 - Kite's provisional/cross-check role (2.5);
 - migration (2.6).
 

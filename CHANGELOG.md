@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (audit step 2.4: rights issues and demergers)
+- NSE corporate actions:
+  - `Demerger` records now parse as `DEMERGER` (they were dropped as unhandled);
+  - rights records carry their ratio `(a, b)` and issue price (face value + premium) in `cash_amount`.
+- `derived_factor` / `factor_unknown` / `ExDatePrices` (domain) and `adjustment.engine.ex_date_prices`:
+  - RIGHTS factor = TERP / prior close; the volume factor is its inverse;
+  - DEMERGER factor = ex-date open (NSE special pre-open) / prior close; volume factor 1.0;
+  - factors are derived only from raw bhavcopy bars.
+  - `CALCULATION_VERSION` 1.2.
+- `CorporateActionIngestionWorker(market=...)` derives these factors. The CLI passes the market repository.
+- An underivable factor on raw prices is a blocking `CORPORATE_ACTION_UNRESOLVED` event (cause `factor_unknown`), raised by both the corporate-action worker and the quality scan.
+- `tests/fixtures/corporate_actions/golden_derived_actions.json`: BHARTIARTL rights 2021, RELIANCE demerger 2023, ITC demerger 2025 (real NSE records and bhavcopy prices).
+
+### Changed (audit step 2.4)
+- The gap detector treats an adjustable rights issue or demerger as explaining its ex-date gap.
+- Reconciliation uses the most recently seen record of a source for its values (a parser upgrade re-reads the same NSE record with more detail) and the earliest one for the grace period.
+
 ### Added (audit step 2.3: bhavcopy ingestion)
 - `vcp ingest bhavcopy --start D [--end D] [--refresh] [--cache-dir]` (`BhavcopyIngestionWorker`) ingests NSE bhavcopy files day by day. It records the manifest and resolves identity. It writes final bars with `DuckDBMarketDataRepository.save_final_daily`, which is set-based and supersedes other providers' bars for the same session. It stops at the first PENDING or ERROR day, and re-runs are idempotent.
 - `domain.market.FINAL_PRICE_SOURCE = "NSE_BHAVCOPY"`.

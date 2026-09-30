@@ -10,26 +10,32 @@ from __future__ import annotations
 import bisect
 import hashlib
 import logging
-from collections.abc import Callable
+from collections.abc import Callable, Iterable, Mapping
 from datetime import date, datetime
 from decimal import Decimal
 from zoneinfo import ZoneInfo
 
 from vcp_scanner.data.schema import DailyPriceAdjustedRow
 from vcp_scanner.domain.corporate_actions import (
+    PRICE_DERIVED_ACTIONS,
+    PRICE_SCALING_ACTIONS,
     CorporateActionAdjustment,
     CorporateActionResolution,
+    ExDatePrices,
+    derived_factor,
     status_allows_adjustment,
 )
 from vcp_scanner.domain.enums import CorporateActionType
-from vcp_scanner.domain.market import PROVIDER_ADJUSTED_SOURCES, Candle
+from vcp_scanner.domain.market import FINAL_PRICE_SOURCE, PROVIDER_ADJUSTED_SOURCES, Candle
 
 logger = logging.getLogger(__name__)
 
 #: 1.1 (audit P0-1): factors are fetch-time aware for provider-adjusted sources. A bar from a
 #: provider in ``PROVIDER_ADJUSTED_SOURCES`` is only adjusted for actions whose ex-date is after
 #: both its trade date and its fetch date (IST); the provider already applied the earlier ones.
-CALCULATION_VERSION = "1.1"
+#: 1.2 (audit step 2.4): rights issues and demergers get factors derived from raw (bhavcopy)
+#: prices around their ex-date.
+CALCULATION_VERSION = "1.2"
 
 _IST = ZoneInfo("Asia/Kolkata")
 
@@ -61,12 +67,17 @@ class AdjustmentEngine:
     def compute_factors(
         self,
         resolutions: list[CorporateActionResolution],
+        ex_prices: Mapping[date, ExDatePrices] | None = None,
     ) -> list[CorporateActionAdjustment]:
         """Compute cumulative adjustment factors from a time-series of resolutions.
 
         Args:
             resolutions: All current resolutions for an instrument, in
                 any order (they will be sorted by ex_date internally).
+            ex_prices: Raw prices around ex-dates (:func:`ex_date_prices`). Rights issues and
+                demergers get a factor only when their ex-date has raw prices here and the
+                factor can be derived; otherwise they are left out (an underivable factor on
+                raw prices is reported as a blocking quality event, not guessed).
 
         Returns:
             List of CorporateActionAdjustment rows ordered by effective_date.
@@ -104,7 +115,12 @@ class AdjustmentEngine:
             group = sorted(by_date[ex_date], key=lambda r: (r.action_type.value, r.resolution_id))
             pf, vf = 1.0, 1.0
             for r in group:
-                single_pf, single_vf = self._compute_single_factor(r)
+                if r.action_type in PRICE_DERIVED_ACTIONS:
+                    prices = (ex_prices or {}).get(ex_date)
+                    derived = derived_factor(r, prices) if prices and prices.raw else None
+                    single_pf, single_vf = derived or (1.0, 1.0)
+                else:
+                    single_pf, single_vf = self._compute_single_factor(r)
                 pf *= single_pf
                 vf *= single_vf
 
@@ -269,12 +285,10 @@ class AdjustmentEngine:
         return lookup
 
     def _is_price_affecting(self, action_type: CorporateActionType) -> bool:
-        """SPLIT and BONUS affect price/volume. DIVIDEND is excluded until
-        special-dividend adjustment logic is implemented (see §18A)."""
-        return action_type in (
-            CorporateActionType.SPLIT,
-            CorporateActionType.BONUS,
-        )
+        """SPLIT and BONUS (ratio) and RIGHTS and DEMERGER (derived from raw prices) affect
+        price/volume. DIVIDEND is excluded: raw prices keep dividends (DATA_SPECIFICATION 21.2).
+        """
+        return action_type in PRICE_SCALING_ACTIONS or action_type in PRICE_DERIVED_ACTIONS
 
     def single_factor(self, resolution: CorporateActionResolution) -> tuple[float, float]:
         """Public (price_factor, volume_factor) of one action; (1.0, 1.0) if not applicable."""
@@ -301,3 +315,30 @@ class AdjustmentEngine:
 
         # Unrecognized or unhandled action type — no adjustment
         return 1.0, 1.0
+
+
+def ex_date_prices(candles: Iterable[Candle], ex_dates: Iterable[date]) -> dict[date, ExDatePrices]:
+    """Prices around each ex-date from an instrument's current raw bars (audit step 2.4).
+
+    ``prior_close`` is the close of the last bar before the ex-date and ``ex_open`` the open of
+    the bar on the ex-date itself (None if the stock did not trade that day). ``raw`` is True
+    only when both bars come from ``FINAL_PRICE_SOURCE``. Dates with no earlier bar are omitted.
+    """
+    ordered = sorted(candles, key=lambda c: c.timestamp)
+    days = [c.timestamp.date() for c in ordered]
+    out: dict[date, ExDatePrices] = {}
+    for ex in set(ex_dates):
+        i = bisect.bisect_left(days, ex)
+        if i == 0:
+            continue
+        prior = ordered[i - 1]
+        on_ex = ordered[i] if i < len(ordered) and days[i] == ex else None
+        raw = prior.provider == FINAL_PRICE_SOURCE and (
+            on_ex is None or on_ex.provider == FINAL_PRICE_SOURCE
+        )
+        out[ex] = ExDatePrices(
+            prior_close=prior.close,
+            ex_open=None if on_ex is None else on_ex.open,
+            raw=raw,
+        )
+    return out
