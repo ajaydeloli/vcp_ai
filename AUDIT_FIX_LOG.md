@@ -10,7 +10,7 @@ by the project owner before work starts.
 |---|---|---|---|
 | 1 | P0-3 | Gap safety net ignores non-applied actions; unknown split/bonus ratios block | Done |
 | 2 | P0-2 | Reconciliation policy: dividends/rights and primary-only actions | Done |
-| 3 | P1-9 | Reject NaN / zero / negative OHLC; NaN inputs are INSUFFICIENT_DATA | Pending |
+| 3 | P1-9 | Reject NaN / zero / negative OHLC; NaN inputs are INSUFFICIENT_DATA | Done |
 | 4 | P0-1 | Kite candles are provider-adjusted: stop double adjustment | Pending (needs live Kite check + sourcing decision) |
 | 5 | P1-1 | Seed `instruments`; first real end-to-end run; real golden fixtures | Pending |
 | 6 | P1-3 / P1-4 | Architecture boundary test covers real packages; package layout | Pending |
@@ -111,3 +111,35 @@ P1-2); NSE dividend amounts are still not parsed (not needed for correctness now
 
 **Verification.** Targeted: 106 passed. Full suite: 477 passed, 0 failed. `ruff check`,
 `ruff format --check`, `mypy --strict src` clean.
+
+---
+
+## Fix 3 — P1-9: non-finite and non-positive values
+
+**Problem.** `validate_ohlc` only checked orderings. NaN compares False with everything, so a
+NaN bar passed and reached `daily_prices`; zero and negative prices passed too. Downstream, a NaN
+close or SMA turned Trend Template conditions into a definite `False` → `FAIL` (violating "missing
+is not zero"), and NaN in RS sorted above every value in DuckDB, distorting all percentiles.
+
+**Change.**
+- `data/schema.py` `validate_ohlc`: rejects non-finite price/volume and any price <= 0. (Raw
+  audit copy in `raw_ohlcv` unchanged; the bar never reaches canonical data.)
+- `features/trend_template.py`: `_finite()` maps non-finite inputs to None before evaluation
+  (stored as NULL, status `INSUFFICIENT_DATA`); `close` extreme basis returns None if its window
+  contains a non-finite close.
+- `features/weekly_stage.py`: non-finite weekly close → `INSUFFICIENT_DATA` with NULL measurements.
+- `features/relative_strength.py`: non-finite returns become NULL (`isfinite` guard) → instrument
+  is `INSUFFICIENT_DATA` and excluded from the population.
+- Docs: DATA_SPECIFICATION §23, CHANGELOG.
+
+**Tests.** New `tests/unit/test_non_finite_values.py` (32 cases): bad bars rejected with reasons;
+valid/flat/zero-volume bars still pass; NaN bar never lands in `daily_prices`; each of 7 TT inputs ×
+{NaN, +inf, −inf} gives `INSUFFICIENT_DATA` with no non-finite value stored; weekly NaN close →
+`INSUFFICIENT_DATA`; RS with one NaN as-of close: that instrument NULL/INSUFFICIENT_DATA, the other
+four ranked over a population of 4. No existing test changed.
+
+**Not done here.** Existing NaN rows already in a live `daily_prices` are not purged (bitemporal;
+they are now neutralised downstream). A later `vcp ingest market --force` supersedes them.
+
+**Verification.** Full suite: 509 passed, 0 failed. `ruff check`, `ruff format --check`,
+`mypy --strict src` clean.

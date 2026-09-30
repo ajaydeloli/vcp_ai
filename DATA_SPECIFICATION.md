@@ -749,7 +749,11 @@ low <= open <= high
 low <= close <= high
 low <= high
 volume >= 0
+open, high, low, close > 0
+every price (and volume, when present) is a finite number
 ```
+
+The last two rules were added by audit P1-9 (2026-09-30): NaN compares False with everything, so a NaN bar used to pass all ordering tests. Downstream engines apply the same rule: a non-finite measurement is missing data (NULL, `INSUFFICIENT_DATA`), never a `FAIL`, a Stage, or an RS rank.
 
 Invalid records should not enter canonical data as valid records.
 

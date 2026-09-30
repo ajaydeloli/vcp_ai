@@ -87,8 +87,12 @@ class RelativeStrengthEngine:
             f"ON t0.instrument_id = w{k}.instrument_id"
             for k, n in enumerate(windows)
         )
+        # A non-finite return (NaN/inf from a bad adjusted close) is missing data, not a value:
+        # NULL keeps the instrument out of the ranking population (audit P1-9). Without this,
+        # NaN sorts above every number in DuckDB and distorts everyone's percentile.
         ret_sql = ",\n".join(
-            f"(t0.close_adj / NULLIF(w{k}.close_adj, 0)) - 1 AS ret_{k}"
+            f"CASE WHEN isfinite((t0.close_adj / NULLIF(w{k}.close_adj, 0)) - 1) "
+            f"THEN (t0.close_adj / NULLIF(w{k}.close_adj, 0)) - 1 END AS ret_{k}"
             for k in range(_RETURN_COLUMNS)
         )
         # NULL propagates: one missing return makes rs_raw NULL.

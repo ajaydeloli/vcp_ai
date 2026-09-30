@@ -12,6 +12,7 @@ Rules obeyed (AGENTS.md):
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass, field
 from datetime import date, datetime
 from decimal import Decimal
@@ -132,10 +133,23 @@ def validate_ohlc(
     """Return OHLCValidationResult for a single bar (DATA_SPECIFICATION §23).
 
     Rejects:
+        any non-finite price (NaN / inf) or volume, any price <= 0 (audit P1-9),
         low > open, low > close, low > high, open > high, close > high,
         volume < 0 (None is permitted — provider may omit volume).
+
+    NaN compares False with everything, so without the finiteness check a NaN bar passed every
+    ordering test and reached canonical data looking valid.
     """
-    failures: list[str] = []
+    prices = {"open": open_, "high": high, "low": low, "close": close}
+    non_finite = [f"{name} not finite" for name, v in prices.items() if not math.isfinite(v)]
+    if volume is not None and not math.isfinite(volume):
+        non_finite.append("volume not finite")
+    if non_finite:
+        return OHLCValidationResult(
+            is_valid=False, reason="; ".join(non_finite), rejected_fields=non_finite
+        )
+
+    failures: list[str] = [f"{name} <= 0" for name, v in prices.items() if v <= 0]
 
     if low > open_:
         failures.append("low > open")

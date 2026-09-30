@@ -25,6 +25,7 @@ Status semantics:
 
 from __future__ import annotations
 
+import math
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import date
@@ -63,6 +64,17 @@ class TrendInputs:
     rs_rank: int | None = None
 
 
+def _finite(value: float | None) -> float | None:
+    """``value`` if it is a finite number, else None (audit P1-9).
+
+    NaN compares False with everything, so a NaN input used to turn into a definite FAIL.
+    A non-finite number is missing data: NULL, and the verdict is unavailable.
+    """
+    if value is None or not math.isfinite(value):
+        return None
+    return value
+
+
 def _compare(
     measurement: float | None,
     threshold: float | None,
@@ -89,7 +101,16 @@ def evaluate_conditions(
     Comparison operators follow the spec table: conditions 1-7 are strict ``>``;
     conditions 8, 9 and 10 are inclusive ``>=``.
     """
-    i = inputs
+    i = TrendInputs(
+        close=_finite(inputs.close),
+        sma_50=_finite(inputs.sma_50),
+        sma_150=_finite(inputs.sma_150),
+        sma_200=_finite(inputs.sma_200),
+        sma_200_prior=_finite(inputs.sma_200_prior),
+        high_252=_finite(inputs.high_252),
+        low_252=_finite(inputs.low_252),
+        rs_rank=inputs.rs_rank,
+    )
     low_threshold = (
         i.low_252 * (1 + config.min_above_52w_low_pct / 100) if i.low_252 is not None else None
     )
@@ -248,8 +269,9 @@ class TrendTemplateEngine:
 
         if cfg.extreme_basis == "close":
             window = [c.close for c in closes[:SESSIONS_52W]]
-            high_252: float | None = max(window)
-            low_252: float | None = min(window)
+            clean = all(math.isfinite(v) for v in window)  # max/min over NaN are unreliable
+            high_252: float | None = max(window) if clean else None
+            low_252: float | None = min(window) if clean else None
         else:
             high_252, low_252 = latest.high_252, latest.low_252
 

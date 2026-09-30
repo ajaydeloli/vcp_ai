@@ -22,6 +22,7 @@ also need the prior SMA, so a flat SMA without it is INSUFFICIENT_DATA rather th
 
 from __future__ import annotations
 
+import math
 from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import date, timedelta
@@ -57,6 +58,11 @@ def classify_weekly_stage(closes: Sequence[float], config: StageConfig) -> Stage
     """Classify from weekly closes ordered oldest -> newest; the last is the current week."""
     n = config.sma_weeks
     band = config.flat_band_pct
+
+    # A non-finite close would poison every SMA it touches and compare False everywhere
+    # (audit P1-9): that is missing data, not a stage.
+    if not all(math.isfinite(c) for c in closes):
+        return StageComputation(WeeklyStage.INSUFFICIENT_DATA, None, None, None)
 
     def sma_back(weeks_back: int) -> float | None:
         end = len(closes) - weeks_back

@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed (audit 2026-09-30 P1-9, non-finite and non-positive values)
+- `validate_ohlc` rejects NaN/inf prices or volume and any price <= 0. Rejected bars stay in `raw_ohlcv` for audit but never reach `daily_prices`. Why: NaN compared False with every ordering rule, so NaN bars looked valid.
+- Trend Template: a non-finite input is stored as NULL and the result is `INSUFFICIENT_DATA`, not `FAIL`; the `close` extreme basis ignores a window containing a non-finite close. Weekly Stage returns `INSUFFICIENT_DATA` for a non-finite weekly close. RS stores non-finite returns as NULL, so the instrument is `INSUFFICIENT_DATA` and leaves the ranking population instead of sorting NaN above every value.
+
 ### Fixed (audit 2026-09-30 P0-2, reconciliation policy)
 - Cash amounts are compared only when both sources report one (tolerance half a paisa). NSE's feed carries no parsed amount, so every dividend reported by both NSE and Upstox used to become `PROVIDER_CONFLICT`.
 - Only SPLIT/BONUS conflicts block signals. DIVIDEND/RIGHTS conflicts are still recorded (`CORPORATE_ACTION_UNRESOLVED`, severity WARNING) but never gate the universe, RS or Trend Template.
