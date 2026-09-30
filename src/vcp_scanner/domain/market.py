@@ -170,3 +170,21 @@ class SurveillanceRecord:
     valid_to: date | None = None
     source: str | None = None
     extra: dict[str, str] = field(default_factory=dict)
+
+
+@dataclass(frozen=True, slots=True)
+class IdentifierPeriod:
+    """A span of trading days during which an instrument traded as (symbol, ISIN).
+
+    ``valid_to`` is exclusive (the first session under the next identifiers) and ``None``
+    while current. ``change_reason`` says what opened the period: ``FIRST_SEEN``,
+    ``ISIN_CHANGE``, ``SYMBOL_CHANGE`` or both joined by ``+`` (audit step 2.2).
+    """
+
+    instrument_id: str
+    symbol: str
+    isin: str
+    valid_from: date
+    valid_to: date | None = None
+    change_reason: str = "FIRST_SEEN"
+    source: str = "NSE_BHAVCOPY"

@@ -358,6 +358,9 @@ def run_corporate_actions(args: argparse.Namespace) -> int:
     from vcp_scanner.data.repositories.duckdb_corporate_action_repository import (
         DuckDBCorporateActionRepository,
     )
+    from vcp_scanner.data.repositories.duckdb_identity_repository import (
+        DuckDBIdentityRepository,
+    )
     from vcp_scanner.data.repositories.duckdb_instrument_repository import (
         DuckDBInstrumentRepository,
         DuckDBInstrumentResolver,
@@ -435,6 +438,7 @@ def run_corporate_actions(args: argparse.Namespace) -> int:
             DuckDBDataQualityRepository(store),
             GapDetector(ca_cfg.unexplained_gap),
             conflict_blocks_signals=ca_cfg.conflict_blocks_signals,
+            identity=DuckDBIdentityRepository(store),
         ).scan(scan_ids, detected_at=datetime.now(UTC))
         print(
             f"Data-quality scan: {summary.instruments} instrument(s), "
@@ -619,6 +623,9 @@ def run_quality_scan(args: argparse.Namespace) -> int:
     from vcp_scanner.data.repositories.duckdb_corporate_action_repository import (
         DuckDBCorporateActionRepository,
     )
+    from vcp_scanner.data.repositories.duckdb_identity_repository import (
+        DuckDBIdentityRepository,
+    )
     from vcp_scanner.data.repositories.duckdb_market_repository import (
         DuckDBMarketDataRepository,
     )
@@ -641,11 +648,13 @@ def run_quality_scan(args: argparse.Namespace) -> int:
             DuckDBDataQualityRepository(store),
             GapDetector(ca_cfg.unexplained_gap),
             conflict_blocks_signals=ca_cfg.conflict_blocks_signals,
+            identity=DuckDBIdentityRepository(store),
         ).scan(ids, detected_at=datetime.now(UTC))
     print("Data-quality scan complete:")
     print(f"  Instruments scanned     : {summary.instruments}")
     print(f"  Unexplained gaps        : {summary.gap_events}")
     print(f"  Corporate-action conflicts: {summary.conflict_events}")
+    print(f"  Unexplained ISIN changes: {summary.identity_events}")
     print(f"  Blocking signals        : {summary.blocking}")
     print(f"  New events              : {summary.opened}")
     print(f"  Cleared automatically   : {summary.resolved}")

@@ -747,10 +747,23 @@ Source (`data/providers/nse_bhavcopy.py`):
 - **Rate limit:** at least 1 s between requests. A file takes about 1.2–1.5 s and is 70–210 KB.
 - **`PREVCLOSE` is not adjusted** on corporate-action ex-dates (verified on 7 splits/bonuses and the RELIANCE demerger). It is kept for reference and must not be used as an adjustment factor.
 - **ISINs change 0–1 trading day after a face-value split.** Identity therefore follows symbol continuity, with an ISIN history (step 2.2).
+- **ETFs and other fund units** trade in series EQ with `INF...` ISINs, and partly-paid shares carry `IN9...`. Only company equity (`INE...`, `EQUITY_ISIN_PREFIX`) is kept; the rest is counted under `"<series>:<prefix>"`.
+
+Identity (`data/ingestion/bhavcopy_identity.py`, step 2.2). Days are resolved in date order and each row is matched as follows:
+
+1. **ISIN already seen** (in any identifier period, or `instruments.isin`): the row goes to that instrument.
+2. **Unseen ISIN, same symbol and same issuer** (`same_issuer_equity`: ISIN characters 1–9 equal, i.e. the same issuer's equity shares) as an instrument now trading under that symbol, or a seeded instrument with that symbol and no history yet: the row goes to the same instrument, recorded as an `ISIN_CHANGE`.
+3. **Otherwise:** a new instrument `NSE_EQ|SYMBOL`. If that ID is held by a different issuer (NSE reused the symbol), the new ID is `NSE_EQ|SYMBOL#ISIN`.
+
+Storage and follow-up:
+
+- New instruments are inserted **inactive**. The security master activates them if EQUITY_L lists them. Delisted names and SME stocks (which are not in EQUITY_L) stay inactive.
+- `instrument_identifier_history` holds one row per span of sessions under one (symbol, ISIN). `valid_to` is exclusive, and `change_reason` is `FIRST_SEEN` / `ISIN_CHANGE` / `SYMBOL_CHANGE`.
+- `daily_series` maps every kept row of every day to its instrument and series. Re-running a day replays that mapping. A re-run with rows the first run did not have, or a day earlier than the last one resolved, is refused.
+- The quality scan raises `SYMBOL_MAPPING_UNCERTAIN` (a WARNING that never blocks) for an ISIN change with no split whose ex-date falls between 7 days before and 1 day after it.
 
 Still to come in step 2 (see `AUDIT_FIX_LOG.md`):
 
-- identity and `isin_history` (2.2);
 - daily-file ingestion and precedence over Kite bars (2.3);
 - demerger and rights factors (2.4);
 - Kite's provisional/cross-check role (2.5);

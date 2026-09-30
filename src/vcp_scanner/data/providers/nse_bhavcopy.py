@@ -43,6 +43,7 @@ from urllib3.util.retry import Retry
 
 from vcp_scanner.data.schema import validate_ohlc
 from vcp_scanner.domain.bhavcopy import (
+    EQUITY_ISIN_PREFIX,
     EQUITY_SERIES,
     BhavcopyFileStatus,
     BhavcopyFormat,
@@ -176,7 +177,9 @@ def parse_bhavcopy(
 ) -> ParsedBhavcopy:
     """Parse a bhavcopy zip for ``trade_date``.
 
-    Rows outside ``series`` are counted in ``skipped_series``. Rows that fail to parse or fail
+    Rows outside ``series``, and rows in those series whose ISIN is not a company's equity
+    (``INE...``; ETFs trade in EQ with ``INF...``), are counted in ``skipped_series`` (the
+    latter under ``"<series>:<ISIN prefix>"``). Rows that fail to parse or fail
     :func:`validate_ohlc`, and repeated (symbol, series) pairs, go to ``rejected`` with a
     reason. A file whose layout or session date is wrong raises :class:`ProviderError`: it is
     not the file that was asked for.
@@ -209,6 +212,12 @@ def parse_bhavcopy(
         symbol, ser = row.get(columns["symbol"], ""), row.get(columns["series"], "")
         if ser not in series:
             skipped[ser] = skipped.get(ser, 0) + 1
+            continue
+        isin = row.get(columns["isin"], "")
+        if isin and not isin.startswith(EQUITY_ISIN_PREFIX):
+            # ETFs and other fund units trade in EQ too; they carry INF... ISINs.
+            key = f"{ser}:{isin[:3]}"
+            skipped[key] = skipped.get(key, 0) + 1
             continue
 
         try:

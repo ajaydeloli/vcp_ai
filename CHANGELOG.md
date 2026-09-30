@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (audit step 2.2: identity for bhavcopy history)
+- `data/ingestion/bhavcopy_identity.py` maps each day's bhavcopy rows to permanent instruments. It matches by known ISIN first, then by same symbol and same issuer when the ISIN changes after a face-value split. Otherwise it creates a new, inactive instrument, disambiguated as `NSE_EQ|SYMBOL#ISIN` when NSE reused the symbol. Re-runs replay the stored mapping.
+- Tables `instrument_identifier_history` (symbol/ISIN periods) and `daily_series` (per-day instrument and series), plus `DuckDBIdentityRepository`.
+- `identity.same_issuer_equity`; `mint_instrument_id(..., disambiguator=)`.
+- Quality scan: `SYMBOL_MAPPING_UNCERTAIN` warning for ISIN changes that no split explains.
+- `DuckDBStore.insert_rows`: bulk insert through Arrow. Writing one day (~3,400 rows) went from 24 s with `executemany` to 0.1 s.
+
+### Changed (audit step 2.2)
+- The bhavcopy parser skips non-company-equity ISINs (ETFs `INF...` and partly-paid `IN9...`, which trade in series EQ/BZ). On 2026-09-29 that is 350 ETF rows.
+
 ### Added (audit step 2.1: NSE bhavcopy as the raw price source)
 - `data/providers/nse_bhavcopy.py`:
   - `NseBhavcopyProvider` downloads NSE capital-market bhavcopy files in both layouts (legacy up to 2024-07-05, UDiFF from 2024-07-08). Each zip is cached unchanged with its sha256, and requests are rate-limited (1 s).

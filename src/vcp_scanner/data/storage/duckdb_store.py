@@ -12,6 +12,7 @@ Rules obeyed (AGENTS.md):
 from __future__ import annotations
 
 import logging
+from collections.abc import Sequence
 from pathlib import Path
 
 from vcp_scanner.domain.snapshot import LIVE_SNAPSHOT_ID
@@ -495,6 +496,38 @@ CREATE TABLE IF NOT EXISTS bhavcopy_files (
 )
 """
 
+
+# Identifier history (audit step 2.2): the (symbol, ISIN) an instrument traded under, per span
+# of sessions. valid_to is exclusive (first session under the next identifiers). Rebuilt from
+# bhavcopy files; ISINs change after face-value splits, symbols on renames.
+_DDL_INSTRUMENT_IDENTIFIER_HISTORY = """
+CREATE TABLE IF NOT EXISTS instrument_identifier_history (
+    instrument_id   VARCHAR     NOT NULL,
+    symbol          VARCHAR     NOT NULL,
+    isin            VARCHAR     NOT NULL,
+    valid_from      DATE        NOT NULL,
+    valid_to        DATE,
+    change_reason   VARCHAR     NOT NULL,
+    source          VARCHAR     NOT NULL,
+    recorded_at     TIMESTAMPTZ NOT NULL,
+    PRIMARY KEY (instrument_id, valid_from)
+)
+"""
+
+# Per-day mapping of every kept bhavcopy row to its instrument (audit step 2.2): the series a
+# stock traded in on each day (EQ / BE / BZ / SM / ST), for point-in-time universe rules.
+_DDL_DAILY_SERIES = """
+CREATE TABLE IF NOT EXISTS daily_series (
+    trade_date      DATE        NOT NULL,
+    symbol          VARCHAR     NOT NULL,
+    series          VARCHAR     NOT NULL,
+    instrument_id   VARCHAR     NOT NULL,
+    isin            VARCHAR     NOT NULL,
+    recorded_at     TIMESTAMPTZ NOT NULL,
+    PRIMARY KEY (trade_date, symbol, series)
+)
+"""
+
 _ALL_DDL: list[tuple[str, str]] = [
     ("instruments", _DDL_INSTRUMENTS),
     ("provider_instruments", _DDL_PROVIDER_INSTRUMENTS),
@@ -519,6 +552,8 @@ _ALL_DDL: list[tuple[str, str]] = [
     ("trend_template_conditions", _DDL_TREND_TEMPLATE_CONDITIONS),
     ("weekly_context", _DDL_WEEKLY_CONTEXT),
     ("bhavcopy_files", _DDL_BHAVCOPY_FILES),
+    ("instrument_identifier_history", _DDL_INSTRUMENT_IDENTIFIER_HISTORY),
+    ("daily_series", _DDL_DAILY_SERIES),
 ]
 
 
@@ -568,6 +603,36 @@ class DuckDBStore:
     # ------------------------------------------------------------------
     # Schema migration
     # ------------------------------------------------------------------
+
+    def insert_rows(
+        self,
+        table: str,
+        columns: Sequence[str],
+        rows: Sequence[Sequence[object]],
+        *,
+        ignore_conflicts: bool = False,
+    ) -> int:
+        """Bulk-insert ``rows`` into ``table`` through an Arrow table.
+
+        ``executemany`` inserts row by row (about 24 s for one bhavcopy day of ~3,400 rows);
+        a registered Arrow table inserts the same rows in milliseconds. Column types come from
+        the target table, so values only need to be castable to them. ``ignore_conflicts``
+        skips rows whose key already exists (``INSERT OR IGNORE``).
+        """
+        if not rows:
+            return 0
+        import pyarrow as pa  # type: ignore[import-untyped]  # noqa: PLC0415
+
+        data = {c: [r[i] for r in rows] for i, c in enumerate(columns)}
+        view = f"_bulk_{table}"
+        self.conn.register(view, pa.table(data))
+        try:
+            cols = ", ".join(columns)
+            verb = "INSERT OR IGNORE" if ignore_conflicts else "INSERT"
+            self.conn.execute(f"{verb} INTO {table} ({cols}) SELECT {cols} FROM {view}")
+        finally:
+            self.conn.unregister(view)
+        return len(rows)
 
     def migrate(self) -> None:
         """Create all Phase 1 tables if they do not exist (idempotent).

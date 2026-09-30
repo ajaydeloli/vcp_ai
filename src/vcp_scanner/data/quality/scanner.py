@@ -18,9 +18,10 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import date, datetime
 
-from vcp_scanner.data.quality.events import corporate_action_events
+from vcp_scanner.data.quality.events import corporate_action_events, identity_events
 from vcp_scanner.data.reconciliation.gap_detector import GapDetector
 from vcp_scanner.data.repositories.base import CorporateActionRepository
+from vcp_scanner.data.repositories.duckdb_identity_repository import DuckDBIdentityRepository
 from vcp_scanner.data.repositories.duckdb_market_repository import DuckDBMarketDataRepository
 from vcp_scanner.data.repositories.duckdb_quality_repository import DuckDBDataQualityRepository
 from vcp_scanner.domain.enums import DataQualityFlag
@@ -34,6 +35,7 @@ class ScanSummary:
     instruments: int = 0
     gap_events: int = 0  # unexplained gaps currently detected
     conflict_events: int = 0  # unresolved corporate-action conflicts currently detected
+    identity_events: int = 0  # ISIN changes no split explains (warnings, audit step 2.2)
     blocking: int = 0  # of those, how many block signals
     opened: int = 0  # events seen for the first time in this scan
     resolved: int = 0  # events closed because their condition cleared
@@ -48,12 +50,14 @@ class QualityScanner:
         gap_detector: GapDetector,
         *,
         conflict_blocks_signals: bool = True,
+        identity: DuckDBIdentityRepository | None = None,
     ) -> None:
         self._market = market
         self._ca = corporate_actions
         self._quality = quality
         self._gaps = gap_detector
         self._conflict_blocks = conflict_blocks_signals
+        self._identity = identity
 
     def scan(self, instrument_ids: Sequence[str], *, detected_at: datetime) -> ScanSummary:
         """Scan each instrument independently. ``detected_at`` is injected (no clock reads)."""
@@ -85,11 +89,27 @@ class QualityScanner:
             conflict_events,
             at=detected_at,
         )
+        id_events = []
+        opened = gap_sync.opened + conflict_sync.opened
+        resolved = gap_sync.resolved + conflict_sync.resolved
+        if self._identity is not None:
+            id_events = identity_events(
+                instrument_id,
+                self._identity.load_periods(instrument_id),
+                resolutions,
+                detected_at,
+            )
+            id_sync = self._quality.sync_events(
+                instrument_id, DataQualityFlag.SYMBOL_MAPPING_UNCERTAIN, id_events, at=detected_at
+            )
+            opened += id_sync.opened
+            resolved += id_sync.resolved
         return ScanSummary(
             instruments=1,
             gap_events=len(gap_events),
             conflict_events=len(conflict_events),
-            blocking=sum(e.blocks_signal for e in [*gap_events, *conflict_events]),
-            opened=gap_sync.opened + conflict_sync.opened,
-            resolved=gap_sync.resolved + conflict_sync.resolved,
+            identity_events=len(id_events),
+            blocking=sum(e.blocks_signal for e in [*gap_events, *conflict_events, *id_events]),
+            opened=opened,
+            resolved=resolved,
         )

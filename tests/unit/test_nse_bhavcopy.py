@@ -283,3 +283,14 @@ def test_manifest_updates_missing_dates_in_place_and_keeps_file_versions() -> No
     count = store.conn.execute("SELECT count(*) FROM bhavcopy_files").fetchone()
     assert count == (3,)
     assert repo.latest_files(date(2026, 9, 1), date(2026, 9, 28)) == {}
+
+
+def test_etf_units_in_equity_series_are_skipped() -> None:
+    text = (
+        LEGACY_HEADER
+        + _legacy_row("STOCK", "10", "11", "9", "10.5")
+        + "NIFTYBEES,EQ,10,11,9,10,10,10,100,1000,28-JUL-2022,10,INF204KB14I2,\n"
+    )
+    parsed = parse_bhavcopy(LEGACY_DAY, _zip(text))
+    assert [r.symbol for r in parsed.rows] == ["STOCK"]
+    assert parsed.skipped_series == {"EQ:INF": 1}

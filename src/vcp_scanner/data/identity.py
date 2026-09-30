@@ -21,16 +21,41 @@ from typing import Protocol, runtime_checkable
 _SEPARATOR = "|"
 
 
-def mint_instrument_id(exchange: str, symbol: str) -> str:
-    """Mint the canonical ID for an instrument seen for the first time."""
-    return f"{exchange.strip().upper()}_EQ{_SEPARATOR}{symbol.strip().upper()}"
+_DISAMBIGUATOR = "#"
+
+
+def mint_instrument_id(exchange: str, symbol: str, *, disambiguator: str | None = None) -> str:
+    """Mint the canonical ID for an instrument seen for the first time.
+
+    ``disambiguator`` (the ISIN) is only used when the plain ID is already held by a
+    different company: NSE reuses symbols after a delisting, and the bhavcopy history
+    (audit step 2.2) sees both companies. Such IDs read ``NSE_EQ|SYMBOL#ISIN``.
+    """
+    base = f"{exchange.strip().upper()}_EQ{_SEPARATOR}{symbol.strip().upper()}"
+    if disambiguator:
+        return f"{base}{_DISAMBIGUATOR}{disambiguator.strip().upper()}"
+    return base
 
 
 def symbol_from_instrument_id(instrument_id: str) -> str | None:
     """Inverse of ``mint_instrument_id``. ``None`` if the ID is not in minted form."""
     if _SEPARATOR not in instrument_id:
         return None
-    return instrument_id.split(_SEPARATOR, 1)[1] or None
+    return instrument_id.split(_SEPARATOR, 1)[1].split(_DISAMBIGUATOR, 1)[0] or None
+
+
+def same_issuer_equity(isin_a: str | None, isin_b: str | None) -> bool:
+    """True when two Indian ISINs are the same issuer's equity shares.
+
+    An Indian ISIN is ``IN`` + issuer type (1) + issuer code (4) + security type (2) +
+    serial (2) + check digit. A face-value split keeps everything up to the security type
+    and changes the serial (TATASTEEL INE081A01012 -> INE081A01020, 2022). A different
+    company reusing a symbol has a different issuer code. Differential-voting shares share
+    the prefix too, so callers must also require the same symbol.
+    """
+    if not isin_a or not isin_b or len(isin_a) != 12 or len(isin_b) != 12:
+        return False
+    return isin_a[:9].upper() == isin_b[:9].upper()
 
 
 _ACTION_ID_NAMESPACE = uuid.UUID("6f0c1f4e-3b0a-4d6e-9a53-0d1f6b7f3c11")

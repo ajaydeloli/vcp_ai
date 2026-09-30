@@ -547,3 +547,26 @@ files live in `data/spike/` (git-ignored, not committed).
 - manifest upsert and versioning.
 
 **Verification.** Full suite: 659 passed, 0 failed (was 643). `ruff check`, `ruff format --check`, `mypy --strict src` clean.
+
+## Step 2.2 — identity: symbol continuity, ISIN history, delisted names (2026-09-30)
+
+**Change.**
+- `data/ingestion/bhavcopy_identity.py` is a pure resolver (state in, changes out). It works in the three steps below and is order-enforced: a day at or before the last resolved one must be replayed from `daily_series`, and a replay with new rows raises `IdentityOrderError`.
+  1. A known ISIN goes to its instrument; a changed symbol or ISIN closes the open period and opens a new one.
+  2. An unknown ISIN with the same symbol and the same issuer (ISIN characters 1–9) goes to the same instrument as an `ISIN_CHANGE`. A seeded EQUITY_L instrument with no history is adopted by symbol if its ISIN is the same issuer's or missing.
+  3. Otherwise a new inactive instrument is created, disambiguated with `#ISIN` when NSE reused the symbol for another issuer.
+- `data/identity.py`: `same_issuer_equity`; `mint_instrument_id(disambiguator=)`; `symbol_from_instrument_id` strips the disambiguator.
+- Tables `instrument_identifier_history` (PK instrument_id + valid_from, `valid_to` exclusive) and `daily_series` (PK trade_date + symbol + series), plus `DuckDBIdentityRepository` (`load_state`, `load_day_mapping`, `load_periods`, and `apply`, which writes a day in one transaction).
+- Quality: `identity_events` → `SYMBOL_MAPPING_UNCERTAIN`. It is a WARNING that never blocks, raised when an ISIN change has no SPLIT with ex-date between 7 days before and 1 day after it. It is wired into `QualityScanner` (optional `identity=`) and both CLI scan paths, which print the count.
+- `DuckDBStore.insert_rows` does bulk inserts via Arrow (`INSERT` or `INSERT OR IGNORE`). This also points at D3: other repositories still use `executemany`, which is the likely cause of the ~8 s per stock adjust time (to check in 2.3).
+- **Small fix found by the real-data check (per the owner rule):** series EQ also carries ETFs (`INF...` ISINs, 350 rows on 2026-09-29) and partly-paid shares (`IN9...`). They are now skipped; only `INE...` is kept (`EQUITY_ISIN_PREFIX`). Before the fix, 12 ETFs were minted with `#ISIN` ids because their ISINs change on unit splits.
+
+**Real-data check** (`data/spike/identity_check.py`, not committed): 70 cached real days (2021-01-01, then 2021-10 to 2022-09, 2023, 2024–2026), seeded with the 2,592 EQUITY_L instruments from `data/fix5b.duckdb`.
+- Results: 808 new inactive instruments (delisted names and SME stocks not in EQUITY_L), 269 ISIN changes, 148 symbol changes, 0 disambiguated IDs, 0 rejected rows.
+- Spot checks match known events: ADANIGAS→ATGL, MAGMA→POONAWALLA and JUBILANT→JUBLPHARMA renames (2021); AFFLE, CESC and KPRMILL split ISIN changes (2021); TATASTEEL and IRCTC linked across their splits.
+
+**Tests.**
+- New `tests/unit/test_bhavcopy_identity.py` (13): seed adopts the old ISIN and then records the split ISIN change (TATASTEEL, real ISINs); IRCTC ISIN change with no seed; a symbol reused by another issuer gets `#ISIN`; the old company is not merged into today's holder of its symbol; a delisted name becomes inactive (daily_series keeps BE); symbol rename; DVR shares stay separate; order and replay rules; real files for 2022-07-28 and 2026-09-29 link TATASTEEL across the split; ISIN change explained vs unexplained.
+- Plus 1 ETF-skip test in `test_nse_bhavcopy.py`.
+
+**Verification.** Full suite: 673 passed, 0 failed (was 659). `ruff check`, `ruff format --check`, `mypy --strict src` clean.

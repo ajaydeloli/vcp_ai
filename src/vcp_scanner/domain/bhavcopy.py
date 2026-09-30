@@ -14,6 +14,9 @@ from enum import StrEnum
 # Series kept by the ingest (owner decision, step 2): normal equity (EQ), trade-for-trade
 # (BE, BZ) and SME (SM, ST). Debt, ETF-like and government series are dropped at parse time.
 EQUITY_SERIES: frozenset[str] = frozenset({"EQ", "BE", "BZ", "SM", "ST"})
+# Company equity ISINs start with INE. ETFs and other fund units also trade in series EQ but
+# carry INF... ISINs; the scanner is for stocks, so they are skipped (2.2 real-data check).
+EQUITY_ISIN_PREFIX = "INE"
 
 
 class BhavcopyFormat(StrEnum):
