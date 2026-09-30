@@ -15,6 +15,7 @@ from vcp_scanner.config import (
     RSConfig,
     ScannerConfig,
     ScoringConfig,
+    StrategyConfig,
     TierClassificationConfig,
     TrendTemplateConfig,
     VCPThresholdsConfig,
@@ -104,9 +105,9 @@ def test_normalization_bounds_worst_equals_best_rejection() -> None:
 
 
 def test_vcp_contractions_range_validation() -> None:
-    # max_contractions must be >= min_contractions
+    # contractions.max must be >= contractions.min
     with pytest.raises(ValidationError):
-        VCPThresholdsConfig(min_contractions=4, max_contractions=2)
+        VCPThresholdsConfig(contractions={"min": 4, "max": 2})
 
 
 def test_classification_tier_hierarchy_validation() -> None:
@@ -117,3 +118,91 @@ def test_classification_tier_hierarchy_validation() -> None:
             vcp=TierClassificationConfig(min_contractions=3, max_final_contraction_pct=10.0),
             vcp_like=TierClassificationConfig(min_contractions=2, max_final_contraction_pct=20.0),
         )
+
+
+# ---------------------------------------------------------------------------
+# Audit Fix 7: vcp / classification follow VCP_SPECIFICATION section 60 exactly
+# ---------------------------------------------------------------------------
+
+SPEC_60_VCP = {
+    "contractions": {"min": 2, "max": 6},
+    "swing": {"left_bars": 5, "right_bars": 5, "min_depth_pct": 2.0, "min_duration_days": 3},
+    "progressive_tolerance_pct": 10.0,
+    "volatility": {"atr_period": 14, "contraction_ratio_max": 0.80},
+    "volume": {"short_period": 5, "medium_period": 20, "long_period": 50, "dryup_ratio": 0.70},
+    "pivot": {"max_distance_pct": 3.0, "right_side_window_days": 10,
+              "max_right_side_range_pct": 5.0},
+    "confirmation": {"allow_provisional_final_contraction": True,
+                     "include_provisional_in_ranking": False},
+}  # fmt: skip
+
+SPEC_60_CLASSIFICATION = {
+    "a_plus": {"min_contractions": 3, "max_contractions": 6, "max_final_contraction_pct": 8.0,
+               "require_progressive_tightening": True, "require_volume_dryup": True,
+               "require_volatility_contraction": True, "require_tight_pivot": True},
+    "vcp": {"min_contractions": 2, "max_contractions": 6, "max_final_contraction_pct": 12.0,
+            "require_progressive_tightening": True, "require_volume_dryup": False,
+            "require_volatility_contraction": False, "require_tight_pivot": True},
+    "vcp_like": {"min_contractions": 2, "max_contractions": None,
+                 "max_final_contraction_pct": 15.0,
+                 "require_progressive_tightening": False, "require_volume_dryup": False,
+                 "require_volatility_contraction": False, "require_tight_pivot": False},
+}  # fmt: skip
+
+
+def test_shipped_yaml_and_defaults_equal_spec_section_60() -> None:
+    cfg = load_scanner_config("config").strategy
+    assert cfg.vcp.model_dump() == SPEC_60_VCP
+    assert cfg.classification.model_dump() == SPEC_60_CLASSIFICATION
+    assert VCPThresholdsConfig().model_dump() == SPEC_60_VCP
+    assert ClassificationConfig().model_dump() == SPEC_60_CLASSIFICATION
+
+
+def test_spec_section_60_yaml_block_is_accepted_verbatim() -> None:
+    """The exact YAML in VCP_SPECIFICATION section 60 must validate (no key is rejected)."""
+    import re
+    from pathlib import Path
+
+    import yaml
+
+    spec = (Path(__file__).resolve().parents[2] / "VCP_SPECIFICATION.md").read_text()
+    section = spec[spec.index("# 60. Initial Configuration") :]
+    block = re.search(r"```yaml\n(.*?)```", section, re.S)
+    assert block is not None
+    data = yaml.safe_load(block.group(1))
+    StrategyConfig(
+        vcp=VCPThresholdsConfig(**data["vcp"]),
+        classification=ClassificationConfig(**data["classification"]),
+    )
+
+
+@pytest.mark.parametrize(
+    "bad",
+    [
+        {"volume": {"short_period": 20, "medium_period": 20, "long_period": 50}},
+        {"volume": {"dryup_ratio": 1.5}},
+        {"volatility": {"contraction_ratio_max": 0}},
+        {"swing": {"left_bars": 0}},
+        {"pivot": {"max_distance_pct": -1}},
+        {"unknown_key": 1},
+    ],
+)
+def test_invalid_vcp_blocks_are_rejected(bad: dict) -> None:
+    with pytest.raises(ValidationError):
+        VCPThresholdsConfig(**bad)
+
+
+def test_a_plus_cannot_drop_a_requirement_the_vcp_tier_has() -> None:
+    tiers = {k: dict(v) for k, v in SPEC_60_CLASSIFICATION.items()}
+    tiers["a_plus"]["require_tight_pivot"] = False
+    with pytest.raises(ValidationError, match="require_tight_pivot"):
+        ClassificationConfig(**tiers)
+
+
+def test_tier_contraction_counts_must_fit_the_vcp_range() -> None:
+    with pytest.raises(ValidationError, match="outside vcp.contractions"):
+        StrategyConfig(vcp=VCPThresholdsConfig(contractions={"min": 3, "max": 6}))
+    tiers = {k: dict(v) for k, v in SPEC_60_CLASSIFICATION.items()}
+    tiers["a_plus"]["max_contractions"] = 8
+    with pytest.raises(ValidationError, match="exceeds vcp.contractions.max"):
+        StrategyConfig(classification=ClassificationConfig(**tiers))

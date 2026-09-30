@@ -15,7 +15,13 @@ from vcp_scanner.config.models import (
     TierClassificationConfig,
     TrendTemplateConfig,
     UniverseConfig,
+    VCPConfirmationConfig,
+    VCPContractionCountConfig,
+    VCPPivotConfig,
+    VCPSwingConfig,
     VCPThresholdsConfig,
+    VCPVolatilityConfig,
+    VCPVolumeConfig,
 )
 
 __all__ = [
@@ -32,7 +38,13 @@ __all__ = [
     "TierClassificationConfig",
     "TrendTemplateConfig",
     "UniverseConfig",
+    "VCPConfirmationConfig",
+    "VCPContractionCountConfig",
+    "VCPPivotConfig",
+    "VCPSwingConfig",
     "VCPThresholdsConfig",
+    "VCPVolatilityConfig",
+    "VCPVolumeConfig",
     "compute_config_hash",
     "load_scanner_config",
 ]

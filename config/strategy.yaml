@@ -22,20 +22,57 @@ stage:
   flat_band_pct: 0.5
   prior_advance_min_pct: 10.0
 
+# VCP detector (Phase 6) and classification: shape and values verbatim from
+# VCP_SPECIFICATION.md section 60 (audit 2026-09-30 Fix 7). All values are hypotheses.
 vcp:
-  min_contractions: 2
-  max_contractions: 6
-  progressive_tolerance_pct: 10.0
-  require_volume_dryup: true
-  require_tight_pivot: true
+  contractions:
+    min: 2
+    max: 6
+
+  swing:
+    left_bars: 5
+    right_bars: 5
+    min_depth_pct: 2.0
+    min_duration_days: 3
+
+  progressive_tolerance_pct: 10
+
+  volatility:
+    atr_period: 14
+    contraction_ratio_max: 0.80
+
+  volume:
+    short_period: 5
+    medium_period: 20
+    long_period: 50
+    dryup_ratio: 0.70
+
+  pivot:
+    max_distance_pct: 3.0
+    right_side_window_days: 10
+    max_right_side_range_pct: 5.0
+
+  confirmation:
+    allow_provisional_final_contraction: true
+    include_provisional_in_ranking: false
 
 classification:
   a_plus:
     min_contractions: 3
-    max_final_contraction_pct: 8.0
+    max_contractions: 6
+    max_final_contraction_pct: 8
+    require_progressive_tightening: true
+    require_volume_dryup: true
+    require_volatility_contraction: true
+    require_tight_pivot: true
+
   vcp:
     min_contractions: 2
-    max_final_contraction_pct: 12.0
+    max_contractions: 6
+    max_final_contraction_pct: 12
+    require_progressive_tightening: true
+    require_tight_pivot: true
+
   vcp_like:
     min_contractions: 2
-    max_final_contraction_pct: 15.0
+    max_final_contraction_pct: 15

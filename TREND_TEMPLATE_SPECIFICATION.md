@@ -52,7 +52,7 @@ rs_raw   = 0.40·R_63 + 0.20·R_126 + 0.20·R_189 + 0.20·R_252
 ```
 
 - **Population:** every instrument eligible in the universe snapshot at `as_of_date` (liquidity/price filters applied) **and** with ≥ 253 adjusted closes. Instruments without enough history get `rs_raw = NULL`, status `INSUFFICIENT_DATA`, and are excluded from the population. They are never scored 0.
-- **Rank:** `pct = (count_below + 0.5·count_equal) / N`, then `rs_rank = 1 + floor(98 · pct)` (integers 1–99). Ties share the average position.
+- **Rank:** `pct = (count_below + 0.5·count_equal) / N`, then `rs_rank = 1 + floor(98 · pct)`. Ties share the average position. Because `count_equal` includes the instrument itself, the top `pct` is `(N − 0.5)/N < 1`, so under `rs-1.0.0` ranks run **1–98** (99 is unreachable). Kept as specified (owner decision, audit 2026-09-30 Fix 7); a formula that reaches 99 would be a new `rs_algorithm_version` (candidate `rs-1.1.0`). Pinned by `tests/unit/test_rs_ranking.py`.
 - RS is computed **before** the Trend Template gate, over the full population (PROJECT_DESIGN §16).
 - Stored in `relative_strength_snapshots` with the four component returns, `rs_raw`, `rs_rank`, `population_size`, `calculation_version`.
 - Any change to windows, weights or population is a new `rs_algorithm_version`.

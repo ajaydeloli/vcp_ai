@@ -14,7 +14,7 @@ by the project owner before work starts.
 | 4 | P0-1 | Kite candles are provider-adjusted: stop double adjustment | Done (live check pending: run `vcp verify kite-adjustment`) |
 | 5 | P1-1 | Seed `instruments`; first real end-to-end run; real golden fixtures | 5a done; 5b pending (needs credentials) |
 | 6 | P1-3 / P1-4 | Architecture boundary test covers real packages; package layout | Done |
-| 7 | P1-7 / P1-6 | VCP config shape per VCP_SPEC §60; real RS tests | Pending |
+| 7 | P1-7 / P1-6 | VCP config shape per VCP_SPEC §60; real RS tests | Done |
 
 ---
 
@@ -279,3 +279,62 @@ matched PROJECT_DESIGN §6, inviting a Phase 6 agent to write a second implement
 
 **Verification.** Full suite: 543 passed, 0 failed. `ruff check`, `ruff format --check`,
 `mypy --strict src` clean (92 files). Golden fixture unchanged (`cmp`).
+
+---
+
+## Fix 7 — P1-7 / P1-6: VCP configuration contract; RS tests
+
+**Owner decisions (2026-09-30).** Adopt VCP_SPECIFICATION §60 exactly. RS rank ceiling (98, not
+99, under `rs-1.0.0`): document and pin it; do not change the formula now.
+
+**Problem.** (P1-7) `VCPThresholdsConfig` / `ClassificationConfig` were flat (`min_contractions`,
+`require_volume_dryup`, ... under `vcp:`) with `extra="forbid"`, copied from PROJECT_DESIGN §46,
+while VCP_SPECIFICATION §60 defines nested `swing` / `volatility` / `volume` / `pivot` /
+`confirmation` blocks and per-tier `require_*` flags. The first Phase 6 agent would have had to
+break one of them. (P1-6) The only RS test asserted `len(rows) == 2`.
+
+**Change.**
+- `config/models.py`: new `VCPContractionCountConfig`, `VCPSwingConfig`, `VCPVolatilityConfig`,
+  `VCPVolumeConfig`, `VCPPivotConfig`, `VCPConfirmationConfig`; `VCPThresholdsConfig` composes
+  them; `TierClassificationConfig` gains `max_contractions` and the four `require_*` flags;
+  `ClassificationConfig` defaults = §60 and validates that a stricter tier is never looser (count,
+  final contraction, required flags); `StrategyConfig` validates every tier lies inside
+  `vcp.contractions`. Exported from `vcp_scanner.config`.
+- `config/strategy.yaml`: §60 block verbatim.
+- Docs: VCP_SPECIFICATION §60 note (contract + validation), PROJECT_DESIGN §46 (flat keys
+  removed, points to §60), TREND_TEMPLATE_SPECIFICATION §3 (ranks 1–98 under rs-1.0.0), CHANGELOG.
+
+**Tests.**
+- `test_config.py`: shipped YAML and defaults equal §60 exactly; the YAML block *parsed out of
+  VCP_SPECIFICATION.md* validates (so spec and code cannot drift silently); invalid blocks
+  rejected (period order, ratio range, zero bars, negative distance, unknown key); A+ cannot drop
+  a requirement the VCP tier has; tier counts must fit `vcp.contractions`. Updated one existing
+  test to the nested key (`contractions={"min": 4, "max": 2}`), same intent.
+- New `test_rs_ranking.py` (10): known-answer ranks (86/62/37/13), weights & windows, ties share
+  the average position, all-equal → 50, NULL history and zero lagged close excluded without
+  changing others' ranks, staleness boundary inclusive, ranks within 1–98 and monotonic for N up
+  to 3,000, and the spec §7 invariance test (Trend Template evaluated on a subset leaves the RS
+  table unchanged; removing a stock from the *population* does change ranks).
+
+**Behavior change.** The configuration hash changes (new trend scan ids). No strategy output
+changes: no detector exists yet; RS golden regression unchanged.
+
+**Verification.** Full suite: 563 passed, 0 failed. `ruff check`, `ruff format --check`,
+`mypy --strict src` clean.
+
+---
+
+## Status after Fixes 1–7 (2026-09-30)
+
+Done: P0-1, P0-2, P0-3, P1-1 (code part), P1-3, P1-4, P1-6, P1-7, P1-9. Tests 447 → 563.
+
+Still open from the audit (not started; each needs owner approval):
+
+| Audit ID | Item | Blocks |
+|---|---|---|
+| P1-1 (5b) | Real run on ~20 names; `vcp verify kite-adjustment`; 5–10 real golden split/bonus fixtures | Phase 6 golden dataset (needs `.env` credentials) |
+| P0-4 / P1-5 | Point-in-time universe: historical series (bhavcopy / sec_list history), `instrument_symbol_history`, delisted-name prices, GSM/ASM history, honest survivorship label | Phase 6B |
+| P1-8 | `scan_runs`, `snapshot_manifest`, deterministic universe ids, explicit snapshot ids everywhere, per-section config hash | Phase 6B |
+| P1-2 | Quality-gate blocks need an end date and bitemporal history; suspension ≠ data hole | Phase 6B |
+| P1-10 | Surface per-record NSE/Upstox parse failures as events; small bonuses (< 30 %) missed by the gap net | — |
+| P2-1…P2-6, P3 | EMA, ATR method, config-driven windows; staleness policy + trading calendar; provenance (`source_run_id`); batch `save_daily`; Parquet lake; duplicate hashes/versions; `scratch/`, `.env` perms | — |

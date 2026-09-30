@@ -79,41 +79,140 @@ class StageConfig(StrictBaseModel):
     prior_advance_min_pct: Annotated[float, Field(ge=0)] = 10.0
 
 
-class VCPThresholdsConfig(StrictBaseModel):
-    """PROJECT_DESIGN section 46."""
+class VCPContractionCountConfig(StrictBaseModel):
+    """VCP_SPECIFICATION section 60 ``vcp.contractions``."""
 
-    min_contractions: Annotated[int, Field(ge=2)] = 2
-    max_contractions: Annotated[int, Field(ge=2)] = 6
-    progressive_tolerance_pct: Annotated[float, Field(ge=0)] = 10.0
-    require_volume_dryup: bool = True
-    require_tight_pivot: bool = True
+    min: Annotated[int, Field(ge=1)] = 2
+    max: Annotated[int, Field(ge=1)] = 6
 
     @model_validator(mode="after")
-    def validate_contractions_range(self) -> VCPThresholdsConfig:
-        if self.max_contractions < self.min_contractions:
+    def validate_range(self) -> VCPContractionCountConfig:
+        if self.max < self.min:
+            raise ValueError(f"contractions.max ({self.max}) must be >= min ({self.min})")
+        return self
+
+
+class VCPSwingConfig(StrictBaseModel):
+    """VCP_SPECIFICATION sections 9, 23, 60 ``vcp.swing``."""
+
+    left_bars: Annotated[int, Field(ge=1)] = 5
+    right_bars: Annotated[int, Field(ge=1)] = 5
+    min_depth_pct: Annotated[float, Field(gt=0, lt=100)] = 2.0
+    min_duration_days: Annotated[int, Field(ge=1)] = 3
+
+
+class VCPVolatilityConfig(StrictBaseModel):
+    """VCP_SPECIFICATION sections 15, 18A, 60 ``vcp.volatility``."""
+
+    atr_period: Annotated[int, Field(ge=2)] = 14
+    contraction_ratio_max: Annotated[float, Field(gt=0, le=1)] = 0.80
+
+
+class VCPVolumeConfig(StrictBaseModel):
+    """VCP_SPECIFICATION sections 17, 18A, 60 ``vcp.volume``."""
+
+    short_period: Annotated[int, Field(ge=1)] = 5
+    medium_period: Annotated[int, Field(ge=1)] = 20
+    long_period: Annotated[int, Field(ge=1)] = 50
+    dryup_ratio: Annotated[float, Field(gt=0, le=1)] = 0.70
+
+    @model_validator(mode="after")
+    def validate_periods(self) -> VCPVolumeConfig:
+        if not self.short_period < self.medium_period < self.long_period:
+            raise ValueError(
+                "volume periods must satisfy short_period < medium_period < long_period, got "
+                f"{self.short_period}, {self.medium_period}, {self.long_period}"
+            )
+        return self
+
+
+class VCPPivotConfig(StrictBaseModel):
+    """VCP_SPECIFICATION sections 19-22, 18A, 60 ``vcp.pivot``."""
+
+    max_distance_pct: Annotated[float, Field(gt=0)] = 3.0
+    right_side_window_days: Annotated[int, Field(ge=1)] = 10
+    max_right_side_range_pct: Annotated[float, Field(gt=0)] = 5.0
+
+
+class VCPConfirmationConfig(StrictBaseModel):
+    """VCP_SPECIFICATION sections 9A, 27, 60 ``vcp.confirmation``."""
+
+    allow_provisional_final_contraction: bool = True
+    include_provisional_in_ranking: bool = False
+
+
+class VCPThresholdsConfig(StrictBaseModel):
+    """VCP_SPECIFICATION section 60 ``vcp`` block (shape adopted verbatim, audit Fix 7).
+
+    Values are initial hypotheses (Phase 6B validates them). The detector is Phase 6; this
+    model only fixes the configuration contract it will read.
+    """
+
+    contractions: VCPContractionCountConfig = Field(default_factory=VCPContractionCountConfig)
+    swing: VCPSwingConfig = Field(default_factory=VCPSwingConfig)
+    # Relative tolerance: D(n+1) <= D(n) x (1 + pct/100) (VCP_SPECIFICATION section 13).
+    progressive_tolerance_pct: Annotated[float, Field(ge=0)] = 10.0
+    volatility: VCPVolatilityConfig = Field(default_factory=VCPVolatilityConfig)
+    volume: VCPVolumeConfig = Field(default_factory=VCPVolumeConfig)
+    pivot: VCPPivotConfig = Field(default_factory=VCPPivotConfig)
+    confirmation: VCPConfirmationConfig = Field(default_factory=VCPConfirmationConfig)
+
+
+class TierClassificationConfig(StrictBaseModel):
+    """One classification tier (VCP_SPECIFICATION sections 18A, 28-31, 60).
+
+    ``require_*`` flags reference the operational definitions in section 18A; an omitted flag
+    means the tier does not require that criterion. ``max_contractions`` None = no upper bound
+    beyond ``vcp.contractions.max``.
+    """
+
+    min_contractions: Annotated[int, Field(ge=1)]
+    max_final_contraction_pct: Annotated[float, Field(gt=0, lt=100)]
+    max_contractions: Annotated[int, Field(ge=1)] | None = None
+    require_progressive_tightening: bool = False
+    require_volume_dryup: bool = False
+    require_volatility_contraction: bool = False
+    require_tight_pivot: bool = False
+
+    @model_validator(mode="after")
+    def validate_range(self) -> TierClassificationConfig:
+        if self.max_contractions is not None and self.max_contractions < self.min_contractions:
             raise ValueError(
                 f"max_contractions ({self.max_contractions}) must be >= "
                 f"min_contractions ({self.min_contractions})"
             )
         return self
 
-
-class TierClassificationConfig(StrictBaseModel):
-    min_contractions: Annotated[int, Field(ge=1)]
-    max_final_contraction_pct: Annotated[float, Field(gt=0)]
+    def requirements(self) -> dict[str, bool]:
+        return {
+            "require_progressive_tightening": self.require_progressive_tightening,
+            "require_volume_dryup": self.require_volume_dryup,
+            "require_volatility_contraction": self.require_volatility_contraction,
+            "require_tight_pivot": self.require_tight_pivot,
+        }
 
 
 class ClassificationConfig(StrictBaseModel):
-    """PROJECT_DESIGN section 46."""
+    """VCP_SPECIFICATION section 60 ``classification`` block."""
 
     a_plus: TierClassificationConfig = Field(
         default_factory=lambda: TierClassificationConfig(
-            min_contractions=3, max_final_contraction_pct=8.0
+            min_contractions=3,
+            max_contractions=6,
+            max_final_contraction_pct=8.0,
+            require_progressive_tightening=True,
+            require_volume_dryup=True,
+            require_volatility_contraction=True,
+            require_tight_pivot=True,
         )
     )
     vcp: TierClassificationConfig = Field(
         default_factory=lambda: TierClassificationConfig(
-            min_contractions=2, max_final_contraction_pct=12.0
+            min_contractions=2,
+            max_contractions=6,
+            max_final_contraction_pct=12.0,
+            require_progressive_tightening=True,
+            require_tight_pivot=True,
         )
     )
     vcp_like: TierClassificationConfig = Field(
@@ -124,18 +223,23 @@ class ClassificationConfig(StrictBaseModel):
 
     @model_validator(mode="after")
     def validate_tiers(self) -> ClassificationConfig:
-        if self.a_plus.min_contractions < self.vcp.min_contractions:
-            raise ValueError("A+ min_contractions must be >= VCP min_contractions")
-        if self.a_plus.max_final_contraction_pct > self.vcp.max_final_contraction_pct:
-            raise ValueError(
-                f"A+ max_final_contraction_pct ({self.a_plus.max_final_contraction_pct}) "
-                f"must be <= VCP ({self.vcp.max_final_contraction_pct})"
-            )
-        if self.vcp.max_final_contraction_pct > self.vcp_like.max_final_contraction_pct:
-            raise ValueError(
-                f"VCP max_final_contraction_pct ({self.vcp.max_final_contraction_pct}) "
-                f"must be <= VCP_LIKE ({self.vcp_like.max_final_contraction_pct})"
-            )
+        """A stricter tier may never be looser than the tier below it on any criterion."""
+        for strict_name, loose_name in (("a_plus", "vcp"), ("vcp", "vcp_like")):
+            strict: TierClassificationConfig = getattr(self, strict_name)
+            loose: TierClassificationConfig = getattr(self, loose_name)
+            if strict.min_contractions < loose.min_contractions:
+                raise ValueError(
+                    f"{strict_name}.min_contractions must be >= {loose_name}.min_contractions"
+                )
+            if strict.max_final_contraction_pct > loose.max_final_contraction_pct:
+                raise ValueError(
+                    f"{strict_name}.max_final_contraction_pct "
+                    f"({strict.max_final_contraction_pct}) must be <= {loose_name} "
+                    f"({loose.max_final_contraction_pct})"
+                )
+            for flag, required in loose.requirements().items():
+                if required and not strict.requirements()[flag]:
+                    raise ValueError(f"{loose_name} sets {flag} but {strict_name} does not")
         return self
 
 
@@ -413,6 +517,24 @@ class StrategyConfig(StrictBaseModel):
     vcp: VCPThresholdsConfig = Field(default_factory=VCPThresholdsConfig)
     classification: ClassificationConfig = Field(default_factory=ClassificationConfig)
     scoring: ScoringConfig = Field(default_factory=ScoringConfig)
+
+    @model_validator(mode="after")
+    def validate_tiers_within_contraction_range(self) -> StrategyConfig:
+        """Every tier's contraction counts must lie inside ``vcp.contractions``."""
+        lo, hi = self.vcp.contractions.min, self.vcp.contractions.max
+        for name in ("a_plus", "vcp", "vcp_like"):
+            tier: TierClassificationConfig = getattr(self.classification, name)
+            if tier.min_contractions < lo or tier.min_contractions > hi:
+                raise ValueError(
+                    f"classification.{name}.min_contractions ({tier.min_contractions}) is "
+                    f"outside vcp.contractions [{lo}, {hi}]"
+                )
+            if tier.max_contractions is not None and tier.max_contractions > hi:
+                raise ValueError(
+                    f"classification.{name}.max_contractions ({tier.max_contractions}) "
+                    f"exceeds vcp.contractions.max ({hi})"
+                )
+        return self
 
 
 class ScannerConfig(StrictBaseModel):

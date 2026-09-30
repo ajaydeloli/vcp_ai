@@ -1693,20 +1693,20 @@ in YAML committed to Git.
 
 # 46. Example Strategy Configuration
 
+Abbreviated. The `vcp:` / `classification:` shape is owned by VCP_SPECIFICATION §60; the earlier flat `vcp.require_volume_dryup` / `require_tight_pivot` keys shown here conflicted with it and were removed (audit 2026-09-30 Fix 7).
+
 ```yaml
 trend_template:
   required: true
   min_rs_rank: 70
   stricter_rs_rank: 80
 
-vcp:
-  min_contractions: 2
-  max_contractions: 6
+vcp:                         # full block: VCP_SPECIFICATION section 60 (authoritative)
+  contractions: {min: 2, max: 6}
   progressive_tolerance_pct: 10
-  require_volume_dryup: true
-  require_tight_pivot: true
+  # swing / volatility / volume / pivot / confirmation: see VCP_SPECIFICATION section 60
 
-classification:
+classification:              # per-tier require_* flags: VCP_SPECIFICATION section 60
   a_plus:
     min_contractions: 3
     max_final_contraction_pct: 8

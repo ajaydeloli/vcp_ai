@@ -1352,6 +1352,8 @@ classification:
 
 All values are initial hypotheses and must be empirically validated.
 
+This block is the configuration contract: `config/strategy.yaml` and `config.models` (`VCPThresholdsConfig`, `ClassificationConfig`) adopt it verbatim, and a test parses the YAML above and requires it to validate (audit 2026-09-30 Fix 7). Validation also enforces `contractions.min <= max`, `short_period < medium_period < long_period`, ratios in `(0, 1]`, every tier's contraction counts inside `vcp.contractions`, and that a stricter tier never drops a `require_*` flag or loosens a limit of the tier below it. Omitted `require_*` flags mean "not required".
+
 ---
 
 # 61. Recommended Detection Pipeline

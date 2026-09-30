@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed (audit 2026-09-30 P1-7, VCP configuration contract)
+- `vcp:` and `classification:` now follow VCP_SPECIFICATION §60 verbatim: nested `contractions`, `swing`, `volatility`, `volume`, `pivot`, `confirmation` blocks and per-tier `max_contractions` / `require_*` flags (`VCPThresholdsConfig`, `ClassificationConfig`, new `VCP*Config` sub-models). The flat keys `min_contractions`, `max_contractions`, `require_volume_dryup`, `require_tight_pivot` under `vcp:` are gone (`extra="forbid"` rejects them). New validation: volume periods ordered, ratios in (0, 1], tiers inside `vcp.contractions`, stricter tiers never looser. A test parses the §60 YAML from the spec and requires it to validate. No detector code yet (Phase 6).
+- Behavior change: the configuration hash changes, so new `trend-template` scan ids differ from earlier ones; earlier rows are kept.
+
+### Added (audit 2026-09-30 P1-6, RS tests)
+- `tests/unit/test_rs_ranking.py`: known-answer ranking, weights/windows, ties, NULL-history and zero-close exclusion, staleness boundary, 1–98 rank range and monotonicity, and "RS unchanged when a stock leaves the Trend Template stage but not the population". TREND_TEMPLATE_SPECIFICATION §3 documents that `rs-1.0.0` ranks run 1–98.
+
 ### Changed (audit 2026-09-30 P1-3 / P1-4, architecture boundary and layout)
 - RS ranking is now a pure function (`features.relative_strength.compute_rs_rows`) behind the new `RelativeStrengthRepository` Protocol; `DuckDBRelativeStrengthRepository` does only data access. `RelativeStrengthEngine(repository, calculation_version=None, config=None, quality_gate=None)` replaces `RelativeStrengthEngine(store, ..., data_snapshot_id=...)` (the data snapshot now binds the repository).
 - Universe rules are a pure function (`data.universe.builder.evaluate_eligibility`) over `domain.universe.UniverseCandidate`; point-in-time SQL moved to `DuckDBUniverseRepository.load_universe_candidates` / `count_known_delistings` (new `UniverseInputRepository` Protocol). `UniverseBuilder(repository, config, ...)` replaces `UniverseBuilder(store, config, ...)`.
