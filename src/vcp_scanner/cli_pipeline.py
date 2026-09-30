@@ -37,6 +37,20 @@ def _err(message: str) -> None:
     print(message, file=sys.stderr)
 
 
+def env_secret(name: str) -> str | None:
+    """A credential from the environment, or None when unset, blank or still the
+    ``.env.example`` placeholder (``your_..._here``).
+
+    Copying ``.env.example`` to ``.env`` leaves placeholders such as
+    ``UPSTOX_ACCESS_TOKEN=your_upstox_access_token_here``; treating those as real credentials
+    made optional providers fail the whole command with HTTP 401 (found in audit Fix 5b).
+    """
+    value = (os.getenv(name) or "").strip()
+    if not value or (value.startswith("your_") and value.endswith("_here")):
+        return None
+    return value
+
+
 def _load_env(env_file: str) -> None:
     from dotenv import load_dotenv
 
@@ -113,6 +127,22 @@ def _quality_gate(store: DuckDBStore, data_snapshot_id: str) -> Any:
         snapshot = DuckDBSnapshotRepository(store).load(data_snapshot_id)
         known_at = snapshot.known_at if snapshot else None
     return DuckDBDataQualityRepository(store, known_at=known_at)
+
+
+def _matches(instrument_id: str, wanted: Sequence[str] | None) -> bool:
+    """``--instrument`` filter: accepts an instrument id or a trading symbol, any case.
+
+    Several commands compared ``--instrument RELIANCE`` against ids like ``NSE_EQ|RELIANCE``
+    and silently selected nothing (the quality scan then checked 0 instruments; found in
+    audit Fix 5b).
+    """
+    if not wanted:
+        return True
+    from vcp_scanner.data.identity import symbol_from_instrument_id
+
+    keys = {w.upper() for w in wanted}
+    symbol = symbol_from_instrument_id(instrument_id) or ""
+    return instrument_id.upper() in keys or symbol.upper() in keys
 
 
 def _select_instruments(
@@ -211,8 +241,8 @@ def run_market_ingest(args: argparse.Namespace) -> int:
     if start is None or end is None:
         return 1
 
-    api_key = os.getenv("KITE_API_KEY")
-    access_token = os.getenv("KITE_ACCESS_TOKEN")
+    api_key = env_secret("KITE_API_KEY")
+    access_token = env_secret("KITE_ACCESS_TOKEN")
     if not api_key or not access_token:
         _err(
             "Error: KITE_API_KEY and KITE_ACCESS_TOKEN are required "
@@ -352,7 +382,7 @@ def run_corporate_actions(args: argparse.Namespace) -> int:
         return 1
     ca_cfg = cfg.data.corporate_actions
 
-    upstox_token = os.getenv("UPSTOX_ACCESS_TOKEN")
+    upstox_token = env_secret("UPSTOX_ACCESS_TOKEN")
     if not upstox_token:
         _err(
             "Warning: UPSTOX_ACCESS_TOKEN is not set; actions will stay SINGLE_SOURCE "
@@ -395,10 +425,9 @@ def run_corporate_actions(args: argparse.Namespace) -> int:
 
         # DATA_SPECIFICATION 18A workflow: after reconcile, run the gap safety net over raw
         # prices and publish any conflicts or suspected missed actions to the signal gate.
-        wanted = set(args.instrument) if args.instrument else None
         market_repo = DuckDBMarketDataRepository(store)
         scan_ids = [
-            i for i in market_repo.load_priced_instrument_ids() if wanted is None or i in wanted
+            i for i in market_repo.load_priced_instrument_ids() if _matches(i, args.instrument)
         ]
         summary = QualityScanner(
             market_repo,
@@ -447,7 +476,7 @@ def run_compute_features(args: argparse.Namespace) -> int:
         if snapshot_id is None:
             return 1
         available = _adjusted_instrument_ids(store, snapshot_id)
-        ids = [i for i in available if not args.instrument or i in set(args.instrument)]
+        ids = [i for i in available if _matches(i, args.instrument)]
         if not ids:
             _err(
                 f"Error: no adjusted prices found for data snapshot {snapshot_id}. "
@@ -535,7 +564,7 @@ def run_compute_trend_template(args: argparse.Namespace) -> int:
             return 1
         ids = DuckDBUniverseRepository(store).load_snapshot(as_of)
         if args.instrument:
-            ids = [i for i in ids if i in set(args.instrument)]
+            ids = [i for i in ids if _matches(i, args.instrument)]
         if not ids:
             _err(
                 f"Error: no eligible universe members for {as_of}. "
@@ -605,8 +634,7 @@ def run_quality_scan(args: argparse.Namespace) -> int:
     ca_cfg = cfg.data.corporate_actions
     with _open_store(args.db) as store:
         market = DuckDBMarketDataRepository(store)
-        wanted = set(args.instrument) if args.instrument else None
-        ids = [i for i in market.load_priced_instrument_ids() if wanted is None or i in wanted]
+        ids = [i for i in market.load_priced_instrument_ids() if _matches(i, args.instrument)]
         summary = QualityScanner(
             market,
             DuckDBCorporateActionRepository(store),
@@ -630,9 +658,11 @@ def run_quality_list(args: argparse.Namespace) -> int:
     )
 
     with _open_store(args.db) as store:
-        events = DuckDBDataQualityRepository(store).load_events(
-            instrument_ids=args.instrument or None, open_only=not args.all
-        )
+        events = [
+            e
+            for e in DuckDBDataQualityRepository(store).load_events(open_only=not args.all)
+            if _matches(e.instrument_id, args.instrument)
+        ]
     if not events:
         print("No data-quality events." if args.all else "No open data-quality events.")
         return 0
@@ -716,7 +746,7 @@ def run_verify_kite_adjustment(args: argparse.Namespace) -> int:
     from vcp_scanner.domain.market import Instrument
 
     _load_env(args.env_file)
-    api_key, access_token = os.getenv("KITE_API_KEY"), os.getenv("KITE_ACCESS_TOKEN")
+    api_key, access_token = env_secret("KITE_API_KEY"), env_secret("KITE_ACCESS_TOKEN")
     if not api_key or not access_token:
         _err("Error: KITE_API_KEY and KITE_ACCESS_TOKEN are required (run `vcp auth kite`).")
         return 1

@@ -12,7 +12,7 @@ by the project owner before work starts.
 | 2 | P0-2 | Reconciliation policy: dividends/rights and primary-only actions | Done |
 | 3 | P1-9 | Reject NaN / zero / negative OHLC; NaN inputs are INSUFFICIENT_DATA | Done |
 | 4 | P0-1 | Kite candles are provider-adjusted: stop double adjustment | Done; verified on live Kite data 2026-09-30 |
-| 5 | P1-1 | Seed `instruments`; first real end-to-end run; real golden fixtures | 5a done; 5b pending (needs credentials) |
+| 5 | P1-1 | Seed `instruments`; first real end-to-end run; real golden fixtures | Done (5a + 5b) |
 | 6 | P1-3 / P1-4 | Architecture boundary test covers real packages; package layout | Done |
 | 7 | P1-7 / P1-6 | VCP config shape per VCP_SPEC §60; real RS tests | Done |
 
@@ -332,7 +332,6 @@ Still open from the audit (not started; each needs owner approval):
 
 | Audit ID | Item | Blocks |
 |---|---|---|
-| P1-1 (5b) | Real run on ~20 names; `vcp verify kite-adjustment`; 5–10 real golden split/bonus fixtures | Phase 6 golden dataset (needs `.env` credentials) |
 | P0-4 / P1-5 | Point-in-time universe: historical series (bhavcopy / sec_list history), `instrument_symbol_history`, delisted-name prices, GSM/ASM history, honest survivorship label | Phase 6B |
 | P1-8 | `scan_runs`, `snapshot_manifest`, deterministic universe ids, explicit snapshot ids everywhere, per-section config hash | Phase 6B |
 | P1-2 | Quality-gate blocks need an end date and bitemporal history; suspension ≠ data hole | Phase 6B |
@@ -393,3 +392,64 @@ the login-URL step (then stopped for lack of a request token); stored access tok
 file mode 600.
 
 **Verification.** Full suite: 568 passed, 0 failed. `ruff check`, `ruff format --check`, `mypy --strict src` clean.
+
+---
+
+## Fix 5b — first real-data run; golden corporate-action fixtures (2026-09-30)
+
+**Owner decisions.** 20 stocks (RELIANCE, TATASTEEL, IRCTC, HDFCBANK, BAJFINANCE, NESTLEIND, TCS,
+INFY, ICICIBANK, SBIN, LT, BHARTIARTL, ITC, HINDUNILVR, MARUTI, TITAN, SUNPHARMA, ASIANPAINT,
+KOTAKBANK, AXISBANK); 2021-01-01 to 2026-09-29; separate git-ignored `data/fix5b.duckdb`;
+golden = NSE bhavcopy vs Kite; small bugs fixed directly, big ones brought back for a decision.
+
+### Run results (real data, every CLI step)
+
+| Step | Result |
+|---|---|
+| `ingest security-master` | 2,592 listed securities → `instruments`; 115 delistings since 2021; 229 ASM + 274 T2T flags. NSE homepage returns 403 but the ASM API still answered. |
+| `ingest market` (20) | 20/20 SUCCESS, 28,480 bars, completeness 20/20; 2,328 Kite tokens mapped |
+| `ingest corporate-actions` | NSE feed reachable: 5 splits, 4 bonuses, 177 dividends, 1 rights; every split/bonus ratio parsed correctly (incl. KOTAKBANK 5:1 on 2026-01-14); 3 demergers reported as unhandled (RELIANCE, ITC, HINDUNILVR). 0 unexplained gaps, 0 conflicts, 0 blocks. |
+| `ingest adjusted-prices` | 20 built, 28,480 rows; **all rows factor 1.0** (every bar fetched after its actions → Kite-adjusted; no double adjustment) |
+| `compute features` | 28,480 daily rows, 6,020 weekly rows |
+| `ingest universe` 2026-09-29 | 20/20 eligible; label PARTIAL |
+| `compute rs` | 20 ranked |
+| `compute trend-template` | 20 evaluated: 20 FAIL, 0 NULL (data sufficient). Best: TITAN (RS 96, Stage 2) fails only close > SMA50 |
+
+**Independent recomputation.** From a fresh Kite fetch in plain Python (no DB, no engine):
+TITAN's ten measurements/thresholds match the stored rows to 2.1e-16 relative, and all 20 RS ranks
+are identical.
+
+### Bugs found and fixed (small, per owner rule)
+
+1. **Same-day split + bonus lost a factor** (BAJFINANCE 2025-06-16: 0.5 stored instead of 0.1;
+   raw-sourced history would have been 5x too high). `compute_factors` now merges same-ex-date
+   actions into one factor; the CA worker repairs stale factor sets on the next run. Verified
+   on the real DB: BAJFINANCE factor 0.1.
+2. **`--instrument SYMBOL` silently matched nothing** in six places (the post-ingest quality scan
+   ran on 0 instruments). New `_matches` / `_resolve_instrument_args` accept id or symbol.
+   Verified: quality scan now covers 20.
+3. **`.env.example` placeholders used as credentials** (Upstox 401 aborted the CA ingest).
+   `env_secret()` treats blank / `your_..._here` as unset.
+
+Tests: `tests/unit/test_fix5b_bugs.py` (11), `tests/unit/test_env_secret.py` (8).
+
+### Golden fixtures
+
+`scripts/capture_golden_ca.py` → `tests/fixtures/corporate_actions/golden_actions.json` (REAL
+data, sources recorded): IRCTC 2021-10-28, TATASTEEL 2022-07-28, NESTLEIND 2024-01-05, RELIANCE
+2024-10-28, BAJFINANCE 2025-06-16 (split+bonus), NESTLEIND 2025-08-08, HDFCBANK 2025-08-26.
+`tests/regression/test_golden_corporate_actions.py` (49): engine factors; raw bhavcopy shows the
+jump (RAW) and Kite does not (ADJUSTED); raw × cumulative factor = Kite within 0.5 % (6/7 within
+0.01 %); Kite bars fetched after the action are never re-adjusted; gap net flags the raw jump only
+without the action; NSE subject formats parse to the verified ratios.
+
+### Found, NOT fixed — need owner decisions
+
+| # | Finding | Why it matters |
+|---|---|---|
+| D1 | Kite also adjusts history for **large ordinary dividends** (TATASTEEL ₹3.60 ≈ 2.2 %, 2024 and 2025) and demergers; our engine does not model them. Bars fetched before such an event differ from bars fetched after by that factor. | Incremental ingestion leaves ~2 % steps in stored history; VCP contraction depths (final contraction 3–8 %) are sensitive to that. Options: detect Kite re-adjustment on each incremental fetch (compare an overlap window) and re-fetch the instrument's history as new bitemporal versions; or move raw prices to NSE bhavcopy. |
+| D2 | Kite trading symbols carry series suffixes (`GATECHDVR-BE`, `-SM`, `-SG`, ...): 7,831 dump rows unmapped. A stock moving EQ ↔ BE changes its Kite symbol. | BE/SME names cannot be ingested; a series move breaks the token mapping. Needs a symbol-normalisation rule in `provider_mapping`. |
+| D3 | Throughput: `instruments` upsert 46 s for 2,592 rows; market ingest ~25 s per stock; adjusted build ~8 s per stock. | A 2,000-stock backfill ≈ 14 h + 4.5 h (audit P2-4). Batch inserts before a full-universe run. |
+| D4 | Demergers (RELIANCE/Jio Financial 2023, ITC Hotels 2025, HINDUNILVR) are unhandled by the local engine. | Fine for Kite-sourced bars (already adjusted); wrong for any raw source; gap net only catches ≥ 30 %. |
+
+**Verification.** Full suite: 635 passed, 0 failed (was 568). `ruff check`, `ruff format --check`, `mypy --strict src` clean.

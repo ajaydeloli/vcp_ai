@@ -13,6 +13,7 @@ from vcp_scanner.data.quality.events import corporate_action_events
 from vcp_scanner.data.reconciliation.engine import ReconciliationEngine
 from vcp_scanner.data.repositories.base import CorporateActionRepository
 from vcp_scanner.data.repositories.duckdb_quality_repository import DuckDBDataQualityRepository
+from vcp_scanner.domain.corporate_actions import CorporateActionAdjustment
 from vcp_scanner.domain.enums import DataQualityFlag
 from vcp_scanner.domain.market import Instrument
 from vcp_scanner.infrastructure.clock import Clock, utc_now
@@ -139,12 +140,17 @@ class CorporateActionIngestionWorker:
                 reconciled_count += 1
                 changed = True
 
-            # 3. If any resolution changed, rebuild the instrument's full factor set from
-            # the current resolutions. compute_factors drops non-adjustable statuses, and
+            # 3. Rebuild the instrument's factor set from the current resolutions whenever a
+            # resolution changed OR the stored factors differ from what the engine computes
+            # now (e.g. after an engine fix: same-day split+bonus used to lose a factor,
+            # found in audit Fix 5b). compute_factors drops non-adjustable statuses, and
             # replace_adjustments retires factors that no longer apply.
-            if changed:
-                current_resolutions = self.repository.load_resolutions(iid)
-                new_adjustments = self.adjustment_engine.compute_factors(current_resolutions)
+            new_adjustments = self.adjustment_engine.compute_factors(
+                self.repository.load_resolutions(iid)
+            )
+            if changed or _factor_key(new_adjustments) != _factor_key(
+                self.repository.load_adjustments(iid)
+            ):
                 self.repository.replace_adjustments(iid, new_adjustments, known_from=known_at)
                 adjusted_count += len(new_adjustments)
 
@@ -169,3 +175,12 @@ class CorporateActionIngestionWorker:
             reconciled_count,
             adjusted_count,
         )
+
+
+def _factor_key(adjustments: list[CorporateActionAdjustment]) -> list[tuple[str, float, float]]:
+    """What matters about a factor set for prices: dates and factors, rounded."""
+    return sorted(
+        (a.effective_date.isoformat(), round(float(a.price_factor), 10),
+         round(float(a.volume_factor), 10))
+        for a in adjustments
+    )  # fmt: skip

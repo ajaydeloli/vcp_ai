@@ -1,0 +1,411 @@
+{
+ "description": "REAL market data (not synthetic). Golden corporate-action checks, audit Fix 5b. raw = NSE CM bhavcopy (official EOD file, unadjusted); kite = Kite Connect historical candles, adjusted as of kite.fetched_at.",
+ "captured_at": "2026-09-30T16:04:29+00:00",
+ "actions": [
+  {
+   "symbol": "IRCTC",
+   "ex_date": "2021-10-28",
+   "components": [
+    [
+     "SPLIT",
+     10,
+     2
+    ]
+   ],
+   "sources": [
+    "https://www.business-standard.com/amp/article/markets/irctc-rally-15-as-scrip-turns-ex-stock-split-in-1-5-121102800326_1.html"
+   ],
+   "isin": "INE335Y01012",
+   "raw": {
+    "prev": {
+     "date": "2021-10-27",
+     "open": 4250.5,
+     "high": 4334.8,
+     "low": 4033.75,
+     "close": 4130.15,
+     "prev_close": 4189.5,
+     "volume": 5358793,
+     "isin": "INE335Y01012",
+     "url": "https://nsearchives.nseindia.com/content/historical/EQUITIES/2021/OCT/cm27OCT2021bhav.csv.zip"
+    },
+    "ex": {
+     "date": "2021-10-28",
+     "open": 817.0,
+     "high": 983.0,
+     "low": 810.0,
+     "close": 913.5,
+     "prev_close": 4130.15,
+     "volume": 59298778,
+     "isin": "INE335Y01012",
+     "url": "https://nsearchives.nseindia.com/content/historical/EQUITIES/2021/OCT/cm28OCT2021bhav.csv.zip"
+    }
+   },
+   "kite": {
+    "fetched_at": "2026-09-30T16:04:20+00:00",
+    "prev": {
+     "date": "2021-10-27",
+     "open": 850.1,
+     "close": 826.05,
+     "volume": 26793965
+    },
+    "ex": {
+     "date": "2021-10-28",
+     "open": 817.0,
+     "close": 913.5,
+     "volume": 59298778
+    }
+   },
+   "price_factor": 0.2,
+   "kite_residual": 1.000024,
+   "cumulative_price_factor": 0.2
+  },
+  {
+   "symbol": "TATASTEEL",
+   "ex_date": "2022-07-28",
+   "components": [
+    [
+     "SPLIT",
+     10,
+     1
+    ]
+   ],
+   "sources": [
+    "https://www.business-standard.com/article/markets/tata-steel-jumps-5-after-turning-ex-date-for-1-10-stock-split-122072800439_1.html"
+   ],
+   "isin": "INE081A01012",
+   "raw": {
+    "prev": {
+     "date": "2022-07-27",
+     "open": 951.0,
+     "high": 961.55,
+     "low": 943.6,
+     "close": 959.4,
+     "prev_close": 949.5,
+     "volume": 5255902,
+     "isin": "INE081A01012",
+     "url": "https://nsearchives.nseindia.com/content/historical/EQUITIES/2022/JUL/cm27JUL2022bhav.csv.zip"
+    },
+    "ex": {
+     "date": "2022-07-28",
+     "open": 98.1,
+     "high": 102.0,
+     "low": 97.15,
+     "close": 100.35,
+     "prev_close": 959.4,
+     "volume": 137156107,
+     "isin": "INE081A01012",
+     "url": "https://nsearchives.nseindia.com/content/historical/EQUITIES/2022/JUL/cm28JUL2022bhav.csv.zip"
+    }
+   },
+   "kite": {
+    "fetched_at": "2026-09-30T16:04:23+00:00",
+    "prev": {
+     "date": "2022-07-27",
+     "open": 89.41,
+     "close": 90.25,
+     "volume": 52559020
+    },
+    "ex": {
+     "date": "2022-07-28",
+     "open": 92.35,
+     "close": 94.55,
+     "volume": 137156107
+    }
+   },
+   "price_factor": 0.1,
+   "kite_residual": 0.940692,
+   "cumulative_price_factor": 0.1,
+   "kite_residual_reason": "Kite also adjusts this history for later large dividends (TATASTEEL Rs 3.60 dividends in 2024 and 2025, each ~2.2% of price: the Kite/raw ratio steps by ~2.2% at each). The local engine models splits/bonuses only."
+  },
+  {
+   "symbol": "NESTLEIND",
+   "ex_date": "2024-01-05",
+   "components": [
+    [
+     "SPLIT",
+     10,
+     1
+    ]
+   ],
+   "sources": [
+    "https://www.business-standard.com/markets/news/nestle-india-slips-2-on-profit-booking-trades-1-10-ex-stock-split-124010500223_1.html"
+   ],
+   "isin": "INE239A01024",
+   "raw": {
+    "prev": {
+     "date": "2024-01-04",
+     "open": 26851.05,
+     "high": 27150.05,
+     "low": 26652.05,
+     "close": 27116.4,
+     "prev_close": 26635.2,
+     "volume": 132390,
+     "isin": "INE239A01016",
+     "url": "https://nsearchives.nseindia.com/content/historical/EQUITIES/2024/JAN/cm04JAN2024bhav.csv.zip"
+    },
+    "ex": {
+     "date": "2024-01-05",
+     "open": 2754.0,
+     "high": 2754.0,
+     "low": 2642.45,
+     "close": 2666.4,
+     "prev_close": 27116.4,
+     "volume": 2577064,
+     "isin": "INE239A01024",
+     "url": "https://nsearchives.nseindia.com/content/historical/EQUITIES/2024/JAN/cm05JAN2024bhav.csv.zip"
+    }
+   },
+   "kite": {
+    "fetched_at": "2026-09-30T16:04:24+00:00",
+    "prev": {
+     "date": "2024-01-04",
+     "open": 1342.6,
+     "close": 1355.8,
+     "volume": 2647800
+    },
+    "ex": {
+     "date": "2024-01-05",
+     "open": 1377.0,
+     "close": 1333.2,
+     "volume": 5154128
+    }
+   },
+   "price_factor": 0.1,
+   "kite_residual": 0.999985,
+   "cumulative_price_factor": 0.05
+  },
+  {
+   "symbol": "RELIANCE",
+   "ex_date": "2024-10-28",
+   "components": [
+    [
+     "BONUS",
+     1,
+     1
+    ]
+   ],
+   "sources": [
+    "https://www.angelone.in/news/share-market/reliance-industries-sets-oct-28-record-date-bonus-issue"
+   ],
+   "isin": "INE002A01018",
+   "raw": {
+    "prev": {
+     "date": "2024-10-25",
+     "open": 2687.0,
+     "high": 2688.7,
+     "low": 2644.0,
+     "close": 2655.7,
+     "prev_close": 2679.6,
+     "volume": 9298748,
+     "isin": "INE002A01018",
+     "url": "https://nsearchives.nseindia.com/content/cm/BhavCopy_NSE_CM_0_0_0_20241025_F_0000.csv.zip"
+    },
+    "ex": {
+     "date": "2024-10-28",
+     "open": 1337.0,
+     "high": 1353.0,
+     "low": 1322.1,
+     "close": 1334.35,
+     "prev_close": 2655.7,
+     "volume": 10824350,
+     "isin": "INE002A01018",
+     "url": "https://nsearchives.nseindia.com/content/cm/BhavCopy_NSE_CM_0_0_0_20241028_F_0000.csv.zip"
+    }
+   },
+   "kite": {
+    "fetched_at": "2026-09-30T16:04:25+00:00",
+    "prev": {
+     "date": "2024-10-25",
+     "open": 1343.5,
+     "close": 1327.85,
+     "volume": 18597496
+    },
+    "ex": {
+     "date": "2024-10-28",
+     "open": 1337.0,
+     "close": 1334.35,
+     "volume": 10824350
+    }
+   },
+   "price_factor": 0.5,
+   "kite_residual": 1.0,
+   "cumulative_price_factor": 0.5
+  },
+  {
+   "symbol": "BAJFINANCE",
+   "ex_date": "2025-06-16",
+   "components": [
+    [
+     "SPLIT",
+     2,
+     1
+    ],
+    [
+     "BONUS",
+     4,
+     1
+    ]
+   ],
+   "sources": [
+    "https://groww.in/blog/bajaj-finance-trades-ex-date-for-bonus-and-split-investor-guide"
+   ],
+   "isin": "INE296A01032",
+   "raw": {
+    "prev": {
+     "date": "2025-06-13",
+     "open": 9150.0,
+     "high": 9365.5,
+     "low": 9147.0,
+     "close": 9331.0,
+     "prev_close": 9368.5,
+     "volume": 1018202,
+     "isin": "INE296A01024",
+     "url": "https://nsearchives.nseindia.com/content/cm/BhavCopy_NSE_CM_0_0_0_20250613_F_0000.csv.zip"
+    },
+    "ex": {
+     "date": "2025-06-16",
+     "open": 956.0,
+     "high": 956.0,
+     "low": 925.0,
+     "close": 938.0,
+     "prev_close": 9331.0,
+     "volume": 7016290,
+     "isin": "INE296A01032",
+     "url": "https://nsearchives.nseindia.com/content/cm/BhavCopy_NSE_CM_0_0_0_20250616_F_0000.csv.zip"
+    }
+   },
+   "kite": {
+    "fetched_at": "2026-09-30T16:04:27+00:00",
+    "prev": {
+     "date": "2025-06-13",
+     "open": 915.0,
+     "close": 933.0,
+     "volume": 10182020
+    },
+    "ex": {
+     "date": "2025-06-16",
+     "open": 956.0,
+     "close": 938.0,
+     "volume": 7016290
+    }
+   },
+   "price_factor": 0.1,
+   "kite_residual": 0.999893,
+   "cumulative_price_factor": 0.1
+  },
+  {
+   "symbol": "NESTLEIND",
+   "ex_date": "2025-08-08",
+   "components": [
+    [
+     "BONUS",
+     1,
+     1
+    ]
+   ],
+   "sources": [
+    "https://www.angelone.in/news/market-updates/nestle-india-bonus-shares-ex-date-today-aug-8"
+   ],
+   "isin": "INE239A01024",
+   "raw": {
+    "prev": {
+     "date": "2025-08-07",
+     "open": 2236.0,
+     "high": 2246.4,
+     "low": 2215.0,
+     "close": 2234.6,
+     "prev_close": 2233.3,
+     "volume": 507115,
+     "isin": "INE239A01024",
+     "url": "https://nsearchives.nseindia.com/content/cm/BhavCopy_NSE_CM_0_0_0_20250807_F_0000.csv.zip"
+    },
+    "ex": {
+     "date": "2025-08-08",
+     "open": 1122.0,
+     "high": 1126.4,
+     "low": 1093.4,
+     "close": 1096.5,
+     "prev_close": 2234.6,
+     "volume": 1242852,
+     "isin": "INE239A01024",
+     "url": "https://nsearchives.nseindia.com/content/cm/BhavCopy_NSE_CM_0_0_0_20250808_F_0000.csv.zip"
+    }
+   },
+   "kite": {
+    "fetched_at": "2026-09-30T16:04:28+00:00",
+    "prev": {
+     "date": "2025-08-07",
+     "open": 1118.0,
+     "close": 1117.3,
+     "volume": 1014230
+    },
+    "ex": {
+     "date": "2025-08-08",
+     "open": 1122.0,
+     "close": 1096.5,
+     "volume": 1242852
+    }
+   },
+   "price_factor": 0.5,
+   "kite_residual": 1.0,
+   "cumulative_price_factor": 0.5
+  },
+  {
+   "symbol": "HDFCBANK",
+   "ex_date": "2025-08-26",
+   "components": [
+    [
+     "BONUS",
+     1,
+     1
+    ]
+   ],
+   "sources": [
+    "https://hdfcsky.com/news/hdfc-bank-to-issue-11-bonus-shares-ex-date-on-august-26"
+   ],
+   "isin": "INE040A01034",
+   "raw": {
+    "prev": {
+     "date": "2025-08-25",
+     "open": 1960.2,
+     "high": 1977.4,
+     "low": 1957.0,
+     "close": 1964.1,
+     "prev_close": 1964.6,
+     "volume": 8759022,
+     "isin": "INE040A01034",
+     "url": "https://nsearchives.nseindia.com/content/cm/BhavCopy_NSE_CM_0_0_0_20250825_F_0000.csv.zip"
+    },
+    "ex": {
+     "date": "2025-08-26",
+     "open": 979.5,
+     "high": 985.7,
+     "low": 968.0,
+     "close": 973.4,
+     "prev_close": 1964.1,
+     "volume": 16917731,
+     "isin": "INE040A01034",
+     "url": "https://nsearchives.nseindia.com/content/cm/BhavCopy_NSE_CM_0_0_0_20250826_F_0000.csv.zip"
+    }
+   },
+   "kite": {
+    "fetched_at": "2026-09-30T16:04:29+00:00",
+    "prev": {
+     "date": "2025-08-25",
+     "open": 980.1,
+     "close": 982.0,
+     "volume": 17518044
+    },
+    "ex": {
+     "date": "2025-08-26",
+     "open": 979.5,
+     "close": 973.4,
+     "volume": 16917731
+    }
+   },
+   "price_factor": 0.5,
+   "kite_residual": 0.999949,
+   "cumulative_price_factor": 0.5
+  }
+ ]
+}

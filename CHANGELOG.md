@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed (found by the first real-data run, audit 2026-09-30 Fix 5b)
+- Same-day split and bonus (BAJFINANCE 2025-06-16: 1:2 split + 4:1 bonus) lost a factor: `save_adjustment` closes any row with the same (instrument, effective_date), so the bonus closed the split and the stored factor was 0.5 instead of 0.1. `AdjustmentEngine.compute_factors` now combines all actions of one ex-date into one factor (`resolution_id` = ids joined by `+`). The corporate-action worker also rebuilds an instrument's factors whenever they differ from what the engine computes now, so existing databases are repaired on the next `vcp ingest corporate-actions`.
+- `--instrument` accepted only full ids in `compute features`, `compute trend-template`, `quality scan`, `quality list`, `ingest adjusted-prices` and the post-ingest quality scan of `ingest corporate-actions`; a symbol such as `RELIANCE` silently selected nothing (the quality scan checked 0 instruments). All now accept an id or a symbol, any case.
+- Placeholder credentials copied from `.env.example` (`your_..._here`) or blank values now count as unset (`cli_pipeline.env_secret`). The placeholder Upstox token made `vcp ingest corporate-actions` fail with HTTP 401 instead of running NSE-only.
+
+### Added (audit Fix 5b)
+- `scripts/capture_golden_ca.py` and `tests/fixtures/corporate_actions/golden_actions.json`: 7 real splits/bonuses (IRCTC, TATASTEEL, NESTLEIND x2, RELIANCE, BAJFINANCE split+bonus, HDFCBANK), NSE bhavcopy raw prices vs Kite adjusted prices. `tests/regression/test_golden_corporate_actions.py` (49 offline checks).
+
 ### Fixed (`vcp auth kite` ignored .env)
 - `vcp auth kite` now loads `--env-file` (default `.env`) before reading `KITE_API_KEY` / `KITE_API_SECRET`, like every other command; `--api-key`/`--api-secret` and variables already in the environment still take precedence. Before, it read only the process environment and failed with "Kite API Key and Secret are required" although both were in `.env`.
 - `KiteAuthenticator` creates `.env` owner-only (0600) and tightens an existing group/world-readable one before writing the access token (audit P3: `.env` permissions).

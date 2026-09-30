@@ -722,6 +722,7 @@ Rules (owner decision, "fetch-time aware"):
 - Local factors from the NSE/Upstox layer remain the source for actions after the fetch, and for the gap safety net.
 - Unverified: whether Kite has already rescaled a bar fetched on the ex-date itself before the session. The engine assumes yes. Run `vcp verify kite-adjustment` (read-only) against known splits/bonuses; exit code 2 means Kite returned unadjusted history and this policy must be revisited before any signal is trusted.
 - Known limit: Kite also adjusts for rights, spin-offs and extraordinary dividends, which the local layer does not model; those remain in Kite-sourced history and cannot be undone for the price filter.
+- **Verified on live data (audit Fix 5b, 2026-09-30).** `vcp verify kite-adjustment` on TATASTEEL, IRCTC and RELIANCE: all ADJUSTED. Golden fixture (`tests/fixtures/corporate_actions/golden_actions.json`, 7 real actions) shows NSE bhavcopy raw close × our factor = Kite close within 0.01 % for 6 actions. The exception, TATASTEEL, shows that Kite also rescales history for large *ordinary* dividends (₹3.60 in 2024 and 2025, ~2.2 % of price each; Nestlé's ~1 % dividends are not adjusted), so Kite's adjustment set is wider than "extraordinary" dividends. Consequence (open, owner decision pending): bars fetched before such a dividend and bars fetched after it differ by that factor, and the local engine cannot reconcile them, leaving a ~2 % step in incrementally ingested history.
 
 ---
 

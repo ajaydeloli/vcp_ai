@@ -70,6 +70,25 @@ def _add_instrument_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--limit", type=int, help="Process at most N instruments")
 
 
+def _resolve_instrument_args(
+    wanted: Sequence[str] | None, known_ids: Sequence[str]
+) -> list[str] | None:
+    """Map ``--instrument`` values (id or symbol, any case) to instrument ids.
+
+    A value matching no known id is kept as given, so the command still reports it (e.g. as
+    having no raw prices) instead of silently dropping it.
+    """
+    if not wanted:
+        return None
+    from vcp_scanner.cli_pipeline import _matches
+
+    out: list[str] = []
+    for value in wanted:
+        hits = [iid for iid in known_ids if _matches(iid, [value])]
+        out.extend(hits or [value])
+    return list(dict.fromkeys(out))
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="vcp",
@@ -459,9 +478,11 @@ def main(argv: Sequence[str] | None = None) -> int:
 
             # Read KITE_API_KEY / KITE_API_SECRET from --env-file like every other command.
             # Variables already set in the environment win (load_dotenv does not override).
+            from vcp_scanner.cli_pipeline import env_secret
+
             load_dotenv(args.env_file)
-            api_key = args.api_key or os.getenv("KITE_API_KEY")
-            api_secret = args.api_secret or os.getenv("KITE_API_SECRET")
+            api_key = args.api_key or env_secret("KITE_API_KEY")
+            api_secret = args.api_secret or env_secret("KITE_API_SECRET")
 
             if not api_key or not api_secret:
                 print(
@@ -677,13 +698,15 @@ def main(argv: Sequence[str] | None = None) -> int:
                         created_at=datetime.now(UTC),
                         description="adjusted-prices build",
                     )
+                market_repo = DuckDBMarketDataRepository(store)
                 adjusted_builder = AdjustedPriceBuilder(
-                    DuckDBMarketDataRepository(store),
-                    DuckDBCorporateActionRepository(store),
+                    market_repo, DuckDBCorporateActionRepository(store)
                 )
                 results = adjusted_builder.build_all(
                     computed_at=datetime.now(UTC),
-                    instrument_ids=args.instrument,
+                    instrument_ids=_resolve_instrument_args(
+                        args.instrument, market_repo.load_priced_instrument_ids()
+                    ),
                     snapshot=data_snapshot,
                 )
 

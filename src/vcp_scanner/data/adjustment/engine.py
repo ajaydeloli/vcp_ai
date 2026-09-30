@@ -87,35 +87,47 @@ class AdjustmentEngine:
             and self._is_price_affecting(r.action_type)
             and status_allows_adjustment(r.status)
         ]
-        valid.sort(key=lambda pair: pair[1], reverse=True)
+        # Several actions can share one ex-date (BAJFINANCE 2025-06-16: 1:2 split and 4:1
+        # bonus). They are combined into ONE factor for that date: storing two rows for the
+        # same (instrument, effective_date) made the repository close the first one, so the
+        # combined factor 0.1 became 0.5 (found in audit Fix 5b on real data).
+        by_date: dict[date, list[CorporateActionResolution]] = {}
+        for r, ex_date in valid:
+            by_date.setdefault(ex_date, []).append(r)
 
         adjustments: list[CorporateActionAdjustment] = []
         cum_pf = 1.0
         cum_vf = 1.0
 
-        # We walk backwards from most recent to oldest
-        for r, ex_date in valid:
-            pf, vf = self._compute_single_factor(r)
+        # Walk backwards from the most recent ex-date to the oldest.
+        for ex_date in sorted(by_date, reverse=True):
+            group = sorted(by_date[ex_date], key=lambda r: (r.action_type.value, r.resolution_id))
+            pf, vf = 1.0, 1.0
+            for r in group:
+                single_pf, single_vf = self._compute_single_factor(r)
+                pf *= single_pf
+                vf *= single_vf
 
-            # If the action has no mathematical effect, we skip making a record
+            # If the actions have no mathematical effect, no record is made
             if pf == 1.0 and vf == 1.0:
                 continue
 
             cum_pf *= pf
             cum_vf *= vf
 
-            adj = CorporateActionAdjustment(
-                resolution_id=r.resolution_id,
-                instrument_id=r.instrument_id,
-                effective_date=ex_date,
-                price_factor=pf,
-                volume_factor=vf,
-                cumulative_price_factor=cum_pf,
-                cumulative_volume_factor=cum_vf,
-                source="INTERNAL",
-                calculation_version=CALCULATION_VERSION,
+            adjustments.append(
+                CorporateActionAdjustment(
+                    resolution_id="+".join(r.resolution_id for r in group),
+                    instrument_id=group[0].instrument_id,
+                    effective_date=ex_date,
+                    price_factor=pf,
+                    volume_factor=vf,
+                    cumulative_price_factor=cum_pf,
+                    cumulative_volume_factor=cum_vf,
+                    source="INTERNAL",
+                    calculation_version=CALCULATION_VERSION,
+                )
             )
-            adjustments.append(adj)
 
         # Return them sorted ascending by effective date for storage
         adjustments.reverse()
