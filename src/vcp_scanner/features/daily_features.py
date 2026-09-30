@@ -1,16 +1,28 @@
 import logging
 
 from vcp_scanner.data.storage.duckdb_store import DuckDBStore
+from vcp_scanner.domain.snapshot import LIVE_SNAPSHOT_ID, validate_snapshot_id
 
 logger = logging.getLogger(__name__)
 
 
 class DailyFeatureEngine:
-    """Computes daily technical features entirely within DuckDB."""
+    """Computes daily technical features entirely within DuckDB.
 
-    def __init__(self, store: DuckDBStore, calculation_version: str = "features-1.1.0") -> None:
+    Reads adjusted prices from one data snapshot (``LIVE`` = unfrozen working data) so a
+    later correction or corporate action cannot change features computed from an earlier
+    snapshot (audit finding P0-1).
+    """
+
+    def __init__(
+        self,
+        store: DuckDBStore,
+        calculation_version: str = "features-1.1.0",
+        data_snapshot_id: str = LIVE_SNAPSHOT_ID,
+    ) -> None:
         self.store = store
         self.calculation_version = calculation_version
+        self.data_snapshot_id = validate_snapshot_id(data_snapshot_id)
 
     def compute_for_instrument(self, instrument_id: str) -> int:
         """
@@ -46,7 +58,7 @@ class DailyFeatureEngine:
                     ) END AS true_range,
                     (close_adj - LAG(close_adj) OVER w_all) / NULLIF(LAG(close_adj) OVER w_all, 0) AS daily_return
                 FROM daily_prices_adjusted_current
-                WHERE instrument_id = ?
+                WHERE instrument_id = ? AND computed_from_snapshot_id = ?
                 WINDOW w_all AS (PARTITION BY instrument_id ORDER BY trade_date)
             ),
             features AS (
@@ -108,7 +120,7 @@ class DailyFeatureEngine:
                 atr_14, atr_pct_14, high_20, high_50, high_252, low_20, low_50, low_252,
                 volume_avg_5, volume_avg_10, volume_avg_20, volume_avg_50,
                 volume_ratio_20, volume_ratio_50, daily_return, rolling_volatility_20, rolling_volatility_50,
-                calculation_version
+                calculation_version, data_snapshot_id
             )
             SELECT
                 instrument_id, trade_date,
@@ -120,9 +132,10 @@ class DailyFeatureEngine:
                 volume_avg_5, volume_avg_10, volume_avg_20, volume_avg_50,
                 volume_ratio_20, volume_ratio_50,
                 daily_return, rolling_volatility_20, rolling_volatility_50,
-                ? AS calculation_version
+                ? AS calculation_version,
+                ? AS data_snapshot_id
             FROM features
-            ON CONFLICT (instrument_id, trade_date, calculation_version) DO UPDATE SET
+            ON CONFLICT (instrument_id, trade_date, calculation_version, data_snapshot_id) DO UPDATE SET
                 sma_20 = EXCLUDED.sma_20,
                 sma_50 = EXCLUDED.sma_50,
                 sma_150 = EXCLUDED.sma_150,
@@ -147,5 +160,8 @@ class DailyFeatureEngine:
         """
 
         cursor = self.store.conn.cursor()
-        result = cursor.execute(sql, [instrument_id, self.calculation_version]).fetchone()
+        result = cursor.execute(
+            sql,
+            [instrument_id, self.data_snapshot_id, self.calculation_version, self.data_snapshot_id],
+        ).fetchone()
         return int(result[0]) if result else 0

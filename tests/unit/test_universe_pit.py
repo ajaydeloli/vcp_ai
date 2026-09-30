@@ -34,6 +34,7 @@ def config():
         exchange="NSE",
         min_close_price=10.0,
         min_daily_turnover_inr=1_000_000.0,  # 10L — low threshold so test data passes
+        min_avg_traded_value_50d_inr=1_000_000.0,
         eligible_series=["EQ"],
         exclude_asm_gsm=True,
         exclude_trade_to_trade=True,

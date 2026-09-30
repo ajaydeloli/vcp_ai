@@ -2,7 +2,9 @@ import logging
 from datetime import date
 
 from vcp_scanner.config.models import RSConfig
+from vcp_scanner.data.repositories.base import DataQualityGate
 from vcp_scanner.data.storage.duckdb_store import DuckDBStore
+from vcp_scanner.domain.snapshot import LIVE_SNAPSHOT_ID, validate_snapshot_id
 
 logger = logging.getLogger(__name__)
 
@@ -11,15 +13,25 @@ _RETURN_COLUMNS = 4
 
 
 class RelativeStrengthEngine:
-    """Calculates relative strength across a universe snapshot."""
+    """Calculates relative strength across a universe snapshot.
+
+    Prices come from one *data* snapshot (``LIVE`` = unfrozen working data), which is
+    distinct from the *universe* snapshot that defines the ranking population.
+    """
 
     def __init__(
         self,
         store: DuckDBStore,
         calculation_version: str | None = None,
         config: RSConfig | None = None,
+        data_snapshot_id: str = LIVE_SNAPSHOT_ID,
+        quality_gate: DataQualityGate | None = None,
     ) -> None:
         self.store = store
+        # Instruments blocked by an unresolved data-quality event are left out of the ranking
+        # population (audit P0-2): a suspected missed split would distort everyone's percentile.
+        self._quality_gate = quality_gate
+        self.data_snapshot_id = validate_snapshot_id(data_snapshot_id)
         self.config = config or RSConfig()
         self.calculation_version = calculation_version or self.config.version
         if len(self.config.windows_days) != _RETURN_COLUMNS:
@@ -27,6 +39,27 @@ class RelativeStrengthEngine:
                 f"relative_strength_snapshots stores {_RETURN_COLUMNS} return columns; "
                 f"RSConfig.windows_days has {len(self.config.windows_days)}"
             )
+
+    def _blocked_members(self, universe_snapshot_id: str, as_of_date: date) -> list[str]:
+        """Eligible members the quality gate blocks at ``as_of_date`` (empty without a gate)."""
+        if self._quality_gate is None:
+            return []
+        members = [
+            r[0]
+            for r in self.store.conn.execute(
+                "SELECT instrument_id FROM universe_memberships"
+                " WHERE universe_snapshot_id = ? AND eligible = TRUE",
+                [universe_snapshot_id],
+            ).fetchall()
+        ]
+        blocked = sorted(self._quality_gate.blocked_instruments(members, as_of_date))
+        if blocked:
+            logger.warning(
+                "RS: excluding %d instrument(s) blocked by data-quality events: %s",
+                len(blocked),
+                ", ".join(blocked[:10]) + (" ..." if len(blocked) > 10 else ""),
+            )
+        return blocked
 
     def compute_for_date(self, as_of_date: date, universe_snapshot_id: str) -> int:
         """
@@ -66,6 +99,7 @@ class RelativeStrengthEngine:
                 SELECT instrument_id
                 FROM universe_memberships
                 WHERE universe_snapshot_id = ? AND eligible = TRUE
+                  AND NOT list_contains(CAST(? AS VARCHAR[]), instrument_id)
             ),
             daily_series AS (
                 SELECT
@@ -77,7 +111,7 @@ class RelativeStrengthEngine:
                     ) AS rn
                 FROM daily_prices_adjusted_current d
                 JOIN universe_instruments u ON d.instrument_id = u.instrument_id
-                WHERE d.trade_date <= ?
+                WHERE d.trade_date <= ? AND d.computed_from_snapshot_id = ?
             ),
             returns AS (
                 SELECT
@@ -126,7 +160,7 @@ class RelativeStrengthEngine:
             INSERT INTO relative_strength_snapshots (
                 as_of_date, instrument_id, ret_63, ret_126, ret_189, ret_252,
                 rs_raw, rs_rank, rs_percentile, population_size, rs_status,
-                universe_snapshot_id, calculation_version
+                universe_snapshot_id, calculation_version, data_snapshot_id
             )
             SELECT
                 ? AS as_of_date,
@@ -139,9 +173,13 @@ class RelativeStrengthEngine:
                 population_size,
                 rs_status,
                 ? AS universe_snapshot_id,
-                ? AS calculation_version
+                ? AS calculation_version,
+                ? AS data_snapshot_id
             FROM rankings
-            ON CONFLICT (as_of_date, instrument_id, calculation_version) DO UPDATE SET
+            ON CONFLICT (
+                as_of_date, instrument_id, calculation_version, data_snapshot_id,
+                universe_snapshot_id
+            ) DO UPDATE SET
                 ret_63 = EXCLUDED.ret_63,
                 ret_126 = EXCLUDED.ret_126,
                 ret_189 = EXCLUDED.ret_189,
@@ -150,20 +188,23 @@ class RelativeStrengthEngine:
                 rs_rank = EXCLUDED.rs_rank,
                 rs_percentile = EXCLUDED.rs_percentile,
                 population_size = EXCLUDED.population_size,
-                rs_status = EXCLUDED.rs_status,
-                universe_snapshot_id = EXCLUDED.universe_snapshot_id
+                rs_status = EXCLUDED.rs_status
         """
 
+        blocked_ids = self._blocked_members(universe_snapshot_id, as_of_date)
         cursor = self.store.conn.cursor()
         result = cursor.execute(
             sql,
             [
                 universe_snapshot_id,
+                blocked_ids,
                 as_of_date,
+                self.data_snapshot_id,
                 as_of_date,  # staleness reference
                 as_of_date,
                 universe_snapshot_id,
                 self.calculation_version,
+                self.data_snapshot_id,
             ],
         ).fetchone()
         return int(result[0]) if result else 0

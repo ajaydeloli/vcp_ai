@@ -6,6 +6,7 @@ DuckDB or Parquet files directly (AGENTS.md hard rule 3).
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from datetime import date, datetime
 from typing import Any, Protocol, runtime_checkable
 
@@ -16,7 +17,12 @@ from vcp_scanner.domain.corporate_actions import (
 )
 from vcp_scanner.domain.features import AdjustedClose, DailyFeatures, WeeklyPrice
 from vcp_scanner.domain.fundamentals import FundamentalSnapshot
-from vcp_scanner.domain.market import Candle, Instrument
+from vcp_scanner.domain.market import (
+    Candle,
+    Instrument,
+    ProviderInstrumentMapping,
+    ProviderMappingSyncResult,
+)
 from vcp_scanner.domain.trend import (
     RelativeStrengthResult,
     TrendConditionResult,
@@ -283,6 +289,75 @@ class TrendRepository(Protocol):
         instrument_id: str,
         as_of_date: date,
         calculation_version: str,
+        universe_snapshot_id: str | None = None,
     ) -> RelativeStrengthResult | None:
-        """Load the RS snapshot for an exact as-of date, or None if not computed."""
+        """Load the RS snapshot for an exact as-of date, or None if not computed.
+
+        ``universe_snapshot_id`` selects the ranking universe; without it the most recently
+        created universe snapshot's row is returned.
+        """
+        ...
+
+
+@runtime_checkable
+class DataQualityGate(Protocol):
+    """Answers "may this instrument emit signals at this date?" (audit finding P0-2).
+
+    Every stage that produces a signal or a ranking population (universe, RS, Trend
+    Template, later VCP) consults one gate instead of re-implementing quality checks.
+    """
+
+    def blocked_instruments(
+        self,
+        instrument_ids: Sequence[str],
+        as_of_date: date,
+        *,
+        known_at: datetime | None = None,
+    ) -> dict[str, tuple[str, ...]]:
+        """Map each blocked instrument to its blocking data-quality flags.
+
+        Instruments that are not blocked are absent from the result. With ``known_at`` the
+        answer is point-in-time: only events already detected (and not yet resolved) then.
+        """
+        ...
+
+
+@runtime_checkable
+class ProviderInstrumentRepository(Protocol):
+    """Provider identifier <-> permanent ``instrument_id`` mapping (audit finding P1-1).
+
+    Broker-specific ids (Kite tokens, Upstox keys) live behind this interface; strategy
+    code only ever sees ``instrument_id``.
+    """
+
+    def sync_full_dump(
+        self,
+        provider: str,
+        mappings: Sequence[ProviderInstrumentMapping],
+        as_of: date,
+        *,
+        skipped_unresolved: int = 0,
+    ) -> ProviderMappingSyncResult:
+        """Record a provider's complete instrument dump observed on ``as_of``.
+
+        New tokens are opened, tokens now pointing at another instrument or symbol are
+        closed and reopened, and tokens missing from the dump are closed. ``mappings`` must
+        be the whole dump: an empty one is rejected rather than closing everything.
+        """
+        ...
+
+    def instrument_id_for(
+        self, provider: str, provider_instrument_id: str, on_date: date
+    ) -> str | None:
+        """Instrument a provider id pointed at on ``on_date``, or None if unknown."""
+        ...
+
+    def provider_instrument_id_for(
+        self, provider: str, instrument_id: str, on_date: date
+    ) -> str | None:
+        """Provider id used for an instrument on ``on_date``, or None if unknown."""
+        ...
+
+    def load_open(self, provider: str) -> list[ProviderInstrumentMapping]:
+        """Mappings the provider currently lists (``valid_to IS NULL``)."""
         ...

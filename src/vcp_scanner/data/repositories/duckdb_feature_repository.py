@@ -4,11 +4,20 @@ from typing import Any
 from vcp_scanner.data.repositories.base import FeatureRepository
 from vcp_scanner.data.storage.duckdb_store import DuckDBStore
 from vcp_scanner.domain.features import AdjustedClose, DailyFeatures, WeeklyPrice
+from vcp_scanner.domain.snapshot import LIVE_SNAPSHOT_ID, validate_snapshot_id
 
 
 class DuckDBFeatureRepository(FeatureRepository):
-    def __init__(self, store: DuckDBStore) -> None:
+    """Feature persistence bound to one data snapshot.
+
+    Every read (and, from stage 2, every write) is scoped to ``data_snapshot_id``, so the
+    engines that consume this repository see exactly the data of that snapshot. The default
+    ``LIVE`` is unfrozen working data (audit finding P0-1).
+    """
+
+    def __init__(self, store: DuckDBStore, data_snapshot_id: str = LIVE_SNAPSHOT_ID) -> None:
         self.store = store
+        self.data_snapshot_id = validate_snapshot_id(data_snapshot_id)
 
     def save_daily_features(self, features: list[DailyFeatures]) -> None:
         if not features:
@@ -22,12 +31,13 @@ class DuckDBFeatureRepository(FeatureRepository):
                 volume_avg_5, volume_avg_10, volume_avg_20, volume_avg_50,
                 volume_ratio_20, volume_ratio_50, daily_return,
                 rolling_volatility_20, rolling_volatility_50,
-                calculation_version
+                calculation_version, data_snapshot_id
             ) VALUES (
                 ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
-                ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+                ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
             )
-            ON CONFLICT (instrument_id, trade_date, calculation_version) DO UPDATE SET
+            ON CONFLICT (instrument_id, trade_date, calculation_version, data_snapshot_id)
+            DO UPDATE SET
                 sma_20 = EXCLUDED.sma_20,
                 sma_50 = EXCLUDED.sma_50,
                 sma_150 = EXCLUDED.sma_150,
@@ -83,6 +93,7 @@ class DuckDBFeatureRepository(FeatureRepository):
                 f.rolling_volatility_20,
                 f.rolling_volatility_50,
                 f.calculation_version,
+                self.data_snapshot_id,
             )
             for f in features
         ]
@@ -95,9 +106,11 @@ class DuckDBFeatureRepository(FeatureRepository):
 
         sql = """
             INSERT INTO weekly_prices (
-                instrument_id, week_end, open, high, low, close, volume, source_daily_version
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            ON CONFLICT (instrument_id, week_end, source_daily_version) DO UPDATE SET
+                instrument_id, week_end, open, high, low, close, volume, source_daily_version,
+                data_snapshot_id
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT (instrument_id, week_end, source_daily_version, data_snapshot_id)
+            DO UPDATE SET
                 open = EXCLUDED.open,
                 high = EXCLUDED.high,
                 low = EXCLUDED.low,
@@ -115,6 +128,7 @@ class DuckDBFeatureRepository(FeatureRepository):
                 p.close,
                 p.volume,
                 p.source_daily_version,
+                self.data_snapshot_id,
             )
             for p in prices
         ]
@@ -135,7 +149,7 @@ class DuckDBFeatureRepository(FeatureRepository):
         should always pass it.
         """
         version_clause = "AND calculation_version = ?" if calculation_version else ""
-        params: list[object] = [instrument_id, as_of]
+        params: list[object] = [instrument_id, self.data_snapshot_id, as_of]
         if calculation_version:
             params.append(calculation_version)
         sql = f"""
@@ -147,7 +161,8 @@ class DuckDBFeatureRepository(FeatureRepository):
                 rolling_volatility_20, rolling_volatility_50,
                 calculation_version
             FROM technical_features_daily
-            WHERE instrument_id = ? AND trade_date <= ? {version_clause}
+            WHERE instrument_id = ? AND data_snapshot_id = ? AND trade_date <= ?
+              {version_clause}
             ORDER BY trade_date DESC LIMIT 1
         """  # noqa: S608 - the only interpolated text is a fixed literal; values are bound
         result = self.store.conn.execute(sql, params).fetchone()
@@ -189,10 +204,13 @@ class DuckDBFeatureRepository(FeatureRepository):
             SELECT
                 instrument_id, week_end, open, high, low, close, volume, source_daily_version
             FROM weekly_prices
-            WHERE instrument_id = ? AND week_end >= ? AND week_end <= ?
+            WHERE instrument_id = ? AND data_snapshot_id = ?
+              AND week_end >= ? AND week_end <= ?
             ORDER BY week_end ASC, source_daily_version ASC
         """
-        results = self.store.conn.execute(sql, [instrument_id, start, end]).fetchall()
+        results = self.store.conn.execute(
+            sql, [instrument_id, self.data_snapshot_id, start, end]
+        ).fetchall()
         return [
             WeeklyPrice(
                 instrument_id=row[0],
@@ -216,7 +234,7 @@ class DuckDBFeatureRepository(FeatureRepository):
     ) -> list[DailyFeatures]:
         """Up to ``limit`` feature rows with trade_date <= as_of, newest first."""
         version_clause = "AND calculation_version = ?" if calculation_version is not None else ""
-        params: list[Any] = [instrument_id, as_of]
+        params: list[Any] = [instrument_id, self.data_snapshot_id, as_of]
         if calculation_version is not None:
             params.append(calculation_version)
         params.append(limit)
@@ -228,7 +246,8 @@ class DuckDBFeatureRepository(FeatureRepository):
                 volume_ratio_20, volume_ratio_50, daily_return, rolling_volatility_20,
                 rolling_volatility_50, calculation_version
             FROM technical_features_daily
-            WHERE instrument_id = ? AND trade_date <= ? {version_clause}
+            WHERE instrument_id = ? AND data_snapshot_id = ? AND trade_date <= ?
+              {version_clause}
             ORDER BY trade_date DESC, calculation_version DESC
             LIMIT ?
         """
@@ -243,24 +262,18 @@ class DuckDBFeatureRepository(FeatureRepository):
     ) -> list[AdjustedClose]:
         """Up to ``limit`` adjusted closes with trade_date <= as_of, newest first.
 
-        If several adjustment versions exist for a date, the most recently computed
-        one wins (deterministic tie-break on version name).
+        Reads ``daily_prices_adjusted_current`` for this repository's data snapshot: one
+        adjustment version per instrument (the most recently computed within the
+        snapshot), the same source the feature, weekly and RS engines use.
         """
         sql = """
-            SELECT trade_date, close_adj FROM (
-                SELECT
-                    trade_date,
-                    close_adj,
-                    ROW_NUMBER() OVER (
-                        PARTITION BY trade_date
-                        ORDER BY computed_at DESC, adjustment_version DESC
-                    ) AS rn
-                FROM daily_prices_adjusted
-                WHERE instrument_id = ? AND trade_date <= ?
-            )
-            WHERE rn = 1
+            SELECT trade_date, close_adj
+            FROM daily_prices_adjusted_current
+            WHERE instrument_id = ? AND computed_from_snapshot_id = ? AND trade_date <= ?
             ORDER BY trade_date DESC
             LIMIT ?
         """
-        rows = self.store.conn.execute(sql, [instrument_id, as_of, limit]).fetchall()
+        rows = self.store.conn.execute(
+            sql, [instrument_id, self.data_snapshot_id, as_of, limit]
+        ).fetchall()
         return [AdjustedClose(trade_date=row[0], close=row[1]) for row in rows]

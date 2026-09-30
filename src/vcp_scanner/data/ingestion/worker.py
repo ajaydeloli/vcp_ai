@@ -18,23 +18,33 @@ from dataclasses import replace
 from datetime import date, datetime, timedelta
 from typing import TYPE_CHECKING
 
+from vcp_scanner.data.quality.completeness import CompletenessReport, CompletenessStatus
 from vcp_scanner.data.schema import (
     IngestionRunRow,
     RawOHLCVRow,
     candle_source_hash,
     validate_ohlc,
 )
+from vcp_scanner.domain.enums import DataQualityFlag
 from vcp_scanner.infrastructure.clock import Clock, utc_now
 
 if TYPE_CHECKING:
     from vcp_scanner.data.identity import InstrumentResolver
     from vcp_scanner.data.providers.base import MarketDataProvider
+    from vcp_scanner.data.quality.completeness import CompletenessChecker, SessionScan
     from vcp_scanner.data.repositories.duckdb_market_repository import (
         DuckDBMarketDataRepository,
     )
+    from vcp_scanner.data.repositories.duckdb_quality_repository import (
+        DuckDBDataQualityRepository,
+    )
+    from vcp_scanner.domain.events import DataQualityEvent
     from vcp_scanner.domain.market import Candle, Instrument
 
 logger = logging.getLogger(__name__)
+
+# Longest plausible run of consecutive non-trading days (weekend + holidays) on NSE.
+_MAX_PLAUSIBLE_CLOSURE_DAYS = 7
 
 
 def _date_chunks(start: date, end: date, max_days: int) -> list[tuple[date, date]]:
@@ -74,6 +84,8 @@ class IngestionWorker:
         sleep: Callable[[float], None] = time.sleep,
         monotonic: Callable[[], float] = time.monotonic,
         clock: Clock = utc_now,
+        completeness: CompletenessChecker | None = None,
+        quality_repository: DuckDBDataQualityRepository | None = None,
     ) -> None:
         self._provider = provider
         self._repo = repository
@@ -84,6 +96,17 @@ class IngestionWorker:
         self._monotonic = monotonic
         self._clock = clock
         self._last_request_at: float | None = None
+        # Optional daily-bar completeness check (audit P0-4). Without it the worker keeps its
+        # old behaviour: head/tail coverage only, interior holes unseen.
+        self._completeness = completeness
+        # Optional persistence for the events the completeness check raises (audit P0-2).
+        # Without it they only live in ``quality_events`` for the current process.
+        self._quality = quality_repository
+        #: Latest completeness report per instrument id.
+        self.completeness_reports: dict[str, CompletenessReport] = {}
+        #: Data-quality events raised by completeness checks (also persisted when a
+        #: ``quality_repository`` is configured).
+        self.quality_events: list[DataQualityEvent] = []
 
     # ------------------------------------------------------------------
     # Public API
@@ -161,7 +184,8 @@ class IngestionWorker:
                     error_count=0,
                 )
                 self._repo.save_ingestion_run(run)
-                return run
+                # Fully covered head/tail can still hide interior holes: verify anyway.
+                return self._finalize_completeness(instrument, run, start, end, now_utc)
 
             caps = self._provider.get_capabilities()
             chunk_size = caps.daily_history_max_request_days
@@ -179,38 +203,28 @@ class IngestionWorker:
             )
             min_interval = self._min_request_interval(caps.historical_requests_per_second)
 
-            for chunk_start, chunk_end in chunks:
-                try:
-                    self._throttle(min_interval)
-                    candles: list[Candle] = self._provider.get_historical_daily(
-                        instrument, chunk_start, chunk_end
-                    )
-                    records_received += len(candles)
-
-                    raw_rows, valid_candles, rejected = self._validate_and_build_raw(
-                        candles, run_id, now_utc
-                    )
-                    records_rejected += rejected
-
-                    # Append raw (immutable, always)
-                    self._repo.save_raw_ohlcv(raw_rows)
-
-                    # Upsert canonical (bitemporal)
-                    written = self._repo.save_daily(valid_candles)
-                    records_written += written
-
-                except Exception:  # noqa: BLE001
-                    logger.exception(
-                        "Error ingesting chunk [%s, %s] for %s",
-                        chunk_start,
-                        chunk_end,
-                        instrument.instrument_id,
-                    )
-                    error_count += 1
+            received, written, rejected, errors = self._ingest_ranges(
+                instrument, chunks, run_id, now_utc, min_interval
+            )
+            records_received += received
+            records_written += written
+            records_rejected += rejected
+            error_count += errors
 
             status = "SUCCESS" if error_count == 0 else "PARTIAL"
             if records_received == 0 and error_count > 0:
                 status = "FAILED"
+            elif records_received == 0 and self._span_days(missing) > _MAX_PLAUSIBLE_CLOSURE_DAYS:
+                # Backstop for runs the completeness check cannot judge (no checker, or too
+                # thin a cross-section to observe sessions from): a short empty range may be
+                # a holiday cluster, an empty fetch longer than any real closure is not.
+                logger.warning(
+                    "Provider returned no bars for %s over %d days %s; marking PARTIAL.",
+                    instrument.instrument_id,
+                    self._span_days(missing),
+                    missing,
+                )
+                status = "PARTIAL"
 
         except Exception:  # noqa: BLE001
             logger.exception("Fatal error ingesting %s", instrument.instrument_id)
@@ -236,11 +250,169 @@ class IngestionWorker:
             records_rejected,
             error_count,
         )
-        return completed_run
+        return self._finalize_completeness(instrument, completed_run, start, end, now_utc)
 
     # ------------------------------------------------------------------
     # Private helpers
     # ------------------------------------------------------------------
+
+    def verify_completeness(
+        self,
+        instrument: Instrument,
+        start: date,
+        end: date,
+        *,
+        ingestion_time: datetime | None = None,
+        scan: SessionScan | None = None,
+    ) -> CompletenessReport:
+        """Check stored bars against observed market sessions and re-fetch interior holes.
+
+        Missing sessions are requested from the provider once (merged into ranges); the
+        outcome is re-checked and recorded as a ``daily_ohlcv_gapfill`` ingestion run.
+        Residual gaps (suspension, provider lacks the bar) stay INCOMPLETE and raise a
+        MISSING_CANDLES event in ``quality_events``. ``scan`` lets a batch reuse one
+        cross-section scan.
+        """
+        instrument = self._canonical_instrument(instrument)
+        if self._completeness is None:
+            return CompletenessReport(
+                instrument.instrument_id,
+                start,
+                end,
+                CompletenessStatus.UNVERIFIED,
+                detail="no completeness checker configured",
+            )
+        now_utc: datetime = ingestion_time or self._clock()
+        report = self._completeness.check(instrument.instrument_id, start, end, scan=scan)
+
+        if report.status is CompletenessStatus.INCOMPLETE:
+            run_id = str(uuid.uuid4())
+            run = IngestionRunRow(
+                ingestion_run_id=run_id,
+                provider=self._provider.__class__.__name__,
+                dataset="daily_ohlcv_gapfill",
+                started_at=now_utc,
+                status="RUNNING",
+                requested_start=report.missing_ranges[0][0],
+                requested_end=report.missing_ranges[-1][1],
+                code_version=self._code_version,
+            )
+            self._repo.save_ingestion_run(run)
+
+            caps = self._provider.get_capabilities()
+            chunk_size = caps.daily_history_max_request_days
+            chunks = [
+                c for lo, hi in report.missing_ranges for c in _date_chunks(lo, hi, chunk_size)
+            ]
+            logger.info(
+                "Completeness: %s missing %d session(s) in %d range(s); re-fetching.",
+                instrument.instrument_id,
+                len(report.missing_sessions),
+                len(report.missing_ranges),
+            )
+            received, written, rejected, errors = self._ingest_ranges(
+                instrument,
+                chunks,
+                run_id,
+                now_utc,
+                self._min_request_interval(caps.historical_requests_per_second),
+            )
+            report = self._completeness.check(instrument.instrument_id, start, end)
+            if errors and received == 0:
+                status = "FAILED"
+            elif errors or report.status is not CompletenessStatus.COMPLETE:
+                status = "PARTIAL"
+            else:
+                status = "SUCCESS"
+            self._repo.save_ingestion_run(
+                replace(
+                    run,
+                    status=status,
+                    completed_at=self._clock(),
+                    records_received=received,
+                    records_written=written,
+                    records_rejected=rejected,
+                    error_count=errors,
+                )
+            )
+
+        events = report.to_events(now_utc)
+        if events:
+            self.quality_events.extend(events)
+            logger.warning(
+                "Incomplete daily bars for %s: %s",
+                instrument.instrument_id,
+                events[0].description,
+            )
+        # UNVERIFIED means the cross-section was too thin to judge, so it neither raises nor
+        # clears anything. COMPLETE / INCOMPLETE sync the stored events: a filled hole closes
+        # its event, a residual one opens (or keeps) a signal-blocking event.
+        if self._quality is not None and report.status is not CompletenessStatus.UNVERIFIED:
+            self._quality.sync_events(
+                instrument.instrument_id, DataQualityFlag.MISSING_CANDLES, events, at=now_utc
+            )
+        self.completeness_reports[instrument.instrument_id] = report
+        return report
+
+    def _finalize_completeness(
+        self,
+        instrument: Instrument,
+        run: IngestionRunRow,
+        start: date,
+        end: date,
+        now_utc: datetime,
+    ) -> IngestionRunRow:
+        """Run the completeness check after ingest; a residual gap downgrades SUCCESS."""
+        if self._completeness is None or run.status == "FAILED":
+            return run
+        report = self.verify_completeness(instrument, start, end, ingestion_time=now_utc)
+        if report.status is CompletenessStatus.INCOMPLETE and run.status == "SUCCESS":
+            run = replace(run, status="PARTIAL")
+            self._repo.save_ingestion_run(run)
+        return run
+
+    def _ingest_ranges(
+        self,
+        instrument: Instrument,
+        chunks: list[tuple[date, date]],
+        run_id: str,
+        now_utc: datetime,
+        min_interval: float,
+    ) -> tuple[int, int, int, int]:
+        """Fetch, validate and store each chunk.
+
+        Returns ``(received, written, rejected, errors)``; a failing chunk is logged and
+        counted, never raised, so the remaining chunks still run.
+        """
+        received = written = rejected = errors = 0
+        for chunk_start, chunk_end in chunks:
+            try:
+                self._throttle(min_interval)
+                candles: list[Candle] = self._provider.get_historical_daily(
+                    instrument, chunk_start, chunk_end
+                )
+                received += len(candles)
+
+                raw_rows, valid_candles, chunk_rejected = self._validate_and_build_raw(
+                    candles, run_id, now_utc
+                )
+                rejected += chunk_rejected
+
+                # Append raw (immutable, always)
+                self._repo.save_raw_ohlcv(raw_rows)
+
+                # Upsert canonical (bitemporal)
+                written += self._repo.save_daily(valid_candles)
+
+            except Exception:  # noqa: BLE001
+                logger.exception(
+                    "Error ingesting chunk [%s, %s] for %s",
+                    chunk_start,
+                    chunk_end,
+                    instrument.instrument_id,
+                )
+                errors += 1
+        return received, written, rejected, errors
 
     def _canonical_instrument(self, instrument: Instrument) -> Instrument:
         """Remap a provider-reported instrument to its permanent ID (ISIN, then symbol).
@@ -309,6 +481,11 @@ class IngestionWorker:
         return ranges
 
     @staticmethod
+    def _span_days(ranges: list[tuple[date, date]]) -> int:
+        """Total calendar days covered by ``ranges`` (inclusive)."""
+        return sum((r_end - r_start).days + 1 for r_start, r_end in ranges)
+
+    @staticmethod
     def _min_request_interval(requests_per_second: float) -> float:
         """Seconds between provider calls implied by the provider's rate limit."""
         if requests_per_second <= 0:
@@ -362,7 +539,9 @@ class IngestionWorker:
             raw_rows.append(
                 RawOHLCVRow(
                     provider=candle.provider,
-                    provider_instrument_id=candle.instrument_id,  # use internal ID
+                    # The provider's own id (Kite token, Upstox key). Only a provider with no
+                    # native identifier falls back to the internal id (audit P1-1).
+                    provider_instrument_id=candle.provider_instrument_id or candle.instrument_id,
                     instrument_id=candle.instrument_id,
                     timestamp=candle.timestamp,
                     interval=candle.timeframe,

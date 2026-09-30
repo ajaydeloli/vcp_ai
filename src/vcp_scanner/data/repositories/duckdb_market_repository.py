@@ -32,6 +32,7 @@ from vcp_scanner.data.schema import (
 )
 from vcp_scanner.domain.enums import Timeframe
 from vcp_scanner.domain.market import Candle
+from vcp_scanner.domain.snapshot import LIVE_SNAPSHOT_ID
 from vcp_scanner.infrastructure.clock import Clock, utc_now
 
 if TYPE_CHECKING:
@@ -295,9 +296,11 @@ class DuckDBMarketDataRepository:
     def save_adjusted_daily(self, rows: list[DailyPriceAdjustedRow]) -> int:
         """Persist derived adjusted bars, all-or-nothing.
 
-        Keyed by ``(instrument_id, trade_date, adjustment_version)``. A different
-        version never touches another version's rows; re-saving the same version
-        refreshes its values and ``computed_at`` (idempotent rebuild).
+        Keyed by ``(instrument_id, trade_date, adjustment_version, computed_from_snapshot_id)``.
+        A different version or a different data snapshot never touches another's rows;
+        re-saving the same version under the same snapshot refreshes its values and
+        ``computed_at`` (idempotent rebuild). A row with no snapshot is stored under the
+        explicit unfrozen marker ``LIVE``.
 
         Returns the number of rows written.
         """
@@ -316,7 +319,7 @@ class DuckDBMarketDataRepository:
                 r.adjustment_version,
                 r.price_factor_applied,
                 r.volume_factor_applied,
-                r.computed_from_snapshot_id,
+                r.computed_from_snapshot_id or LIVE_SNAPSHOT_ID,
                 r.computed_at,
             ]
             for r in rows
@@ -333,7 +336,9 @@ class DuckDBMarketDataRepository:
                     price_factor_applied, volume_factor_applied,
                     computed_from_snapshot_id, computed_at
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                ON CONFLICT (instrument_id, trade_date, adjustment_version) DO UPDATE SET
+                ON CONFLICT (
+                    instrument_id, trade_date, adjustment_version, computed_from_snapshot_id
+                ) DO UPDATE SET
                     open_adj = EXCLUDED.open_adj,
                     high_adj = EXCLUDED.high_adj,
                     low_adj = EXCLUDED.low_adj,
@@ -341,7 +346,6 @@ class DuckDBMarketDataRepository:
                     volume_adj = EXCLUDED.volume_adj,
                     price_factor_applied = EXCLUDED.price_factor_applied,
                     volume_factor_applied = EXCLUDED.volume_factor_applied,
-                    computed_from_snapshot_id = EXCLUDED.computed_from_snapshot_id,
                     computed_at = EXCLUDED.computed_at
                 """,
                 params,
@@ -358,11 +362,13 @@ class DuckDBMarketDataRepository:
         start: date,
         end: date,
         adjustment_version: str | None = None,
+        data_snapshot_id: str = LIVE_SNAPSHOT_ID,
     ) -> list[DailyPriceAdjustedRow]:
-        """Load adjusted bars in [start, end].
+        """Load adjusted bars in [start, end] from one data snapshot (default: ``LIVE``).
 
-        With no ``adjustment_version`` the instrument's *current* version is read (the
-        most recently computed one, via ``daily_prices_adjusted_current``).
+        With no ``adjustment_version`` the instrument's *current* version within that
+        snapshot is read (the most recently computed one, via
+        ``daily_prices_adjusted_current``).
         """
         if adjustment_version is None:
             source, version_clause, extra = "daily_prices_adjusted_current", "", []
@@ -378,10 +384,11 @@ class DuckDBMarketDataRepository:
                    adjustment_version, price_factor_applied, volume_factor_applied,
                    computed_at, computed_from_snapshot_id
             FROM {source}
-            WHERE instrument_id = ? AND trade_date >= ? AND trade_date <= ? {version_clause}
+            WHERE instrument_id = ? AND trade_date >= ? AND trade_date <= ?
+              AND computed_from_snapshot_id = ? {version_clause}
             ORDER BY trade_date
             """,  # noqa: S608 - source/clause are fixed literals above, values are bound
-            [instrument_id, start, end, *extra],
+            [instrument_id, start, end, data_snapshot_id, *extra],
         ).fetchall()
 
         return [
@@ -397,19 +404,24 @@ class DuckDBMarketDataRepository:
                 price_factor_applied=r[8],
                 volume_factor_applied=r[9],
                 computed_at=r[10],
-                computed_from_snapshot_id=r[11],
+                computed_from_snapshot_id=None if r[11] == LIVE_SNAPSHOT_ID else r[11],
             )
             for r in result
         ]
 
-    def current_adjustment_version(self, instrument_id: str) -> str | None:
-        """The version downstream readers use for this instrument, or None if never built."""
+    def current_adjustment_version(
+        self, instrument_id: str, data_snapshot_id: str = LIVE_SNAPSHOT_ID
+    ) -> str | None:
+        """The version downstream readers use for this instrument within a data snapshot.
+
+        None if the instrument was never built under that snapshot.
+        """
         row = self._store.conn.execute(
             """
             SELECT adjustment_version FROM daily_prices_adjusted_current
-            WHERE instrument_id = ? LIMIT 1
+            WHERE instrument_id = ? AND computed_from_snapshot_id = ? LIMIT 1
             """,
-            [instrument_id],
+            [instrument_id, data_snapshot_id],
         ).fetchone()
         return None if row is None else str(row[0])
 

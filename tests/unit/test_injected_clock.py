@@ -128,6 +128,7 @@ def test_universe_snapshot_created_at_uses_injected_clock(store: DuckDBStore) ->
         exchange="NSE",
         min_close_price=10.0,
         min_daily_turnover_inr=5_000_000.0,
+        min_avg_traded_value_50d_inr=5_000_000.0,
         eligible_series=["EQ"],
     )
     snapshot, _ = UniverseBuilder(store, config, clock=_fixed_clock).build_snapshot(

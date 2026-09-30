@@ -171,9 +171,7 @@ def test_market_ingestion_stores_bars_under_the_permanent_id(
     worker = IngestionWorker(provider=provider, repository=repo, resolver=resolver)
 
     renamed = Instrument(instrument_id=NEW_ID, symbol="NEWCO", exchange="NSE", isin=ISIN_X)
-    run = worker.ingest_instrument(
-        renamed, date(2024, 1, 2), date(2024, 1, 4), ingestion_time=NOW
-    )
+    run = worker.ingest_instrument(renamed, date(2024, 1, 2), date(2024, 1, 4), ingestion_time=NOW)
 
     assert run.status == "SUCCESS"
     assert len(repo.load_daily(OLD_ID, date(2024, 1, 1), date(2024, 1, 31))) == 3

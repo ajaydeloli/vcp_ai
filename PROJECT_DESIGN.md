@@ -725,7 +725,7 @@ Survivorship-bias control (§15, §40) and correct adjusted prices (§13) both n
 class SecurityMasterProvider(Protocol):
     def get_security_history(self, start: date, end: date) -> list[SecurityRecord]: ...   # ISIN, listing/delisting dates, series
 class CorporateActionProvider(Protocol):
-    def get_actions(self, start: date, end: date) -> list[CorporateActionRecord]: ...
+    def get_actions(self, start: date, end: date) -> list[CorporateAction]: ...
 class SurveillanceProvider(Protocol):
     def get_flags(self, start: date, end: date) -> list[SurveillanceRecord]: ...          # ASM/GSM/T2T/BE history
 ```

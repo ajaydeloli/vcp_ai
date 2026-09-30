@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import re
 from datetime import UTC, date, datetime
 from typing import Any
 
@@ -13,10 +14,61 @@ from urllib3.util.retry import Retry
 from vcp_scanner.data.identity import deterministic_action_id, mint_instrument_id
 from vcp_scanner.domain.corporate_actions import CorporateAction
 from vcp_scanner.domain.enums import CorporateActionType
+from vcp_scanner.domain.errors import ProviderError
 from vcp_scanner.domain.market import Instrument
 from vcp_scanner.infrastructure.clock import Clock, utc_now
 
 logger = logging.getLogger(__name__)
+
+# Money amounts as NSE writes face values: "Rs 10/-", "Rs. 2/-", "Re 1/-", "INR 5".
+_AMOUNT_RE = re.compile(r"(?:RS|RE|INR)\.?\s*(\d+(?:\.\d+)?)")
+# "Bonus 1:2", "Bonus Issue 1 : 1", or the reverse spelling "1:1 Bonus".
+_BONUS_AFTER_RE = re.compile(r"BONUS[^\d]*(\d+)\s*:\s*(\d+)")
+_BONUS_BEFORE_RE = re.compile(r"(\d+)\s*:\s*(\d+)\s*BONUS")
+# Price-affecting events this provider does not model. Dropping them silently would leave the
+# price series unadjusted with no trace, so they are reported instead (audit P1-2).
+_UNHANDLED_MARKERS = (
+    "CONSOLIDAT",
+    "REDUCTION",
+    "DEMERGER",
+    "AMALGAMAT",
+    "MERGER",
+    "ARRANGEMENT",
+)
+
+
+def parse_ratio(text: str, action_type: CorporateActionType) -> tuple[float, float] | None:
+    """Extract ``(numerator, denominator)`` from NSE subject/purpose text, or ``None``.
+
+    Conventions match ``AdjustmentEngine``:
+
+    * SPLIT: ``(old face value, new face value)``. Rs 10 -> Re 1 gives ``(10, 1)``, i.e. one
+      share becomes ten and prices are multiplied by ``1/10``.
+    * BONUS: ``(bonus shares, shares held)``. ``Bonus 1:2`` gives ``(1, 2)``.
+
+    Returns ``None`` when the text does not contain a usable, positive ratio; callers must treat
+    that as "ratio unknown", never as "no adjustment".
+    """
+    upper = text.upper().replace("\u20b9", "RS")
+    if action_type == CorporateActionType.SPLIT:
+        amounts = [float(a) for a in _AMOUNT_RE.findall(upper)]
+        # Exactly two amounts (old, new). Three or more means the text mixes in something else
+        # (a dividend amount, say) and guessing which two are face values is not safe.
+        if len(amounts) != 2:
+            return None
+        old_fv, new_fv = amounts
+        if old_fv <= 0 or new_fv <= 0 or old_fv == new_fv:
+            return None
+        return old_fv, new_fv
+    if action_type == CorporateActionType.BONUS:
+        m = _BONUS_AFTER_RE.search(upper) or _BONUS_BEFORE_RE.search(upper)
+        if m is None:
+            return None
+        num, den = float(m.group(1)), float(m.group(2))
+        if num <= 0 or den <= 0:
+            return None
+        return num, den
+    return None
 
 
 class NSECorporateActionProvider:
@@ -28,6 +80,9 @@ class NSECorporateActionProvider:
 
     def __init__(self, *, clock: Clock = utc_now) -> None:
         self._clock = clock
+        # Filled by each ``get_actions`` call so the CLI can report what was not understood.
+        self.unparsed_ratios: list[str] = []
+        self.unhandled_records: list[str] = []
         self._session = requests.Session()
 
         # Configure retries and realistic headers to bypass basic anti-scraping
@@ -65,6 +120,8 @@ class NSECorporateActionProvider:
         self._init_session()
 
         actions: list[CorporateAction] = []
+        self.unparsed_ratios = []
+        self.unhandled_records = []
 
         # Format dates as DD-MM-YYYY for NSE API
         params = {"from_date": start.strftime("%d-%m-%Y"), "to_date": end.strftime("%d-%m-%Y")}
@@ -73,10 +130,10 @@ class NSECorporateActionProvider:
             response = self._session.get(self.API_URL, params=params, timeout=15)
 
             if response.status_code != 200:
-                logger.error(
-                    f"Failed to fetch NSE corporate actions: {response.status_code} {response.text}"
+                raise ProviderError(
+                    f"NSE corporate actions request failed: "
+                    f"HTTP {response.status_code} {response.text[:200]}"
                 )
-                return []
 
             data = response.json()
 
@@ -92,8 +149,12 @@ class NSECorporateActionProvider:
                 if action:
                     actions.append(action)
 
+        except ProviderError:
+            raise
         except Exception as e:
-            logger.error(f"Error fetching NSE corporate actions: {e}")
+            # An empty list would read as "no corporate actions", which leaves splits and
+            # bonuses unadjusted. A failed fetch must never look like an empty result.
+            raise ProviderError(f"NSE corporate actions fetch error: {e}") from e
 
         return actions
 
@@ -103,16 +164,21 @@ class NSECorporateActionProvider:
             subject = str(item.get("subject", "")).upper()
             purpose = str(item.get("purpose", "")).upper()
 
+            text = f"{subject} {purpose}"
             action_type = None
-            if "SPLIT" in subject or "SPLIT" in purpose or "SUB-DIVISION" in purpose:
+            if "SPLIT" in text or "SUB-DIVISION" in text or "SUBDIVISION" in text:
                 action_type = CorporateActionType.SPLIT
-            elif "BONUS" in subject or "BONUS" in purpose:
+            elif "BONUS" in text:
                 action_type = CorporateActionType.BONUS
-            elif "DIVIDEND" in subject or "DIVIDEND" in purpose:
+            elif "DIVIDEND" in text:
                 action_type = CorporateActionType.DIVIDEND
-            elif "RIGHTS" in subject or "RIGHTS" in purpose:
+            elif "RIGHTS" in text:
                 action_type = CorporateActionType.RIGHTS
             else:
+                if any(marker in text for marker in _UNHANDLED_MARKERS):
+                    described = f"{item.get('symbol', '?')}: {text.strip()}"
+                    self.unhandled_records.append(described)
+                    logger.warning("Unhandled price-affecting NSE action skipped: %s", described)
                 return None
 
             # Date format in NSE API is typically 'DD-MMM-YYYY' e.g. '01-Jan-2024'
@@ -121,11 +187,21 @@ class NSECorporateActionProvider:
             if ex_date_str and ex_date_str != "-":
                 ex_date = datetime.strptime(ex_date_str, "%d-%b-%Y").replace(tzinfo=UTC).date()
 
-            # Ratios are usually embedded in the purpose string,
-            # e.g. "BONUS 1:2" or "FACE VALUE SPLIT FROM RS.10/- TO RS.2/-"
-            # In a production system, this requires robust regex parsing.
-            # We mock the extraction here based on common formats.
-            num, den = self._extract_ratio(purpose, action_type)
+            # Ratios are embedded in the subject text, e.g. "Bonus 1:2" or
+            # "Face Value Split (Sub-Division) - From Rs 10/- Per Share To Re 1/- Per Share".
+            ratio = parse_ratio(text, action_type)
+            num, den = ratio if ratio else (None, None)
+            if ratio is None and action_type in (
+                CorporateActionType.SPLIT,
+                CorporateActionType.BONUS,
+            ):
+                # Kept (a split with an unknown ratio must stay visible to reconciliation) but
+                # never silent: without a ratio the adjustment engine applies factor 1.0.
+                described = f"{item.get('symbol', '?')}: {text.strip()}"
+                self.unparsed_ratios.append(described)
+                logger.warning(
+                    "Could not read the ratio of NSE %s: %s", action_type.value, described
+                )
 
             # NSE only provides 'symbol' (plus ISIN). The ID minted here is provisional:
             # the ingestion worker remaps it through the InstrumentResolver (ISIN first),
@@ -160,28 +236,3 @@ class NSECorporateActionProvider:
         except Exception as e:
             logger.warning(f"Could not parse NSE record {item}: {e}")
             return None
-
-    def _extract_ratio(
-        self, purpose: str, action_type: CorporateActionType
-    ) -> tuple[float | None, float | None]:
-        """Best-effort regex extraction of ratio from NSE purpose strings."""
-        import re
-
-        # e.g., "Face Value Split (Sub-Division) - From Rs 10/- Per Share To Rs 2/- Per Share"
-        if action_type == CorporateActionType.SPLIT:
-            match = re.search(r"FROM RS\.?\s*(\d+(?:\.\d+)?).*TO RS\.?\s*(\d+(?:\.\d+)?)", purpose)
-            if match:
-                # Splitting from 10 to 2 means 1 share becomes 5.
-                # In our convention N for D, it's 5 for 1, or numerator 5, denominator 1.
-                old_fv = float(match.group(1))
-                new_fv = float(match.group(2))
-                if new_fv > 0:
-                    return old_fv, new_fv
-
-        # e.g., "Bonus 1:2"
-        elif action_type == CorporateActionType.BONUS:
-            match = re.search(r"(\d+)\s*:\s*(\d+)", purpose)
-            if match:
-                return float(match.group(1)), float(match.group(2))
-
-        return None, None

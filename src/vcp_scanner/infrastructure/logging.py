@@ -15,6 +15,7 @@ import time
 from collections.abc import Generator
 from contextlib import contextmanager
 from datetime import UTC, datetime
+from pathlib import Path
 from typing import Any
 
 # Context variables for request / scan tracing
@@ -126,23 +127,61 @@ def get_logger(name: str) -> logging.Logger:
     return logging.getLogger(f"vcp_scanner.{name}" if not name.startswith("vcp_scanner") else name)
 
 
+class _StderrHandler(logging.StreamHandler):  # type: ignore[type-arg]
+    """Stream handler that resolves ``sys.stderr`` at emit time, not at construction.
+
+    Keeps the handler valid when ``sys.stderr`` is swapped later (pytest capture, redirects).
+    """
+
+    def __init__(self) -> None:
+        logging.Handler.__init__(self)
+
+    @property
+    def stream(self) -> Any:
+        return sys.stderr
+
+    @stream.setter
+    def stream(self, value: Any) -> None:
+        pass  # always follow the live sys.stderr
+
+
 def configure_logging(
     level: str = "INFO",
     json_format: bool = False,
     stream: Any = None,
+    log_file: str | None = None,
 ) -> None:
-    """Configure the root or vcp_scanner logger with structured formatting."""
+    """Configure the ``vcp_scanner`` logger with structured formatting.
+
+    Logs go to ``stream`` if given, otherwise to stderr (never stdout, so command output
+    stays clean). If ``log_file`` is set, records are also appended to that file. Calling
+    this again replaces the previous handlers, so it is safe to call more than once.
+    """
     log_level = getattr(logging, level.upper(), logging.INFO)
-    handler = logging.StreamHandler(stream or sys.stdout)
-    if json_format:
-        handler.setFormatter(StructuredJsonFormatter())
-    else:
-        handler.setFormatter(TextStructuredFormatter())
+    formatter: logging.Formatter = (
+        StructuredJsonFormatter() if json_format else TextStructuredFormatter()
+    )
+
+    handlers: list[logging.Handler] = []
+    console: logging.Handler = (
+        logging.StreamHandler(stream) if stream is not None else _StderrHandler()
+    )
+    handlers.append(console)
+    if log_file:
+        path = Path(log_file)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        handlers.append(logging.FileHandler(path, encoding="utf-8"))
+    for handler in handlers:
+        handler.setFormatter(formatter)
 
     root_logger = logging.getLogger("vcp_scanner")
     root_logger.setLevel(log_level)
-    root_logger.handlers.clear()
-    root_logger.addHandler(handler)
+    for old in list(root_logger.handlers):
+        root_logger.removeHandler(old)
+        if isinstance(old, logging.FileHandler):
+            old.close()
+    for handler in handlers:
+        root_logger.addHandler(handler)
 
 
 @contextmanager

@@ -9,9 +9,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import date, datetime
-from decimal import Decimal
 
-from vcp_scanner.domain.enums import CorporateActionType, Timeframe
+from vcp_scanner.domain.enums import Timeframe
 
 
 @dataclass(frozen=True, slots=True)
@@ -43,22 +42,52 @@ class Candle:
     ingested_at: datetime | None = None
     provider_request_id: str | None = None
     data_version: str | None = None
+    #: The provider's own identifier for the instrument this bar was fetched for (Kite
+    #: instrument token, Upstox instrument key). Stored in ``raw_ohlcv`` for provenance.
+    #: ``None`` only for providers that have no native identifier.
+    provider_instrument_id: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
-class CorporateAction:
-    """PROJECT_DESIGN section 13 ``corporate_actions`` row."""
+class ProviderInstrument:
+    """One row of a provider's instrument dump, in the provider's own terms.
 
-    action_id: str
+    ``provider_instrument_id`` is a string whatever the provider uses natively (Kite's
+    integer token is stored as text), so mappings from different brokers share one shape.
+    """
+
+    provider: str
+    provider_instrument_id: str
+    provider_symbol: str
+    exchange: str = "NSE"
+    isin: str | None = None
+    name: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class ProviderInstrumentMapping:
+    """Provider identifier -> permanent ``instrument_id`` (DATABASE_SCHEMA section 10).
+
+    Broker-specific ids stop at this mapping: strategy code only sees ``instrument_id``.
+    """
+
+    provider: str
+    provider_instrument_id: str
     instrument_id: str
-    action_type: CorporateActionType
-    ex_date: date
-    source: str
-    record_date: date | None = None
-    ratio_numerator: Decimal | None = None
-    ratio_denominator: Decimal | None = None
-    cash_amount: Decimal | None = None
-    created_at: datetime | None = None
+    provider_symbol: str
+    exchange: str = "NSE"
+    metadata: dict[str, str] | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class ProviderMappingSyncResult:
+    """Outcome of syncing a provider's full instrument dump into ``provider_instruments``."""
+
+    opened: int = 0
+    changed: int = 0
+    closed: int = 0
+    unchanged: int = 0
+    skipped_unresolved: int = 0
 
 
 @dataclass(frozen=True, slots=True)
@@ -114,20 +143,7 @@ class SecurityRecord:
     listing_date: date | None = None
     delisting_date: date | None = None
     source: str | None = None
-
-
-@dataclass(frozen=True, slots=True)
-class CorporateActionRecord:
-    """A corporate action as reported by ONE source, before reconciliation."""
-
-    instrument_id: str
-    action_type: CorporateActionType
-    ex_date: date
-    source: str
-    source_record_id: str | None = None
-    ratio_numerator: Decimal | None = None
-    ratio_denominator: Decimal | None = None
-    cash_amount: Decimal | None = None
+    delisting_reason: str | None = None
 
 
 @dataclass(frozen=True, slots=True)

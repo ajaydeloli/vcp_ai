@@ -6,9 +6,17 @@ import argparse
 import sys
 from collections.abc import Sequence
 
-from vcp_scanner.config.loader import compute_config_hash, load_scanner_config
+from vcp_scanner.config.loader import (
+    compute_config_hash,
+    load_logging_config,
+    load_scanner_config,
+)
+from vcp_scanner.config.models import LoggingConfig
 from vcp_scanner.domain.errors import ConfigError
+from vcp_scanner.infrastructure.logging import configure_logging
 from vcp_scanner.versioning import PACKAGE_VERSION, version_manifest
+
+_LOG_LEVELS = ("DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL")
 
 DEFAULT_DB_PATH = "data/vcp_scanner.duckdb"  # matches data.duckdb_path in config/data.yaml
 
@@ -26,6 +34,19 @@ def _add_config_dir_arg(parser: argparse.ArgumentParser) -> None:
         "--config-dir",
         default="config",
         help="Path to directory containing configuration YAML files (default: config)",
+    )
+
+
+def _add_data_snapshot_arg(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "--data-snapshot-id",
+        default="LIVE",
+        metavar="SNAPSHOT_ID",
+        help=(
+            "Data snapshot to read prices from (created by `ingest adjusted-prices "
+            "--known-at`). Default LIVE = unfrozen working data, NOT valid for validating "
+            "thresholds or backtests."
+        ),
     )
 
 
@@ -58,6 +79,25 @@ def build_parser() -> argparse.ArgumentParser:
         "--version",
         action="version",
         version=f"%(prog)s {PACKAGE_VERSION}",
+    )
+    parser.add_argument(
+        "--log-level",
+        type=str.upper,
+        choices=_LOG_LEVELS,
+        default=None,
+        help="Log level (overrides config/logging.yaml). Give before the command.",
+    )
+    parser.add_argument(
+        "--log-format",
+        choices=("text", "json"),
+        default=None,
+        help="Log format (overrides config/logging.yaml). Give before the command.",
+    )
+    parser.add_argument(
+        "--log-file",
+        default=None,
+        metavar="PATH",
+        help="Also append logs to this file (overrides config/logging.yaml).",
     )
 
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
@@ -158,6 +198,23 @@ def build_parser() -> argparse.ArgumentParser:
         metavar="YYYY-MM-DD",
         help="End date for ingestion range (default: today)",
     )
+    sm_delisted = sm_parser.add_mutually_exclusive_group()
+    sm_delisted.add_argument(
+        "--delisted-file",
+        metavar="PATH",
+        help=(
+            "Local copy of NSE's 'List of Companies Delisted from NSE' (.xlsx) instead of "
+            "downloading it from nseindia.com"
+        ),
+    )
+    sm_delisted.add_argument(
+        "--no-delisted",
+        action="store_true",
+        help=(
+            "Skip the delisted-companies list. Survivorship stays BIASED: only currently "
+            "listed securities are known"
+        ),
+    )
     sm_parser.add_argument(
         "--db",
         default=DEFAULT_DB_PATH,
@@ -167,6 +224,15 @@ def build_parser() -> argparse.ArgumentParser:
     adjusted_parser = ingest_subparsers.add_parser(
         "adjusted-prices",
         help="Build adjusted daily prices from raw prices and stored adjustment factors",
+    )
+    adjusted_parser.add_argument(
+        "--known-at",
+        metavar="ISO_DATETIME",
+        help=(
+            "Freeze a data snapshot at this system time (e.g. 2024-02-01T18:00:00+00:00) and "
+            "build under it, reading raw prices and adjustment factors as known then. "
+            "Omit for unfrozen LIVE data."
+        ),
     )
     adjusted_parser.add_argument(
         "--instrument",
@@ -191,6 +257,7 @@ def build_parser() -> argparse.ArgumentParser:
         help="Re-fetch even if the range is already ingested",
     )
     _add_db_arg(market_parser)
+    _add_config_dir_arg(market_parser)
     market_parser.add_argument(
         "--env-file", default=".env", help="Path to .env file with Kite credentials"
     )
@@ -223,6 +290,7 @@ def build_parser() -> argparse.ArgumentParser:
         help="Instrument to compute (repeatable). Default: every instrument with adjusted prices",
     )
     _add_db_arg(features_parser)
+    _add_data_snapshot_arg(features_parser)
 
     rs_parser = compute_subparsers.add_parser(
         "rs", help="Compute relative-strength ranks for a universe snapshot"
@@ -234,6 +302,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     _add_db_arg(rs_parser)
     _add_config_dir_arg(rs_parser)
+    _add_data_snapshot_arg(rs_parser)
 
     tt_parser = compute_subparsers.add_parser(
         "trend-template", help="Evaluate the trend template for eligible universe members"
@@ -247,13 +316,74 @@ def build_parser() -> argparse.ArgumentParser:
     )
     _add_db_arg(tt_parser)
     _add_config_dir_arg(tt_parser)
+    _add_data_snapshot_arg(tt_parser)
+
+    # quality subcommands (audit P0-2)
+    quality_parser = subparsers.add_parser("quality", help="Data-quality events that block signals")
+    quality_subparsers = quality_parser.add_subparsers(
+        dest="quality_command", help="Quality operations"
+    )
+
+    qscan = quality_subparsers.add_parser(
+        "scan",
+        help="Run the gap safety net and sync corporate-action conflicts into the signal gate",
+    )
+    _add_instrument_args(qscan)
+    _add_db_arg(qscan)
+    _add_config_dir_arg(qscan)
+
+    qlist = quality_subparsers.add_parser("list", help="List data-quality events")
+    qlist.add_argument(
+        "--instrument",
+        action="append",
+        metavar="INSTRUMENT_ID",
+        help="Restrict to an instrument (repeatable)",
+    )
+    qlist.add_argument("--all", action="store_true", help="Include resolved events")
+    _add_db_arg(qlist)
+
+    qresolve = quality_subparsers.add_parser(
+        "resolve",
+        help="Record a human decision closing an event (e.g. a gap confirmed genuine)",
+    )
+    qresolve.add_argument("event_id", metavar="EVENT_ID")
+    qresolve.add_argument("--by", required=True, help="Who is making the decision")
+    qresolve.add_argument("--note", required=True, help="Why (kept as the audit trail)")
+    _add_db_arg(qresolve)
 
     return parser
+
+
+def _setup_logging(args: argparse.Namespace) -> None:
+    """Configure structured logging: CLI flags > config/logging.yaml > defaults.
+
+    Logs go to stderr so command output on stdout stays clean. Logging problems must never
+    stop a command from running, so an unreadable logging config falls back to defaults
+    with a warning on stderr.
+    """
+    try:
+        log_cfg = load_logging_config(getattr(args, "config_dir", "config"))
+    except ConfigError as err:
+        print(f"Warning: ignoring logging configuration: {err}", file=sys.stderr)
+        log_cfg = LoggingConfig()
+
+    level = args.log_level or log_cfg.level
+    json_format = log_cfg.json_format if args.log_format is None else args.log_format == "json"
+    log_file = args.log_file or log_cfg.log_file
+
+    try:
+        configure_logging(level=level, json_format=json_format, log_file=log_file)
+    except OSError as err:
+        print(f"Warning: cannot open log file {log_file!r}: {err}", file=sys.stderr)
+        configure_logging(level=level, json_format=json_format)
 
 
 def main(argv: Sequence[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
+
+    if args.command is not None:
+        _setup_logging(args)
 
     if args.command is None:
         parser.print_help()
@@ -340,6 +470,9 @@ def main(argv: Sequence[str] | None = None) -> int:
             import os
             from datetime import UTC, date, datetime
 
+            from vcp_scanner.data.repositories.duckdb_quality_repository import (
+                DuckDBDataQualityRepository,
+            )
             from vcp_scanner.data.repositories.duckdb_universe_repository import (
                 DuckDBUniverseRepository,
             )
@@ -382,7 +515,9 @@ def main(argv: Sequence[str] | None = None) -> int:
 
             with DuckDBStore(db_path) as store:
                 store.migrate()
-                builder = UniverseBuilder(store, cfg.universe)
+                builder = UniverseBuilder(
+                    store, cfg.universe, quality_gate=DuckDBDataQualityRepository(store)
+                )
                 repo = DuckDBUniverseRepository(store)
 
                 snapshot, memberships = builder.build_snapshot(as_of_date=as_of, known_at=known_at)
@@ -403,6 +538,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             from datetime import UTC, date, datetime
 
             from vcp_scanner.data.ingestion.sm_worker import SecurityMasterIngestionWorker
+            from vcp_scanner.data.providers.nse_delisted import NSEDelistedProvider
             from vcp_scanner.data.providers.nse_security_master import (
                 NSESecurityMasterProvider,
             )
@@ -411,6 +547,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 DuckDBInstrumentResolver,
             )
             from vcp_scanner.data.storage.duckdb_store import DuckDBStore
+            from vcp_scanner.domain.errors import ProviderError
 
             try:
                 start_date = date.fromisoformat(args.start)
@@ -432,12 +569,32 @@ def main(argv: Sequence[str] | None = None) -> int:
                     security_master_provider=NSESecurityMasterProvider(),
                     surveillance_provider=NSESurveillanceProvider(),
                     resolver=DuckDBInstrumentResolver(store),
+                    delisting_provider=(
+                        None
+                        if args.no_delisted
+                        else NSEDelistedProvider(file_path=args.delisted_file)
+                    ),
                 )
                 print(
                     f"Ingesting security master and surveillance flags "
                     f"from {start_date} to {end_date}..."
                 )
-                stats = worker.run(start=start_date, end=end_date)
+                if args.no_delisted:
+                    print(
+                        "Warning: delisted securities skipped; survivorship stays BIASED.",
+                        file=sys.stderr,
+                    )
+                try:
+                    stats = worker.run(start=start_date, end=end_date)
+                except ProviderError as err:
+                    print(f"Error: security master ingestion failed: {err}", file=sys.stderr)
+                    if not args.no_delisted:
+                        print(
+                            "Hint: use --delisted-file PATH with a downloaded copy of NSE's "
+                            "delisted list, or --no-delisted to skip it.",
+                            file=sys.stderr,
+                        )
+                    return 1
                 print("Ingestion complete:")
                 for k, v in stats.items():
                     print(f"  {k}: {v}")
@@ -447,6 +604,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             import os
             from datetime import UTC, datetime
 
+            from vcp_scanner.cli_pipeline import parse_known_at
             from vcp_scanner.data.adjustment.builder import (
                 STATUS_BUILT,
                 STATUS_FAILED,
@@ -458,7 +616,16 @@ def main(argv: Sequence[str] | None = None) -> int:
             from vcp_scanner.data.repositories.duckdb_market_repository import (
                 DuckDBMarketDataRepository,
             )
+            from vcp_scanner.data.repositories.duckdb_snapshot_repository import (
+                DuckDBSnapshotRepository,
+            )
             from vcp_scanner.data.storage.duckdb_store import DuckDBStore
+
+            known_at = None
+            if args.known_at:
+                known_at = parse_known_at(args.known_at)
+                if known_at is None:
+                    return 1
 
             db_path = args.db
             os.makedirs(
@@ -468,6 +635,13 @@ def main(argv: Sequence[str] | None = None) -> int:
 
             with DuckDBStore(db_path) as store:
                 store.migrate()
+                data_snapshot = None
+                if known_at is not None:
+                    data_snapshot = DuckDBSnapshotRepository(store).create(
+                        known_at,
+                        created_at=datetime.now(UTC),
+                        description="adjusted-prices build",
+                    )
                 adjusted_builder = AdjustedPriceBuilder(
                     DuckDBMarketDataRepository(store),
                     DuckDBCorporateActionRepository(store),
@@ -475,11 +649,17 @@ def main(argv: Sequence[str] | None = None) -> int:
                 results = adjusted_builder.build_all(
                     computed_at=datetime.now(UTC),
                     instrument_ids=args.instrument,
+                    snapshot=data_snapshot,
                 )
 
             built = [r for r in results if r.status == STATUS_BUILT]
             failed = [r for r in results if r.status == STATUS_FAILED]
             print("Adjusted prices built:")
+            if data_snapshot is not None:
+                print(f"  Data snapshot     : {data_snapshot.data_snapshot_id}")
+                print(f"  Known at          : {data_snapshot.known_at.isoformat()}")
+            else:
+                print("  Data snapshot     : LIVE (unfrozen; not valid for threshold validation)")
             print(f"  Instruments built : {len(built)}")
             print(f"  Rows written      : {sum(r.rows_written for r in built)}")
             print(f"  Skipped (no raw)  : {len(results) - len(built) - len(failed)}")
@@ -513,6 +693,20 @@ def main(argv: Sequence[str] | None = None) -> int:
             parser.parse_args(["compute", "--help"])
             return 0
         return runner(args)
+
+    if args.command == "quality":
+        from vcp_scanner import cli_pipeline
+
+        quality_runners = {
+            "scan": cli_pipeline.run_quality_scan,
+            "list": cli_pipeline.run_quality_list,
+            "resolve": cli_pipeline.run_quality_resolve,
+        }
+        quality_runner = quality_runners.get(args.quality_command)
+        if quality_runner is None:
+            parser.parse_args(["quality", "--help"])
+            return 0
+        return quality_runner(args)
 
     return 0
 

@@ -123,9 +123,7 @@ def test_rows_agree_with_apply_factors() -> None:
 
 
 def test_ex_date_bar_is_not_adjusted_and_earlier_bars_are() -> None:
-    rows = AdjustmentEngine().build_adjusted_rows(
-        _candles(), [_split_adjustment()], computed_at=T1
-    )
+    rows = AdjustmentEngine().build_adjusted_rows(_candles(), [_split_adjustment()], computed_at=T1)
     by_date = {r.trade_date: r for r in rows}
 
     # Pre-split 100 -> 20 on the post-split scale; volume 1000 -> 5000.
@@ -140,9 +138,7 @@ def test_ex_date_bar_is_not_adjusted_and_earlier_bars_are() -> None:
 
 def test_missing_volume_stays_null_never_zero() -> None:
     candle = make_candle(IID, date(2024, 1, 2), volume=None)
-    rows = AdjustmentEngine().build_adjusted_rows(
-        [candle], [_split_adjustment()], computed_at=T1
-    )
+    rows = AdjustmentEngine().build_adjusted_rows([candle], [_split_adjustment()], computed_at=T1)
     assert rows[0].volume_adj is None
 
 
@@ -292,9 +288,7 @@ def test_new_corporate_action_creates_a_new_version_and_keeps_the_old(env: Env) 
     assert before.adjustment_version != after.adjustment_version
     assert env.count() == 2 * len(DAYS)
     assert env.market.current_adjustment_version(IID) == after.adjustment_version
-    assert env.market.load_adjusted_daily(IID, DAYS[0], DAYS[0])[0].close_adj == pytest.approx(
-        20.0
-    )
+    assert env.market.load_adjusted_daily(IID, DAYS[0], DAYS[0])[0].close_adj == pytest.approx(20.0)
 
 
 def test_builder_reports_no_prices_and_writes_nothing(env: Env) -> None:
@@ -318,10 +312,10 @@ def test_build_all_covers_every_priced_instrument_and_isolates_failures(
 
     original = env.builder.build_for_instrument
 
-    def flaky(instrument_id: str, *, computed_at: datetime):
+    def flaky(instrument_id: str, *, computed_at: datetime, snapshot=None):
         if instrument_id == "NSE_EQ|AAA":
             raise RuntimeError("boom")
-        return original(instrument_id, computed_at=computed_at)
+        return original(instrument_id, computed_at=computed_at, snapshot=snapshot)
 
     monkeypatch.setattr(env.builder, "build_for_instrument", flaky)
     results = env.builder.build_all(computed_at=T2)
@@ -378,8 +372,7 @@ def test_features_do_not_fan_out_or_use_stale_version_after_a_new_split(env: Env
     # volume of the five pre-split days (1000 x 5 = 5000 each).
     avg_by_day = dict(
         env.store.conn.execute(
-            "SELECT trade_date, volume_avg_5 FROM technical_features_daily "
-            "WHERE instrument_id = ?",
+            "SELECT trade_date, volume_avg_5 FROM technical_features_daily WHERE instrument_id = ?",
             [IID],
         ).fetchall()
     )

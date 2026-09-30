@@ -78,6 +78,9 @@ class TrendTemplateStatus(StrEnum):
     FAIL = "FAIL"
     INSUFFICIENT_DATA = "INSUFFICIENT_DATA"
     DATA_NOT_READY = "DATA_NOT_READY"
+    #: An unresolved, signal-blocking data-quality event covers the instrument (audit P0-2).
+    #: Distinct from INSUFFICIENT_DATA / DATA_NOT_READY: the data exists but cannot be trusted.
+    DATA_QUALITY_BLOCKED = "DATA_QUALITY_BLOCKED"
 
 
 @unique

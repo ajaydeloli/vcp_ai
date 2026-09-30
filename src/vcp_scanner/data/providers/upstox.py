@@ -117,6 +117,7 @@ class UpstoxProvider:
             close=float(row[4]),
             volume=volume,
             provider=self.PROVIDER_NAME,
+            provider_instrument_id=upstox_instrument_key(instrument),
         )
 
     def get_historical_intraday(

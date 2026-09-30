@@ -15,6 +15,7 @@ from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
 from vcp_scanner.data.identity import mint_instrument_id
+from vcp_scanner.domain.errors import ProviderError
 from vcp_scanner.domain.market import SecurityRecord
 
 logger = logging.getLogger(__name__)
@@ -108,8 +109,8 @@ class NSESecurityMasterProvider:
                 logger.warning("Failed to download from %s: %s", url, e)
 
         if not resp or resp.status_code != 200:
-            logger.error("Could not download NSE EQUITY_L.csv from any archive source")
-            return []
+            # [] would read as "no securities"; a failed download must not look like that.
+            raise ProviderError("Could not download NSE EQUITY_L.csv from any archive source")
 
         try:
             reader = csv.DictReader(io.StringIO(resp.text))
@@ -139,10 +140,13 @@ class NSESecurityMasterProvider:
                     )
                 )
 
-            logger.info("NSE security master: loaded %d records from EQUITY_L.csv", len(records))
         except Exception as e:
-            logger.error("Error parsing NSE EQUITY_L.csv: %s", e)
+            raise ProviderError(f"Error parsing NSE EQUITY_L.csv: {e}") from e
 
+        if not records:
+            raise ProviderError("NSE EQUITY_L.csv parsed to zero securities; refusing empty result")
+
+        logger.info("NSE security master: loaded %d records from EQUITY_L.csv", len(records))
         return records
 
     def get_symbol_metadata(self, symbol: str) -> dict[str, Any] | None:

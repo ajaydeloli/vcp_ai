@@ -13,6 +13,7 @@ from urllib3.util.retry import Retry
 from vcp_scanner.data.identity import deterministic_action_id
 from vcp_scanner.domain.corporate_actions import CorporateAction
 from vcp_scanner.domain.enums import CorporateActionType
+from vcp_scanner.domain.errors import ProviderError
 from vcp_scanner.domain.market import Instrument
 from vcp_scanner.infrastructure.clock import Clock, utc_now
 
@@ -58,6 +59,7 @@ class UpstoxCorporateActionProvider:
             return []
 
         actions: list[CorporateAction] = []
+        failures: list[str] = []
 
         for instrument in instruments:
             # Upstox keys equities by ISIN ("NSE_EQ|<ISIN>"), never by trading symbol
@@ -78,18 +80,21 @@ class UpstoxCorporateActionProvider:
 
                 response = self._session.get(url, timeout=10)
 
-                # If unauthorized or not found, we might want to log and continue
+                # Bad credentials fail every remaining request: stop, do not return a
+                # partial list that looks like a complete one.
                 if response.status_code in (401, 403):
-                    logger.error(f"Upstox API authentication failed: {response.text}")
-                    break
+                    raise ProviderError(
+                        f"Upstox API authentication failed: HTTP {response.status_code} "
+                        f"{response.text[:200]}"
+                    )
+
+                # 404 = Upstox has no record for this ISIN, which is a legitimate "no actions".
+                if response.status_code == 404:
+                    logger.info("Upstox has no corporate-action record for %s", instrument.symbol)
+                    continue
 
                 if response.status_code != 200:
-                    logger.warning(
-                        "Failed to fetch Upstox actions for %s: %s %s",
-                        instrument.symbol,
-                        response.status_code,
-                        response.text,
-                    )
+                    failures.append(f"{instrument.symbol}: HTTP {response.status_code}")
                     continue
 
                 data = response.json().get("data", [])
@@ -98,8 +103,19 @@ class UpstoxCorporateActionProvider:
                     if action and action.ex_date and start <= action.ex_date <= end:
                         actions.append(action)
 
+            except ProviderError:
+                raise
             except Exception as e:
-                logger.error(f"Error fetching Upstox actions for {instrument.symbol}: {e}")
+                failures.append(f"{instrument.symbol}: {e}")
+
+        if failures:
+            # Ingestion is idempotent, so failing loudly and re-running is safe; returning
+            # the partial list would hide instruments whose splits/bonuses were never fetched.
+            preview = "; ".join(failures[:5])
+            raise ProviderError(
+                f"Upstox corporate actions failed for {len(failures)} of "
+                f"{len(instruments)} instruments (first: {preview})"
+            )
 
         return actions
 

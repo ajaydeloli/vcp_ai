@@ -168,9 +168,18 @@ Kite supplies OHLCV. It does not supply what a survivorship-free, corporate-acti
 |---|---|---|---|
 | Corporate actions | **NSE corporate-actions feed** (daily pre-market job) | **Upstox corporate actions by ISIN** | layering defined in §18A; both feeds still to be verified |
 | Gap safety net | own detector on raw prices (§18A) | | to build |
-| Security master, delistings, listing/symbol history | NSE (securities master, delisted-companies list) | BSE (later) | candidate, **verify coverage** |
+| Security master, delistings, listing/symbol history | NSE (securities master, delisted-companies list) | BSE (later) | current listing: `EQUITY_L.csv`. Delistings: NSE "List of Companies Delisted from NSE" **implemented and verified (see below)**, but **partial**. Listing dates, symbol history and merger delistings: not covered |
 | Historical raw OHLCV incl. delisted names | NSE bhavcopy archive (two formats: pre/post 8 Jul 2024) | Kite (incremental + cross-check) | candidate, **verify coverage and terms of use** |
 | ASM/GSM/series history | NSE archive files | | partial coverage expected |
+
+**NSE delisted-companies list (verified 2026-09-30, `NSEDelistedProvider`).** A single `.xlsx` linked from `nseindia.com/static/list/list-of-companies-proposed-to-be-delisted`; the file name changes with every revision, so the link is discovered from that page (`--delisted-file` accepts a manual download). Sheet `delisted`: Symbol, ISIN, Company Name, Board (Main Board / SME / ITP), Delisted Date (Excel serial), Type of Delisting (Compulsory / Voluntary / Liquidation / ITP exit / other). 457 rows, 2002-04-15 to 2026-09-02; 5 rows have no ISIN. Coverage limits, found by checking known cases against the file:
+
+- **Mergers and amalgamations are absent** (HDFC Ltd, Mindtree, Gruh Finance, the 2019-20 PSU-bank mergers, ICICI Securities and others are not in it), so it is not a complete delisting record.
+- Pre-2016 history is thin (0 to 17 rows per year), so early years are probably incomplete as well.
+- No listing date and no series: the records carry `listing_date = NULL`, `series = NULL`, `valid_from = ` the ingestion start date, `valid_to = delisting_date`. A delisted name therefore has no series until a per-day source (bhavcopy) provides it, and the universe builder keeps it ineligible rather than assuming `EQ`.
+- The same ISIN can appear twice (platform moves, symbol reuse); the ingestion keeps the latest delisting per ISIN. A delisted symbol that a different company now trades under is skipped, not merged into the live instrument.
+
+Ingesting this list moves `survivorship_status` from `BIASED` to `PARTIAL`. It does not make results `POINT_IN_TIME_COMPLETE`, and it does not by itself put any delisted name into a universe: that needs their price history (row above, bhavcopy, still unverified).
 
 Interfaces and rationale: PROJECT_DESIGN §14A. Every scan and backtest is stamped with `survivorship_status` (`POINT_IN_TIME_COMPLETE` | `PARTIAL` | `BIASED`). Results that are not `POINT_IN_TIME_COMPLETE` must not be used to validate thresholds or claim performance.
 
@@ -577,6 +586,7 @@ AND no resolved action with ex_date = t (for that instrument)
 - Always raises the event and a `SIGNAL_WITH_WARNING` flag. Genuine large gaps exist (earnings, circuit moves), so a gap alone is not proof of bad data (§80).
 - If the price ratio is also close to a small-integer split/bonus ratio (`split_like_*` config), it is treated as a **suspected missed action**: the symbol is signal-blocked until an action is added or a human marks the gap genuine.
 - Never auto-"fix" prices from a gap.
+- Implemented (audit P0-2): `vcp ingest corporate-actions` runs the detector after reconciliation for every priced instrument, and `vcp quality scan` re-runs it on demand. Events are persisted in `data_quality_events` and gate the universe, RS and Trend Template (DATABASE_SCHEMA 19.1). A human closes a gap with `vcp quality resolve`; a `PROVIDER_CONFLICT` cannot be closed by hand.
 
 ## Configuration
 

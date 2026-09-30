@@ -1,12 +1,14 @@
 # universe.yaml - Universe Definition and Screening Filters
-# Specification baseline: PROJECT_DESIGN.md
+# Specification baseline: PROJECT_DESIGN.md section 14 (defaults must match it;
+# changing them changes the research population and needs a strategy-version bump).
 
 exchange: NSE
-min_close_price: 10.0
-min_daily_turnover_inr: 5000000.0  # 50 Lakhs
+min_close_price: 20.0
+min_daily_turnover_inr: 10000000.0        # 20-day average traded value, 1 crore (raw close x raw volume)
+min_avg_traded_value_50d_inr: 10000000.0  # 50-day average traded value, 1 crore
 min_history_days: 253
 exclude_asm_gsm: true
 exclude_trade_to_trade: true
+# EQ only. BE (trade-to-trade) and SME series (SM/ST) are excluded by default.
 eligible_series:
   - EQ
-  - BE

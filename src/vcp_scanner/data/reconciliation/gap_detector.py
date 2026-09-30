@@ -6,13 +6,12 @@ Catches massive price gaps that likely represent missing corporate actions.
 from __future__ import annotations
 
 import logging
-import uuid
 from datetime import datetime
 
 from vcp_scanner.config.models import UnexplainedGapConfig
 from vcp_scanner.domain.corporate_actions import CorporateActionResolution
 from vcp_scanner.domain.enums import DataQualityFlag
-from vcp_scanner.domain.events import DataQualityEvent, EventSeverity
+from vcp_scanner.domain.events import DataQualityEvent, EventSeverity, make_event_id
 from vcp_scanner.domain.market import Candle
 from vcp_scanner.infrastructure.clock import Clock, utc_now
 
@@ -101,14 +100,25 @@ class GapDetector:
         else:
             desc = f"Unexplained gap of {gap_ratio * 100:.1f}%."
 
+        # DATA_SPECIFICATION 18A: a gap alone may be genuine (earnings, circuit moves), so it
+        # only raises a warning. A gap that also looks like a small-integer split/bonus is a
+        # suspected missed corporate action and blocks signals until an action is added or a
+        # human marks the gap genuine.
         return DataQualityEvent(
-            event_id=str(uuid.uuid4()),
+            event_id=make_event_id(
+                DataQualityFlag.UNEXPLAINED_GAP,
+                curr.instrument_id,
+                curr.timestamp.date().isoformat(),
+            ),
             instrument_id=curr.instrument_id,
             flag=DataQualityFlag.UNEXPLAINED_GAP,
             severity=EventSeverity.HIGH,
             detected_at=detected_at,
             description=desc,
             context=context,
+            trade_date=curr.timestamp.date(),
+            blocks_signal=is_split_like,
+            dataset="daily_prices",
         )
 
     def _is_split_like(self, prev_close: float, curr_open: float) -> tuple[bool, str | None]:

@@ -4,7 +4,8 @@ import pytest
 
 from vcp_scanner.data.repositories.duckdb_universe_repository import DuckDBUniverseRepository
 from vcp_scanner.data.storage.duckdb_store import DuckDBStore
-from vcp_scanner.domain.universe import SurvivorshipStatus, UniverseMembership, UniverseSnapshot
+from vcp_scanner.domain.enums import SurvivorshipStatus
+from vcp_scanner.domain.universe import UniverseMembership, UniverseSnapshot
 
 
 @pytest.fixture

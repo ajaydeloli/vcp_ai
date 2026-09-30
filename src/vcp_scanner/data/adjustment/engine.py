@@ -185,6 +185,7 @@ class AdjustmentEngine:
         adjustments: list[CorporateActionAdjustment],
         *,
         computed_at: datetime,
+        data_snapshot_id: str | None = None,
     ) -> list[DailyPriceAdjustedRow]:
         """Turn raw candles into persistable ``daily_prices_adjusted`` rows.
 
@@ -193,6 +194,9 @@ class AdjustmentEngine:
         the ``adjustment_version``, and volume stays a float rather than being truncated.
         A missing volume stays NULL, never 0 (AGENTS.md rule 4). ``computed_at`` is
         injected by the caller; this method never reads the clock (rule 1).
+
+        ``data_snapshot_id`` is recorded on every row as its lineage; ``None`` means the
+        rows are unfrozen (``LIVE``) working data.
         """
         version = self.adjustment_version(adjustments)
         lookup = self._factor_lookup(adjustments)
@@ -214,6 +218,7 @@ class AdjustmentEngine:
                     price_factor_applied=Decimal(str(pf)),
                     volume_factor_applied=Decimal(str(vf)),
                     computed_at=computed_at,
+                    computed_from_snapshot_id=data_snapshot_id,
                 )
             )
         return rows

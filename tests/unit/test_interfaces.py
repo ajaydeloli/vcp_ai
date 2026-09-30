@@ -20,10 +20,10 @@ from vcp_scanner.data.repositories.base import (
     ScanRepository,
     UniverseRepository,
 )
+from vcp_scanner.domain.corporate_actions import CorporateAction
 from vcp_scanner.domain.fundamentals import FundamentalSnapshot
 from vcp_scanner.domain.market import (
     Candle,
-    CorporateActionRecord,
     Instrument,
     ProviderCapabilities,
     ProviderHealth,
@@ -80,7 +80,7 @@ class DummySecurityMasterProvider:
 
 
 class DummyCorporateActionProvider:
-    def get_actions(self, start: date, end: date) -> list[CorporateActionRecord]:
+    def get_actions(self, start: date, end: date) -> list[CorporateAction]:
         return []
 
 

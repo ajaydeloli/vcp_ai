@@ -486,9 +486,7 @@ def test_different_config_hashes_do_not_overwrite_each_other() -> None:
     loose.trend.save_trend_template_results("s2", "hash-strict", [strict_res])
 
     loose_rows = loose.trend.load_trend_conditions(INSTRUMENT, as_of, "trend-1.0.0", "hash-loose")
-    strict_rows = loose.trend.load_trend_conditions(
-        INSTRUMENT, as_of, "trend-1.0.0", "hash-strict"
-    )
+    strict_rows = loose.trend.load_trend_conditions(INSTRUMENT, as_of, "trend-1.0.0", "hash-strict")
     assert loose_rows == list(loose_res.conditions) and strict_rows == list(strict_res.conditions)
     assert loose_rows[9].threshold == 70.0 and loose_rows[9].passed is True
     assert strict_rows[9].threshold == 80.0 and strict_rows[9].passed is False

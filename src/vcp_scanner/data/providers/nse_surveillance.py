@@ -15,6 +15,7 @@ from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
 from vcp_scanner.data.identity import mint_instrument_id
+from vcp_scanner.domain.errors import ProviderError
 from vcp_scanner.domain.market import SurveillanceRecord
 from vcp_scanner.infrastructure.clock import Clock, utc_now
 
@@ -95,12 +96,9 @@ class NSESurveillanceProvider:
         try:
             resp = self._session.get(self.ASM_URL, timeout=15)
             if resp.status_code != 200:
-                logger.warning(
-                    "NSE ASM fetch failed: %s %s",
-                    resp.status_code,
-                    resp.text[:200],
+                raise ProviderError(
+                    f"NSE ASM fetch failed: HTTP {resp.status_code} {resp.text[:200]}"
                 )
-                return []
 
             data = resp.json()
             # NSE reportASM returns dict with 'longterm' and 'shortterm' keys
@@ -131,8 +129,12 @@ class NSESurveillanceProvider:
                     )
                 )
 
+        except ProviderError:
+            raise
         except Exception as e:
-            logger.error("NSE ASM fetch error: %s", e)
+            # The caller treats this list as the full active set and closes every flag that
+            # is missing from it, so a swallowed failure would silently clear real flags.
+            raise ProviderError(f"NSE ASM fetch error: {e}") from e
 
         return records
 
@@ -146,8 +148,7 @@ class NSESurveillanceProvider:
         try:
             resp = self._session.get(self.SEC_LIST_URL, timeout=15)
             if resp.status_code != 200:
-                logger.warning("NSE sec_list.csv fetch failed: %s", resp.status_code)
-                return []
+                raise ProviderError(f"NSE sec_list.csv fetch failed: HTTP {resp.status_code}")
 
             reader = csv.DictReader(io.StringIO(resp.text))
             today = self._clock().date()
@@ -169,7 +170,9 @@ class NSESurveillanceProvider:
                         )
                     )
 
+        except ProviderError:
+            raise
         except Exception as e:
-            logger.error("NSE T2T fetch error: %s", e)
+            raise ProviderError(f"NSE T2T fetch error: {e}") from e
 
         return records

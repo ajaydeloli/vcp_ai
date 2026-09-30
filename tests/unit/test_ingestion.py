@@ -511,3 +511,38 @@ def test_requests_are_throttled_to_provider_rate_limit() -> None:
     interval = 1.0 / caps.historical_requests_per_second
     assert len(sleeps) == 4  # 5 requests -> 4 waits (none before the first)
     assert all(abs(x - interval) < 1e-9 for x in sleeps)
+
+
+def test_empty_long_range_is_partial_not_success() -> None:
+    """A provider that returns nothing for weeks of dates must not look like a clean run."""
+    provider = FakeMarketDataProvider(candles_by_id={INSTRUMENT.instrument_id: []})
+    s = DuckDBStore(":memory:")
+    s.migrate()
+    w = IngestionWorker(provider=provider, repository=DuckDBMarketDataRepository(s))
+
+    run = w.ingest_instrument(
+        INSTRUMENT,
+        date(2024, 1, 1),
+        date(2024, 2, 29),
+        ingestion_time=datetime(2024, 3, 1, tzinfo=UTC),
+    )
+
+    assert run.records_received == 0
+    assert run.status == "PARTIAL"
+
+
+def test_empty_short_range_stays_success() -> None:
+    """A weekend/holiday-sized empty range is legitimate until a trading calendar exists."""
+    provider = FakeMarketDataProvider(candles_by_id={INSTRUMENT.instrument_id: []})
+    s = DuckDBStore(":memory:")
+    s.migrate()
+    w = IngestionWorker(provider=provider, repository=DuckDBMarketDataRepository(s))
+
+    run = w.ingest_instrument(
+        INSTRUMENT,
+        date(2024, 1, 6),
+        date(2024, 1, 7),
+        ingestion_time=datetime(2024, 1, 8, tzinfo=UTC),
+    )
+
+    assert run.status == "SUCCESS"

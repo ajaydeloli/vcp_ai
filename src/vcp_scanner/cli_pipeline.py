@@ -18,7 +18,9 @@ from typing import Any
 
 from vcp_scanner.config.loader import compute_config_hash, load_scanner_config
 from vcp_scanner.data.storage.duckdb_store import DuckDBStore
+from vcp_scanner.domain.errors import ProviderError
 from vcp_scanner.domain.market import Instrument
+from vcp_scanner.domain.snapshot import LIVE_SNAPSHOT_ID, validate_snapshot_id
 from vcp_scanner.versioning import PACKAGE_VERSION
 
 
@@ -56,6 +58,63 @@ def _parse_date(value: str) -> date | None:
         return None
 
 
+def parse_known_at(value: str) -> datetime | None:
+    """Parse an ISO ``--known-at`` value; a naive time is taken as UTC. None on error."""
+    try:
+        parsed = datetime.fromisoformat(value)
+    except ValueError:
+        _err(
+            f"Error: Invalid --known-at '{value}'. Use ISO format, e.g. 2024-02-01T18:00:00+00:00."
+        )
+        return None
+    return parsed if parsed.tzinfo is not None else parsed.replace(tzinfo=UTC)
+
+
+def _resolve_data_snapshot(store: DuckDBStore, requested: str | None) -> str | None:
+    """Validate ``--data-snapshot-id``; ``LIVE`` (or unset) means unfrozen working data.
+
+    Returns the id to use, or None after printing an error when it is malformed or was
+    never created (a typo must not silently compute over nothing).
+    """
+    snapshot_id = requested or LIVE_SNAPSHOT_ID
+    if snapshot_id == LIVE_SNAPSHOT_ID:
+        return snapshot_id
+    try:
+        validate_snapshot_id(snapshot_id)
+    except ValueError as e:
+        _err(f"Error: {e}")
+        return None
+    from vcp_scanner.data.repositories.duckdb_snapshot_repository import (
+        DuckDBSnapshotRepository,
+    )
+
+    if DuckDBSnapshotRepository(store).load(snapshot_id) is None:
+        _err(
+            f"Error: unknown data snapshot '{snapshot_id}'. "
+            "Create it with `vcp ingest adjusted-prices --known-at ...`."
+        )
+        return None
+    return snapshot_id
+
+
+def _quality_gate(store: DuckDBStore, data_snapshot_id: str) -> Any:
+    """The data-quality gate for a run: LIVE sees current events; a frozen data snapshot sees
+    only events already detected (and unresolved) at its ``known_at``, so a later detection
+    never blocks an earlier, reproducible run."""
+    from vcp_scanner.data.repositories.duckdb_quality_repository import (
+        DuckDBDataQualityRepository,
+    )
+    from vcp_scanner.data.repositories.duckdb_snapshot_repository import (
+        DuckDBSnapshotRepository,
+    )
+
+    known_at = None
+    if data_snapshot_id != LIVE_SNAPSHOT_ID:
+        snapshot = DuckDBSnapshotRepository(store).load(data_snapshot_id)
+        known_at = snapshot.known_at if snapshot else None
+    return DuckDBDataQualityRepository(store, known_at=known_at)
+
+
 def _select_instruments(
     instruments: Sequence[Instrument], wanted: Sequence[str] | None, limit: int | None
 ) -> list[Instrument]:
@@ -70,9 +129,13 @@ def _select_instruments(
     return selected[:limit] if limit else selected
 
 
-def _adjusted_instrument_ids(store: DuckDBStore) -> list[str]:
+def _adjusted_instrument_ids(
+    store: DuckDBStore, data_snapshot_id: str = LIVE_SNAPSHOT_ID
+) -> list[str]:
     rows = store.conn.execute(
-        "SELECT DISTINCT instrument_id FROM daily_prices_adjusted_current ORDER BY instrument_id"
+        "SELECT DISTINCT instrument_id FROM daily_prices_adjusted_current"
+        " WHERE computed_from_snapshot_id = ? ORDER BY instrument_id",
+        [data_snapshot_id],
     ).fetchall()
     return [r[0] for r in rows]
 
@@ -99,6 +162,14 @@ def _build_market_provider(api_key: str, access_token: str) -> Any:
     return KiteProvider(api_key=api_key, access_token=access_token)
 
 
+def primary_unparsed(provider: Any) -> list[str]:
+    return list(getattr(provider, "unparsed_ratios", []))
+
+
+def primary_unhandled(provider: Any) -> list[str]:
+    return list(getattr(provider, "unhandled_records", []))
+
+
 def _build_ca_providers(upstox_token: str | None) -> tuple[Any, Any]:
     from vcp_scanner.data.providers.nse_ca import NSECorporateActionProvider
     from vcp_scanner.data.providers.upstox_ca import UpstoxCorporateActionProvider
@@ -115,13 +186,23 @@ def _build_ca_providers(upstox_token: str | None) -> tuple[Any, Any]:
 
 
 def run_market_ingest(args: argparse.Namespace) -> int:
+    from vcp_scanner.config.models import CompletenessConfig
+    from vcp_scanner.data.ingestion.provider_mapping import sync_provider_mappings
     from vcp_scanner.data.ingestion.worker import IngestionWorker
+    from vcp_scanner.data.providers.base import ProviderInstrumentSource
+    from vcp_scanner.data.quality.completeness import CompletenessChecker, CompletenessStatus
     from vcp_scanner.data.repositories.duckdb_instrument_repository import (
         DuckDBInstrumentRepository,
         DuckDBInstrumentResolver,
     )
     from vcp_scanner.data.repositories.duckdb_market_repository import (
         DuckDBMarketDataRepository,
+    )
+    from vcp_scanner.data.repositories.duckdb_provider_instrument_repository import (
+        DuckDBProviderInstrumentRepository,
+    )
+    from vcp_scanner.data.repositories.duckdb_quality_repository import (
+        DuckDBDataQualityRepository,
     )
 
     _load_env(args.env_file)
@@ -147,11 +228,45 @@ def run_market_ingest(args: argparse.Namespace) -> int:
             _err("Error: no instruments found. Run `vcp ingest security-master` first.")
             return 1
 
+        completeness_cfg = CompletenessConfig()
+        try:
+            completeness_cfg = load_scanner_config(
+                getattr(args, "config_dir", "config")
+            ).data.completeness
+        except Exception as e:
+            _err(f"Warning: using default completeness settings ({e})")
+        checker = CompletenessChecker(store, completeness_cfg)
+
+        provider = _build_market_provider(api_key, access_token)
+        resolver = DuckDBInstrumentResolver(store)
+
+        # Record the provider's token -> instrument mapping before any bar is stored, so every
+        # raw row's provider_instrument_id has a mapping row behind it (audit P1-1). A failed
+        # sync stops the run: bars would otherwise carry tokens nothing can trace.
+        if isinstance(provider, ProviderInstrumentSource):
+            try:
+                sync = sync_provider_mappings(
+                    provider,
+                    DuckDBProviderInstrumentRepository(store),
+                    resolver,
+                    as_of=datetime.now(UTC).date(),
+                )
+            except ProviderError as e:
+                _err(f"Error: could not sync provider instrument mappings: {e}")
+                return 1
+            print(
+                f"Provider mappings: {sync.opened} opened, {sync.changed} re-pointed, "
+                f"{sync.closed} closed, {sync.unchanged} unchanged, "
+                f"{sync.skipped_unresolved} unresolved (skipped)"
+            )
+
         worker = IngestionWorker(
-            provider=_build_market_provider(api_key, access_token),
+            provider=provider,
             repository=DuckDBMarketDataRepository(store),
             code_version=PACKAGE_VERSION,
-            resolver=DuckDBInstrumentResolver(store),
+            resolver=resolver,
+            completeness=checker,
+            quality_repository=DuckDBDataQualityRepository(store),
         )
         print(f"Ingesting daily bars for {len(instruments)} instruments, {start} to {end}...")
         statuses: Counter[str] = Counter()
@@ -163,10 +278,36 @@ def run_market_ingest(args: argparse.Namespace) -> int:
             if run.status == "FAILED":
                 _err(f"  {instrument.instrument_id}: ingestion failed")
 
+        # Market sessions can only be observed once the whole cross-section is stored, so
+        # instruments ingested early in a first run were checked against a thin one. Re-check
+        # every instrument now (cheap when complete) and re-fetch any interior holes.
+        scan = checker.scan(start, end)
+        for instrument in instruments:
+            worker.verify_completeness(instrument, start, end, scan=scan)
+        reports = worker.completeness_reports
+        incomplete = [r for r in reports.values() if r.status is CompletenessStatus.INCOMPLETE]
+        unverified = [r for r in reports.values() if r.status is CompletenessStatus.UNVERIFIED]
+
     print("Market ingestion complete:")
     print(f"  Rows written : {written}")
     for status, count in sorted(statuses.items()):
         print(f"  {status:<13}: {count}")
+    print(
+        f"  Completeness : {len(reports) - len(incomplete) - len(unverified)} complete, "
+        f"{len(incomplete)} incomplete, {len(unverified)} unverified"
+    )
+    for r in incomplete[:10]:
+        _err(
+            f"  INCOMPLETE {r.instrument_id}: {len(r.missing_sessions)} missing session(s), "
+            f"{r.missing_sessions[0]} to {r.missing_sessions[-1]}"
+        )
+    if len(incomplete) > 10:
+        _err(f"  ... and {len(incomplete) - 10} more incomplete instruments")
+    if scan.suspect_dates:
+        _err(
+            f"  Warning: {len(scan.suspect_dates)} low-breadth date(s) (partial outage?): "
+            + ", ".join(f"{d} ({n}/{a})" for d, n, a in scan.suspect_dates[:5])
+        )
     return 1 if statuses.get("FAILED") else 0
 
 
@@ -178,16 +319,24 @@ def run_market_ingest(args: argparse.Namespace) -> int:
 def run_corporate_actions(args: argparse.Namespace) -> int:
     from vcp_scanner.data.adjustment.engine import AdjustmentEngine
     from vcp_scanner.data.ingestion.ca_worker import CorporateActionIngestionWorker
+    from vcp_scanner.data.quality.scanner import QualityScanner
     from vcp_scanner.data.reconciliation.engine import (
         ReconciliationConfig,
         ReconciliationEngine,
     )
+    from vcp_scanner.data.reconciliation.gap_detector import GapDetector
     from vcp_scanner.data.repositories.duckdb_corporate_action_repository import (
         DuckDBCorporateActionRepository,
     )
     from vcp_scanner.data.repositories.duckdb_instrument_repository import (
         DuckDBInstrumentRepository,
         DuckDBInstrumentResolver,
+    )
+    from vcp_scanner.data.repositories.duckdb_market_repository import (
+        DuckDBMarketDataRepository,
+    )
+    from vcp_scanner.data.repositories.duckdb_quality_repository import (
+        DuckDBDataQualityRepository,
     )
 
     _load_env(args.env_file)
@@ -231,11 +380,53 @@ def run_corporate_actions(args: argparse.Namespace) -> int:
             ),
             adjustment_engine=AdjustmentEngine(),
             resolver=DuckDBInstrumentResolver(store),
+            quality_repository=DuckDBDataQualityRepository(store),
+            conflict_blocks_signals=ca_cfg.conflict_blocks_signals,
         )
         print(
             f"Ingesting corporate actions for {len(instruments)} instruments, {start} to {end}..."
         )
-        worker.run(start, end, instruments)
+        try:
+            worker.run(start, end, instruments)
+        except ProviderError as e:
+            # Nothing was saved or adjusted: a failed fetch must not look like "no actions".
+            _err(f"Error: corporate action ingestion failed: {e}")
+            return 1
+
+        # DATA_SPECIFICATION 18A workflow: after reconcile, run the gap safety net over raw
+        # prices and publish any conflicts or suspected missed actions to the signal gate.
+        wanted = set(args.instrument) if args.instrument else None
+        market_repo = DuckDBMarketDataRepository(store)
+        scan_ids = [
+            i for i in market_repo.load_priced_instrument_ids() if wanted is None or i in wanted
+        ]
+        summary = QualityScanner(
+            market_repo,
+            DuckDBCorporateActionRepository(store),
+            DuckDBDataQualityRepository(store),
+            GapDetector(ca_cfg.unexplained_gap),
+            conflict_blocks_signals=ca_cfg.conflict_blocks_signals,
+        ).scan(scan_ids, detected_at=datetime.now(UTC))
+        print(
+            f"Data-quality scan: {summary.instruments} instrument(s), "
+            f"{summary.gap_events} unexplained gap(s), "
+            f"{summary.conflict_events} unresolved corporate-action conflict(s), "
+            f"{summary.blocking} blocking signals."
+        )
+        if summary.blocking:
+            print("  Review with `vcp quality list`; resolve with `vcp quality resolve`.")
+
+        for label, records in (
+            ("split/bonus record(s) whose ratio could not be read", primary_unparsed(primary)),
+            (
+                "price-affecting NSE record(s) this scanner does not model",
+                primary_unhandled(primary),
+            ),
+        ):
+            if records:
+                _err(f"Warning: {len(records)} {label}; their prices stay unadjusted:")
+                for line in records[:10]:
+                    _err(f"  {line}")
 
     print("Corporate action ingestion and reconciliation complete.")
     print("Next: `vcp ingest adjusted-prices` to rebuild adjusted bars.")
@@ -252,20 +443,27 @@ def run_compute_features(args: argparse.Namespace) -> int:
     from vcp_scanner.features.weekly_aggregation import WeeklyAggregationEngine
 
     with _open_store(args.db) as store:
-        available = _adjusted_instrument_ids(store)
+        snapshot_id = _resolve_data_snapshot(store, getattr(args, "data_snapshot_id", None))
+        if snapshot_id is None:
+            return 1
+        available = _adjusted_instrument_ids(store, snapshot_id)
         ids = [i for i in available if not args.instrument or i in set(args.instrument)]
         if not ids:
-            _err("Error: no adjusted prices found. Run `vcp ingest adjusted-prices` first.")
+            _err(
+                f"Error: no adjusted prices found for data snapshot {snapshot_id}. "
+                "Run `vcp ingest adjusted-prices` first."
+            )
             return 1
 
-        daily = DailyFeatureEngine(store)
-        weekly = WeeklyAggregationEngine(store)
+        daily = DailyFeatureEngine(store, data_snapshot_id=snapshot_id)
+        weekly = WeeklyAggregationEngine(store, data_snapshot_id=snapshot_id)
         daily_rows = weekly_rows = 0
         for iid in ids:
             daily_rows += daily.compute_for_instrument(iid)
             weekly_rows += weekly.compute_for_instrument(iid)
 
     print("Features computed:")
+    print(f"  Data snapshot      : {snapshot_id}")
     print(f"  Instruments        : {len(ids)}")
     print(f"  Daily feature rows : {daily_rows}")
     print(f"  Weekly price rows  : {weekly_rows}")
@@ -285,6 +483,9 @@ def run_compute_rs(args: argparse.Namespace) -> int:
         return 1
 
     with _open_store(args.db) as store:
+        data_snapshot_id = _resolve_data_snapshot(store, getattr(args, "data_snapshot_id", None))
+        if data_snapshot_id is None:
+            return 1
         snapshot_id = args.universe_snapshot_id or _latest_snapshot_id(store, as_of)
         if not snapshot_id:
             _err(
@@ -292,10 +493,16 @@ def run_compute_rs(args: argparse.Namespace) -> int:
                 f"Run `vcp ingest universe --as-of {as_of}` first."
             )
             return 1
-        engine = RelativeStrengthEngine(store, config=cfg.strategy.rs)
+        engine = RelativeStrengthEngine(
+            store,
+            config=cfg.strategy.rs,
+            data_snapshot_id=data_snapshot_id,
+            quality_gate=_quality_gate(store, data_snapshot_id),
+        )
         rows = engine.compute_for_date(as_of, snapshot_id)
 
     print(f"Relative strength computed for {as_of}")
+    print(f"  Data snapshot     : {data_snapshot_id}")
     print(f"  Universe snapshot : {snapshot_id}")
     print(f"  Rows written      : {rows}")
     return 0
@@ -321,6 +528,9 @@ def run_compute_trend_template(args: argparse.Namespace) -> int:
     config_hash = compute_config_hash(cfg)
 
     with _open_store(args.db) as store:
+        data_snapshot_id = _resolve_data_snapshot(store, getattr(args, "data_snapshot_id", None))
+        if data_snapshot_id is None:
+            return 1
         ids = DuckDBUniverseRepository(store).load_snapshot(as_of)
         if args.instrument:
             ids = [i for i in ids if i in set(args.instrument)]
@@ -331,8 +541,8 @@ def run_compute_trend_template(args: argparse.Namespace) -> int:
             )
             return 1
 
-        features = DuckDBFeatureRepository(store)
-        trend_repo = DuckDBTrendRepository(store)
+        features = DuckDBFeatureRepository(store, data_snapshot_id)
+        trend_repo = DuckDBTrendRepository(store, data_snapshot_id)
 
         contexts = WeeklyStageEngine(features, cfg.strategy.stage).classify_many(ids, as_of)
         trend_repo.save_weekly_context(contexts)
@@ -342,21 +552,119 @@ def run_compute_trend_template(args: argparse.Namespace) -> int:
             trend_repo,
             cfg.strategy.trend_template,
             rs_version=cfg.strategy.rs.version,
+            quality_gate=_quality_gate(store, data_snapshot_id),
         )
         results = engine.evaluate_many(
             ids, as_of, weekly_contexts={c.instrument_id: c for c in contexts}
         )
-        # Deterministic: rerunning the same date under the same config overwrites, not forks.
+        # Deterministic: rerunning the same date, config and data snapshot overwrites, not
+        # forks. A frozen snapshot is part of the id so different price knowledge never
+        # shares a scan; LIVE keeps the historical id format.
         scan_id = f"trend-{as_of.isoformat()}-{config_hash[:12]}"
+        if data_snapshot_id != LIVE_SNAPSHOT_ID:
+            scan_id += f"-{data_snapshot_id}"
         trend_repo.save_trend_template_results(scan_id, config_hash, results)
 
     counts = Counter(r.status.value for r in results)
     print(f"Trend template evaluated for {as_of}")
     print(f"  Scan ID     : {scan_id}")
+    print(f"  Data snapshot: {data_snapshot_id}")
     print(f"  Config hash : {config_hash}")
     print(f"  Evaluated   : {len(results)}")
     for status, count in sorted(counts.items()):
         print(f"  {status:<12}: {count}")
+    return 0
+
+
+# ---------------------------------------------------------------------------
+# quality scan / list / resolve (audit P0-2)
+# ---------------------------------------------------------------------------
+
+
+def run_quality_scan(args: argparse.Namespace) -> int:
+    """Run the gap safety net and sync corporate-action conflicts into the signal gate."""
+    from vcp_scanner.data.quality.scanner import QualityScanner
+    from vcp_scanner.data.reconciliation.gap_detector import GapDetector
+    from vcp_scanner.data.repositories.duckdb_corporate_action_repository import (
+        DuckDBCorporateActionRepository,
+    )
+    from vcp_scanner.data.repositories.duckdb_market_repository import (
+        DuckDBMarketDataRepository,
+    )
+    from vcp_scanner.data.repositories.duckdb_quality_repository import (
+        DuckDBDataQualityRepository,
+    )
+
+    try:
+        cfg = load_scanner_config(args.config_dir)
+    except Exception as e:
+        _err(f"Configuration error: {e}")
+        return 1
+    ca_cfg = cfg.data.corporate_actions
+    with _open_store(args.db) as store:
+        market = DuckDBMarketDataRepository(store)
+        wanted = set(args.instrument) if args.instrument else None
+        ids = [i for i in market.load_priced_instrument_ids() if wanted is None or i in wanted]
+        summary = QualityScanner(
+            market,
+            DuckDBCorporateActionRepository(store),
+            DuckDBDataQualityRepository(store),
+            GapDetector(ca_cfg.unexplained_gap),
+            conflict_blocks_signals=ca_cfg.conflict_blocks_signals,
+        ).scan(ids, detected_at=datetime.now(UTC))
+    print("Data-quality scan complete:")
+    print(f"  Instruments scanned     : {summary.instruments}")
+    print(f"  Unexplained gaps        : {summary.gap_events}")
+    print(f"  Corporate-action conflicts: {summary.conflict_events}")
+    print(f"  Blocking signals        : {summary.blocking}")
+    print(f"  New events              : {summary.opened}")
+    print(f"  Cleared automatically   : {summary.resolved}")
+    return 0
+
+
+def run_quality_list(args: argparse.Namespace) -> int:
+    from vcp_scanner.data.repositories.duckdb_quality_repository import (
+        DuckDBDataQualityRepository,
+    )
+
+    with _open_store(args.db) as store:
+        events = DuckDBDataQualityRepository(store).load_events(
+            instrument_ids=args.instrument or None, open_only=not args.all
+        )
+    if not events:
+        print("No data-quality events." if args.all else "No open data-quality events.")
+        return 0
+    for e in events:
+        blocks = "BLOCKS" if e.blocks_signal else "warns "
+        when = e.trade_date.isoformat() if e.trade_date else "all dates"
+        print(f"{e.event_id}  {e.status.value:<8} {blocks} {e.flag.value:<28} {e.instrument_id}")
+        print(f"    from {when}: {e.description}")
+        if e.resolved_by:
+            print(f"    resolved by {e.resolved_by}: {e.resolution_note}")
+    return 0
+
+
+def run_quality_resolve(args: argparse.Namespace) -> int:
+    """Record a human decision closing an event (audited: name and note are required)."""
+    from vcp_scanner.data.repositories.duckdb_quality_repository import (
+        DuckDBDataQualityRepository,
+    )
+
+    with _open_store(args.db) as store:
+        try:
+            done = DuckDBDataQualityRepository(store).resolve(
+                args.event_id,
+                resolved_by=args.by,
+                note=args.note,
+                resolved_at=datetime.now(UTC),
+            )
+        except ValueError as e:
+            _err(f"Error: {e}")
+            return 1
+    if not done:
+        _err(f"Error: no OPEN event with id {args.event_id}.")
+        return 1
+    print(f"Resolved {args.event_id} (by {args.by}).")
     return 0
 
 
@@ -366,4 +674,7 @@ __all__ = [
     "run_compute_trend_template",
     "run_corporate_actions",
     "run_market_ingest",
+    "run_quality_list",
+    "run_quality_resolve",
+    "run_quality_scan",
 ]

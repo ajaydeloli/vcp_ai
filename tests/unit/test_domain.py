@@ -2,10 +2,10 @@
 
 import dataclasses
 from datetime import UTC, date, datetime
-from decimal import Decimal
 
 import pytest
 
+from vcp_scanner.domain.corporate_actions import CorporateAction
 from vcp_scanner.domain.enums import (
     ConfirmationState,
     CorporateActionType,
@@ -26,7 +26,6 @@ from vcp_scanner.domain.errors import (
 from vcp_scanner.domain.fundamentals import FundamentalSnapshot
 from vcp_scanner.domain.market import (
     Candle,
-    CorporateAction,
     Instrument,
 )
 from vcp_scanner.domain.trend import (
@@ -168,15 +167,16 @@ def test_domain_dataclasses_frozen() -> None:
 
 def test_domain_models_creation() -> None:
     corp = CorporateAction(
-        action_id="act_1",
+        corporate_action_id="act_1",
         instrument_id="inst_1",
         action_type=CorporateActionType.SPLIT,
-        ex_date=date(2025, 1, 10),
         source="NSE",
-        ratio_numerator=Decimal(2),
-        ratio_denominator=Decimal(1),
+        created_at=datetime.now(UTC),
+        ex_date=date(2025, 1, 10),
+        ratio_numerator=2.0,
+        ratio_denominator=1.0,
     )
-    assert corp.ratio_numerator == Decimal(2)
+    assert corp.ratio_numerator == 2.0
 
     fund = FundamentalSnapshot(
         instrument_id="inst_1",
@@ -251,3 +251,12 @@ def test_error_categories() -> None:
 
     err_storage = StorageError("Disk full")
     assert err_storage.category == ErrorCategory.STORAGE_ERROR
+
+
+def test_single_definition_of_shared_domain_types() -> None:
+    """Audit E-1/E-2: one SurvivorshipStatus and one CorporateAction model, no shadow copies."""
+    from vcp_scanner.domain import corporate_actions, enums, market, universe
+
+    assert universe.SurvivorshipStatus is enums.SurvivorshipStatus
+    assert not hasattr(market, "CorporateAction")
+    assert hasattr(corporate_actions, "CorporateAction")

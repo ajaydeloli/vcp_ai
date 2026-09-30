@@ -49,6 +49,8 @@ class TrendTemplateResult:
     meets_stricter_rs: bool | None = None
     #: Weekly Stage context for the summary row (DATABASE_SCHEMA section 30).
     weekly_context: WeeklyContext | None = None
+    #: Data-quality flags that blocked this result (status DATA_QUALITY_BLOCKED); else empty.
+    blocked_by: tuple[str, ...] = ()
 
     @property
     def passed(self) -> bool:

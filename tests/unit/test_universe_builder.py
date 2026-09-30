@@ -19,6 +19,7 @@ def test_universe_builder_filters_correctly(store):
         exchange="NSE",
         min_close_price=10.0,
         min_daily_turnover_inr=5_000_000.0,
+        min_avg_traded_value_50d_inr=5_000_000.0,
         eligible_series=["EQ"],
         exclude_asm_gsm=True,
     )
@@ -129,6 +130,7 @@ def _config(**kw):
         exchange="NSE",
         min_close_price=10.0,
         min_daily_turnover_inr=5_000_000.0,
+        min_avg_traded_value_50d_inr=5_000_000.0,
         eligible_series=["EQ"],
         **kw,
     )
@@ -205,3 +207,53 @@ def test_known_at_must_be_timezone_aware(store):
             date(2023, 1, 1),
             known_at=datetime(2023, 1, 2),  # noqa: DTZ001 - naive on purpose
         )
+
+
+def test_defaults_match_project_design_section_14():
+    """PROJECT_DESIGN §14: EQ only (no BE/T2T), min price 20, 1 crore on 20d and 50d."""
+    cfg = UniverseConfig()
+    assert cfg.eligible_series == ["EQ"]
+    assert cfg.min_close_price == 20.0
+    assert cfg.min_daily_turnover_inr == 10_000_000.0
+    assert cfg.min_avg_traded_value_50d_inr == 10_000_000.0
+
+
+def test_shipped_universe_yaml_matches_model_defaults():
+    """config/universe.yaml must not silently diverge from the governing design defaults."""
+    import pathlib
+
+    import yaml
+
+    raw = yaml.safe_load(
+        (pathlib.Path(__file__).parents[2] / "config" / "universe.yaml").read_text()
+    )
+    assert UniverseConfig(**raw) == UniverseConfig()
+
+
+def test_fifty_day_liquidity_gate(store):
+    """A stock liquid over 20 days but not over 50 days is excluded (§14 dual window)."""
+    now = datetime.now(UTC)
+    store.conn.execute(
+        """
+        INSERT INTO daily_prices (
+            instrument_id, trade_date, open_raw, high_raw, low_raw, close_raw,
+            volume_raw, primary_provider, data_status, source_run_id, source_hash, known_from
+        )
+        SELECT 'SPIKE', CAST(? AS DATE) - CAST(i AS INTEGER),
+               100, 100, 100, 100,
+               CASE WHEN i < 20 THEN 200000 ELSE 1 END,  -- 20d avg 20M, 50d avg 8M
+               'MOCK', 'OK', 'run', 'hash', CAST(? AS TIMESTAMPTZ)
+        FROM range(0, 253) t(i)
+        """,
+        [date(2023, 1, 1), now],
+    )
+    store.conn.execute(
+        "INSERT INTO security_master_history "
+        "(instrument_id, series, exchange, valid_from, known_from)"
+        " VALUES ('SPIKE', 'EQ', 'NSE', '2000-01-01', ?)",
+        [now],
+    )
+    _, members = UniverseBuilder(store, UniverseConfig()).build_snapshot(date(2023, 1, 1))
+    m = members[0]
+    assert m.eligible is False
+    assert "50d" in m.exclusion_reason

@@ -16,6 +16,7 @@ from vcp_scanner.domain.market import (
     Instrument,
     ProviderCapabilities,
     ProviderHealth,
+    ProviderInstrument,
     Quote,
     SecurityRecord,
     SurveillanceRecord,
@@ -59,6 +60,19 @@ class MarketDataProvider(Protocol):
 
     def get_quotes(self, instruments: list[Instrument]) -> list[Quote]:
         """Optional/interim breakout quote poller (PROJECT_DESIGN section 8.1, Phase 12)."""
+        ...
+
+
+@runtime_checkable
+class ProviderInstrumentSource(Protocol):
+    """A provider that publishes a full instrument dump with its own identifiers (audit P1-1).
+
+    Kite lists every tradable instrument with an instrument token; that dump is what
+    ``provider_instruments`` is synced from. Providers keyed by ISIN (Upstox) need no dump.
+    """
+
+    def get_provider_instruments(self) -> list[ProviderInstrument]:
+        """The provider's complete current instrument list, in the provider's own ids."""
         ...
 
 

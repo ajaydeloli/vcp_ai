@@ -9,8 +9,11 @@ from datetime import date, datetime
 from vcp_scanner.data.adjustment.engine import AdjustmentEngine
 from vcp_scanner.data.identity import InstrumentResolver, canonical_instrument_id
 from vcp_scanner.data.providers.base import CorporateActionProvider
+from vcp_scanner.data.quality.events import corporate_action_events
 from vcp_scanner.data.reconciliation.engine import ReconciliationEngine
 from vcp_scanner.data.repositories.base import CorporateActionRepository
+from vcp_scanner.data.repositories.duckdb_quality_repository import DuckDBDataQualityRepository
+from vcp_scanner.domain.enums import DataQualityFlag
 from vcp_scanner.domain.market import Instrument
 from vcp_scanner.infrastructure.clock import Clock, utc_now
 
@@ -30,8 +33,14 @@ class CorporateActionIngestionWorker:
         resolver: InstrumentResolver | None = None,
         *,
         clock: Clock = utc_now,
+        quality_repository: DuckDBDataQualityRepository | None = None,
+        conflict_blocks_signals: bool = True,
     ) -> None:
         self._clock = clock
+        # Optional (audit P0-2): keep CORPORATE_ACTION_UNRESOLVED events in step with the
+        # current PROVIDER_CONFLICT resolutions so the signal gate can see them.
+        self._quality = quality_repository
+        self._conflict_blocks_signals = conflict_blocks_signals
         self.primary_provider = primary_provider
         self.secondary_provider = secondary_provider
         self.repository = repository
@@ -131,6 +140,22 @@ class CorporateActionIngestionWorker:
                 new_adjustments = self.adjustment_engine.compute_factors(current_resolutions)
                 self.repository.replace_adjustments(iid, new_adjustments, known_from=known_at)
                 adjusted_count += len(new_adjustments)
+
+            # 4. Publish unresolved conflicts to the signal gate. Done for every reconciled
+            # instrument, changed or not, so a conflict that was superseded is closed and a
+            # standing one stays open.
+            if self._quality is not None:
+                self._quality.sync_events(
+                    iid,
+                    DataQualityFlag.CORPORATE_ACTION_UNRESOLVED,
+                    corporate_action_events(
+                        iid,
+                        self.repository.load_resolutions(iid),
+                        known_at,
+                        conflict_blocks_signals=self._conflict_blocks_signals,
+                    ),
+                    at=known_at,
+                )
 
         logger.info(
             "Reconciliation complete: %d resolutions, %d adjustment factors.",

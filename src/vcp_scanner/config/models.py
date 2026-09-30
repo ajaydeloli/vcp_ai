@@ -323,8 +323,11 @@ class UniverseConfig(StrictBaseModel):
     """Universe filters and exclusions (PROJECT_DESIGN sections 14A, 45)."""
 
     exchange: str = "NSE"
-    min_close_price: Annotated[float, Field(ge=0)] = 10.0
-    min_daily_turnover_inr: Annotated[float, Field(ge=0)] = 5_000_000.0  # 50 Lakhs
+    # Defaults follow PROJECT_DESIGN §14 (min price 20, 1 crore average traded value on both
+    # the 20d and 50d windows, raw close x raw volume). Change them via a strategy-version bump.
+    min_close_price: Annotated[float, Field(ge=0)] = 20.0
+    min_daily_turnover_inr: Annotated[float, Field(ge=0)] = 10_000_000.0  # 20d avg, 1 crore
+    min_avg_traded_value_50d_inr: Annotated[float, Field(ge=0)] = 10_000_000.0  # 50d avg
     min_history_days: Annotated[int, Field(ge=253)] = 253
     # Latest bar older than this many calendar days before the as-of date => not trading.
     max_staleness_days: Annotated[int, Field(ge=0)] = 30
@@ -334,7 +337,8 @@ class UniverseConfig(StrictBaseModel):
     survivorship_coverage_verified: bool = False
     exclude_asm_gsm: bool = True
     exclude_trade_to_trade: bool = True
-    eligible_series: list[str] = Field(default_factory=lambda: ["EQ", "BE"])
+    # EQ only: BE (trade-to-trade) and SME series (SM/ST) are excluded by default (§14).
+    eligible_series: list[str] = Field(default_factory=lambda: ["EQ"])
 
 
 class UnexplainedGapConfig(StrictBaseModel):
@@ -351,6 +355,15 @@ class CorporateActionsConfig(StrictBaseModel):
     unexplained_gap: UnexplainedGapConfig = Field(default_factory=UnexplainedGapConfig)
 
 
+class CompletenessConfig(StrictBaseModel):
+    """How market sessions are observed for daily-bar completeness checks (audit P0-4)."""
+
+    # A date is a market session when this share of the instruments trading around it have a bar.
+    min_breadth: Annotated[float, Field(gt=0, le=1)] = 0.5
+    # Below this many trading instruments the cross-section is too thin to infer sessions.
+    min_active_instruments: Annotated[int, Field(ge=1)] = 5
+
+
 class DataConfig(StrictBaseModel):
     """Data persistence and provider configuration (PROJECT_DESIGN section 45)."""
 
@@ -360,6 +373,7 @@ class DataConfig(StrictBaseModel):
     primary_provider: str = "kite"
     secondary_provider: str | None = "upstox"
     trading_calendar: str = "NSE"
+    completeness: CompletenessConfig = Field(default_factory=CompletenessConfig)
     corporate_actions: CorporateActionsConfig = Field(default_factory=CorporateActionsConfig)
 
 

@@ -1,19 +1,27 @@
 import logging
 
 from vcp_scanner.data.storage.duckdb_store import DuckDBStore
+from vcp_scanner.domain.snapshot import LIVE_SNAPSHOT_ID, validate_snapshot_id
 
 logger = logging.getLogger(__name__)
 
 
 class WeeklyAggregationEngine:
-    """Derives weekly prices from daily prices."""
+    """Derives weekly prices from daily prices of one data snapshot (audit finding P0-1)."""
 
-    def __init__(self, store: DuckDBStore, source_daily_version: str = "daily-adj-1.0.0") -> None:
+    def __init__(
+        self,
+        store: DuckDBStore,
+        source_daily_version: str = "daily-adj-1.0.0",
+        data_snapshot_id: str = LIVE_SNAPSHOT_ID,
+    ) -> None:
         # ``source_daily_version`` is the label weekly rows are stored under. It is not a
-        # filter: the daily input always comes from ``daily_prices_adjusted_current``, which
-        # exposes exactly one adjustment version per instrument.
+        # filter: the daily input always comes from ``daily_prices_adjusted_current``
+        # restricted to ``data_snapshot_id``, which exposes exactly one adjustment version
+        # per instrument within that snapshot.
         self.store = store
         self.source_daily_version = source_daily_version
+        self.data_snapshot_id = validate_snapshot_id(data_snapshot_id)
 
     def compute_for_instrument(self, instrument_id: str) -> int:
         """
@@ -32,7 +40,7 @@ class WeeklyAggregationEngine:
                     MAX(high_adj) AS high,
                     MIN(low_adj) AS low
                 FROM daily_prices_adjusted_current
-                WHERE instrument_id = ?
+                WHERE instrument_id = ? AND computed_from_snapshot_id = ?
                 GROUP BY instrument_id, date_trunc('week', trade_date)
             ),
             first_last_prices AS (
@@ -43,7 +51,7 @@ class WeeklyAggregationEngine:
                     d.open_adj,
                     d.close_adj
                 FROM daily_prices_adjusted_current d
-                WHERE d.instrument_id = ?
+                WHERE d.instrument_id = ? AND d.computed_from_snapshot_id = ?
             ),
             weekly_ohlcv AS (
                 SELECT
@@ -63,12 +71,14 @@ class WeeklyAggregationEngine:
                     AND w.last_trade_date = f_last.trade_date
             )
             INSERT INTO weekly_prices (
-                instrument_id, week_end, open, high, low, close, volume, source_daily_version
+                instrument_id, week_end, open, high, low, close, volume, source_daily_version,
+                data_snapshot_id
             )
             SELECT
-                instrument_id, week_end, open, high, low, close, volume, ?
+                instrument_id, week_end, open, high, low, close, volume, ?, ?
             FROM weekly_ohlcv
-            ON CONFLICT (instrument_id, week_end, source_daily_version) DO UPDATE SET
+            ON CONFLICT (instrument_id, week_end, source_daily_version, data_snapshot_id)
+            DO UPDATE SET
                 open = EXCLUDED.open,
                 high = EXCLUDED.high,
                 low = EXCLUDED.low,
@@ -77,8 +87,9 @@ class WeeklyAggregationEngine:
         """
 
         cursor = self.store.conn.cursor()
+        snap = self.data_snapshot_id
         result = cursor.execute(
-            sql, [instrument_id, instrument_id, self.source_daily_version]
+            sql, [instrument_id, snap, instrument_id, snap, self.source_daily_version, snap]
         ).fetchone()
         written = int(result[0]) if result else 0
 
@@ -92,18 +103,27 @@ class WeeklyAggregationEngine:
             DELETE FROM weekly_prices
             WHERE instrument_id = ?
               AND source_daily_version = ?
+              AND data_snapshot_id = ?
               AND date_trunc('week', week_end) IN (
                   SELECT DISTINCT date_trunc('week', trade_date)
                   FROM daily_prices_adjusted_current
-                  WHERE instrument_id = ?
+                  WHERE instrument_id = ? AND computed_from_snapshot_id = ?
               )
               AND week_end NOT IN (
                   SELECT MAX(trade_date)
                   FROM daily_prices_adjusted_current
-                  WHERE instrument_id = ?
+                  WHERE instrument_id = ? AND computed_from_snapshot_id = ?
                   GROUP BY date_trunc('week', trade_date)
               )
             """,
-            [instrument_id, self.source_daily_version, instrument_id, instrument_id],
+            [
+                instrument_id,
+                self.source_daily_version,
+                snap,
+                instrument_id,
+                snap,
+                instrument_id,
+                snap,
+            ],
         )
         return written

@@ -14,6 +14,8 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 
+from vcp_scanner.domain.snapshot import LIVE_SNAPSHOT_ID
+
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
@@ -110,6 +112,47 @@ CREATE TABLE IF NOT EXISTS daily_prices (
 )
 """
 
+# Persisted data-quality events (DATABASE_SCHEMA section 19; audit P0-2). Every consumer that
+# emits signals asks the gate built on this table which instruments are blocked.
+#   event_id     deterministic per condition, so re-detection updates instead of duplicating
+#   trade_date   first date affected; NULL = all dates. A block applies to as_of >= trade_date
+#   blocks_signal only OPEN events with this flag stop signals
+#   resolved_by  'SYSTEM' = condition cleared on its own (may reopen); anything else is a
+#                human decision that the system never overrides
+# Spec columns observed_value / expected_value are carried in ``context`` (JSON text).
+_DDL_DATA_QUALITY_EVENTS = """
+CREATE TABLE IF NOT EXISTS data_quality_events (
+    event_id            VARCHAR     NOT NULL,
+    instrument_id       VARCHAR     NOT NULL,
+    trade_date          DATE,
+    dataset             VARCHAR     NOT NULL,
+    severity            VARCHAR     NOT NULL,
+    blocks_signal       BOOLEAN     NOT NULL,
+    event_type          VARCHAR     NOT NULL,
+    description         VARCHAR     NOT NULL,
+    detected_at         TIMESTAMPTZ NOT NULL,
+    resolved_at         TIMESTAMPTZ,
+    status              VARCHAR     NOT NULL,
+    resolved_by         VARCHAR,
+    resolution_note     VARCHAR,
+    context             VARCHAR,
+    PRIMARY KEY (event_id)
+)
+"""
+
+_DDL_DATA_SNAPSHOTS = """
+CREATE TABLE IF NOT EXISTS data_snapshots (
+    data_snapshot_id    VARCHAR     NOT NULL,
+    known_at            TIMESTAMPTZ NOT NULL,   -- everything with known_from <= known_at
+    created_at          TIMESTAMPTZ NOT NULL,
+    description         VARCHAR,
+    PRIMARY KEY (data_snapshot_id)
+)
+"""
+
+# ``computed_from_snapshot_id`` is part of the key: an adjusted series built from snapshot A
+# is never overwritten by a rebuild under snapshot B, so earlier results stay reproducible.
+# 'LIVE' marks unfrozen working data (see domain.snapshot).
 _DDL_DAILY_PRICES_ADJUSTED = """
 CREATE TABLE IF NOT EXISTS daily_prices_adjusted (
     instrument_id               VARCHAR     NOT NULL,
@@ -122,35 +165,41 @@ CREATE TABLE IF NOT EXISTS daily_prices_adjusted (
     adjustment_version          VARCHAR     NOT NULL,
     price_factor_applied        DECIMAL(18,8) NOT NULL,
     volume_factor_applied       DECIMAL(18,8) NOT NULL,
-    computed_from_snapshot_id   VARCHAR,
+    computed_from_snapshot_id   VARCHAR     NOT NULL DEFAULT 'LIVE',
     computed_at                 TIMESTAMPTZ NOT NULL,
-    PRIMARY KEY (instrument_id, trade_date, adjustment_version)
+    PRIMARY KEY (instrument_id, trade_date, adjustment_version, computed_from_snapshot_id)
 )
 """
 
 # Once corporate actions change, an instrument can hold several ``adjustment_version``s
 # side by side (old ones stay reproducible). Every reader that aggregates adjusted prices
-# (features, weekly bars, RS) must see exactly ONE version per instrument, otherwise sums
-# double and joins fan out. This view is that single source: for each instrument it keeps
-# only the most recently computed version. The version is chosen per (instrument, version)
-# by its newest computed_at, so rows inside one version are never filtered out.
+# (features, weekly bars, RS) must see exactly ONE version per instrument *within one data
+# snapshot*, otherwise sums double and joins fan out. This view keeps, for each
+# (instrument, computed_from_snapshot_id), only the most recently computed version. The
+# version is chosen per (instrument, snapshot, version) by its newest computed_at, so rows
+# inside one version are never filtered out.
+#
+# The view spans every snapshot, so EVERY reader must also filter
+# ``computed_from_snapshot_id = ?`` (LIVE for unfrozen work); tests enforce this.
 _DDL_DAILY_PRICES_ADJUSTED_CURRENT = """
 CREATE OR REPLACE VIEW daily_prices_adjusted_current AS
 WITH ranked_versions AS (
     SELECT
         instrument_id,
+        computed_from_snapshot_id,
         adjustment_version,
         ROW_NUMBER() OVER (
-            PARTITION BY instrument_id
+            PARTITION BY instrument_id, computed_from_snapshot_id
             ORDER BY MAX(computed_at) DESC, adjustment_version DESC
         ) AS rn
     FROM daily_prices_adjusted
-    GROUP BY instrument_id, adjustment_version
+    GROUP BY instrument_id, computed_from_snapshot_id, adjustment_version
 )
 SELECT a.*
 FROM daily_prices_adjusted a
 JOIN ranked_versions v
   ON a.instrument_id = v.instrument_id
+ AND a.computed_from_snapshot_id = v.computed_from_snapshot_id
  AND a.adjustment_version = v.adjustment_version
 WHERE v.rn = 1
 """
@@ -305,7 +354,8 @@ CREATE TABLE IF NOT EXISTS technical_features_daily (
     rolling_volatility_20   DOUBLE,
     rolling_volatility_50   DOUBLE,
     calculation_version     VARCHAR     NOT NULL,
-    PRIMARY KEY (instrument_id, trade_date, calculation_version)
+    data_snapshot_id        VARCHAR     NOT NULL DEFAULT 'LIVE',
+    PRIMARY KEY (instrument_id, trade_date, calculation_version, data_snapshot_id)
 )
 """
 
@@ -319,7 +369,8 @@ CREATE TABLE IF NOT EXISTS weekly_prices (
     close                   DOUBLE      NOT NULL,
     volume                  DOUBLE,
     source_daily_version    VARCHAR     NOT NULL,
-    PRIMARY KEY (instrument_id, week_end, source_daily_version)
+    data_snapshot_id        VARCHAR     NOT NULL DEFAULT 'LIVE',
+    PRIMARY KEY (instrument_id, week_end, source_daily_version, data_snapshot_id)
 )
 """
 
@@ -338,7 +389,12 @@ CREATE TABLE IF NOT EXISTS relative_strength_snapshots (
     rs_status               VARCHAR,
     universe_snapshot_id    VARCHAR     NOT NULL,
     calculation_version     VARCHAR     NOT NULL,
-    PRIMARY KEY (as_of_date, instrument_id, calculation_version)
+    data_snapshot_id        VARCHAR     NOT NULL DEFAULT 'LIVE',
+    -- Both snapshot ids are in the key: the same date ranked over a different universe, or
+    -- computed from different price knowledge, is a different result, never an overwrite.
+    PRIMARY KEY (
+        as_of_date, instrument_id, calculation_version, data_snapshot_id, universe_snapshot_id
+    )
 )
 """
 
@@ -358,6 +414,8 @@ CREATE TABLE IF NOT EXISTS trend_template_results (
     trend_score             DOUBLE,
     calculation_version     VARCHAR     NOT NULL,
     config_hash             VARCHAR     NOT NULL,
+    data_snapshot_id        VARCHAR     NOT NULL DEFAULT 'LIVE',
+    blocked_by              VARCHAR,    -- comma-separated data-quality flags when blocked
     PRIMARY KEY (scan_id, instrument_id)
 )
 """
@@ -373,7 +431,11 @@ CREATE TABLE IF NOT EXISTS trend_template_conditions (
     passed                  BOOLEAN,
     calculation_version     VARCHAR     NOT NULL,
     config_hash             VARCHAR     NOT NULL,
-    PRIMARY KEY (instrument_id, as_of_date, condition_id, calculation_version, config_hash)
+    data_snapshot_id        VARCHAR     NOT NULL DEFAULT 'LIVE',
+    PRIMARY KEY (
+        instrument_id, as_of_date, condition_id, calculation_version, config_hash,
+        data_snapshot_id
+    )
 )
 """
 
@@ -387,15 +449,40 @@ CREATE TABLE IF NOT EXISTS weekly_context (
     prior_pct               DOUBLE,
     is_partial_week         BOOLEAN     NOT NULL,
     algorithm_version       VARCHAR     NOT NULL,
-    PRIMARY KEY (instrument_id, as_of_date, algorithm_version)
+    data_snapshot_id        VARCHAR     NOT NULL DEFAULT 'LIVE',
+    PRIMARY KEY (instrument_id, as_of_date, algorithm_version, data_snapshot_id)
+)
+"""
+
+# Provider identifier -> permanent instrument_id (DATABASE_SCHEMA section 10; audit P1-1).
+#   valid_from   first date this mapping was observed (dumps carry no earlier history)
+#   valid_to     NULL while the provider still lists the token for this instrument; a token
+#                that is re-pointed at another instrument or disappears from the dump is closed
+#   Kite tokens can be reused, so (provider, provider_instrument_id) alone is not unique
+#   over time; raw_ohlcv keeps the token actually used for every bar as the ground truth.
+_DDL_PROVIDER_INSTRUMENTS = """
+CREATE TABLE IF NOT EXISTS provider_instruments (
+    provider                VARCHAR     NOT NULL,
+    provider_instrument_id  VARCHAR     NOT NULL,
+    instrument_id           VARCHAR     NOT NULL,
+    provider_symbol         VARCHAR     NOT NULL,
+    exchange                VARCHAR     NOT NULL,
+    valid_from              DATE        NOT NULL,
+    valid_to                DATE,
+    metadata_json           VARCHAR,
+    recorded_at             TIMESTAMPTZ NOT NULL,
+    PRIMARY KEY (provider, provider_instrument_id, valid_from)
 )
 """
 
 _ALL_DDL: list[tuple[str, str]] = [
     ("instruments", _DDL_INSTRUMENTS),
+    ("provider_instruments", _DDL_PROVIDER_INSTRUMENTS),
     ("ingestion_runs", _DDL_INGESTION_RUNS),
     ("raw_ohlcv", _DDL_RAW_OHLCV),
     ("daily_prices", _DDL_DAILY_PRICES),
+    ("data_snapshots", _DDL_DATA_SNAPSHOTS),
+    ("data_quality_events", _DDL_DATA_QUALITY_EVENTS),
     ("daily_prices_adjusted", _DDL_DAILY_PRICES_ADJUSTED),
     ("daily_prices_adjusted_current", _DDL_DAILY_PRICES_ADJUSTED_CURRENT),
     ("corporate_actions", _DDL_CORPORATE_ACTIONS),
@@ -405,6 +492,17 @@ _ALL_DDL: list[tuple[str, str]] = [
     ("surveillance_flags_history", _DDL_SURVEILLANCE_FLAGS_HISTORY),
     ("universe_snapshots", _DDL_UNIVERSE_SNAPSHOTS),
     ("universe_memberships", _DDL_UNIVERSE_MEMBERSHIPS),
+    ("technical_features_daily", _DDL_TECHNICAL_FEATURES_DAILY),
+    ("weekly_prices", _DDL_WEEKLY_PRICES),
+    ("relative_strength_snapshots", _DDL_RELATIVE_STRENGTH_SNAPSHOTS),
+    ("trend_template_results", _DDL_TREND_TEMPLATE_RESULTS),
+    ("trend_template_conditions", _DDL_TREND_TEMPLATE_CONDITIONS),
+    ("weekly_context", _DDL_WEEKLY_CONTEXT),
+]
+
+
+# Derived tables whose rows must carry the data snapshot they were computed from.
+_DERIVED_SNAPSHOT_TABLES: list[tuple[str, str]] = [
     ("technical_features_daily", _DDL_TECHNICAL_FEATURES_DAILY),
     ("weekly_prices", _DDL_WEEKLY_PRICES),
     ("relative_strength_snapshots", _DDL_RELATIVE_STRENGTH_SNAPSHOTS),
@@ -458,6 +556,9 @@ class DuckDBStore:
         loss on repeated calls.
         """
         self._migrate_trend_conditions_config_hash()
+        self._migrate_adjusted_snapshot_key()
+        self._migrate_derived_snapshot_lineage()
+        self._add_column_if_missing("trend_template_results", "blocked_by", "VARCHAR")
         for table_name, ddl in _ALL_DDL:
             self.conn.execute(ddl)
             logger.debug("Ensured table: %s", table_name)
@@ -487,7 +588,10 @@ class DuckDBStore:
             self.conn.execute(_DDL_TREND_TEMPLATE_CONDITIONS)
             self.conn.execute(
                 """
-                INSERT INTO trend_template_conditions
+                INSERT INTO trend_template_conditions (
+                    instrument_id, as_of_date, condition_id, condition_name, measurement,
+                    threshold, passed, calculation_version, config_hash
+                )
                 SELECT instrument_id, as_of_date, condition_id, condition_name, measurement,
                        threshold, passed, calculation_version, 'LEGACY'
                 FROM trend_template_conditions_old
@@ -499,6 +603,93 @@ class DuckDBStore:
             raise
         self.conn.execute("COMMIT")
         logger.info("Rebuilt trend_template_conditions with config_hash in its key")
+
+    def _column_nullability(self, table: str) -> dict[str, bool]:
+        """Map column name -> is_nullable for ``table`` (empty if it does not exist)."""
+        rows = self.conn.execute(
+            "SELECT column_name, is_nullable FROM information_schema.columns"
+            " WHERE table_schema = 'main' AND table_name = ?",
+            [table],
+        ).fetchall()
+        return {str(name): str(nullable).upper() == "YES" for name, nullable in rows}
+
+    def _rebuild_table(
+        self,
+        table: str,
+        ddl: str,
+        *,
+        fill: dict[str, str] | None = None,
+        drop_views: tuple[str, ...] = (),
+    ) -> None:
+        """Rebuild ``table`` from ``ddl`` (DuckDB cannot alter a primary key), keeping rows.
+
+        Columns present in both the old and new table are copied. ``fill`` maps a column to
+        the SQL expression used to populate it (e.g. ``COALESCE(col, 'LIVE')``); columns
+        that exist only in the new table take their DDL default. Runs in one transaction,
+        so a failure leaves the original table untouched. ``drop_views`` are views that
+        depend on the table; the caller's later DDL pass recreates them.
+        """
+        fill = fill or {}
+        old_cols = list(self._column_nullability(table))
+        legacy = f"{table}__legacy"
+        self.conn.execute("BEGIN TRANSACTION")
+        try:
+            for view in drop_views:
+                self.conn.execute(f"DROP VIEW IF EXISTS {view}")
+            self.conn.execute(f"ALTER TABLE {table} RENAME TO {legacy}")
+            self.conn.execute(ddl)
+            new_cols = set(self._column_nullability(table))
+            shared = [c for c in old_cols if c in new_cols]
+            select = ", ".join(fill.get(c, c) for c in shared)
+            self.conn.execute(
+                f"INSERT INTO {table} ({', '.join(shared)}) SELECT {select} FROM {legacy}"  # noqa: S608
+            )
+            self.conn.execute(f"DROP TABLE {legacy}")
+        except Exception:
+            self.conn.execute("ROLLBACK")
+            raise
+        self.conn.execute("COMMIT")
+
+    def _add_column_if_missing(self, table: str, column: str, declaration: str) -> None:
+        """Add a nullable column to an existing table (no-op if the table or column exists)."""
+        cols = self._column_nullability(table)
+        if cols and column not in cols:
+            self.conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {declaration}")
+            logger.info("Added %s.%s", table, column)
+
+    def _migrate_adjusted_snapshot_key(self) -> None:
+        """Give a pre-snapshot ``daily_prices_adjusted`` the snapshot-aware key.
+
+        Legacy rows had a nullable ``computed_from_snapshot_id`` outside the key. They are
+        kept under the explicit unfrozen marker ``LIVE``.
+        """
+        cols = self._column_nullability("daily_prices_adjusted")
+        if not cols or not cols.get("computed_from_snapshot_id", False):
+            return  # missing (fresh database) or already migrated (column is NOT NULL)
+        self._rebuild_table(
+            "daily_prices_adjusted",
+            _DDL_DAILY_PRICES_ADJUSTED,
+            fill={
+                "computed_from_snapshot_id": (
+                    f"COALESCE(computed_from_snapshot_id, '{LIVE_SNAPSHOT_ID}')"
+                )
+            },
+            drop_views=("daily_prices_adjusted_current",),
+        )
+        logger.info("Rebuilt daily_prices_adjusted with computed_from_snapshot_id in its key")
+
+    def _migrate_derived_snapshot_lineage(self) -> None:
+        """Add ``data_snapshot_id`` (and the key change it implies) to derived tables.
+
+        Existing rows are kept under the explicit unfrozen marker ``LIVE`` (the column's
+        DDL default). Tables that already carry the column, or do not exist yet, are left
+        alone, so this is safe to run on every start.
+        """
+        for table, ddl in _DERIVED_SNAPSHOT_TABLES:
+            cols = self._column_nullability(table)
+            if cols and "data_snapshot_id" not in cols:
+                self._rebuild_table(table, ddl)
+                logger.info("Rebuilt %s with data_snapshot_id lineage", table)
 
     # ------------------------------------------------------------------
     # Lifecycle helpers

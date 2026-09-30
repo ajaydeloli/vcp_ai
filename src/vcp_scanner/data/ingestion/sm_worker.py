@@ -18,6 +18,7 @@ from vcp_scanner.data.providers.base import (
     SecurityMasterProvider,
     SurveillanceProvider,
 )
+from vcp_scanner.domain.market import SecurityRecord
 from vcp_scanner.infrastructure.clock import Clock, utc_now
 
 if TYPE_CHECKING:
@@ -48,6 +49,7 @@ class SecurityMasterIngestionWorker:
         surveillance_provider: SurveillanceProvider,
         resolver: InstrumentResolver | None = None,
         *,
+        delisting_provider: SecurityMasterProvider | None = None,
         clock: Clock = utc_now,
     ) -> None:
         self._store = store
@@ -55,6 +57,9 @@ class SecurityMasterIngestionWorker:
         self._sm_provider = security_master_provider
         self._surv_provider = surveillance_provider
         self._resolver = resolver
+        # Optional second source of records for securities that are no longer listed
+        # (P0-3). The live listing cannot name them.
+        self._delisting_provider = delisting_provider
 
     def run(
         self,
@@ -114,6 +119,13 @@ class SecurityMasterIngestionWorker:
             for rec in records
         ]
 
+        extra_stats: dict[str, int] = {}
+        if self._delisting_provider is not None:
+            delisted = self._delisting_provider.get_security_history(start, end)
+            accepted, skipped = self._accept_delisted(records, delisted)
+            records = records + accepted
+            extra_stats = {"delisted_records": len(accepted), "delisted_skipped": skipped}
+
         inserted = 0
         unchanged = 0
 
@@ -125,7 +137,7 @@ class SecurityMasterIngestionWorker:
             existing = self._store.conn.execute(
                 """
                 SELECT instrument_id, isin, series, exchange,
-                       listing_date, delisting_date, symbol, valid_to
+                       listing_date, delisting_date, symbol, valid_to, delisting_reason
                 FROM security_master_history
                 WHERE instrument_id = ?
                   AND valid_from = ?
@@ -146,6 +158,7 @@ class SecurityMasterIngestionWorker:
                     ex_delisting,
                     ex_symbol,
                     ex_valid_to,
+                    ex_reason,
                 ) = existing
 
                 # If nothing changed, skip
@@ -157,6 +170,7 @@ class SecurityMasterIngestionWorker:
                     and ex_delisting == rec.delisting_date
                     and ex_symbol == rec.symbol
                     and ex_valid_to == rec.valid_to
+                    and ex_reason == rec.delisting_reason
                 ):
                     unchanged += 1
                     continue
@@ -190,7 +204,7 @@ class SecurityMasterIngestionWorker:
                     rec.exchange,
                     rec.listing_date,
                     rec.delisting_date,
-                    None,  # delisting_reason — not available from listing API
+                    rec.delisting_reason,  # None for the live listing (EQUITY_L has no reason)
                     rec.series,
                     rec.valid_from,
                     rec.valid_to,
@@ -208,7 +222,75 @@ class SecurityMasterIngestionWorker:
         return {
             "security_inserted": inserted,
             "security_unchanged": unchanged,
+            **extra_stats,
         }
+
+    def _accept_delisted(
+        self,
+        live: list[SecurityRecord],
+        delisted: list[SecurityRecord],
+    ) -> tuple[list[SecurityRecord], int]:
+        """Canonicalise delisting records and drop the ones that would corrupt identity.
+
+        A delisted symbol can later be reused by a different company. Resolving such a
+        record by symbol would attach the old company's delisting to the new company's
+        instrument, so a record is kept only if it cannot be confused with a live one:
+
+        * the same instrument_id is held by a live security with a different ISIN, or by one
+          whose ISIN we cannot compare against (the delisted record has none);
+        * the same instrument_id already has an open, non-delisted row in the database with
+          a different ISIN;
+        * the record would replace a live row with the same (instrument_id, valid_from).
+
+        Skipped records are counted and logged, never guessed into an identity.
+        """
+        live_isin = {rec.instrument_id: rec.isin for rec in live}
+        live_keys = {(rec.instrument_id, rec.valid_from) for rec in live}
+
+        accepted: list[SecurityRecord] = []
+        skipped = 0
+        for rec in delisted:
+            iid = canonical_instrument_id(
+                self._resolver,
+                rec.instrument_id,
+                isin=rec.isin,
+                symbol=rec.symbol,
+                exchange=rec.exchange,
+            )
+            rec = dataclasses.replace(rec, instrument_id=iid)
+
+            conflict: str | None = None
+            if iid in live_isin:
+                held = live_isin[iid]
+                if rec.isin is None or held is None or rec.isin != held:
+                    conflict = f"id held by a live security (ISIN {held})"
+            if conflict is None and (iid, rec.valid_from) in live_keys:
+                conflict = "same period as a live row"
+            if conflict is None and rec.isin is not None:
+                other = self._store.conn.execute(
+                    """
+                    SELECT isin FROM security_master_history
+                    WHERE instrument_id = ? AND known_to IS NULL
+                      AND delisting_date IS NULL AND isin IS NOT NULL AND isin <> ?
+                    LIMIT 1
+                    """,
+                    [iid, rec.isin],
+                ).fetchone()
+                if other is not None:
+                    conflict = f"id already holds a live row with ISIN {other[0]}"
+
+            if conflict is not None:
+                skipped += 1
+                logger.warning(
+                    "Delisted %s (ISIN %s, %s) not ingested: %s",
+                    rec.symbol,
+                    rec.isin,
+                    rec.delisting_date,
+                    conflict,
+                )
+                continue
+            accepted.append(rec)
+        return accepted, skipped
 
     # ------------------------------------------------------------------
     # Surveillance Flags

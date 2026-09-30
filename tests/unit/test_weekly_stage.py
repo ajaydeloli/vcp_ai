@@ -300,7 +300,8 @@ def test_duplicate_weekly_versions_do_not_double_count(env: Env) -> None:
     as_of = env.seed_weeks(_rising(70))
     baseline = env.engine.classify(INSTRUMENT, as_of)
     env.store.conn.execute(
-        "INSERT INTO weekly_prices SELECT instrument_id, week_end, open, high, low, close,"
+        "INSERT INTO weekly_prices (instrument_id, week_end, open, high, low, close, volume,"
+        " source_daily_version) SELECT instrument_id, week_end, open, high, low, close,"
         " volume, 'other-version' FROM weekly_prices"
     )
     assert env.engine.classify(INSTRUMENT, as_of) == baseline

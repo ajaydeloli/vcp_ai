@@ -462,7 +462,9 @@ computed_from_snapshot_id
 computed_at
 ```
 
-Key: `(instrument_id, trade_date, adjustment_version)`. Adjusted values live in their own table because every new corporate action rewrites all earlier adjusted prices, and that must not silently change previously reported results.
+Key: `(instrument_id, trade_date, adjustment_version, computed_from_snapshot_id)`. Adjusted values live in their own table because every new corporate action rewrites all earlier adjusted prices, and that must not silently change previously reported results.
+
+`computed_from_snapshot_id` is `NOT NULL`. `LIVE` is the explicit marker for unfrozen working data; any other value is a `data_snapshots.data_snapshot_id` and means the row was built from raw bars and adjustment factors *as known at that snapshot's `known_at`*. A build under one snapshot never overwrites another's rows. The view `daily_prices_adjusted_current` keeps one (the most recently computed) `adjustment_version` per `(instrument_id, computed_from_snapshot_id)`; it spans snapshots, so **every reader must also filter `computed_from_snapshot_id = ?`** (guarded by `test_every_read_of_adjusted_view_filters_by_snapshot`).
 
 As-known-at reads: `get_daily(instrument_id, start, end, as_of_date, known_at=None)`. `known_at` selects rows with `known_from <= known_at < known_to`. Historical reproducibility resolves a `data_snapshot_id` to `known_at` cutoffs (§41). Adjustment uses only corporate actions known at that time.
 
@@ -688,6 +690,22 @@ STALE_DATA
 SYMBOL_MISMATCH
 PROVIDER_CONFLICT
 ```
+
+## 19.1 Implementation (audit P0-2)
+
+`data_quality_events` is implemented and is the single source the signal gate reads. Columns are the ones above plus `resolved_by`, `resolution_note` and `context` (JSON text; carries what the spec calls `observed_value` / `expected_value`, e.g. the gap percentage). `event_id` is deterministic per condition (`dq-` + hash of event type, instrument and a key such as the gap date), so re-detection updates a row instead of duplicating it. `status` is `OPEN` or `RESOLVED`.
+
+| Event type | Raised by | Blocks signals? | Starts blocking at | Clears when |
+|---|---|---|---|---|
+| `MISSING_CANDLES` | completeness check during `vcp ingest market` | yes | first missing session | the hole is filled and the check re-runs |
+| `CORPORATE_ACTION_UNRESOLVED` | reconciliation (`ingest corporate-actions`, `quality scan`) for each current `PROVIDER_CONFLICT` | yes, unless `corporate_actions.conflict_blocks_signals: false` | the action's ex-date | the resolution is superseded (`CONFIRMED` / `MANUAL_OVERRIDE`); **never by hand** |
+| `UNEXPLAINED_GAP` | gap detector (`ingest corporate-actions`, `quality scan`) | only when the gap is split-like (§18A); otherwise a warning | the gap date | an action explains it, or a human resolves it as genuine |
+
+Lifecycle: detectors call `sync_events(instrument, event type, current events)`. New conditions open, present ones refresh, cleared ones close with `resolved_by = 'SYSTEM'` and reopen if they return. A human resolution (`vcp quality resolve EVENT_ID --by NAME --note TEXT`; both required) is final and never overridden. Corporate-action conflicts refuse human closure because the adjustment stays withheld while the resolution is `PROVIDER_CONFLICT`.
+
+Gate: an event applies to `as_of_date >= trade_date` (NULL applies to every date). Without a `known_at` only `OPEN` events count. With one (a frozen data snapshot, or a universe snapshot's `created_at`) an event counts only if it was detected by then and not yet resolved, so a later detection never changes an earlier, reproducible run. Consumers: universe builder (ineligible, reason `Data quality blocked: ...`), RS (blocked instruments are left out of the ranking population), Trend Template (status `DATA_QUALITY_BLOCKED`, flags stored in `trend_template_results.blocked_by`).
+
+Not implemented: `DUPLICATE_CANDLE`, `BAD_OHLC`, `ZERO_VOLUME`, `STALE_DATA`, `SYMBOL_MISMATCH` events (bad bars are still rejected at ingestion, not recorded here), and a `MANUAL_OVERRIDE` command to resolve a conflict.
 
 ---
 
@@ -1448,6 +1466,25 @@ content_hash
 ```
 
 A snapshot is a `known_at` cutoff per dataset plus a content-hash manifest. Because canonical tables are append-only/bitemporal (§14), a snapshot can be re-materialised, and a verification job recomputes the hashes to prove nothing changed. Cutoff dates alone are not sufficient.
+
+## 41.1 Implemented subset (audit P0-1)
+
+The code implements the price-derivation core of this section; the rest is deliberately deferred (audit P1-5). Implemented `data_snapshots` columns: `data_snapshot_id` (deterministic `snap-YYYYMMDDTHHMMSSZ` from `known_at`), `known_at` (one cutoff applied to raw bars **and** corporate-action adjustments), `created_at`, `description`. **Not implemented:** per-dataset cutoffs (`market_data_known_at`, `fundamental_data_known_at`, `corporate_action_known_at`, `universe_cutoff`), `provider_versions`/`dataset_versions`, and the `snapshot_manifest` with content hashes, so a snapshot's reproducibility is by construction (bitemporal inputs), not yet proven by hash verification.
+
+`LIVE` is a reserved id for unfrozen data and is not a `data_snapshots` row. Results under `LIVE` must not be used to validate thresholds or backtests.
+
+Snapshot lineage on derived tables (`data_snapshot_id VARCHAR NOT NULL DEFAULT 'LIVE'`):
+
+| Table | Key |
+|---|---|
+| `technical_features_daily` | `(instrument_id, trade_date, calculation_version, data_snapshot_id)` |
+| `weekly_prices` | `(instrument_id, week_end, source_daily_version, data_snapshot_id)` |
+| `relative_strength_snapshots` | `(as_of_date, instrument_id, calculation_version, data_snapshot_id, universe_snapshot_id)` |
+| `weekly_context` | `(instrument_id, as_of_date, algorithm_version, data_snapshot_id)` |
+| `trend_template_conditions` | `(instrument_id, as_of_date, condition_id, calculation_version, config_hash, data_snapshot_id)` |
+| `trend_template_results` | `(scan_id, instrument_id)`; `data_snapshot_id` recorded as a column, and CLI scan ids embed a non-LIVE snapshot |
+
+Repositories and engines are bound to one data snapshot at construction and read and write only that snapshot. The RS read defaults to the row ranked over the most recently created universe snapshot when no `universe_snapshot_id` is given. `store.migrate()` rebuilds pre-lineage tables and keeps existing rows under `LIVE`.
 
 ---
 

@@ -55,6 +55,20 @@ def _read_yaml(file_path: Path) -> dict[str, Any]:
         raise ConfigError(f"Failed to read YAML file {file_path}: {exc}") from exc
 
 
+def load_logging_config(config_dir: str | Path = "config") -> LoggingConfig:
+    """Load only ``logging.yaml`` from ``config_dir``.
+
+    Independent of the rest of the configuration so the CLI can set up logging before (and
+    even when) the full scanner config fails to load. Missing file or directory yields the
+    defaults; an unreadable or invalid file raises ``ConfigError``.
+    """
+    raw = _read_yaml(Path(config_dir) / "logging.yaml")
+    try:
+        return LoggingConfig(**raw) if raw else LoggingConfig()
+    except ValidationError as err:
+        raise ConfigError(f"Invalid logging configuration:\n{err}") from err
+
+
 def load_scanner_config(config_dir: str | Path = "config") -> ScannerConfig:
     """Load configuration from a directory containing YAML config files.
 

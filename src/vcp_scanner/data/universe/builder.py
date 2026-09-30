@@ -6,18 +6,17 @@ import hashlib
 import json
 import logging
 import uuid
+from dataclasses import replace
 from datetime import date, datetime
 from typing import TYPE_CHECKING
 
 from vcp_scanner.config.models import UniverseConfig
-from vcp_scanner.domain.universe import (
-    SurvivorshipStatus,
-    UniverseMembership,
-    UniverseSnapshot,
-)
+from vcp_scanner.domain.enums import SurvivorshipStatus
+from vcp_scanner.domain.universe import UniverseMembership, UniverseSnapshot
 from vcp_scanner.infrastructure.clock import Clock, utc_now
 
 if TYPE_CHECKING:
+    from vcp_scanner.data.repositories.base import DataQualityGate
     from vcp_scanner.data.storage.duckdb_store import DuckDBStore
 
 logger = logging.getLogger(__name__)
@@ -27,11 +26,42 @@ class UniverseBuilder:
     """Builds point-in-time universe snapshots."""
 
     def __init__(
-        self, store: DuckDBStore, config: UniverseConfig, *, clock: Clock = utc_now
+        self,
+        store: DuckDBStore,
+        config: UniverseConfig,
+        *,
+        clock: Clock = utc_now,
+        quality_gate: DataQualityGate | None = None,
     ) -> None:
         self._store = store
         self._config = config
         self._clock = clock
+        # Optional (audit P0-2). When set, instruments with an unresolved signal-blocking
+        # data-quality event become ineligible, judged as known at the snapshot's created_at.
+        self._quality_gate = quality_gate
+
+    def _apply_quality_gate(
+        self, memberships: list[UniverseMembership], as_of_date: date, known_at: datetime
+    ) -> list[UniverseMembership]:
+        if self._quality_gate is None:
+            return memberships
+        eligible_ids = [m.instrument_id for m in memberships if m.eligible]
+        blocked = self._quality_gate.blocked_instruments(
+            eligible_ids, as_of_date, known_at=known_at
+        )
+        if not blocked:
+            return memberships
+        logger.warning("Universe: %d instrument(s) blocked by data-quality events.", len(blocked))
+        return [
+            replace(
+                m,
+                eligible=False,
+                exclusion_reason="Data quality blocked: " + ", ".join(blocked[m.instrument_id]),
+            )
+            if m.instrument_id in blocked
+            else m
+            for m in memberships
+        ]
 
     def _hash_config(self) -> str:
         """Return a deterministic hash of the universe configuration."""
@@ -84,7 +114,7 @@ class UniverseBuilder:
             raise ValueError("known_at must be timezone-aware")
         snapshot_id = f"uv_{as_of_date.strftime('%Y%m%d')}_{uuid.uuid4().hex[:6]}"
 
-        # This query calculates the 20-day average traded value and the last close price.
+        # This query calculates the 20- and 50-day average traded value and the last close price.
         # We enforce point-in-time correctness by bounding the trade_date.
         # Because we're looking at historical point in time, we use `close_raw` and `volume_raw`.
 
@@ -107,6 +137,7 @@ class UniverseBuilder:
                 MAX(CASE WHEN rn = 1 THEN close_raw END) as last_price,
                 MAX(CASE WHEN rn = 1 THEN trade_date END) as last_trade_date,
                 AVG(CASE WHEN rn <= 20 THEN traded_value END) as avg_traded_value_20d,
+                AVG(CASE WHEN rn <= 50 THEN traded_value END) as avg_traded_value_50d,
                 -- rn counts every bar known on or before as_of_date, so MAX(rn) is the
                 -- full history length that UniverseConfig.min_history_days is judged against.
                 MAX(rn) as days_history
@@ -147,6 +178,7 @@ class UniverseBuilder:
             r.instrument_id,
             r.last_price,
             r.avg_traded_value_20d,
+            r.avg_traded_value_50d,
             r.days_history,
             r.last_trade_date,
             sm.series,
@@ -183,6 +215,7 @@ class UniverseBuilder:
                 instrument_id,
                 last_price,
                 avg_traded_value,
+                avg_traded_value_50d,
                 days_history,
                 last_trade_date,
                 series,
@@ -224,6 +257,15 @@ class UniverseBuilder:
                     exclusion_reason = (
                         f"Traded value {avg_traded_value} < {self._config.min_daily_turnover_inr}"
                     )
+                elif (
+                    avg_traded_value_50d is None
+                    or avg_traded_value_50d < self._config.min_avg_traded_value_50d_inr
+                ):
+                    eligible = False
+                    exclusion_reason = (
+                        f"50d traded value {avg_traded_value_50d} < "
+                        f"{self._config.min_avg_traded_value_50d_inr}"
+                    )
                 elif days_history is None or days_history < self._config.min_history_days:
                     eligible = False
                     exclusion_reason = (
@@ -252,13 +294,15 @@ class UniverseBuilder:
                 )
             )
 
+        memberships = self._apply_quality_gate(memberships, as_of_date, created_at)
+
         snapshot = UniverseSnapshot(
             universe_snapshot_id=snapshot_id,
             universe_name="VCP_BASE",
             as_of_date=as_of_date,
             created_at=created_at,
             config_hash=self._hash_config(),
-            method_version="1.0",
+            method_version="1.1",
             survivorship_status=self._survivorship_status(created_at),
         )
 

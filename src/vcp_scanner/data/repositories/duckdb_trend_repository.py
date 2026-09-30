@@ -3,6 +3,11 @@
 Tables: ``trend_template_results``, ``trend_template_conditions``, ``weekly_context``
 (DATABASE_SCHEMA section 30) and ``relative_strength_snapshots`` (section 26, read only).
 All writes are idempotent upserts so a re-run with the same inputs yields the same rows.
+
+The repository is bound to one data snapshot (audit finding P0-1): every row it writes is
+tagged with ``data_snapshot_id`` and every read is scoped to it, so results computed from
+different price knowledge never overwrite or leak into each other. ``LIVE`` is unfrozen
+working data.
 """
 
 from __future__ import annotations
@@ -13,6 +18,7 @@ from typing import Any
 from vcp_scanner.data.repositories.base import TrendRepository
 from vcp_scanner.data.storage.duckdb_store import DuckDBStore
 from vcp_scanner.domain.enums import WeeklyStage
+from vcp_scanner.domain.snapshot import LIVE_SNAPSHOT_ID, validate_snapshot_id
 from vcp_scanner.domain.trend import (
     RelativeStrengthResult,
     TrendConditionResult,
@@ -24,8 +30,8 @@ _UPSERT_RESULT = """
     INSERT INTO trend_template_results (
         scan_id, instrument_id, as_of_date, status, trend_template_pass,
         weekly_stage, weekly_stage2_pass, sma_w, slope_pct, is_partial_week,
-        rs_rank, trend_score, calculation_version, config_hash
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        rs_rank, trend_score, calculation_version, config_hash, data_snapshot_id, blocked_by
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ON CONFLICT (scan_id, instrument_id) DO UPDATE SET
         as_of_date = EXCLUDED.as_of_date,
         status = EXCLUDED.status,
@@ -38,16 +44,19 @@ _UPSERT_RESULT = """
         rs_rank = EXCLUDED.rs_rank,
         trend_score = EXCLUDED.trend_score,
         calculation_version = EXCLUDED.calculation_version,
-        config_hash = EXCLUDED.config_hash
+        config_hash = EXCLUDED.config_hash,
+        data_snapshot_id = EXCLUDED.data_snapshot_id,
+        blocked_by = EXCLUDED.blocked_by
 """
 
 _UPSERT_CONDITION = """
     INSERT INTO trend_template_conditions (
         instrument_id, as_of_date, condition_id, condition_name,
-        measurement, threshold, passed, calculation_version, config_hash
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        measurement, threshold, passed, calculation_version, config_hash, data_snapshot_id
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ON CONFLICT (
-        instrument_id, as_of_date, condition_id, calculation_version, config_hash
+        instrument_id, as_of_date, condition_id, calculation_version, config_hash,
+        data_snapshot_id
     ) DO UPDATE SET
         condition_name = EXCLUDED.condition_name,
         measurement = EXCLUDED.measurement,
@@ -58,9 +67,9 @@ _UPSERT_CONDITION = """
 _UPSERT_WEEKLY = """
     INSERT INTO weekly_context (
         instrument_id, as_of_date, weekly_stage, sma_w, slope_pct, prior_pct,
-        is_partial_week, algorithm_version
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    ON CONFLICT (instrument_id, as_of_date, algorithm_version) DO UPDATE SET
+        is_partial_week, algorithm_version, data_snapshot_id
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ON CONFLICT (instrument_id, as_of_date, algorithm_version, data_snapshot_id) DO UPDATE SET
         weekly_stage = EXCLUDED.weekly_stage,
         sma_w = EXCLUDED.sma_w,
         slope_pct = EXCLUDED.slope_pct,
@@ -70,8 +79,9 @@ _UPSERT_WEEKLY = """
 
 
 class DuckDBTrendRepository(TrendRepository):
-    def __init__(self, store: DuckDBStore) -> None:
+    def __init__(self, store: DuckDBStore, data_snapshot_id: str = LIVE_SNAPSHOT_ID) -> None:
         self.store = store
+        self.data_snapshot_id = validate_snapshot_id(data_snapshot_id)
 
     def save_trend_template_results(
         self,
@@ -102,6 +112,8 @@ class DuckDBTrendRepository(TrendRepository):
                     None,  # trend_score: SCORING_SPECIFICATION section 3, Phase 7
                     r.algorithm_version,
                     config_hash,
+                    self.data_snapshot_id,
+                    ",".join(r.blocked_by) or None,
                 )
             )
             condition_rows.extend(
@@ -115,6 +127,7 @@ class DuckDBTrendRepository(TrendRepository):
                     c.passed,
                     r.algorithm_version,
                     config_hash,
+                    self.data_snapshot_id,
                 )
                 for c in r.conditions
             )
@@ -140,11 +153,12 @@ class DuckDBTrendRepository(TrendRepository):
             SELECT condition_id, condition_name, measurement, threshold, passed
             FROM trend_template_conditions
             WHERE instrument_id = ? AND as_of_date = ? AND calculation_version = ?
-              AND config_hash = ?
+              AND config_hash = ? AND data_snapshot_id = ?
             ORDER BY condition_id
         """
         rows = self.store.conn.execute(
-            sql, [instrument_id, as_of_date, calculation_version, config_hash]
+            sql,
+            [instrument_id, as_of_date, calculation_version, config_hash, self.data_snapshot_id],
         ).fetchall()
         return [
             TrendConditionResult(
@@ -170,6 +184,7 @@ class DuckDBTrendRepository(TrendRepository):
                 c.prior_pct,
                 c.is_partial_week,
                 c.algorithm_version,
+                self.data_snapshot_id,
             )
             for c in contexts
         ]
@@ -186,9 +201,10 @@ class DuckDBTrendRepository(TrendRepository):
                    is_partial_week, algorithm_version
             FROM weekly_context
             WHERE instrument_id = ? AND as_of_date = ? AND algorithm_version = ?
+              AND data_snapshot_id = ?
         """
         row = self.store.conn.execute(
-            sql, [instrument_id, as_of_date, algorithm_version]
+            sql, [instrument_id, as_of_date, algorithm_version, self.data_snapshot_id]
         ).fetchone()
         if row is None:
             return None
@@ -208,16 +224,30 @@ class DuckDBTrendRepository(TrendRepository):
         instrument_id: str,
         as_of_date: date,
         calculation_version: str,
+        universe_snapshot_id: str | None = None,
     ) -> RelativeStrengthResult | None:
-        sql = """
-            SELECT instrument_id, as_of_date, ret_63, ret_126, ret_189, ret_252,
-                   rs_raw, rs_rank, population_size, calculation_version
-            FROM relative_strength_snapshots
-            WHERE instrument_id = ? AND as_of_date = ? AND calculation_version = ?
+        """RS row for this data snapshot; ``universe_snapshot_id`` picks the ranking universe.
+
+        Without it, the row ranked over the most recently created universe snapshot wins
+        (deterministic tie-break on the universe id), so a re-run over a newer universe
+        supersedes older ones without deleting them.
         """
-        row = self.store.conn.execute(
-            sql, [instrument_id, as_of_date, calculation_version]
-        ).fetchone()
+        universe_clause = "AND r.universe_snapshot_id = ?" if universe_snapshot_id else ""
+        params: list[object] = [instrument_id, as_of_date, calculation_version]
+        params.append(self.data_snapshot_id)
+        if universe_snapshot_id:
+            params.append(universe_snapshot_id)
+        sql = f"""
+            SELECT r.instrument_id, r.as_of_date, r.ret_63, r.ret_126, r.ret_189, r.ret_252,
+                   r.rs_raw, r.rs_rank, r.population_size, r.calculation_version
+            FROM relative_strength_snapshots r
+            LEFT JOIN universe_snapshots u ON u.universe_snapshot_id = r.universe_snapshot_id
+            WHERE r.instrument_id = ? AND r.as_of_date = ? AND r.calculation_version = ?
+              AND r.data_snapshot_id = ? {universe_clause}
+            ORDER BY u.created_at DESC NULLS LAST, r.universe_snapshot_id DESC
+            LIMIT 1
+        """  # noqa: S608 - the only interpolated text is a fixed literal; values are bound
+        row = self.store.conn.execute(sql, params).fetchone()
         if row is None:
             return None
         return RelativeStrengthResult(

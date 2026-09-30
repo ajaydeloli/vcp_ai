@@ -156,3 +156,19 @@ def test_historical_daily_naive_timestamp_treated_as_ist(mock_kiteconnect) -> No
     candles = provider.get_historical_daily(instrument, date(2024, 1, 1), date(2024, 1, 1))
 
     assert candles[0].timestamp == datetime(2024, 1, 1, tzinfo=UTC)
+
+
+def test_historical_daily_unmapped_symbol_raises(mock_kiteconnect) -> None:
+    """An unmapped symbol is a provider failure, never an empty (successful-looking) result."""
+    from vcp_scanner.domain.errors import ProviderError
+
+    provider = KiteProvider("api_key", "access_token")
+    unknown = Instrument(
+        instrument_id="NSE_EQ|NOSUCH",
+        symbol="NOSUCH",
+        exchange="NSE",
+        name="No Such Co",
+    )
+    with pytest.raises(ProviderError):
+        provider.get_historical_daily(unknown, date(2024, 1, 1), date(2024, 1, 5))
+    mock_kiteconnect.historical_data.assert_not_called()

@@ -17,6 +17,10 @@ Status semantics:
 ``FAIL``               data sufficient, at least one condition failed.
 ``INSUFFICIENT_DATA``  not enough history (or a NULL input) to evaluate every condition.
 ``DATA_NOT_READY``     the as-of bar, feature rows or RS snapshot are missing or misaligned.
+``DATA_QUALITY_BLOCKED``  an unresolved signal-blocking data-quality event covers the
+                       instrument at the as-of date (audit P0-2). The gate is consulted first,
+                       so a block is never hidden behind another status; ``blocked_by`` names
+                       the flags. The data exists but cannot be trusted.
 """
 
 from __future__ import annotations
@@ -26,7 +30,11 @@ from dataclasses import dataclass
 from datetime import date
 
 from vcp_scanner.config.models import TrendTemplateConfig
-from vcp_scanner.data.repositories.base import FeatureRepository, TrendRepository
+from vcp_scanner.data.repositories.base import (
+    DataQualityGate,
+    FeatureRepository,
+    TrendRepository,
+)
 from vcp_scanner.domain.enums import TrendTemplateStatus
 from vcp_scanner.domain.trend import (
     TREND_CONDITION_NAMES,
@@ -140,7 +148,11 @@ class TrendTemplateEngine:
         *,
         rs_version: str = "rs-1.0.0",
         features_version: str | None = "features-1.1.0",
+        quality_gate: DataQualityGate | None = None,
     ) -> None:
+        # ``quality_gate=None`` disables gating (unit tests of the pure rules). Every
+        # production entry point (the CLI) passes one; a test asserts that.
+        self._quality_gate = quality_gate
         self._features = features
         self._trend_repo = trend_repo
         self._config = config or TrendTemplateConfig()
@@ -160,10 +172,19 @@ class TrendTemplateEngine:
     ) -> list[TrendTemplateResult]:
         """Evaluate each instrument independently, preserving input order."""
         contexts = weekly_contexts or {}
+        # One gate query for the whole batch instead of one per instrument.
+        blocked = self._blocked(instrument_ids, as_of_date)
         return [
-            self.evaluate(iid, as_of_date, weekly_context=contexts.get(iid))
+            self.evaluate(iid, as_of_date, weekly_context=contexts.get(iid), blocked=blocked)
             for iid in instrument_ids
         ]
+
+    def _blocked(
+        self, instrument_ids: Sequence[str], as_of_date: date
+    ) -> Mapping[str, tuple[str, ...]]:
+        if self._quality_gate is None:
+            return {}
+        return self._quality_gate.blocked_instruments(instrument_ids, as_of_date)
 
     def evaluate(
         self,
@@ -171,7 +192,21 @@ class TrendTemplateEngine:
         as_of_date: date,
         *,
         weekly_context: WeeklyContext | None = None,
+        blocked: Mapping[str, tuple[str, ...]] | None = None,
     ) -> TrendTemplateResult:
+        # ``blocked`` lets a batch pass a pre-fetched gate answer; standalone calls ask the gate.
+        if blocked is None:
+            blocked = self._blocked([instrument_id], as_of_date)
+        flags = blocked.get(instrument_id)
+        if flags:
+            return self._unavailable(
+                instrument_id,
+                as_of_date,
+                TrendTemplateStatus.DATA_QUALITY_BLOCKED,
+                weekly_context,
+                blocked_by=flags,
+            )
+
         cfg = self._config
         lookback = cfg.sma200_slope_lookback_days
         needed = SESSIONS_52W + lookback  # spec section 1 warm-up
@@ -256,6 +291,7 @@ class TrendTemplateEngine:
         weekly_context: WeeklyContext | None,
         *,
         close: float | None = None,
+        blocked_by: tuple[str, ...] = (),
     ) -> TrendTemplateResult:
         """All ten rows are still emitted; unavailable inputs stay NULL, ``passed`` is None."""
         return TrendTemplateResult(
@@ -266,4 +302,5 @@ class TrendTemplateEngine:
             algorithm_version=TREND_ALGORITHM_VERSION,
             rs_rank=None,
             weekly_context=weekly_context,
+            blocked_by=blocked_by,
         )

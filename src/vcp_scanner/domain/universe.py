@@ -2,13 +2,8 @@
 
 from dataclasses import dataclass
 from datetime import date, datetime
-from enum import StrEnum
 
-
-class SurvivorshipStatus(StrEnum):
-    POINT_IN_TIME_COMPLETE = "POINT_IN_TIME_COMPLETE"
-    PARTIAL = "PARTIAL"
-    BIASED = "BIASED"
+from vcp_scanner.domain.enums import SurvivorshipStatus
 
 
 @dataclass(frozen=True, slots=True)
