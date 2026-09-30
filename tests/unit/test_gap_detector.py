@@ -86,3 +86,23 @@ def test_gap_up_not_split_like():
     assert len(events) == 1
     assert events[0].flag == DataQualityFlag.UNEXPLAINED_GAP
     assert events[0].context["is_split_like"] is False
+
+
+def test_dividend_on_the_ex_date_does_not_explain_a_split_like_gap():
+    """Audit P0-3: a dividend never rescales prices, so it cannot account for a 50% drop."""
+    detector = GapDetector()
+    candles = [
+        _make_candle(date(2024, 1, 1), 100.0, 100.0),
+        _make_candle(date(2024, 1, 2), 50.0, 50.0),
+    ]
+    dividend = CorporateActionResolution(
+        resolution_id="DIV",
+        instrument_id="TEST",
+        action_type=CorporateActionType.DIVIDEND,
+        status=CorporateActionStatus.CONFIRMED,
+        ex_date=date(2024, 1, 2),
+        cash_amount=5.0,
+    )
+    events = detector.detect(candles, [dividend])
+    assert len(events) == 1
+    assert events[0].blocks_signal is True

@@ -1,5 +1,6 @@
 """Corporate Action domain models and logic (PROJECT_DESIGN section 67)."""
 
+import math
 from dataclasses import dataclass
 from datetime import date, datetime
 from enum import StrEnum
@@ -25,6 +26,28 @@ def status_allows_adjustment(status: CorporateActionStatus) -> bool:
         CorporateActionStatus.CONFIRMED,
         CorporateActionStatus.SINGLE_SOURCE,
         CorporateActionStatus.MANUAL_OVERRIDE,
+    )
+
+
+#: Action types whose ratio changes the price scale (and therefore feed adjustment factors).
+PRICE_SCALING_ACTIONS: frozenset[CorporateActionType] = frozenset(
+    {CorporateActionType.SPLIT, CorporateActionType.BONUS}
+)
+
+
+def has_usable_ratio(numerator: float | None, denominator: float | None) -> bool:
+    """True when both ratio parts are present, finite and positive.
+
+    A split or bonus without such a ratio gets factor 1.0 from the adjustment engine, i.e. it
+    is *not* applied to prices (audit P0-3).
+    """
+    if numerator is None or denominator is None:
+        return False
+    return (
+        math.isfinite(numerator)
+        and math.isfinite(denominator)
+        and numerator > 0
+        and denominator > 0
     )
 
 
@@ -88,3 +111,29 @@ class CorporateActionAdjustment:
     cumulative_volume_factor: float
     source: str
     calculation_version: str
+
+
+def ratio_unknown(resolution: CorporateActionResolution) -> bool:
+    """A price-scaling action that *should* adjust prices but cannot: status permits
+    adjustment, yet the ratio is missing or unusable, so the engine silently applies 1.0.
+    """
+    return (
+        resolution.action_type in PRICE_SCALING_ACTIONS
+        and status_allows_adjustment(resolution.status)
+        and not has_usable_ratio(resolution.ratio_numerator, resolution.ratio_denominator)
+    )
+
+
+def explains_price_gap(resolution: CorporateActionResolution) -> bool:
+    """Whether a resolution accounts for a raw overnight gap on its ex-date (audit P0-3).
+
+    Only a split or bonus that actually feeds an adjustment factor explains a gap: its status
+    allows adjustment and its ratio is usable. A dividend, a conflict, or a split whose ratio
+    could not be read leaves the raw gap unadjusted, so it must not silence the safety net.
+    """
+    return (
+        resolution.action_type in PRICE_SCALING_ACTIONS
+        and resolution.ex_date is not None
+        and status_allows_adjustment(resolution.status)
+        and has_usable_ratio(resolution.ratio_numerator, resolution.ratio_denominator)
+    )

@@ -7,6 +7,7 @@ scanner that runs them. All data is synthetic (AGENTS.md rule 10).
 
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import UTC, date, datetime, timedelta
 
 import pytest
@@ -300,6 +301,8 @@ def test_gap_explained_by_a_resolved_action_raises_nothing() -> None:
         action_type=CorporateActionType.SPLIT,
         status=CorporateActionStatus.CONFIRMED,
         ex_date=date(2024, 1, 2),
+        ratio_numerator=2.0,  # audit P0-3: only a split with a usable ratio explains a gap
+        ratio_denominator=1.0,
     )
     detector = GapDetector(UnexplainedGapConfig(gap_pct=30))
     assert detector.detect(_bars([(100, 100), (50, 50)]), [resolution], T0) == []
@@ -317,6 +320,8 @@ def _resolution(status: CorporateActionStatus, rid: str = "R1") -> CorporateActi
         action_type=CorporateActionType.SPLIT,
         status=status,
         ex_date=date(2024, 2, 15),
+        ratio_numerator=10.0,
+        ratio_denominator=1.0,
         conflict_fields="ratio",
         nse_action_id="N1",
     )
@@ -345,6 +350,128 @@ def test_conflict_blocking_follows_the_config_switch() -> None:
         conflict_blocks_signals=False,
     )
     assert event.blocks_signal is False
+
+
+# ---------------------------------------------------------------------------
+# Audit P0-3: only an applied split/bonus explains a gap; unknown ratios block
+# ---------------------------------------------------------------------------
+
+
+def _gap_resolution(
+    action_type: CorporateActionType = CorporateActionType.SPLIT,
+    status: CorporateActionStatus = CorporateActionStatus.CONFIRMED,
+    num: float | None = 2.0,
+    den: float | None = 1.0,
+) -> CorporateActionResolution:
+    return CorporateActionResolution(
+        resolution_id="G",
+        instrument_id=IID,
+        action_type=action_type,
+        status=status,
+        ex_date=date(2024, 1, 2),
+        ratio_numerator=num,
+        ratio_denominator=den,
+    )
+
+
+@pytest.mark.parametrize(
+    "resolution",
+    [
+        _gap_resolution(num=None, den=None),  # ratio could not be read -> factor 1.0
+        _gap_resolution(num=0.0, den=1.0),
+        _gap_resolution(num=float("nan"), den=1.0),
+        _gap_resolution(status=CorporateActionStatus.PROVIDER_CONFLICT),  # factor withheld
+        _gap_resolution(action_type=CorporateActionType.DIVIDEND, num=None, den=None),
+        _gap_resolution(action_type=CorporateActionType.RIGHTS),
+    ],
+    ids=["no-ratio", "zero-ratio", "nan-ratio", "conflict", "dividend", "rights"],
+)
+def test_gap_is_not_explained_by_an_action_that_does_not_adjust_prices(
+    resolution: CorporateActionResolution,
+) -> None:
+    detector = GapDetector(UnexplainedGapConfig(gap_pct=30))
+    (event,) = detector.detect(_bars([(100, 100), (50, 50)]), [resolution], T0)
+    assert event.flag is GAP_FLAG
+    assert event.blocks_signal is True  # 2:1 drop is split-like
+
+
+@pytest.mark.parametrize(
+    "status",
+    [
+        CorporateActionStatus.CONFIRMED,
+        CorporateActionStatus.SINGLE_SOURCE,
+        CorporateActionStatus.MANUAL_OVERRIDE,
+    ],
+)
+def test_gap_is_explained_by_an_applied_split_or_bonus(status: CorporateActionStatus) -> None:
+    detector = GapDetector(UnexplainedGapConfig(gap_pct=30))
+    for action_type in (CorporateActionType.SPLIT, CorporateActionType.BONUS):
+        res = _gap_resolution(action_type=action_type, status=status)
+        assert detector.detect(_bars([(100, 100), (50, 50)]), [res], T0) == []
+
+
+@pytest.mark.parametrize(
+    "status",
+    [
+        CorporateActionStatus.CONFIRMED,
+        CorporateActionStatus.SINGLE_SOURCE,
+        CorporateActionStatus.MANUAL_OVERRIDE,
+    ],
+)
+@pytest.mark.parametrize("action_type", [CorporateActionType.SPLIT, CorporateActionType.BONUS])
+def test_applied_split_or_bonus_without_ratio_blocks_even_when_conflicts_only_warn(
+    status: CorporateActionStatus, action_type: CorporateActionType
+) -> None:
+    res = _gap_resolution(action_type=action_type, status=status, num=None, den=None)
+    (event,) = corporate_action_events(IID, [res], T0, conflict_blocks_signals=False)
+    assert event.flag is CA_FLAG
+    assert event.blocks_signal is True
+    assert event.severity is EventSeverity.CRITICAL
+    assert event.trade_date == date(2024, 1, 2)
+    assert event.context is not None and event.context["cause"] == "ratio_unknown"
+    # distinct from the conflict event for the same action, so both can coexist in history
+    conflict = replace(res, status=CorporateActionStatus.PROVIDER_CONFLICT)
+    (conflict_event,) = corporate_action_events(IID, [conflict], T0)
+    assert conflict_event.event_id != event.event_id
+
+
+def test_actions_with_a_usable_ratio_or_no_price_effect_raise_no_ratio_event() -> None:
+    resolutions = [
+        _gap_resolution(),  # applied split with ratio
+        _gap_resolution(action_type=CorporateActionType.DIVIDEND, num=None, den=None),
+        _gap_resolution(action_type=CorporateActionType.RIGHTS, num=None, den=None),
+    ]
+    assert corporate_action_events(IID, resolutions, T0) == []
+
+
+def test_ratio_unknown_event_cannot_be_closed_by_hand(
+    quality: DuckDBDataQualityRepository,
+) -> None:
+    res = _gap_resolution(num=None, den=None)
+    events = corporate_action_events(IID, [res], T0)
+    quality.sync_events(IID, CA_FLAG, events, at=T0)
+    with pytest.raises(ValueError):
+        quality.resolve(events[0].event_id, resolved_by="alice", note="looks fine", resolved_at=T0)
+    assert IID in quality.blocked_instruments([IID], date(2024, 3, 1))
+
+
+def test_scanner_blocks_unparsed_split_and_clears_when_ratio_arrives(scanner_env) -> None:
+    market, ca, quality, scanner = scanner_env
+    market.save_daily(_bars([(100, 100), (50, 50)]))
+    ca.save_resolution(_gap_resolution(num=None, den=None), known_from=T0)
+
+    summary = scanner.scan([IID], detected_at=T0)
+    # the unparsed split no longer hides the gap, and it raises its own blocking event
+    assert (summary.gap_events, summary.conflict_events, summary.blocking) == (1, 1, 2)
+    assert set(quality.blocked_instruments([IID], date(2024, 3, 1))[IID]) == {
+        GAP_FLAG.value,
+        CA_FLAG.value,
+    }
+
+    ca.save_resolution(_gap_resolution(), known_from=T0 + timedelta(days=1))
+    again = scanner.scan([IID], detected_at=T0 + timedelta(days=2))
+    assert again.resolved == 2
+    assert quality.blocked_instruments([IID], date(2024, 3, 1)) == {}
 
 
 # ---------------------------------------------------------------------------
@@ -393,6 +520,8 @@ def test_scanner_clears_events_when_the_cause_disappears(scanner_env) -> None:
         action_type=CorporateActionType.SPLIT,
         status=CorporateActionStatus.CONFIRMED,
         ex_date=date(2024, 1, 3),
+        ratio_numerator=2.0,
+        ratio_denominator=1.0,
     )
     ca.save_resolution(explained, known_from=T0 + timedelta(days=1))
 

@@ -9,7 +9,10 @@ import logging
 from datetime import datetime
 
 from vcp_scanner.config.models import UnexplainedGapConfig
-from vcp_scanner.domain.corporate_actions import CorporateActionResolution
+from vcp_scanner.domain.corporate_actions import (
+    CorporateActionResolution,
+    explains_price_gap,
+)
 from vcp_scanner.domain.enums import DataQualityFlag
 from vcp_scanner.domain.events import DataQualityEvent, EventSeverity, make_event_id
 from vcp_scanner.domain.market import Candle
@@ -52,8 +55,10 @@ class GapDetector:
         if detected_at is None:
             detected_at = self._clock()
 
-        # Index known ex-dates for fast lookup
-        known_ex_dates = {r.ex_date for r in resolutions if r.ex_date is not None}
+        # Only ex-dates of splits/bonuses that actually adjust prices explain a gap (audit
+        # P0-3). A dividend, a PROVIDER_CONFLICT or a split with an unreadable ratio on the
+        # same date leaves the raw gap unadjusted, so it must not silence the safety net.
+        known_ex_dates = {r.ex_date for r in resolutions if explains_price_gap(r)}
 
         events: list[DataQualityEvent] = []
         gap_threshold = self._config.gap_pct / 100.0

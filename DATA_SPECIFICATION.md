@@ -579,9 +579,13 @@ Catches actions that both feeds missed. It compares the day's **raw open** with 
 
 ```text
 abs(raw_open(t) / raw_close(t-1) - 1) >= gap_pct
-AND no resolved action with ex_date = t (for that instrument)
+AND no *applied* split/bonus with ex_date = t (for that instrument)
 -> data_quality_event UNEXPLAINED_GAP, severity HIGH
 ```
+
+"Applied" (audit P0-3) means a SPLIT or BONUS resolution whose status feeds adjustment factors (`CONFIRMED`, `SINGLE_SOURCE`, `MANUAL_OVERRIDE`) **and** whose ratio is present, finite and positive. A dividend, a rights issue, a `PROVIDER_CONFLICT`, or a split whose ratio could not be read does not rescale prices, so it never explains a gap.
+
+- **Unknown ratio.** An adjustable split/bonus with no usable ratio gets factor 1.0 from the adjustment engine, so its price jump stays in the adjusted series. It raises a `CORPORATE_ACTION_UNRESOLVED` event (`context.cause = ratio_unknown`) that **always blocks** from the ex-date, independent of `conflict_blocks_signals`. Like a conflict, it cannot be closed with `vcp quality resolve`. It clears when a later resolution for the same action carries a usable ratio.
 
 - Always raises the event and a `SIGNAL_WITH_WARNING` flag. Genuine large gaps exist (earnings, circuit moves), so a gap alone is not proof of bad data (§80).
 - If the price ratio is also close to a small-integer split/bonus ratio (`split_like_*` config), it is treated as a **suspected missed action**: the symbol is signal-blocked until an action is added or a human marks the gap genuine.
