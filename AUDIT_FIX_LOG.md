@@ -929,3 +929,11 @@ Copy of the main DB, then `vcp ingest corporate-actions --start 2021-01-01` (3.0
 - **Newly eligible (9):** DCI, DOLPHIN, JSLL, NPST, TEMBO, THEJO, VIVIANA, WEL (unblocked by 2.7), and KABRAEXTRU, which comes from the P0-4 point-in-time series (the main DB's snapshot predates that fix), not from 2.7.
 - **Trend Template:** new passes DOLPHIN, KABRAEXTRU, NPST, THEJO; ASIANHOTNR and UTTAMSUGAR drop out because their RS rank moves from 70 to 69 against the larger eligible set.
 - SETCO is unblocked but stays ineligible (series BE).
+
+### Applied to the main DB (owner approved; 17:26–17:37 IST, code at 2f1838a)
+
+Backup first: `data/vcp_scanner.pre27.duckdb`. The run held the daily-run lock. Steps as on the copy: corporate actions from 2021-01-01 (3.0 min, NSE only), SETCO's gap closed as genuine (`vcp quality resolve`, by Ajay, note with the dividend arithmetic), adjusted prices, features, universe, RS and Trend Template for 2026-09-30.
+
+Result, identical to the copy: 137 unexplained gaps, 92 instruments blocked by any cause (was 136), blocking gap events on active instruments 5 on 5 (was 50 on 44); 1,343 eligible; Trend Template 267 PASS, 1,063 FAIL, 13 INSUFFICIENT_DATA. **38 of the 44 unblocked**, none newly blocked. Still blocked: BESTAGRO, GOODYEAR, GRAUWEIL, LANCER, WATERBASE (long absences, P1-2) and UEL (demerger 2024-05-22 `factor_unknown`, pre-existing).
+
+**Open after 2.7:** P1-2 long-absence gaps (5 active names; also most of the 41 gaps of +100 % or more); UEL's demerger factor (no bar on the ex-date); capital reductions (MAXIND, EASTSILK, MELSTAR) need manual entries with a ratio once the scheme documents are checked.
