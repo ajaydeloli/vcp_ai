@@ -1217,6 +1217,10 @@ Two earlier attempts (01:26, 01:57) were cut short by power failures on the owne
 - One new PROVIDER_CONFLICT: DTIL's 2026-08-12 dividend reported only by Upstox (warning, no price effect).
 - Blocking data-quality events 235 → 235 (none new, none cleared); no change for any of the 2026-10-01 eligible stocks.
 
+### Applied to the main DB (owner approved; 03:04–03:42 IST 2026-10-02, code at 88fe296)
+
+`upstox-pacing` fast-forwarded into `main` and pushed at 02:33; the apply waited 30 minutes for Upstox's window after the copy check. Backup `data/vcp_scanner.pre_upstox.duckdb` (replaces `pre_batcha`); the run held the daily-run lock. Corporate actions from 2026-08-02 with Upstox (800 of 2,593 asked in 29.5 minutes, no HTTP 429), adjusted prices, features, universe/RS/Trend Template for 2026-10-01. Data-quality scan: 6 unresolved corporate-action conflicts, 631 blocking signals (as on the copy). Universe `uv_20261001_0e1271d5ce`, 1,257 eligible; RS 1,257; Trend Template 203 PASS / 1,048 FAIL / 6 INSUFFICIENT_DATA, scan run `run-20261001-20261001T220957675027Z`, results hash `7769987bb8868a73` (unchanged).
+
 ## Fix B1 — health check and rolling backups before the daily run (2026-10-02)
 
 **Why.** Two power failures on the owner's PC during the night of 2026-10-01 interrupted the Upstox checks. DuckDB survived (writes are all or nothing; the main DB opened with all data), but nothing backed the database up automatically: every backup so far was taken by hand before a fix, and rebuilding means re-downloading five years of NSE data. Owner decision 2026-10-02: back up before every daily run.
@@ -1229,3 +1233,5 @@ Two earlier attempts (01:26, 01:57) were cut short by power failures on the owne
 **Tests** (`test_backup.py`): healthy file passes, garbage and missing files fail; five backups keep the newest three and the copy opens with its data; an uncheckpointed insert is in the backup; a leftover `.partial` is removed and never listed; a damaged database is refused, the restore hint names the good backup, and that backup is not rotated out; `run_daily` on a damaged database runs no step and logs the failure.
 
 **Verification.** Full suite: 848 passed, 0 failed. `ruff check`, `ruff format --check`, `mypy --strict src` clean.
+
+**Real-data check** (main DB, 03:51 IST, under the daily-run lock): health check passed instantly; checkpoint, copy, fsync, verification and rename of the 1.96 GB database took 9.4 s, giving `data/backups/vcp_scanner_20261001_222137.duckdb` (UTC timestamp). 918 GB free.
