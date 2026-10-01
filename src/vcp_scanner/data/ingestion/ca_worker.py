@@ -44,8 +44,14 @@ class CorporateActionIngestionWorker:
         quality_repository: DuckDBDataQualityRepository | None = None,
         conflict_blocks_signals: bool = True,
         market: DailyBarSource | None = None,
+        manual_provider: CorporateActionProvider | None = None,
     ) -> None:
         self._clock = clock
+        # Optional (audit 2.7d): hand-entered actions (source MANUAL). Reconciliation gives
+        # their (type, ex-date) MANUAL_OVERRIDE.
+        self._manual = manual_provider
+        #: Number of manual actions served by the last ``run``.
+        self.manual_count = 0
         # Optional (audit step 2.4): raw bars, from which rights and demerger factors are
         # derived. Without it those actions get no factor (the pre-2.4 behavior).
         self._market = market
@@ -95,7 +101,12 @@ class CorporateActionIngestionWorker:
             logger.warning("Secondary corporate-action source unavailable, NSE only: %s", exc)
             secondary_actions = []
 
-        all_new_actions = primary_actions + secondary_actions
+        manual_actions = (
+            self._manual.get_actions(start, end, instruments) if self._manual is not None else []
+        )
+        self.manual_count = len(manual_actions)
+
+        all_new_actions = primary_actions + secondary_actions + manual_actions
 
         # Which instruments the secondary source was actually asked about (audit P0-2). A
         # provider that does not report coverage (e.g. no Upstox token) covers nothing, so its

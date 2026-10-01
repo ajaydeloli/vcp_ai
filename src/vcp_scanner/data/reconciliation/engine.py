@@ -14,8 +14,8 @@ Implements the cross-source reconciliation rules:
   dividend/rights action) it stays SINGLE_SOURCE (audit P0-2 policy, 2026-09-30).
 - Only split/bonus conflicts block signals; dividend/rights conflicts are warnings
   (``data.quality.events``).
-- Human override recorded
-  → MANUAL_OVERRIDE
+- Human override recorded (a MANUAL-source action for the same type and ex-date, from
+  ``config/manual_corporate_actions.yaml``) → MANUAL_OVERRIDE, with the manual values
 
 Only CONFIRMED, SINGLE_SOURCE, and MANUAL_OVERRIDE feed adjustment factors.
 A PROVIDER_CONFLICT blocks signals for that symbol until superseded.
@@ -55,6 +55,8 @@ class ReconciliationConfig:
 
     primary_source: str = "NSE"
     secondary_source: str = "UPSTOX"
+    #: Hand-entered, evidenced actions (``config/manual_corporate_actions.yaml``, audit 2.7d).
+    manual_source: str = "MANUAL"
     secondary_grace_days: int = 3
     conflict_blocks_signals: bool = True
 
@@ -161,10 +163,19 @@ class ReconciliationEngine:
         primary_actions = sorted(by_source.get(primary, []), key=first_seen)
         secondary_actions = sorted(by_source.get(secondary, []), key=first_seen)
 
+        manual_actions = sorted(
+            by_source.get(self._config.manual_source.upper(), []), key=first_seen
+        )
+
         has_primary = len(primary_actions) > 0
         has_secondary = len(secondary_actions) > 0
 
-        if has_primary and has_secondary:
+        if manual_actions:
+            # A human-verified entry wins over both feeds for this (type, ex-date): it exists
+            # because a feed is silent or wrong about it (audit 2.7d).
+            status = CorporateActionStatus.MANUAL_OVERRIDE
+            conflict_fields = None
+        elif has_primary and has_secondary:
             # Both sources present — check agreement
             status, conflict_fields = self._check_agreement(
                 primary_actions[-1], secondary_actions[-1]
@@ -186,8 +197,11 @@ class ReconciliationEngine:
         else:
             return None  # No actions in this group
 
-        # Pick the primary action values if available, else secondary
-        reference = primary_actions[-1] if has_primary else secondary_actions[-1]
+        # Values: the manual entry if any, else the primary action, else the secondary
+        if manual_actions:
+            reference = manual_actions[-1]
+        else:
+            reference = primary_actions[-1] if has_primary else secondary_actions[-1]
 
         nse_id = primary_actions[-1].corporate_action_id if has_primary else None
         upstox_id = secondary_actions[-1].corporate_action_id if has_secondary else None

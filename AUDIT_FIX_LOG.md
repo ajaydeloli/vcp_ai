@@ -883,3 +883,24 @@ The gap is explained when `|residual| < gap_pct`. Otherwise the event carries `r
 - `test_quality_events.test_gap_is_explained_by_an_applied_split_or_bonus` used a 2:1 ratio for the bonus too, which predicts a third of the price, not half; it now uses bonus 1:1 and also asserts that the misfitting bonus 2:1 is flagged.
 
 **Verification.** Full suite: 762 passed, 0 failed. `ruff check`, `ruff format --check`, `mypy --strict src` clean.
+
+### Fix 2.7d — manual corporate-action overrides
+
+**Owner decision (2026-10-01):** a version-controlled file in the repo.
+
+**Change.**
+- `config/manual_corporate_actions.yaml` and `data/providers/manual_ca.py`: `load_manual_entries` validates every entry with pydantic (symbol; optional ISIN of ISIN shape; type; ex-date; ratio > 0, split face values different; issue price for rights; evidence of at least 10 characters; `approved_by`; `entered_on`; no unknown fields; no duplicate symbol/type/ex-date). A missing file means no overrides; an invalid one raises `ConfigError`, which aborts `vcp ingest corporate-actions`.
+- `ManualCorporateActionProvider` serves every entry on every run (an override added today for an old ex-date must reach the next daily run, which only asks for 60 days) as raw actions with source `MANUAL`, deterministic IDs and the evidence in `source_record_id`. It honours the instrument filter.
+- `ReconciliationEngine`: a `MANUAL` action in a (type, ex-date) group gives `MANUAL_OVERRIDE` with the manual values; the feed records stay linked (`nse_action_id`, `upstox_action_id`).
+- `CorporateActionIngestionWorker(manual_provider=…)`, wired in `run_corporate_actions` from `<config-dir>/manual_corporate_actions.yaml`; the CLI prints how many were applied.
+
+**First entries** (all three checked against the notice and the bhavcopy):
+- DTIL bonus 1:2, ex 2021-08-05 (board approval 2021-06-29; 521.15 × 2/3 = 347.4, open 330.00);
+- GICL split Rs 10 → Rs 5 and bonus 1:1, ex 2025-10-15 (NSE notice GICL_24092025171948; ISIN change that day; 173.70 / 4 = 43.4, open 46.00);
+- JSLL split Rs 10 → Rs 2, ex 2025-06-12 (NSE notice JEENASIKHO_24052025183909; ISIN change that day; 2250.95 / 5 = 450.2, open 460.00).
+
+The notices give record dates; the ex-dates are the bhavcopy dates of the jump and the ISIN change (GICL's notice names 17 October, but the shares traded split from 15 October).
+
+**Tests.** New `tests/unit/test_manual_corporate_actions.py` (15): the repository file's four entries; missing file; six invalid-entry cases, rights without issue price and duplicates raise; the provider serves entries outside the window with deterministic IDs and honours the filter; manual alone and manual against two disagreeing feeds give `MANUAL_OVERRIDE` with the manual ratio; end to end through the worker on DuckDB, JSLL gets price factor 0.2 from 2025-06-12.
+
+**Verification.** Full suite: 777 passed, 0 failed. `ruff check`, `ruff format --check`, `mypy --strict src` clean.

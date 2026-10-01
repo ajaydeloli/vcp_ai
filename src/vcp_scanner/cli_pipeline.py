@@ -442,8 +442,12 @@ def run_bhavcopy_ingest(args: argparse.Namespace) -> int:
 
 
 def run_corporate_actions(args: argparse.Namespace) -> int:
+    from pathlib import Path
+
     from vcp_scanner.data.adjustment.engine import AdjustmentEngine
     from vcp_scanner.data.ingestion.ca_worker import CorporateActionIngestionWorker
+    from vcp_scanner.data.providers.manual_ca import DEFAULT_FILE as MANUAL_FILE
+    from vcp_scanner.data.providers.manual_ca import ManualCorporateActionProvider
     from vcp_scanner.data.quality.scanner import QualityScanner
     from vcp_scanner.data.reconciliation.engine import (
         ReconciliationConfig,
@@ -466,6 +470,7 @@ def run_corporate_actions(args: argparse.Namespace) -> int:
     from vcp_scanner.data.repositories.duckdb_quality_repository import (
         DuckDBDataQualityRepository,
     )
+    from vcp_scanner.domain.errors import ConfigError
 
     _load_env(args.env_file)
     start = _parse_date(args.start)
@@ -479,6 +484,7 @@ def run_corporate_actions(args: argparse.Namespace) -> int:
         _err(f"Configuration error: {e}")
         return 1
     ca_cfg = cfg.data.corporate_actions
+    manual_path = Path(args.config_dir) / MANUAL_FILE
 
     upstox_token = env_secret("UPSTOX_ACCESS_TOKEN")
     if not upstox_token:
@@ -511,6 +517,7 @@ def run_corporate_actions(args: argparse.Namespace) -> int:
             quality_repository=DuckDBDataQualityRepository(store),
             conflict_blocks_signals=ca_cfg.conflict_blocks_signals,
             market=DuckDBMarketDataRepository(store),
+            manual_provider=ManualCorporateActionProvider(manual_path),
         )
         print(
             f"Ingesting corporate actions for {len(instruments)} instruments, {start} to {end}..."
@@ -521,6 +528,12 @@ def run_corporate_actions(args: argparse.Namespace) -> int:
             # Nothing was saved or adjusted: a failed fetch must not look like "no actions".
             _err(f"Error: corporate action ingestion failed: {e}")
             return 1
+        except ConfigError as e:
+            # An invalid override file: skipping it would leave known actions unadjusted.
+            _err(f"Error: {e}")
+            return 1
+        if worker.manual_count:
+            print(f"Applied {worker.manual_count} manual corporate action(s) from {manual_path}.")
         unavailable = worker.secondary_unavailable
         if unavailable:
             _err(

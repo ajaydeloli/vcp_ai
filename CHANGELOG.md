@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (audit 2.7d: manual corporate-action overrides; owner decision 2026-10-01)
+- `config/manual_corporate_actions.yaml`: hand-entered, evidenced corporate actions. `vcp ingest corporate-actions` (and so `vcp run daily`) loads all of them on every run as source `MANUAL`; reconciliation marks their (type, ex-date) `MANUAL_OVERRIDE` with the manual values. An invalid file aborts the run.
+- First entries, verified against NSE record-date notices and bhavcopy prices: DTIL bonus 1:2 (2021-08-05), GICL split Rs 10 → Rs 5 and bonus 1:1 (2025-10-15), JSLL split Rs 10 → Rs 2 (2025-06-12).
+
 ### Changed (audit 2.7c: gap safety net window; owner decision 2026-10-01)
 - An action now explains a gap when its ex-date falls after the previous bar and up to the gap bar, not only on the gap bar's own date. Illiquid stocks often do not trade on the ex-date, and their correctly adjusted splits, bonuses and rights still blocked them (DOLPHIN, UEL, TIL …).
 - The action must also account for the gap's size: the previous close times the combined factor (split/bonus ratio, rights TERP) must land within `gap_pct` of the open. A long absence is not explained by an unrelated action inside it, and an ex-date action whose ratio does not fit the jump is now flagged. Such events record `residual_gap_pct_after_actions`.

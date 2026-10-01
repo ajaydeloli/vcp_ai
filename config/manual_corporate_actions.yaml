@@ -1,0 +1,60 @@
+# Human-verified corporate actions missing from NSE's feeds (DATA_SPECIFICATION 18A, audit 2.7d).
+#
+# Each entry becomes a raw action with source MANUAL; reconciliation marks its (type, ex-date)
+# MANUAL_OVERRIDE, which feeds adjustment factors and wins over feed values for the same key.
+# Ratio conventions are the NSE parser's:
+#   SPLIT  [old face value, new face value]   Rs 10 -> Rs 2 is [10, 2]; consolidation Re 1 -> Rs 10 is [1, 10]
+#   BONUS  [bonus shares, shares held]        1 bonus for every 2 held is [1, 2]
+#   RIGHTS [rights shares, shares held] with cash_amount = issue price (face value + premium)
+# The ex-date is the first session the shares trade without the entitlement (with T+1
+# settlement, NSE's ex-date equals the record date). Check it against the bhavcopy: the price
+# jump, and for a split the ISIN change, fall on it.
+# Every entry needs evidence (notice URL or source) and who approved it.
+
+actions:
+  - symbol: DTIL
+    isin: INE341R01014
+    action_type: BONUS
+    ex_date: 2021-08-05
+    ratio: [1, 2]
+    evidence: >-
+      Board approved a 1:2 bonus (one bonus share for every two held) on 2021-06-29
+      (Business Standard, 2021-06-29). Bhavcopy: close 521.15 on 2021-08-04, open 330.00 on
+      2021-08-05; 521.15 x 2/3 = 347.4. Not in NSE's corporate-action feed.
+    approved_by: Ajay
+    entered_on: 2026-10-01
+
+  - symbol: GICL
+    isin: INE947T01014
+    action_type: SPLIT
+    ex_date: 2025-10-15
+    ratio: [10, 5]
+    evidence: >-
+      NSE record-date notice https://nsearchives.nseindia.com/corporate/GICL_24092025171948_Intimation_Record_Date.pdf
+      (split of each Rs 10 share into 2 shares of Rs 5, with a 1:1 bonus). Bhavcopy: ISIN
+      INE947T01014 -> INE947T01022 and close 173.70 -> open 46.00 on 2025-10-15.
+    approved_by: Ajay
+    entered_on: 2026-10-01
+
+  - symbol: GICL
+    isin: INE947T01014
+    action_type: BONUS
+    ex_date: 2025-10-15
+    ratio: [1, 1]
+    evidence: >-
+      Same NSE notice as the GICL split: bonus 1:1 of Rs 5 shares. Split and bonus together
+      give factor 1/4: 173.70 / 4 = 43.4 against an open of 46.00.
+    approved_by: Ajay
+    entered_on: 2026-10-01
+
+  - symbol: JSLL
+    isin: INE0J5801011
+    action_type: SPLIT
+    ex_date: 2025-06-12
+    ratio: [10, 2]
+    evidence: >-
+      NSE record-date notice https://nsearchives.nseindia.com/corporate/JEENASIKHO_24052025183909_Record_Date_Notice.pdf
+      (each Rs 10 share split into 5 shares of Rs 2, record date 2025-06-12). Bhavcopy: ISIN
+      INE0J5801011 -> INE0J5801029 and close 2250.95 -> open 460.00 on 2025-06-12.
+    approved_by: Ajay
+    entered_on: 2026-10-01
