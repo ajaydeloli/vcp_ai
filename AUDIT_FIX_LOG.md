@@ -672,6 +672,9 @@ Plus 2 gap-detector tests in `test_quality_events.py`.
   - ITC: INFO `KITE_DIVIDEND` step 0.97348 on the 2026-05-27 dividend;
   - HDFCBANK, KOTAKBANK, RELIANCE, TATASTEEL, TCS: no difference (their dividends were too small for Kite to adjust).
 - `vcp ingest market --today` before the session opened (08:59 IST): 0 rows and SUCCESS. It fails safe.
+- Live during the session (09:18 IST), `vcp ingest market --today` for TITAN, TATASTEEL and RELIANCE wrote 3 rows with `KITE`/`PROVISIONAL` (e.g. TATASTEEL open 184.70, last 185.14).
+  - `ingest adjusted-prices --allow-provisional` for TITAN built 1,426 rows, including today.
+  - The rebuild without the flag built 1,425 rows and left 0 adjusted rows for today (pruned).
 - The full corporate-action run took 4 m 44 s: 9,378 records, 9,169 resolutions, 537 factors.
 - The quality scan on this hybrid DB found 34 unexplained gaps and 27 blocks. They come from Kite-adjusted history before 2026-04-01 meeting raw bhavcopy after it, which 2.6 removes with a continuous backfill.
 
