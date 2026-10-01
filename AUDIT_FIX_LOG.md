@@ -822,3 +822,10 @@ The 1,677 bars fewer than the trial build are exactly the rights-entitlement row
 - `survivorship_evidence` / `derive_survivorship`: ASM and GSM must be collected on the as-of date itself, otherwise "<list> list not collected on <date>".
 
 **Tests.** New `tests/unit/test_daily_run.py` (4): first run scans only the latest session; skipped evenings are all scanned; step order and the bhavcopy start date; a failed step fails the run while later steps still run. Also an sm_worker collection test and the point-in-time tests for skipped evenings. Full suite: 740 passed. `ruff`, `mypy --strict src` clean.
+
+**First real run** (main DB, 2026-10-01 13:57–14:05 IST, exit 0): collected the ASM, GSM and T2T lists; today's bhavcopy was not yet published (PENDING, normal); no new session to scan.
+- **Scheduled** (owner approved): Windows Task Scheduler tasks "VCP daily run" (Mon–Fri 19:15 IST) and "VCP daily run late" (Mon–Fri 22:00, safety net for late NSE publication).
+  - Both run `wsl.exe -d Ubuntu -u ubuntu -- bash -lc ~/projects/vcp_ai/scripts/daily_run.sh`.
+  - Settings: run as soon as possible after a missed start; 2 h limit; a flock in the script prevents two runs at once.
+  - Output goes to `data/logs/daily_run_<date>.out`; the summary goes to `data/logs/daily_runs.log`.
+  - Verified by starting the late task manually; it launched `vcp run daily` in WSL.
