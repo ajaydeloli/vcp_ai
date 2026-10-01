@@ -967,3 +967,15 @@ Result, identical to the copy: 137 unexplained gaps, 92 instruments blocked by a
 **Tests.** New `tests/unit/test_block_lifetime.py` (6): the block ends exactly at the lifetime and still applies to earlier as-of dates; weekends do not count; no lifetime = forever; undated events never expire; point-in-time bars; config default equals the longest lookback, `None` allowed, 200 refused.
 
 **Verification.** Full suite: 785 passed, 0 failed (this run also covers P1-2a). `ruff check`, `ruff format --check`, `mypy --strict src` clean.
+
+### Fix P1-2c — a trading absence starts a new history (D1)
+
+**Change.**
+- New flag `DataQualityFlag.TRADING_ABSENCE` and `data/quality/absence.py`: for each pair of consecutive bars, the NSE sessions strictly between them (settled bhavcopy days, `DuckDBMarketDataRepository.load_market_sessions`) are counted; at `data.quality.absence_min_missed_sessions` (20) or more, a blocking HIGH event is raised on the return bar with the missed-session count, both dates and the jump. Holidays never count; without a session calendar (no bhavcopy loaded) the check is skipped.
+- `QualityScanner(sessions=…, absence_min_missed_sessions=…)` raises and syncs these events, and turns an `UNEXPLAINED_GAP` across the same two bars into a non-blocking warning (`after_trading_absence_sessions` in its context): the stock traded elsewhere or was suspended, and actions during the absence never reach NSE's feed, so the jump is not evidence of a missed action. Both CLI paths (`ingest corporate-actions`, `quality scan`) pass the calendar; the summaries print the count.
+- The block ends through P1-2b: once the stock has 253 bars after its return, no window reaches back across the absence. The approved wording was "INSUFFICIENT_DATA until 253 bars"; it is implemented as a data-quality block (Trend Template status `DATA_QUALITY_BLOCKED`, flag `TRADING_ABSENCE`; universe reason "Data quality blocked") so that it reuses the gate, is point-in-time and needs no change to the feature SQL. The features themselves are still computed across the absence but are not used while the block applies.
+- DATA_SPECIFICATION 18A and DATABASE_SCHEMA 19.1 updated.
+
+**Tests.** New `tests/unit/test_trading_absence.py` (8): session counting; threshold 19 vs 20; holidays are not missed sessions; end to end with GOODYEAR's real prices (absence event on 2026-04-20, the −37 % gap kept as a warning, gate blocks until the lifetime's worth of bars); no calendar = old behaviour; sessions from settled, de-duplicated bhavcopy days.
+
+**Verification.** Full suite: 792 passed, 0 failed. `ruff check`, `ruff format --check`, `mypy --strict src` clean.

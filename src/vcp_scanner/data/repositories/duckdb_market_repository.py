@@ -613,6 +613,17 @@ class DuckDBMarketDataRepository:
         ).fetchone()
         return None if row is None else str(row[0])
 
+    def load_market_sessions(self) -> list[date] | None:
+        """NSE sessions: the days whose bhavcopy settled as OK, sorted (audit P1-2c).
+
+        ``None`` when no bhavcopy was ever loaded (a Kite-only database): absence detection
+        then has no calendar and is skipped rather than guessed.
+        """
+        rows = self._store.conn.execute(
+            "SELECT DISTINCT trade_date FROM bhavcopy_files WHERE status = 'OK' ORDER BY trade_date"
+        ).fetchall()
+        return [r[0] for r in rows] or None
+
     def load_priced_instrument_ids(self) -> list[str]:
         """Instruments that have at least one current raw daily bar, sorted."""
         rows = self._store.conn.execute(

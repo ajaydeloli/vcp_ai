@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (audit P1-2c: trading absences; owner decision 2026-10-01)
+- New data-quality flag `TRADING_ABSENCE`: a stock that misses 20 or more NSE sessions (`data.quality.absence_min_missed_sessions`; sessions = settled bhavcopy days) is blocked from its return until it has a full block lifetime (253 bars) of new history, so no feature window mixes prices from both sides of the absence. Detected by `vcp quality scan` and `vcp ingest corporate-actions`.
+- The price jump on such a return is no longer a blocking unexplained gap; it stays recorded as a warning (`after_trading_absence_sessions`).
+
 ### Changed (audit P1-2b: data-quality blocks end; owner decision 2026-10-01)
 - A dated blocking event (unexplained gap, corporate action without a usable factor, provider conflict) now stops applying once the stock has `data.quality.block_lifetime_bars` (253, new in `config/data.yaml`) of its own bars from the event date to the as-of date; the bad bar has then left every lookback. Before, a block lasted forever (BRITANNIA, PATINTLOG, SIGMAADV, TFL, UEL and KESORAMIND were blocked by events 385 to 1,329 bars old). Earlier as-of dates still see the block. Config loading refuses a lifetime shorter than the longest lookback (`ScannerConfig.longest_lookback_bars`).
 

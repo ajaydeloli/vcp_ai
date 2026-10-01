@@ -699,7 +699,10 @@ PROVIDER_CONFLICT
 |---|---|---|---|---|
 | `MISSING_CANDLES` | completeness check during `vcp ingest market` | yes | first missing session | the hole is filled and the check re-runs |
 | `CORPORATE_ACTION_UNRESOLVED` | reconciliation (`ingest corporate-actions`, `quality scan`) for each current `PROVIDER_CONFLICT` | yes, unless `corporate_actions.conflict_blocks_signals: false` | the action's ex-date | the resolution is superseded (`CONFIRMED` / `MANUAL_OVERRIDE`); **never by hand** |
-| `UNEXPLAINED_GAP` | gap detector (`ingest corporate-actions`, `quality scan`) | only when the gap is split-like (§18A); otherwise a warning | the gap date | an action explains it, or a human resolves it as genuine |
+| `UNEXPLAINED_GAP` | gap detector (`ingest corporate-actions`, `quality scan`) | only when the gap is split-like (§18A) and not across a trading absence; otherwise a warning | the gap date | an action explains it, or a human resolves it as genuine |
+| `TRADING_ABSENCE` | absence check (`ingest corporate-actions`, `quality scan`; audit P1-2c) | yes | the return bar after 20+ missed NSE sessions | ends on its own after the block lifetime (253 bars after the return) |
+
+Every dated block also ends once the instrument has `data.quality.block_lifetime_bars` (253) of its own bars from the event date (audit P1-2b), whatever its status.
 
 Lifecycle: detectors call `sync_events(instrument, event type, current events)`. New conditions open, present ones refresh, cleared ones close with `resolved_by = 'SYSTEM'` and reopen if they return. A human resolution (`vcp quality resolve EVENT_ID --by NAME --note TEXT`; both required) is final and never overridden. Corporate-action conflicts refuse human closure because the adjustment stays withheld while the resolution is `PROVIDER_CONFLICT`.
 

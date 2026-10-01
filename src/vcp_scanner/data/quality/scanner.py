@@ -14,11 +14,13 @@ It never edits prices and never "fixes" a gap (18A).
 
 from __future__ import annotations
 
+import dataclasses
 from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import date, datetime
 
 from vcp_scanner.data.adjustment.engine import ex_date_prices
+from vcp_scanner.data.quality.absence import absence_spans, trading_absence_events
 from vcp_scanner.data.quality.events import corporate_action_events, identity_events
 from vcp_scanner.data.reconciliation.gap_detector import GapDetector
 from vcp_scanner.data.repositories.base import CorporateActionRepository
@@ -27,6 +29,7 @@ from vcp_scanner.data.repositories.duckdb_market_repository import DuckDBMarketD
 from vcp_scanner.data.repositories.duckdb_quality_repository import DuckDBDataQualityRepository
 from vcp_scanner.domain.corporate_actions import PRICE_DERIVED_ACTIONS
 from vcp_scanner.domain.enums import DataQualityFlag
+from vcp_scanner.domain.events import DataQualityEvent
 
 _FAR_PAST = date(1900, 1, 1)
 _FAR_FUTURE = date(2999, 12, 31)
@@ -38,6 +41,7 @@ class ScanSummary:
     gap_events: int = 0  # unexplained gaps currently detected
     conflict_events: int = 0  # unresolved corporate-action conflicts currently detected
     identity_events: int = 0  # ISIN changes no split explains (warnings, audit step 2.2)
+    absence_events: int = 0  # returns after a long trading absence (audit P1-2c)
     blocking: int = 0  # of those, how many block signals
     opened: int = 0  # events seen for the first time in this scan
     resolved: int = 0  # events closed because their condition cleared
@@ -53,6 +57,8 @@ class QualityScanner:
         *,
         conflict_blocks_signals: bool = True,
         identity: DuckDBIdentityRepository | None = None,
+        sessions: Sequence[date] | None = None,
+        absence_min_missed_sessions: int = 20,
     ) -> None:
         self._market = market
         self._ca = corporate_actions
@@ -60,6 +66,10 @@ class QualityScanner:
         self._gaps = gap_detector
         self._conflict_blocks = conflict_blocks_signals
         self._identity = identity
+        # Audit P1-2c: NSE market sessions (sorted) for trading-absence detection. None skips
+        # it (no session calendar, e.g. a Kite-only database).
+        self._sessions = sorted(sessions) if sessions is not None else None
+        self._absence_min = absence_min_missed_sessions
 
     def scan(self, instrument_ids: Sequence[str], *, detected_at: datetime) -> ScanSummary:
         """Scan each instrument independently. ``detected_at`` is injected (no clock reads)."""
@@ -76,6 +86,22 @@ class QualityScanner:
         resolutions = self._ca.load_resolutions(instrument_id)
 
         gap_events = self._gaps.detect(candles, resolutions, detected_at)
+        absence_events = (
+            trading_absence_events(
+                instrument_id,
+                candles,
+                self._sessions,
+                min_missed_sessions=self._absence_min,
+                detected_at=detected_at,
+            )
+            if self._sessions is not None
+            else []
+        )
+        # The jump on a return after a long absence is not evidence of a missed action: the
+        # stock traded elsewhere or was suspended, and its history restarts at the return
+        # anyway. The gap stays recorded, as a warning (audit P1-2c).
+        spans = absence_spans(absence_events)
+        gap_events = [_after_absence(e, spans) for e in gap_events]
         derived_dates = [
             r.ex_date
             for r in resolutions
@@ -100,6 +126,12 @@ class QualityScanner:
         id_events = []
         opened = gap_sync.opened + conflict_sync.opened
         resolved = gap_sync.resolved + conflict_sync.resolved
+        if self._sessions is not None:
+            absence_sync = self._quality.sync_events(
+                instrument_id, DataQualityFlag.TRADING_ABSENCE, absence_events, at=detected_at
+            )
+            opened += absence_sync.opened
+            resolved += absence_sync.resolved
         if self._identity is not None:
             id_events = identity_events(
                 instrument_id,
@@ -117,7 +149,30 @@ class QualityScanner:
             gap_events=len(gap_events),
             conflict_events=len(conflict_events),
             identity_events=len(id_events),
-            blocking=sum(e.blocks_signal for e in [*gap_events, *conflict_events, *id_events]),
+            absence_events=len(absence_events),
+            blocking=sum(
+                e.blocks_signal
+                for e in [*gap_events, *conflict_events, *id_events, *absence_events]
+            ),
             opened=opened,
             resolved=resolved,
         )
+
+
+def _after_absence(
+    event: DataQualityEvent, spans: dict[tuple[date, date], int]
+) -> DataQualityEvent:
+    """A gap across a trading absence becomes a non-blocking warning (audit P1-2c)."""
+    ctx = event.context or {}
+    prev, curr = ctx.get("prev_date"), ctx.get("curr_date")
+    if not isinstance(prev, str) or not isinstance(curr, str):
+        return event
+    missed = spans.get((date.fromisoformat(prev), date.fromisoformat(curr)))
+    if missed is None:
+        return event
+    return dataclasses.replace(
+        event,
+        blocks_signal=False,
+        context={**ctx, "after_trading_absence_sessions": missed},
+        description=f"{event.description} After a {missed}-session trading absence.",
+    )

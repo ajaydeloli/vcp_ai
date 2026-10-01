@@ -560,11 +560,14 @@ def run_corporate_actions(args: argparse.Namespace) -> int:
             GapDetector(ca_cfg.unexplained_gap),
             conflict_blocks_signals=ca_cfg.conflict_blocks_signals,
             identity=DuckDBIdentityRepository(store),
+            sessions=market_repo.load_market_sessions(),
+            absence_min_missed_sessions=cfg.data.quality.absence_min_missed_sessions,
         ).scan(scan_ids, detected_at=datetime.now(UTC))
         print(
             f"Data-quality scan: {summary.instruments} instrument(s), "
             f"{summary.gap_events} unexplained gap(s), "
             f"{summary.conflict_events} unresolved corporate-action conflict(s), "
+            f"{summary.absence_events} return(s) after a trading absence, "
             f"{summary.blocking} blocking signals."
         )
         if summary.blocking:
@@ -774,12 +777,15 @@ def run_quality_scan(args: argparse.Namespace) -> int:
             GapDetector(ca_cfg.unexplained_gap),
             conflict_blocks_signals=ca_cfg.conflict_blocks_signals,
             identity=DuckDBIdentityRepository(store),
+            sessions=market.load_market_sessions(),
+            absence_min_missed_sessions=cfg.data.quality.absence_min_missed_sessions,
         ).scan(ids, detected_at=datetime.now(UTC))
     print("Data-quality scan complete:")
     print(f"  Instruments scanned     : {summary.instruments}")
     print(f"  Unexplained gaps        : {summary.gap_events}")
     print(f"  Corporate-action conflicts: {summary.conflict_events}")
     print(f"  Unexplained ISIN changes: {summary.identity_events}")
+    print(f"  Trading absences        : {summary.absence_events}")
     print(f"  Blocking signals        : {summary.blocking}")
     print(f"  New events              : {summary.opened}")
     print(f"  Cleared automatically   : {summary.resolved}")
