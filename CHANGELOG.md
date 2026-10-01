@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed (same-day ratio action and demerger/rights; superseded readings)
+- A rights issue or demerger on the same ex-date as a split or bonus is now derived from the prior close on the post-split/bonus scale. Before, the split/bonus was counted twice: AHLEAST's 2022-10-06 demerger + 1:2 bonus got factor 0.352 instead of 0.528, leaving a +50 % jump in its adjusted prices. The gap detector uses the same order.
+- An older, ratio-less SPLIT/BONUS/RIGHTS reading of a record that the parser now stores as `UNMODELLED` (same instrument and ex-date) no longer raises a second, blocking event (QUINT 2026-08-25, BRITANNIA 2021-05-25); the record is reported once, as the unmodelled warning.
+
 ### Fixed (delisting of a company that listed again under a later ISIN)
 - `vcp ingest security-master` no longer skips a delisting record whose instrument is held by the same issuer's equity under a later ISIN (DHFL, delisted 2021-09-29, INE202B01012 → PIRAMALFIN, INE202B01038). Like a relisting under the same ISIN, the delisting is kept as an earlier period of that instrument. A different issuer reusing the symbol is still refused.
 

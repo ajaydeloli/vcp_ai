@@ -173,6 +173,18 @@ class ExDatePrices:
     raw: bool
 
 
+def rescale_prior_close(prices: ExDatePrices, price_factor: float) -> ExDatePrices:
+    """``prices`` with the prior close put on the scale after same-day ratio actions.
+
+    A split or bonus on the same ex-date as a rights issue or demerger already explains part of
+    the ex-date drop; deriving the second factor from the unscaled prior close would count it
+    twice.
+    """
+    if price_factor == 1.0 or prices.prior_close is None:
+        return prices
+    return ExDatePrices(prices.prior_close * price_factor, prices.ex_open, prices.raw)
+
+
 def derived_factor(
     resolution: CorporateActionResolution, prices: ExDatePrices
 ) -> tuple[float, float] | None:

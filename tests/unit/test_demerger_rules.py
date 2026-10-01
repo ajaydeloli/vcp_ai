@@ -124,3 +124,38 @@ def test_worker_applies_a_manual_demerger_factor(tmp_path: Path) -> None:
     (factor,) = repo.load_adjustments(iid)
     assert factor.effective_date == date(2024, 5, 22)
     assert float(factor.price_factor) == pytest.approx(0.9)
+
+
+# --- same-day ratio action and demerger (AHLEAST 2022-10-06: demerger + bonus 1:2) ----------
+
+
+def _ahleast(
+    kind: T, num: float | None = None, den: float | None = None
+) -> CorporateActionResolution:
+    return CorporateActionResolution(
+        f"r-{kind}", "I", kind, CorporateActionStatus.SINGLE_SOURCE, ex_date=date(2022, 10, 6),
+        ratio_numerator=num, ratio_denominator=den,
+    )  # fmt: skip
+
+
+def test_same_day_demerger_is_derived_after_the_bonus() -> None:
+    actions = [_ahleast(T.DEMERGER), _ahleast(T.BONUS, 1, 2)]
+    prices = {date(2022, 10, 6): ExDatePrices(350.35, 185.0, raw=True)}
+    (adj,) = AdjustmentEngine().compute_factors(actions, prices)
+    # Bonus 2/3 times demerger 185 / (350.35 x 2/3): the whole drop, counted once. Before the
+    # fix the demerger factor was 185 / 350.35, so the bonus was applied twice (0.352).
+    assert float(adj.price_factor) == pytest.approx(185.0 / 350.35)
+    assert float(adj.volume_factor) == pytest.approx(1.5)
+
+
+def test_gap_detector_agrees_on_the_same_day_combination() -> None:
+    from vcp_scanner.data.reconciliation.gap_detector import GapDetector
+    from vcp_scanner.domain.market import Candle
+
+    def bar(d: date, o: float, c: float) -> Candle:
+        return Candle("I", datetime(d.year, d.month, d.day, tzinfo=UTC), "D", o, max(o, c),
+                      min(o, c), c, 100, "NSE_BHAVCOPY")  # fmt: skip
+
+    bars = [bar(date(2022, 10, 4), 345.0, 350.35), bar(date(2022, 10, 6), 185.0, 175.75)]
+    actions = [_ahleast(T.DEMERGER), _ahleast(T.BONUS, 1, 2)]
+    assert GapDetector().detect(bars, actions, AT) == []

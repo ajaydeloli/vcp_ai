@@ -63,3 +63,17 @@ def test_warning_event_until_a_manual_action_covers_the_date() -> None:
     manual = _res(T.SPLIT, ex, CorporateActionStatus.MANUAL_OVERRIDE, num=10.0)
     assert unmodelled_action_events("I", [_res(T.UNMODELLED, ex), manual], AT) == []
     assert unmodelled_action_events("I", [_res(T.SPLIT, ex)], AT) == []
+
+
+def test_old_ratio_less_reading_of_the_same_record_is_not_a_second_block() -> None:
+    from vcp_scanner.data.quality.events import corporate_action_events
+    from vcp_scanner.domain.corporate_actions import ExDatePrices
+
+    ex = date(2026, 8, 25)
+    old_rights = _res(T.RIGHTS, ex)  # QUINT as read before P1-10: RIGHTS without a ratio
+    prices = {ex: ExDatePrices(40.51, 42.79, raw=True)}
+    (blocking,) = corporate_action_events("I", [old_rights], AT, ex_prices=prices)
+    assert blocking.blocks_signal
+    both = [old_rights, _res(T.UNMODELLED, ex)]
+    assert corporate_action_events("I", both, AT, ex_prices=prices) == []
+    assert len(unmodelled_action_events("I", both, AT)) == 1

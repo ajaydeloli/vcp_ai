@@ -120,11 +120,15 @@ class GapDetector:
         if not window:
             return None
         factor = 1.0
-        bars = ExDatePrices(prior_close=prev.close, ex_open=curr.open, raw=True)
+        # Ratio actions first, so a same-day rights issue or demerger is derived on the
+        # post-split/bonus scale (as the adjustment engine does).
         for r in window:
             if r.action_type in PRICE_SCALING_ACTIONS:
                 factor *= _ENGINE.single_factor(r)[0]
+        for r in window:
+            if r.action_type in PRICE_SCALING_ACTIONS:
                 continue
+            bars = ExDatePrices(prior_close=prev.close * factor, ex_open=curr.open, raw=True)
             if r.action_type in (CorporateActionType.RIGHTS, CorporateActionType.DEMERGER):
                 derived = derived_factor(r, bars)
                 if derived is not None:

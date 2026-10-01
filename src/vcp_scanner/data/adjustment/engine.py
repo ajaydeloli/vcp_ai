@@ -23,6 +23,7 @@ from vcp_scanner.domain.corporate_actions import (
     CorporateActionResolution,
     ExDatePrices,
     derived_factor,
+    rescale_prior_close,
     status_allows_adjustment,
 )
 from vcp_scanner.domain.enums import CorporateActionType
@@ -114,15 +115,26 @@ class AdjustmentEngine:
         for ex_date in sorted(by_date, reverse=True):
             group = sorted(by_date[ex_date], key=lambda r: (r.action_type.value, r.resolution_id))
             pf, vf = 1.0, 1.0
+            # Ratio actions first: a rights issue or demerger on the same ex-date must be
+            # derived from the prior close on the post-split/bonus scale, or its factor would
+            # count the split/bonus again (AHLEAST 2022-10-06: demerger + bonus 1:2; the
+            # adjusted series kept a +50 % jump).
+            for r in group:
+                if r.action_type not in PRICE_DERIVED_ACTIONS:
+                    single_pf, single_vf = self._compute_single_factor(r)
+                    pf *= single_pf
+                    vf *= single_vf
             for r in group:
                 if r.action_type in PRICE_DERIVED_ACTIONS:
                     prices = (ex_prices or {}).get(ex_date)
-                    derived = derived_factor(r, prices) if prices and prices.raw else None
+                    derived = (
+                        derived_factor(r, rescale_prior_close(prices, pf))
+                        if prices and prices.raw
+                        else None
+                    )
                     single_pf, single_vf = derived or (1.0, 1.0)
-                else:
-                    single_pf, single_vf = self._compute_single_factor(r)
-                pf *= single_pf
-                vf *= single_vf
+                    pf *= single_pf
+                    vf *= single_vf
 
             # If the actions have no mathematical effect, no record is made
             if pf == 1.0 and vf == 1.0:

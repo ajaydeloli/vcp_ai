@@ -1102,3 +1102,17 @@ Without an id it lists recent runs (id, data and universe snapshots, commit, dir
 **Test.** `test_same_issuer_relisted_under_a_later_isin_keeps_both_periods` (real ISINs): both periods stored, the live one not marked delisted.
 
 **Verification.** Full suite: 817 passed, 0 failed. `ruff check`, `ruff format --check`, `mypy --strict src` clean.
+
+### Fix C4 — same-day split/bonus with a demerger or rights issue; superseded readings
+
+**Found in the real-data check of C1–C3** (copy `data/c1.duckdb`, 20:12–20:25 IST):
+1. AHLEAST gained a blocking gap on 2022-10-06 once C1 let the gap detector compute demerger factors. The cause was older: that day has a demerger **and** a 1:2 bonus, and both the adjustment engine and (now) the detector derived the demerger factor from the unscaled prior close, so the bonus was counted twice. The stored factor was 0.352 (= 2/3 × 185/350.35) instead of 0.528 (= 185/350.35), and AHLEAST's adjusted series kept a +50 % jump (123.33 → 185.00). It is the only instrument in the main DB with a demerger or rights issue on the same day as a split or bonus.
+2. QUINT and BRITANNIA kept their blocking `CORPORATE_ACTION_UNRESOLVED` events: their old ratio-less RIGHTS/BONUS readings stay stored (raw rows are immutable) next to the new UNMODELLED reading of the same record.
+
+**Change.**
+- `AdjustmentEngine.compute_factors`: per ex-date, ratio actions first, then rights/demergers derived with `rescale_prior_close(prices, pf)` (new in `domain.corporate_actions`: the prior close times the factor so far). `GapDetector._residual_gap` uses the same order.
+- `corporate_action_events`: a ratio-less SPLIT/BONUS/RIGHTS (or an underivable RIGHTS/DEMERGER) on an ex-date that also has an UNMODELLED resolution raises no blocking event; the UNMODELLED warning covers that record.
+
+**Tests.** In `test_demerger_rules.py`: AHLEAST's real prices give one factor 185/350.35 and volume factor 1.5; the gap detector raises nothing for that day. In `test_unmodelled_actions.py`: QUINT's old ratio-less RIGHTS blocks alone but not next to its UNMODELLED reading, which keeps one warning.
+
+**Verification.** Full suite: 820 passed, 0 failed. `ruff check`, `ruff format --check`, `mypy --strict src` clean.

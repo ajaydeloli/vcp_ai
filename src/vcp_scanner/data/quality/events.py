@@ -100,14 +100,27 @@ def corporate_action_events(
     recorded as a WARNING that does not gate (audit P0-2 policy, 2026-09-30).
     """
     events: list[DataQualityEvent] = []
+    # A record the parser now reads as UNMODELLED (audit P1-10) may still have its older,
+    # ratio-less reading stored as a SPLIT/BONUS/RIGHTS on the same ex-date (raw rows are
+    # immutable: QUINT's CCPS/warrant rights, BRITANNIA's debenture bonus). That old reading
+    # is the same NSE record, so it is reported once, as the UNMODELLED warning, not also as a
+    # blocking unknown ratio or factor.
+    unmodelled = {
+        r.ex_date
+        for r in resolutions
+        if r.action_type is CorporateActionType.UNMODELLED and r.ex_date is not None
+    }
     for r in resolutions:
         if r.instrument_id != instrument_id:
             continue
+        superseded = r.ex_date in unmodelled
         if ratio_unknown(r):
-            events.append(_ratio_unknown_event(instrument_id, r, detected_at))
+            if not superseded:
+                events.append(_ratio_unknown_event(instrument_id, r, detected_at))
             continue
         if r.ex_date is not None and factor_unknown(r, (ex_prices or {}).get(r.ex_date)):
-            events.append(_factor_unknown_event(instrument_id, r, detected_at))
+            if not superseded:
+                events.append(_factor_unknown_event(instrument_id, r, detected_at))
             continue
         if r.status is not CorporateActionStatus.PROVIDER_CONFLICT:
             continue
