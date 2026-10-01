@@ -737,3 +737,27 @@ Plus 2 gap-detector tests in `test_quality_events.py`.
   - unmodelled consolidations / capital reductions;
   - gaps after long suspensions (GOODYEAR, LANCER), which is audit P1-2;
   - SME bonuses/splits missing from NSE's `index=equities` feed (JSLL; `index=sme` returned only 9 records).
+
+**Main database built** (owner approved; `data/vcp_scanner.duckdb`, fresh, code at cce2ec4, 12:15–12:44 IST):
+
+| Step | Time | Result |
+|---|---|---|
+| Security master | 1.6 min | 2,593 listed stocks, 115 delisting records, 497 surveillance flags |
+| Bhavcopy load | 12.3 min (cached files) | 1,425 sessions, 3,120,313 bars, 0 rejected; stopped cleanly at 2026-10-01 (PENDING); 775 inactive instruments; 501 identifier changes |
+| Corporate actions | 5.7 min, NSE only (Upstox token expired; run continued with a warning) | 182 unexplained gaps (trial: 438); 136 blocking signals on 106 instruments, of which 44 active; 10 conflicts |
+| Adjusted prices | 3.0 min | 3,363 instruments |
+| Features | 3.9 min | 3,363 instruments |
+| Universe 2026-09-30 | 27 s | 1,334 eligible |
+| RS | 8 s | 1,334 ranked |
+| Trend Template | 2.2 min | 265 PASS, 1,056 FAIL, 13 INSUFFICIENT_DATA |
+
+The 1,677 bars fewer than the trial build are exactly the rights-entitlement rows, now excluded. Top RS-98 passes: BHAGYANGR, BIRLACABLE, CUPID, INDSWFTLAB, MOREPENLAB, RAYMOND, SETL, SHILPAMED, SIYSIL, TVSHLTD, WELCORP.
+
+**Step 2 status:** complete. D1 (Kite dividend re-adjustment), D2 (Kite symbol suffixes; no longer needed for history), D3 (throughput: full market 2021→ in about 30 min) and D4 (demergers; rights too) are closed.
+
+**Open follow-ups:**
+- consolidations and capital reductions (reverse split) are unmodelled;
+- SME corporate actions are missing from NSE's equities feed;
+- suspension gaps block permanently (P1-2);
+- the Upstox token needs refreshing;
+- the survivorship label is still PARTIAL (P0-4).
