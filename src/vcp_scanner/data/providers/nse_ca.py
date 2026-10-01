@@ -40,6 +40,7 @@ _UNHANDLED_MARKERS = (
     "AMALGAMAT",
     "MERGER",
     "ARRANGEMENT",
+    "DEBENTURE",  # a bonus of debentures pays value out without changing the share count
 )
 
 
@@ -221,7 +222,10 @@ class NSECorporateActionProvider:
                 # shares become one and prices are multiplied by 10. A consolidation without
                 # two face values stays visible as an unparsed ratio.
                 action_type = CorporateActionType.SPLIT
-            elif "BONUS" in text:
+            elif "BONUS" in text and "DEBENTURE" not in text:
+                # "Scheme Of Arangement- Bonus - 1 Debenture For 1 Equity Share Held"
+                # (BRITANNIA 2021) issues debentures, not shares: no share-count change, so it
+                # is reported as unhandled below instead of becoming a ratio-less BONUS.
                 action_type = CorporateActionType.BONUS
             elif "DIVIDEND" in text:
                 action_type = CorporateActionType.DIVIDEND

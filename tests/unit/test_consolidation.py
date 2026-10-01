@@ -67,6 +67,23 @@ def test_capital_reduction_stays_unhandled_and_reported(record: dict[str, Any]) 
     assert p.unhandled_records == [f"{record['symbol']}: {record['subject'].upper()}"]
 
 
+BRITANNIA = {**_COMMON, "comp": "Britannia Industries Limited", "exDate": "25-May-2021",
+             "faceVal": "1", "isin": "INE216A01014", "recDate": "27-May-2021",
+             "symbol": "BRITANNIA",
+             "subject": (" Scheme Of Arangement- Bonus - 1 Debenture"
+                         " For 1 Equity Share Held")}  # fmt: skip
+
+
+def test_bonus_of_debentures_is_not_a_share_bonus() -> None:
+    # Audit P1-2a: read as a ratio-less BONUS it blocked BRITANNIA from 2021 on.
+    p = _provider()
+    assert p._parse_nse_action(BRITANNIA) is None
+    assert p.unparsed_ratios == []
+    assert p.unhandled_records == [
+        "BRITANNIA: SCHEME OF ARANGEMENT- BONUS - 1 DEBENTURE FOR 1 EQUITY SHARE HELD"
+    ]
+
+
 def test_consolidation_text_parses_with_split_semantics() -> None:
     text = "CONSOLIDATION OF EQUITY SHARES FROM RE 1 PER SHARE TO RS 10 PER SHARE"
     assert parse_ratio(text, T.SPLIT) == (1.0, 10.0)

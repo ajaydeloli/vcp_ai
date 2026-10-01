@@ -937,3 +937,19 @@ Backup first: `data/vcp_scanner.pre27.duckdb`. The run held the daily-run lock. 
 Result, identical to the copy: 137 unexplained gaps, 92 instruments blocked by any cause (was 136), blocking gap events on active instruments 5 on 5 (was 50 on 44); 1,343 eligible; Trend Template 267 PASS, 1,063 FAIL, 13 INSUFFICIENT_DATA. **38 of the 44 unblocked**, none newly blocked. Still blocked: BESTAGRO, GOODYEAR, GRAUWEIL, LANCER, WATERBASE (long absences, P1-2) and UEL (demerger 2024-05-22 `factor_unknown`, pre-existing).
 
 **Open after 2.7:** P1-2 long-absence gaps (5 active names; also most of the 41 gaps of +100 % or more); UEL's demerger factor (no bar on the ex-date); capital reductions (MAXIND, EASTSILK, MELSTAR) need manual entries with a ratio once the scheme documents are checked.
+
+## Audit P1-2 — blocks that end, and absences that start a new history (2026-10-01)
+
+**Spike (read-only, 17:45–18:00 IST).** Two separate problems:
+1. **Blocks never end.** A blocking event applies from its date to every later as-of date. Six active stocks were blocked by events more than 253 bars old, outside every lookback: BRITANNIA (2021), PATINTLOG (2021), SIGMAADV (2021), TFL (2022), UEL (2024), KESORAMIND (2025).
+2. **Feature windows bridge trading absences.** Every window counts rows, so a stock off NSE for 2½ years gets an SMA200 mixing 2023 and 2026 prices. 24 active stocks have an absence of 20+ missed sessions inside their last 253 bars; 7 were eligible on 2026-09-30 (KENNAMET, KIRLFER, KOVAI, NOVARTIND, PIRAMALFIN, SHIVAUM, WAAREEINDO), and KENNAMET and SHIVAUM passed the Trend Template on those windows. The count is the same for thresholds from 20 to 120 sessions.
+   - 12 main-board names left the NSE bhavcopy after 2023-10-25 (FORCEMOT, GOODYEAR, GRAUWEIL, KENNAMET, KIRLFER, KOVAI, NOVARTIND, UDAICEMENT, WATERBASE …); FORCEMOT returned 2024-02-14, several on 2026-04-20. They look like BSE-listed names that stopped trading on NSE and later listed there directly (not verified from an official source). They kept trading elsewhere, so an action during the absence never reaches NSE's feed, and the return jump is not evidence of anything.
+   - In 16 of 36 returns after 20+ missed sessions, NSE's PREVCLOSE on the return day is a new reference price rather than our last close.
+
+**Owner decisions:** D1 an absence of ≥ 20 missed NSE sessions starts a new history; D2 a price-history block lasts 253 of the stock's bars (the longest lookback, from config); fix the debenture-bonus parse.
+
+### Fix P1-2a — a bonus of debentures is not a share bonus
+
+`_parse_nse_action` no longer takes a BONUS text that mentions debentures; `DEBENTURE` joins `_UNHANDLED_MARKERS`, so BRITANNIA's 2021 "Scheme Of Arangement- Bonus - 1 Debenture For 1 Equity Share Held" is reported as unhandled. (The misspelt "ARANGEMENT" slipped past the `ARRANGEMENT` marker.) The raw BONUS row already stored stays, since raw data is immutable; its block expires under P1-2b.
+
+**Test.** `test_bonus_of_debentures_is_not_a_share_bonus` with the real record.
