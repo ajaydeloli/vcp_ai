@@ -990,3 +990,9 @@ Result, identical to the copy: 137 unexplained gaps, 92 instruments blocked by a
   - **Still blocked (6):** GOODYEAR, GRAUWEIL, LANCER, WATERBASE (now by `TRADING_ABSENCE`; their return gaps are warnings), DALMIASUG and QUINT (corporate actions without a factor, under 253 bars old).
 - Eligible 1,343 → 1,337: out KENNAMET, KIRLFER, KOVAI, NOVARTIND, PIRAMALFIN, SHIVAUM, WAAREEINDO; in BRITANNIA.
 - Trend Template 267 PASS either way: KENNAMET and SHIVAUM drop out (their windows spanned the absence); ASIANHOTNR and UTTAMSUGAR return (RS rank back to 70 against the smaller population).
+
+### Applied to the main DB (owner approved; 18:19–18:23 IST, code at e7918b5)
+
+`p12-blocks` fast-forwarded into `audit-fixes`. Backup `data/vcp_scanner.pre_p12.duckdb` (replaces `pre27`); the run held the daily-run lock. `vcp quality scan`, universe, RS and Trend Template for 2026-09-30. Results identical to the copy: 549 `TRADING_ABSENCE` events, 1,337 eligible, Trend Template 267 PASS / 1,057 FAIL / 13 INSUFFICIENT_DATA; blocked active instruments 26 (7 unblocked, 20 newly blocked by `TRADING_ABSENCE`, 6 still blocked).
+
+**Still open:** DALMIASUG and QUINT (corporate actions without a factor; they expire 253 bars after their ex-dates unless fixed earlier); UEL-style demerger factors when the stock did not trade on the ex-date; capital reductions (MAXIND, EASTSILK, MELSTAR) need manual entries.
