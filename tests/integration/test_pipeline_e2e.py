@@ -162,3 +162,24 @@ def test_full_pipeline_from_an_empty_database(
             " FROM trend_template_results"
         ).fetchall()
         assert results_hash(current) == first["results_hash"]
+
+    # Audit P1-8d: the recorded run can be rebuilt at its cutoff on a copy and matches; a
+    # wrong recorded hash is reported as a mismatch; the main database is left alone.
+    first_id = first["scan_run_id"]
+    work = tmp_path / "work"
+    work.mkdir()
+    verify = ["verify", "scan", first_id, "--db", db, "--config-dir", CONFIG_DIR,
+              "--work-dir", str(work)]  # fmt: skip
+    assert cli_main(verify) == 0, capsys.readouterr().out
+    out = capsys.readouterr().out
+    assert "MATCH: 6 verdicts" in out
+    assert list(work.iterdir()) == []  # the copy was removed
+    with DuckDBStore(db) as store:
+        assert len(DuckDBScanRunRepository(store).list_runs(AS_OF)) == 2  # untouched
+        store.conn.execute(
+            "UPDATE scan_runs SET results_hash = 'deadbeef' WHERE scan_run_id = ?", [first_id]
+        )
+    assert cli_main(verify) == 2
+    assert "MISMATCH: recorded deadbeef" in capsys.readouterr().out
+    assert cli_main(["verify", "scan", "--db", db]) == 0
+    assert first_id in capsys.readouterr().out

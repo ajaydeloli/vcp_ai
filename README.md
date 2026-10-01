@@ -144,8 +144,11 @@ current status of each.
   (audit P1-2).
 - **Features:** EMA fields are always `NULL`. ETFs cannot be excluded from the universe (no data
   source; they trade as `EQ`). Parquet export exists but is not used for reads.
-- **No scan-run lineage:** there are no `scan_runs` or snapshot manifest tables, so a full scan
-  cannot yet be rebuilt from data snapshot + config + algorithm version.
+- **Scan lineage without stored copies:** every Trend Template scan writes an immutable
+  `scan_runs` record (data cutoff, universe snapshot, config hashes, git commit, results hash)
+  and `vcp verify scan RUN_ID` rebuilds it on a copy of the database and compares the hash
+  (audit P1-8). There is still no `snapshot_manifest` with per-table content hashes, and
+  results made by code with uncommitted changes are flagged but cannot be rebuilt exactly.
 
 ## Research restrictions
 

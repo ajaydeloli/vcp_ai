@@ -1443,6 +1443,8 @@ error_count
 
 `scan_run_results (scan_run_id, instrument_id, status, trend_template_pass, weekly_stage, rs_rank, blocked_by)` keeps each run's verdicts, so a rerun under the same `scan_id` (which overwrites `trend_template_results`) cannot erase what an earlier run reported. `results_hash` is a SHA-256 over those verdict rows, sorted, with RS ranks rounded to 6 decimals.
 
+Verification (D4): no frozen copy is kept per scan (one costs about 0.9 GB). `vcp verify scan RUN_ID` copies the database, freezes the data at the run's `data_cutoff` on the copy, rebuilds the universe as known at `universe_cutoff` (same deterministic id), RS and the Trend Template over exactly that universe and snapshot, and compares `results_hash`; `--keep` keeps the rebuilt copy as a frozen scan. A different code commit is reported, since the code is part of what made the result.
+
 Not implemented from the list above: `research_mode` (every run is point-in-time by construction) and the VCP counts (`symbols_vcp`, `symbols_a_plus`, `symbols_pivot_ready`), which arrive with the Phase 6 detector.
 
 ---

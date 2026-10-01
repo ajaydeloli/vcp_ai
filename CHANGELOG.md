@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (audit P1-8d: verify a scan on demand)
+- `vcp verify scan RUN_ID` rebuilds a recorded scan run on a copy of the database: it freezes the data at the run's cutoff, rebuilds the universe as known then (same deterministic id), RS and the Trend Template over that universe, and compares the results hash (exit 0 match, 2 mismatch with the differing instruments, 1 error). The copy is deleted unless `--keep`. A code commit different from the run's is reported. Without an id it lists recent runs.
+
 ### Added (audit P1-8c: scan-run records; owner decision 2026-10-01)
 - Tables `scan_runs` and `scan_run_results`. Every `vcp compute trend-template` (so every evening scan of `vcp run daily`) inserts one immutable row: as-of date, data cutoff, data and universe snapshot ids, the scan's config hash and per-section hashes, the git commit and whether tracked files had uncommitted changes, algorithm versions, survivorship label, counts, a content hash of the verdicts, start and end times. The verdicts themselves are copied to `scan_run_results`, so a rerun cannot erase what an earlier run reported.
 - The command prints the scan run id, the code commit and the results hash.

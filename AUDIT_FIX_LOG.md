@@ -1033,3 +1033,17 @@ Result, identical to the copy: 137 unexplained gaps, 92 instruments blocked by a
 **Tests.** New `tests/unit/test_scan_runs.py` (3): the hash ignores row order and float noise but not verdicts; record/load round trip and no overwrite; `code_state` returns a commit or `unknown` when git fails. The end-to-end pipeline test now reruns the Trend Template and checks two run records with the same hash, recorded fields, and that the hash equals the hash of both `scan_run_results` and `trend_template_results`.
 
 **Verification.** Full suite: 803 passed, 0 failed. `ruff check`, `ruff format --check`, `mypy --strict src` clean.
+
+### Fix P1-8d — `vcp verify scan`: reproduce on demand (D4)
+
+**Change.** New `verify_scan.py` and the `vcp verify scan [RUN_ID] [--work-dir] [--keep] [--limit]` command:
+1. load the run record and its verdicts from the main DB (read only), and warn when the running code commit (or a dirty checkout) differs from the run's;
+2. copy the DB to the work dir;
+3. on the copy: for a LIVE run, `ingest adjusted-prices --known-at <data_cutoff>` and `compute features` under that snapshot; `ingest universe --known-at <universe_cutoff>` (P1-8b gives the same id; a different id is reported, as for runs recorded before P1-8b); RS and Trend Template with `--universe-snapshot-id` and `--data-snapshot-id`;
+4. compare the rebuilt run's `results_hash`: exit 0 on a match, 2 on a mismatch with up to 20 differing instruments, 1 on a failed step. The copy is deleted unless `--keep` (a frozen scan worth keeping).
+
+Without an id it lists recent runs (id, data and universe snapshots, commit, dirty flag, hash).
+
+**Tests.** The end-to-end pipeline test verifies its first run: exit 0 and "MATCH: 6 verdicts", the work dir is emptied, the main DB still has two runs; with the recorded hash altered the command exits 2 and reports the mismatch; the listing shows the run.
+
+**Verification.** Full suite: 803 passed, 0 failed (the new checks extend the existing end-to-end test). `ruff check`, `ruff format --check`, `mypy --strict src` clean.

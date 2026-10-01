@@ -454,6 +454,22 @@ def build_parser() -> argparse.ArgumentParser:
     _add_db_arg(vkc)
     vkc.add_argument("--env-file", default=".env", help="Path to .env file with Kite credentials")
 
+    vsc = verify_subparsers.add_parser(
+        "scan",
+        help=(
+            "Rebuild a recorded scan run at its cutoff on a copy of the database and compare "
+            "its results hash (audit P1-8); without an id, list recent scan runs"
+        ),
+    )
+    vsc.add_argument("scan_run_id", nargs="?", help="Scan run to verify (omit to list runs)")
+    vsc.add_argument("--work-dir", help="Where to put the temporary copy (default: next to --db)")
+    vsc.add_argument(
+        "--keep", action="store_true", help="Keep the rebuilt copy (a frozen scan worth keeping)"
+    )
+    vsc.add_argument("--limit", type=int, default=20, help="Runs to list (default 20)")
+    _add_db_arg(vsc)
+    _add_config_dir_arg(vsc)
+
     # run subcommands: the evening pipeline with catch-up
     run_parser = subparsers.add_parser("run", help="Pipelines that chain several commands")
     run_sub = run_parser.add_subparsers(dest="run_command", help="Pipelines")
@@ -888,6 +904,10 @@ def main(argv: Sequence[str] | None = None) -> int:
             from vcp_scanner import cli_pipeline
 
             return cli_pipeline.run_verify_kite_crosscheck(args)
+        if args.verify_command == "scan":
+            from vcp_scanner.verify_scan import run_verify_scan
+
+            return run_verify_scan(args, main)
         parser.parse_args(["verify", "--help"])
         return 0
 
