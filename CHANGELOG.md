@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (audit P1-8c: scan-run records; owner decision 2026-10-01)
+- Tables `scan_runs` and `scan_run_results`. Every `vcp compute trend-template` (so every evening scan of `vcp run daily`) inserts one immutable row: as-of date, data cutoff, data and universe snapshot ids, the scan's config hash and per-section hashes, the git commit and whether tracked files had uncommitted changes, algorithm versions, survivorship label, counts, a content hash of the verdicts, start and end times. The verdicts themselves are copied to `scan_run_results`, so a rerun cannot erase what an earlier run reported.
+- The command prints the scan run id, the code commit and the results hash.
+
 ### Changed (audit P1-8b: deterministic universe ids, explicit universe for scans)
 - Universe snapshot ids are derived from the as-of date, the knowledge cutoff, the config hash and the method version (`uv_YYYYMMDD_<10 hex>`), not random. Rebuilding with the same inputs replaces the stored snapshot instead of adding another.
 - `vcp compute trend-template --universe-snapshot-id` evaluates a named snapshot (default: the latest for the date, as before) and prints which one it used; the Trend Template reads RS ranked over that same universe snapshot.

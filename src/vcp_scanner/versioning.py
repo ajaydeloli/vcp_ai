@@ -15,6 +15,8 @@ algorithm is implemented.
 
 from __future__ import annotations
 
+import subprocess
+from pathlib import Path
 from typing import Final
 
 PACKAGE_VERSION: Final[str] = "0.1.0"
@@ -53,3 +55,30 @@ def version_manifest() -> dict[str, str | int]:
         "scoring_version": SCORING_VERSION,
         "data_schema_version": DATA_SCHEMA_VERSION,
     }
+
+
+def code_state() -> tuple[str, bool | None]:
+    """(git commit, dirty) of the code that is running, for scan-run records (audit P1-8).
+
+    ``dirty`` is True when tracked files have uncommitted changes. Outside a git checkout (or
+    without git) the answer is ``("unknown", None)``: never a guess.
+    """
+    root = Path(__file__).resolve().parents[2]
+    try:
+        commit = subprocess.run(
+            ["git", "-C", str(root), "rev-parse", "HEAD"],
+            capture_output=True,
+            text=True,
+            timeout=10,
+            check=True,
+        ).stdout.strip()
+        status = subprocess.run(
+            ["git", "-C", str(root), "status", "--porcelain", "--untracked-files=no"],
+            capture_output=True,
+            text=True,
+            timeout=10,
+            check=True,
+        ).stdout
+    except (OSError, subprocess.SubprocessError):
+        return "unknown", None
+    return (commit or "unknown"), bool(status.strip())

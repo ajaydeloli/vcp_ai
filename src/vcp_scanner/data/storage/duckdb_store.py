@@ -544,6 +544,49 @@ CREATE TABLE IF NOT EXISTS surveillance_collections (
 )
 """
 
+# Scan-run lineage (audit P1-8; DATABASE_SCHEMA section 40). Immutable: one row per scan, never
+# updated. JSON columns are text: section_hashes (strategy/universe/gate), versions (algorithm
+# tags), counts (by status). scan_run_results copies each run's verdicts so a later rerun under
+# the same scan id cannot erase what this run reported.
+_DDL_SCAN_RUNS = """
+CREATE TABLE IF NOT EXISTS scan_runs (
+    scan_run_id          VARCHAR     PRIMARY KEY,
+    scan_type            VARCHAR     NOT NULL,
+    as_of_date           DATE        NOT NULL,
+    scan_id              VARCHAR     NOT NULL,
+    data_snapshot_id     VARCHAR     NOT NULL,
+    data_cutoff          TIMESTAMPTZ NOT NULL,   -- knowledge cutoff the scan saw
+    universe_snapshot_id VARCHAR     NOT NULL,
+    universe_cutoff      TIMESTAMPTZ,            -- that universe snapshot's created_at
+    scan_config_hash     VARCHAR     NOT NULL,
+    section_hashes       VARCHAR     NOT NULL,
+    code_commit          VARCHAR     NOT NULL,   -- git commit, or 'unknown'
+    code_dirty           BOOLEAN,                -- uncommitted changes to tracked files
+    versions             VARCHAR     NOT NULL,
+    survivorship_status  VARCHAR,
+    survivorship_detail  VARCHAR,
+    counts               VARCHAR     NOT NULL,
+    results_hash         VARCHAR     NOT NULL,
+    started_at           TIMESTAMPTZ NOT NULL,
+    completed_at         TIMESTAMPTZ NOT NULL,
+    status               VARCHAR     NOT NULL
+)
+"""
+
+_DDL_SCAN_RUN_RESULTS = """
+CREATE TABLE IF NOT EXISTS scan_run_results (
+    scan_run_id          VARCHAR     NOT NULL,
+    instrument_id        VARCHAR     NOT NULL,
+    status               VARCHAR     NOT NULL,
+    trend_template_pass  BOOLEAN,
+    weekly_stage         VARCHAR,
+    rs_rank              DOUBLE,
+    blocked_by           VARCHAR,
+    PRIMARY KEY (scan_run_id, instrument_id)
+)
+"""
+
+
 _ALL_DDL: list[tuple[str, str]] = [
     ("instruments", _DDL_INSTRUMENTS),
     ("provider_instruments", _DDL_PROVIDER_INSTRUMENTS),
@@ -571,6 +614,8 @@ _ALL_DDL: list[tuple[str, str]] = [
     ("instrument_identifier_history", _DDL_INSTRUMENT_IDENTIFIER_HISTORY),
     ("daily_series", _DDL_DAILY_SERIES),
     ("surveillance_collections", _DDL_SURVEILLANCE_COLLECTIONS),
+    ("scan_runs", _DDL_SCAN_RUNS),
+    ("scan_run_results", _DDL_SCAN_RUN_RESULTS),
 ]
 
 

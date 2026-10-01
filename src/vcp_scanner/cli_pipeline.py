@@ -16,7 +16,11 @@ from collections.abc import Sequence
 from datetime import UTC, date, datetime
 from typing import Any
 
-from vcp_scanner.config.loader import load_scanner_config, scan_config_hash
+from vcp_scanner.config.loader import (
+    load_scanner_config,
+    scan_config_hash,
+    section_config_hashes,
+)
 from vcp_scanner.data.storage.duckdb_store import DuckDBStore
 from vcp_scanner.domain.errors import ProviderError
 from vcp_scanner.domain.market import Instrument
@@ -671,13 +675,24 @@ def run_compute_rs(args: argparse.Namespace) -> int:
 
 def run_compute_trend_template(args: argparse.Namespace) -> int:
     from vcp_scanner.data.repositories.duckdb_feature_repository import DuckDBFeatureRepository
+    from vcp_scanner.data.repositories.duckdb_scan_run_repository import (
+        DuckDBScanRunRepository,
+        ScanRun,
+        results_hash,
+        verdict_row,
+    )
+    from vcp_scanner.data.repositories.duckdb_snapshot_repository import (
+        DuckDBSnapshotRepository,
+    )
     from vcp_scanner.data.repositories.duckdb_trend_repository import DuckDBTrendRepository
     from vcp_scanner.data.repositories.duckdb_universe_repository import (
         DuckDBUniverseRepository,
     )
     from vcp_scanner.features.trend_template import TrendTemplateEngine
     from vcp_scanner.features.weekly_stage import WeeklyStageEngine
+    from vcp_scanner.versioning import code_state, version_manifest
 
+    started_at = datetime.now(UTC)
     as_of = _parse_date(args.as_of)
     if as_of is None:
         return 1
@@ -740,8 +755,48 @@ def run_compute_trend_template(args: argparse.Namespace) -> int:
             scan_id += f"-{data_snapshot_id}"
         trend_repo.save_trend_template_results(scan_id, config_hash, results)
 
-    counts = Counter(r.status.value for r in results)
+        # Audit P1-8 (D1): an immutable record of this run, with a copy of its verdicts.
+        counts = Counter(r.status.value for r in results)
+        verdicts = [verdict_row(r) for r in results]
+        if data_snapshot_id == LIVE_SNAPSHOT_ID:
+            data_cutoff = started_at  # LIVE: everything known when the scan started
+        else:
+            frozen = DuckDBSnapshotRepository(store).load(data_snapshot_id)
+            assert frozen is not None  # _resolve_data_snapshot checked it exists
+            data_cutoff = frozen.known_at
+        assert universe_id is not None  # ids were loaded from it above
+        uv = store.conn.execute(
+            "SELECT created_at, survivorship_status, survivorship_detail"
+            " FROM universe_snapshots WHERE universe_snapshot_id = ?",
+            [universe_id],
+        ).fetchone()
+        commit, dirty = code_state()
+        completed_at = datetime.now(UTC)
+        run = ScanRun(
+            scan_run_id=f"run-{as_of:%Y%m%d}-{started_at:%Y%m%dT%H%M%S%f}Z",
+            scan_type="TREND_TEMPLATE",
+            as_of_date=as_of,
+            scan_id=scan_id,
+            data_snapshot_id=data_snapshot_id,
+            data_cutoff=data_cutoff,
+            universe_snapshot_id=universe_id,
+            universe_cutoff=uv[0] if uv else None,
+            scan_config_hash=config_hash,
+            section_hashes=section_config_hashes(cfg),
+            code_commit=commit,
+            code_dirty=dirty,
+            versions=version_manifest(),
+            survivorship_status=uv[1] if uv else None,
+            survivorship_detail=uv[2] if uv else None,
+            counts={"considered": len(results), **counts},
+            results_hash=results_hash(verdicts),
+            started_at=started_at,
+            completed_at=completed_at,
+        )
+        DuckDBScanRunRepository(store).record(run, verdicts)
+
     print(f"Trend template evaluated for {as_of}")
+    print(f"  Scan run    : {run.scan_run_id}")
     print(f"  Scan ID     : {scan_id}")
     print(f"  Universe    : {universe_id}")
     print(f"  Data snapshot: {data_snapshot_id}")
@@ -749,6 +804,9 @@ def run_compute_trend_template(args: argparse.Namespace) -> int:
     print(f"  Evaluated   : {len(results)}")
     for status, count in sorted(counts.items()):
         print(f"  {status:<12}: {count}")
+    dirty_note = " (uncommitted changes)" if run.code_dirty else ""
+    print(f"  Code        : {run.code_commit[:12]}{dirty_note}")
+    print(f"  Results hash: {run.results_hash[:16]}")
     return 0
 
 

@@ -1022,3 +1022,14 @@ Result, identical to the copy: 137 unexplained gaps, 92 instruments blocked by a
 - `vcp compute trend-template --universe-snapshot-id`; without it the latest snapshot for the date is used, as before, and its id is printed. `DuckDBTrendRepository(rs_universe_snapshot_id=…)` makes the Trend Template read RS ranked over exactly that universe; before, it took the RS row of whichever universe was created last.
 
 **Tests.** New `tests/unit/test_universe_snapshot_ids.py` (4): the id is a function of its inputs (same instant in IST and UTC gives the same id; each input changes it); a rebuild with the same cutoff replaces, a later cutoff adds; load by id vs latest, wrong date refused; the trend repository reads RS of the named universe while "latest" would read another. Full suite: 800 passed, 0 failed; `ruff`, `mypy --strict src` clean.
+
+### Fix P1-8c — immutable scan-run records (D1)
+
+**Change.**
+- New tables `scan_runs` and `scan_run_results` (DATABASE_SCHEMA 40.1) and `data/repositories/duckdb_scan_run_repository.py`: `ScanRun`, `verdict_row`, `results_hash` (SHA-256 over sorted verdict rows, RS rank rounded to 6 decimals), `DuckDBScanRunRepository.record/load/load_results/list_runs`. A run id is inserted once; a duplicate fails on the primary key.
+- `versioning.code_state()`: the git commit and whether tracked files have uncommitted changes; `("unknown", None)` outside a checkout.
+- `run_compute_trend_template` records a run after saving its results: data cutoff = start time for LIVE, the snapshot's `known_at` for a frozen snapshot; universe id and `created_at`; survivorship from the universe snapshot; `scan_config_hash` and the section hashes; `version_manifest()`; counts by status; `results_hash`. It prints the run id, commit and hash. The daily run gets a record for every scanned date with no change to `daily.py`.
+
+**Tests.** New `tests/unit/test_scan_runs.py` (3): the hash ignores row order and float noise but not verdicts; record/load round trip and no overwrite; `code_state` returns a commit or `unknown` when git fails. The end-to-end pipeline test now reruns the Trend Template and checks two run records with the same hash, recorded fields, and that the hash equals the hash of both `scan_run_results` and `trend_template_results`.
+
+**Verification.** Full suite: 803 passed, 0 failed. `ruff check`, `ruff format --check`, `mypy --strict src` clean.

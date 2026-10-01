@@ -132,3 +132,33 @@ def test_full_pipeline_from_an_empty_database(
     assert statuses["NSE_EQ|S0"] == "PASS"
     assert statuses["NSE_EQ|S4"] == "FAIL"
     assert conditions == (60,)
+
+    # Audit P1-8c: the scan left an immutable run record whose hash matches its verdicts, and a
+    # rerun adds a second record without erasing the first.
+    from vcp_scanner.data.repositories.duckdb_scan_run_repository import (
+        DuckDBScanRunRepository,
+        results_hash,
+    )
+
+    tt_argv = steps[-1]
+    assert cli_main(tt_argv) == 0
+    assert "Scan run    : run-20240628-" in capsys.readouterr().out
+    with DuckDBStore(db) as store:
+        runs = DuckDBScanRunRepository(store)
+        listed = runs.list_runs(AS_OF)
+        assert len(listed) == 2
+        first, second = (runs.load(r[0]) for r in reversed(listed))
+        assert first is not None and second is not None
+        assert first["results_hash"] == second["results_hash"]
+        assert first["universe_snapshot_id"] == second["universe_snapshot_id"]
+        assert first["data_snapshot_id"] == "LIVE" and first["scan_type"] == "TREND_TEMPLATE"
+        assert first["counts"]["considered"] == 6 and first["counts"]["PASS"] >= 1
+        assert set(first["section_hashes"]) == {"strategy", "universe", "gate"}
+        assert first["code_commit"] and first["versions"]["trend_algorithm_version"]
+        assert first["data_cutoff"] == first["started_at"]
+        assert results_hash(runs.load_results(first["scan_run_id"])) == first["results_hash"]
+        current = store.conn.execute(
+            "SELECT instrument_id, status, trend_template_pass, weekly_stage, rs_rank, blocked_by"
+            " FROM trend_template_results"
+        ).fetchall()
+        assert results_hash(current) == first["results_hash"]

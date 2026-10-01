@@ -1437,6 +1437,14 @@ status
 error_count
 ```
 
+## 40.1 Implemented (audit P1-8)
+
+`vcp compute trend-template` writes one `scan_runs` row per run, inserted once and never updated (a rerun is a new row). Columns as implemented: `scan_run_id` (`run-<as-of YYYYMMDD>-<UTC start, microseconds>Z`), `scan_type` (`TREND_TEMPLATE`), `as_of_date`, `scan_id` (the `trend_template_results` scan), `data_snapshot_id`, `data_cutoff` (LIVE: the scan's start time; frozen: the snapshot's `known_at`), `universe_snapshot_id` and `universe_cutoff` (its `created_at`), `scan_config_hash` plus `section_hashes` (JSON: strategy, universe, gate), `code_commit` and `code_dirty` (git; `unknown`/NULL outside a checkout), `versions` (JSON algorithm tags), `survivorship_status` and `survivorship_detail` (from the universe snapshot), `counts` (JSON: considered and per status), `results_hash`, `started_at`, `completed_at`, `status`.
+
+`scan_run_results (scan_run_id, instrument_id, status, trend_template_pass, weekly_stage, rs_rank, blocked_by)` keeps each run's verdicts, so a rerun under the same `scan_id` (which overwrites `trend_template_results`) cannot erase what an earlier run reported. `results_hash` is a SHA-256 over those verdict rows, sorted, with RS ranks rounded to 6 decimals.
+
+Not implemented from the list above: `research_mode` (every run is point-in-time by construction) and the VCP counts (`symbols_vcp`, `symbols_a_plus`, `symbols_pivot_ready`), which arrive with the Phase 6 detector.
+
 ---
 
 # 41. Data Snapshot
