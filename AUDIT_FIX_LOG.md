@@ -1168,3 +1168,11 @@ Read-only spike 21:00–21:15 IST; owner decisions 21:19 IST: (1) small bonuses:
 **Tests.** `test_staleness_sessions.py` (session arithmetic incl. holidays and weekends; calendar as known at a cutoff, NO_SESSION and future days excluded; fallback to bar dates; RS calendar as known when the universe was built; defaults; old keys refused); RS ranking: one missed session ranked, two not, a holiday not counted; universe: the limit comes from `data.quality.staleness`. The RS/universe golden record was re-recorded: only the stale member's exclusion text and the snapshot config hash changed (eligibility and every RS value identical).
 
 **Verification.** Full suite: 830 passed, 0 failed. `ruff check`, `ruff format --check`, `mypy --strict src` clean.
+
+### Real-data check of A2–A3 (copy `data/batcha.duckdb` of the main DB, 21:33–21:40 IST, code at 6dbebbf)
+
+Features for all 3,365 instruments (3,123,370 rows written as `features-1.2.0` next to the 1.1.0 rows), universe, RS and Trend Template for 2026-10-01.
+- **Features:** every column other than the volume ratios is identical between 1.1.0 and 1.2.0 (0 of 3,123,370 rows differ in SMA200, ATR14 or 252-day high). On 2026-10-01, `volume_ratio_20` is on average 1.2 % higher; the largest reads 150.5 (it was capped near 17.7, i.e. under N = 20, when the spike was in its own average).
+- **Universe:** 1,257 eligible, the same set (none lost or gained). "Stale" exclusions 198 → 217: 19 names that missed 6 to 21 sessions are now stale, all of them already ineligible for another reason. New id `uv_20261001_e80803370f` (config content changed).
+- **RS:** 1,257 PASS, 0 rank differences.
+- **Trend Template:** 203 PASS / 1,048 FAIL / 6 INSUFFICIENT_DATA; results hash `7769987bb8868a73`, identical to the main DB's run.
