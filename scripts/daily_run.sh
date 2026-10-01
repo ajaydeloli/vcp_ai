@@ -6,6 +6,12 @@ set -uo pipefail
 cd "$(dirname "$0")/.."
 mkdir -p data/logs
 exec >>"data/logs/daily_run_$(date +%Y-%m-%d).out" 2>&1
+# One run at a time: two scheduled runs can start together after the PC wakes up.
+exec 9>data/logs/daily_run.lock
+if ! flock -n 9; then
+    echo "=== $(TZ=Asia/Kolkata date '+%Y-%m-%d %H:%M') IST: another run is in progress; skipped"
+    exit 0
+fi
 echo "=== start $(TZ=Asia/Kolkata date '+%Y-%m-%d %H:%M') IST"
 .venv/bin/vcp run daily --db data/vcp_scanner.duckdb --config-dir config --env-file .env
 code=$?
