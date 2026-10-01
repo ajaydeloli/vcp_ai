@@ -1121,6 +1121,6 @@ Without an id it lists recent runs (id, data and universe snapshots, commit, dir
 
 Security master, corporate actions from 2021-01-01, adjusted prices, features, universe/RS/Trend Template for 2026-10-01, with the clean-up code.
 - **DHFL:** `delisted_skipped` 1 → 0; its 2021 delisting is now also stored under PIRAMALFIN.
-- **Events:** blocking `CORPORATE_ACTION_UNRESOLVED` 9 → 5 (DALMIASUG, KESORAMIND, QUINT and BRITANNIA cleared); 5 new `CORPORATE_ACTION_UNMODELLED` warnings (BRITANNIA 2021 debenture bonus, MAXIND 2022 and EASTSILK 2024 capital reductions, QUINT 2026 CCPS/warrant rights, and one more record the feed lists); KESORAMIND's 2025-03-10 factor 0.04997 is applied.
+- **Events:** blocking `CORPORATE_ACTION_UNRESOLVED` 9 → 5 (DALMIASUG, KESORAMIND, QUINT and BRITANNIA cleared); 5 new `CORPORATE_ACTION_UNMODELLED` warnings (BRITANNIA 2021 debenture bonus, MAXIND 2022 and EASTSILK 2024 capital reductions, QUINT 2026 CCPS/warrant rights, SHAREINDIA 2023-02-28); KESORAMIND's 2025-03-10 factor 0.04997 is applied.
 - **AHLEAST:** factor 0.52804 (was 0.35203); adjusted close 2022-10-04 185.00 against an ex-date open of 185.00 (was 123.33).
 - **2026-10-01:** blocked active instruments 26 → 24 (DALMIASUG, QUINT unblocked; none newly blocked); eligible 1,256 → 1,257 (DALMIASUG); Trend Template 203 PASS either way.
