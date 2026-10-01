@@ -63,7 +63,9 @@ def test_consolidation_without_two_face_values_is_reported_unparsed() -> None:
 @pytest.mark.parametrize("record", [MAXIND, EASTSILK], ids=["MAXIND", "EASTSILK"])
 def test_capital_reduction_stays_unhandled_and_reported(record: dict[str, Any]) -> None:
     p = _provider()
-    assert p._parse_nse_action(record) is None
+    action = p._parse_nse_action(record)  # audit P1-10: kept as UNMODELLED, not dropped
+    assert action is not None and action.action_type is T.UNMODELLED
+    assert action.ratio_numerator is None and p.unparsed_ratios == []
     assert p.unhandled_records == [f"{record['symbol']}: {record['subject'].upper()}"]
 
 
@@ -77,7 +79,8 @@ BRITANNIA = {**_COMMON, "comp": "Britannia Industries Limited", "exDate": "25-Ma
 def test_bonus_of_debentures_is_not_a_share_bonus() -> None:
     # Audit P1-2a: read as a ratio-less BONUS it blocked BRITANNIA from 2021 on.
     p = _provider()
-    assert p._parse_nse_action(BRITANNIA) is None
+    action = p._parse_nse_action(BRITANNIA)
+    assert action is not None and action.action_type is T.UNMODELLED
     assert p.unparsed_ratios == []
     assert p.unhandled_records == [
         "BRITANNIA: SCHEME OF ARANGEMENT- BONUS - 1 DEBENTURE FOR 1 EQUITY SHARE HELD"

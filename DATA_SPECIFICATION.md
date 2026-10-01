@@ -831,7 +831,7 @@ Rights issues and demergers (step 2.4; owner decisions: automatic when NSE's fee
 - **Underivable on raw prices** (no issue price, as in `Rights 613:399`; no ex-date trade; open more than 1 % above prior close; factor under 0.02; and no hand-entered factor): a blocking `CORPORATE_ACTION_UNRESOLVED` event (cause `factor_unknown`) from the ex-date.
 - **Gap detector.** An adjustable rights issue or demerger explains its ex-date gap, because either its factor or the `factor_unknown` block covers it.
 - **Pipeline order:** `ingest bhavcopy` → `ingest corporate-actions` (derives the factors from the stored bars) → `ingest adjusted-prices`.
-- **Other price-affecting actions** (consolidation, capital reduction, amalgamation, scheme of arrangement) are still reported as unhandled NSE records and left to the gap detector.
+- **Other price-affecting actions** (capital reduction, amalgamation or merger, scheme of arrangement, a bonus of debentures, rights in CCPS/warrants/NCDs/preference shares) are stored as `UNMODELLED` actions (audit P1-10). They never adjust prices; each raises a non-blocking `CORPORATE_ACTION_UNMODELLED` warning on its ex-date, which clears when a `MANUAL_OVERRIDE` action exists for that ex-date or when a person resolves it. A split-like jump they cause is still blocked by the gap detector. (Consolidations are modelled as reverse splits since audit 2.7b.)
 
 Kite's role (step 2.5):
 

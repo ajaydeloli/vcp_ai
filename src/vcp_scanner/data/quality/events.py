@@ -18,6 +18,52 @@ from vcp_scanner.domain.events import DataQualityEvent, EventSeverity, make_even
 from vcp_scanner.domain.market import IdentifierPeriod
 
 
+def unmodelled_action_events(
+    instrument_id: str,
+    resolutions: Sequence[CorporateActionResolution],
+    detected_at: datetime,
+) -> list[DataQualityEvent]:
+    """Warnings for price-affecting actions NSE lists but this scanner does not model.
+
+    Audit P1-10: a capital reduction, merger, scheme of arrangement, a bonus of debentures or
+    rights in non-equity securities used to be dropped with only a log line. Each now raises a
+    non-blocking ``CORPORATE_ACTION_UNMODELLED`` warning on its ex-date; the gap detector still
+    blocks if the action left a split-like jump. The warning clears when a hand-entered action
+    (``MANUAL_OVERRIDE``) exists for the same ex-date, and a person can resolve it as harmless
+    with ``vcp quality resolve``.
+    """
+    handled = {r.ex_date for r in resolutions if r.status is CorporateActionStatus.MANUAL_OVERRIDE}
+    events: list[DataQualityEvent] = []
+    for r in resolutions:
+        if r.instrument_id != instrument_id or r.action_type is not CorporateActionType.UNMODELLED:
+            continue
+        if r.ex_date is None or r.ex_date in handled:
+            continue
+        ex = r.ex_date.isoformat()
+        events.append(
+            DataQualityEvent(
+                event_id=make_event_id(
+                    DataQualityFlag.CORPORATE_ACTION_UNMODELLED, instrument_id, ex
+                ),
+                instrument_id=instrument_id,
+                flag=DataQualityFlag.CORPORATE_ACTION_UNMODELLED,
+                severity=EventSeverity.WARNING,
+                detected_at=detected_at,
+                description=(
+                    f"NSE lists a price-affecting action on {ex} that this scanner does not "
+                    "model (capital reduction, merger, scheme, or a non-equity bonus/rights); "
+                    "prices are not adjusted for it. Check it: add a manual override if it "
+                    "rescales prices, or resolve this warning."
+                ),
+                context={"ex_date": ex, "resolution_id": r.resolution_id},
+                trade_date=r.ex_date,
+                blocks_signal=False,
+                dataset="corporate_actions",
+            )
+        )
+    return events
+
+
 def corporate_action_events(
     instrument_id: str,
     resolutions: Sequence[CorporateActionResolution],

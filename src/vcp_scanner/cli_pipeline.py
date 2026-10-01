@@ -857,6 +857,7 @@ def run_quality_scan(args: argparse.Namespace) -> int:
     print(f"  Corporate-action conflicts: {summary.conflict_events}")
     print(f"  Unexplained ISIN changes: {summary.identity_events}")
     print(f"  Trading absences        : {summary.absence_events}")
+    print(f"  Unmodelled NSE actions  : {summary.unmodelled_events} (warnings)")
     print(f"  Blocking signals        : {summary.blocking}")
     print(f"  New events              : {summary.opened}")
     print(f"  Cleared automatically   : {summary.resolved}")

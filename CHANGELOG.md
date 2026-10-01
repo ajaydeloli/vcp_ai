@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (audit P1-10: unmodelled corporate actions become warnings)
+- NSE records for price-affecting actions the scanner does not model (capital reduction, merger or amalgamation, scheme of arrangement, a bonus of debentures, rights in CCPS/warrants/NCDs) are no longer dropped: they are stored as `UNMODELLED` actions and raise a non-blocking `CORPORATE_ACTION_UNMODELLED` warning on their ex-date (`vcp quality list`). The warning clears when a manual override covers that date, or a person resolves it. Prices are still not adjusted for them; the gap detector still blocks a split-like jump.
+- Rights in non-equity securities (QUINT 2026-08-25, "Rights - 7 CCPS And 7 Warrants:40") are no longer read as an equity rights issue without a ratio, which blocked the stock.
+
 ### Changed (demerger factor edge rules; owner decision 2026-10-01)
 - A demerger whose ex-date open is at or up to 1 % above the prior close now gets factor 1.0 instead of a blocking `factor_unknown` (DALMIASUG 2025-10-31). The plausibility floor is 0.02, not 0.05, so KESORAMIND's 2025-03-10 demerger (factor 0.04997) is applied.
 - `config/manual_corporate_actions.yaml` accepts `DEMERGER` entries with `price_factor`, which wins over the ex-date open (for demergers with no usable ex-date bar).

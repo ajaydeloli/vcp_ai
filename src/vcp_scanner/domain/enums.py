@@ -142,6 +142,8 @@ class DataQualityFlag(StrEnum):
     UNEXPLAINED_GAP = "UNEXPLAINED_GAP"
     # Back on NSE after a long absence: history restarts (audit P1-2c).
     TRADING_ABSENCE = "TRADING_ABSENCE"
+    # NSE listed a price-affecting action the scanner does not model (audit P1-10).
+    CORPORATE_ACTION_UNMODELLED = "CORPORATE_ACTION_UNMODELLED"
     FUNDAMENTALS_UNAVAILABLE = "FUNDAMENTALS_UNAVAILABLE"
 
 
@@ -168,6 +170,9 @@ class CorporateActionType(StrEnum):
     NAME_CHANGE = "NAME_CHANGE"
     MERGER = "MERGER"
     DEMERGER = "DEMERGER"
+    # Price-affecting but not modelled (capital reduction, merger, scheme, non-equity rights or
+    # bonus): kept so it is visible as a warning (audit P1-10); never adjusts prices.
+    UNMODELLED = "UNMODELLED"
 
 
 @unique

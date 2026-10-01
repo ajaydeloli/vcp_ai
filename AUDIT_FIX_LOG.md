@@ -1075,3 +1075,18 @@ Without an id it lists recent runs (id, data and universe snapshots, commit, dir
 **Tests.** New `tests/unit/test_demerger_rules.py` (10): KESORAMIND's real factor accepted; DALMIASUG's open at the prior close and +0.8 % give 1.0, +1.1 % stays unknown; a hand-entered factor wins without an ex-date bar; manual DEMERGER validation (ratio, cash or a factor above 1 refused; `price_factor` refused on other types); end to end through the worker, a manual factor 0.9 is stored for a demerger with no ex-date bar. `test_derived_factors` cases updated to the new edges (open 2 % above close; factor 0.01).
 
 **Verification.** Full suite: 813 passed, 0 failed. `ruff check`, `ruff format --check`, `mypy --strict src` clean.
+
+### Fix C2 — audit P1-10: unmodelled NSE actions become warning events
+
+**Finding.** Unparsed split/bonus ratios and underivable rights/demerger factors were already surfaced (blocking `ratio_unknown` / `factor_unknown` events). What vanished was every price-affecting record the parser does not model: it returned `None` with only a log line. Also, rights in non-equity securities (QUINT 2026-08-25, "Rights - 7 Ccps And 7 Warrants:40") were read as an equity rights issue without a ratio and blocked the stock.
+
+**Change.**
+- `CorporateActionType.UNMODELLED` and `DataQualityFlag.CORPORATE_ACTION_UNMODELLED`.
+- `NSECorporateActionProvider._parse_nse_action`: a record with an unhandled marker (capital reduction, amalgamation, merger, arrangement, debenture) or rights in CCPS/warrants/debentures/NCDs/preference shares (`_NON_EQUITY_RE`) is returned as an `UNMODELLED` action with the record text in `source_record_id`; it is still listed in `unhandled_records` for the CLI warning.
+- `quality.events.unmodelled_action_events`: one non-blocking WARNING per `UNMODELLED` resolution and ex-date, unless a `MANUAL_OVERRIDE` resolution exists on that ex-date. Synced by the corporate-action worker and `QualityScanner` (`unmodelled_events` in the scan summary; `vcp quality scan` prints it). Not in `_SUPERSEDE_ONLY`, so `vcp quality resolve` can close it.
+- The engine ignores the type (not price-affecting); reconciliation keeps it SINGLE_SOURCE.
+- DATA_SPECIFICATION updated. P1-10's second part (small bonuses under the 30 % gap threshold) is not addressed here.
+
+**Tests.** New `tests/unit/test_unmodelled_actions.py` (3, real records): EASTSILK's capital reduction kept as UNMODELLED with its text; QUINT's CCPS/warrant rights are UNMODELLED while a real equity rights record still parses as RIGHTS; the warning appears and clears once a manual action covers the date. `test_consolidation` updated (capital reductions and BRITANNIA's debenture bonus are now UNMODELLED actions instead of `None`).
+
+**Verification.** Full suite: 816 passed, 0 failed. `ruff check`, `ruff format --check`, `mypy --strict src` clean.

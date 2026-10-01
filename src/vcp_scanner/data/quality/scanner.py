@@ -21,7 +21,11 @@ from datetime import date, datetime
 
 from vcp_scanner.data.adjustment.engine import ex_date_prices
 from vcp_scanner.data.quality.absence import absence_spans, trading_absence_events
-from vcp_scanner.data.quality.events import corporate_action_events, identity_events
+from vcp_scanner.data.quality.events import (
+    corporate_action_events,
+    identity_events,
+    unmodelled_action_events,
+)
 from vcp_scanner.data.reconciliation.gap_detector import GapDetector
 from vcp_scanner.data.repositories.base import CorporateActionRepository
 from vcp_scanner.data.repositories.duckdb_identity_repository import DuckDBIdentityRepository
@@ -42,6 +46,7 @@ class ScanSummary:
     conflict_events: int = 0  # unresolved corporate-action conflicts currently detected
     identity_events: int = 0  # ISIN changes no split explains (warnings, audit step 2.2)
     absence_events: int = 0  # returns after a long trading absence (audit P1-2c)
+    unmodelled_events: int = 0  # NSE actions this scanner does not model (P1-10; warnings)
     blocking: int = 0  # of those, how many block signals
     opened: int = 0  # events seen for the first time in this scan
     resolved: int = 0  # events closed because their condition cleared
@@ -124,8 +129,15 @@ class QualityScanner:
             at=detected_at,
         )
         id_events = []
-        opened = gap_sync.opened + conflict_sync.opened
-        resolved = gap_sync.resolved + conflict_sync.resolved
+        unmodelled = unmodelled_action_events(instrument_id, resolutions, detected_at)
+        unmodelled_sync = self._quality.sync_events(
+            instrument_id,
+            DataQualityFlag.CORPORATE_ACTION_UNMODELLED,
+            unmodelled,
+            at=detected_at,
+        )
+        opened = gap_sync.opened + conflict_sync.opened + unmodelled_sync.opened
+        resolved = gap_sync.resolved + conflict_sync.resolved + unmodelled_sync.resolved
         if self._sessions is not None:
             absence_sync = self._quality.sync_events(
                 instrument_id, DataQualityFlag.TRADING_ABSENCE, absence_events, at=detected_at
@@ -150,6 +162,7 @@ class QualityScanner:
             conflict_events=len(conflict_events),
             identity_events=len(id_events),
             absence_events=len(absence_events),
+            unmodelled_events=len(unmodelled),
             blocking=sum(
                 e.blocks_signal
                 for e in [*gap_events, *conflict_events, *id_events, *absence_events]

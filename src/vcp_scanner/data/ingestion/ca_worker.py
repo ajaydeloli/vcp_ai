@@ -10,7 +10,7 @@ from typing import Protocol
 from vcp_scanner.data.adjustment.engine import AdjustmentEngine, ex_date_prices
 from vcp_scanner.data.identity import InstrumentResolver, canonical_instrument_id
 from vcp_scanner.data.providers.base import CorporateActionProvider
-from vcp_scanner.data.quality.events import corporate_action_events
+from vcp_scanner.data.quality.events import corporate_action_events, unmodelled_action_events
 from vcp_scanner.data.reconciliation.engine import ReconciliationEngine
 from vcp_scanner.data.repositories.base import CorporateActionRepository
 from vcp_scanner.data.repositories.duckdb_quality_repository import DuckDBDataQualityRepository
@@ -223,6 +223,12 @@ class CorporateActionIngestionWorker:
                         conflict_blocks_signals=self._conflict_blocks_signals,
                         ex_prices=prices,
                     ),
+                    at=known_at,
+                )
+                self._quality.sync_events(
+                    iid,
+                    DataQualityFlag.CORPORATE_ACTION_UNMODELLED,
+                    unmodelled_action_events(iid, self.repository.load_resolutions(iid), known_at),
                     at=known_at,
                 )
 

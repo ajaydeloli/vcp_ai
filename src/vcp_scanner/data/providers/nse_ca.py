@@ -32,6 +32,9 @@ _PREMIUM_RE = re.compile(r"(?:PREMIUM|PRM)\.?\s*(?:(?:RS|RE|INR)\.?)?\s*(\d+(?:\
 # An Indian ISIN: "IN", a 1-char issuer type, 4-char issuer, 2-digit security type, 2-char issue
 # number and a check digit (e.g. INE920A01029).
 _ISIN_RE = re.compile(r"IN[A-Z0-9]{9}[0-9]")
+# Rights in something other than equity shares ("RIGHTS - 7 CCPS AND 7 WARRANTS:40", QUINT
+# 2026): not an equity rights issue, so no TERP factor applies.
+_NON_EQUITY_RE = re.compile(r"\b(?:CCPS|WARRANTS?|DEBENTURES?|NCDS?|PREFERENCE)\b")
 # Price-affecting events this provider does not model. Dropping them silently would leave the
 # price series unadjusted with no trace, so they are reported instead (audit P1-2).
 _UNHANDLED_MARKERS = (
@@ -229,13 +232,18 @@ class NSECorporateActionProvider:
                 action_type = CorporateActionType.BONUS
             elif "DIVIDEND" in text:
                 action_type = CorporateActionType.DIVIDEND
-            elif "RIGHTS" in text:
+            elif "RIGHTS" in text and not _NON_EQUITY_RE.search(text):
                 action_type = CorporateActionType.RIGHTS
+            elif "RIGHTS" in text or any(marker in text for marker in _UNHANDLED_MARKERS):
+                # Price-affecting, but not modelled (capital reduction, merger, scheme, a bonus
+                # of debentures, rights in CCPS/warrants/NCDs). Audit P1-10: stored as an
+                # UNMODELLED action so the quality layer raises a warning event for it, instead
+                # of only a log line (it used to be dropped).
+                action_type = CorporateActionType.UNMODELLED
+                described = f"{item.get('symbol', '?')}: {text.strip()}"
+                self.unhandled_records.append(described)
+                logger.warning("Unhandled price-affecting NSE action: %s", described)
             else:
-                if any(marker in text for marker in _UNHANDLED_MARKERS):
-                    described = f"{item.get('symbol', '?')}: {text.strip()}"
-                    self.unhandled_records.append(described)
-                    logger.warning("Unhandled price-affecting NSE action skipped: %s", described)
                 return None
 
             # Date format in NSE API is typically 'DD-MMM-YYYY' e.g. '01-Jan-2024'
@@ -298,9 +306,13 @@ class NSECorporateActionProvider:
                 ratio_numerator=num,
                 ratio_denominator=den,
                 cash_amount=cash_amount,
-                source_record_id=item.get(
-                    "ndStartDate"
-                ),  # Using their internal date as a weak ID if present
+                # Their internal date as a weak id; for an UNMODELLED action the record text,
+                # so the warning can say what NSE listed.
+                source_record_id=(
+                    text.strip()[:300]
+                    if action_type is CorporateActionType.UNMODELLED
+                    else item.get("ndStartDate")
+                ),
             )
         except Exception as e:
             logger.warning(f"Could not parse NSE record {item}: {e}")
