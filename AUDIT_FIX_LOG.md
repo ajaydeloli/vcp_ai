@@ -1090,3 +1090,15 @@ Without an id it lists recent runs (id, data and universe snapshots, commit, dir
 **Tests.** New `tests/unit/test_unmodelled_actions.py` (3, real records): EASTSILK's capital reduction kept as UNMODELLED with its text; QUINT's CCPS/warrant rights are UNMODELLED while a real equity rights record still parses as RIGHTS; the warning appears and clears once a manual action covers the date. `test_consolidation` updated (capital reductions and BRITANNIA's debenture bonus are now UNMODELLED actions instead of `None`).
 
 **Verification.** Full suite: 816 passed, 0 failed. `ruff check`, `ruff format --check`, `mypy --strict src` clean.
+
+### Fix C3 — DHFL's delisting record (same issuer, later ISIN)
+
+**Finding.** `sm_worker._accept_delisted` skipped DHFL's delisting (INE202B01012, 2021-09-29) on every run: "id held by a live security (ISIN INE202B01038)". The live holder is PIRAMALFIN, the same issuer (Piramal's housing-finance company, the former DHFL) listed again in 2025 under a later ISIN; its 2021 history is DHFL's bars (P1-2 marked the 1,093-session absence).
+
+**Change.** A delisting whose ISIN is the same issuer's equity as the live holder (`same_issuer_equity`) is accepted, as a relisting under the same ISIN already was; the database check for another live row ignores same-issuer ISINs the same way. A different issuer reusing the symbol is still refused (existing tests).
+
+**Note.** The main DB also holds an older row for DHFL's delisting under the legacy id `NSE_EQ|DHFL`, written before the step 2.6 identity fix; it stays (history is not rewritten). The delisting count used for the survivorship evidence only tests for the presence of delisting data, so the second row changes no label.
+
+**Test.** `test_same_issuer_relisted_under_a_later_isin_keeps_both_periods` (real ISINs): both periods stored, the live one not marked delisted.
+
+**Verification.** Full suite: 817 passed, 0 failed. `ruff check`, `ruff format --check`, `mypy --strict src` clean.

@@ -13,7 +13,11 @@ import logging
 from datetime import date, datetime
 from typing import TYPE_CHECKING
 
-from vcp_scanner.data.identity import InstrumentResolver, canonical_instrument_id
+from vcp_scanner.data.identity import (
+    InstrumentResolver,
+    canonical_instrument_id,
+    same_issuer_equity,
+)
 from vcp_scanner.data.providers.base import (
     SecurityMasterProvider,
     SurveillanceProvider,
@@ -315,22 +319,29 @@ class SecurityMasterIngestionWorker:
             conflict: str | None = None
             if iid in live_isin:
                 held = live_isin[iid]
-                if rec.isin is None or held is None or rec.isin != held:
+                # Audit follow-up (DHFL 2021 -> PIRAMALFIN 2025): the same issuer's equity
+                # under a later ISIN is the same company listed again, not a reused symbol,
+                # so its delisting is kept as an earlier period, like a same-ISIN relisting.
+                if (
+                    rec.isin is None
+                    or held is None
+                    or (rec.isin != held and not same_issuer_equity(rec.isin, held))
+                ):
                     conflict = f"id held by a live security (ISIN {held})"
             if conflict is None and (iid, rec.valid_from) in live_keys:
                 conflict = "same period as a live row"
             if conflict is None and rec.isin is not None:
-                other = self._store.conn.execute(
+                others = self._store.conn.execute(
                     """
                     SELECT isin FROM security_master_history
                     WHERE instrument_id = ? AND known_to IS NULL
                       AND delisting_date IS NULL AND isin IS NOT NULL AND isin <> ?
-                    LIMIT 1
                     """,
                     [iid, rec.isin],
-                ).fetchone()
-                if other is not None:
-                    conflict = f"id already holds a live row with ISIN {other[0]}"
+                ).fetchall()
+                foreign = [o[0] for o in others if not same_issuer_equity(o[0], rec.isin)]
+                if foreign:
+                    conflict = f"id already holds a live row with ISIN {foreign[0]}"
 
             if conflict is not None:
                 skipped += 1

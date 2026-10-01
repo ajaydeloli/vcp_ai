@@ -401,3 +401,18 @@ def test_ingesting_delisted_names_moves_survivorship_off_biased(store):
     # Delisting records without bhavcopy prices: still not complete (audit P0-4).
     assert status().value == "PARTIAL"
     assert not status().may_validate_thresholds
+
+
+def test_same_issuer_relisted_under_a_later_isin_keeps_both_periods(store):
+    """DHFL (INE202B01012) delisted 2021; the same issuer trades again as INE202B01038 under
+    the same instrument (PIRAMALFIN). Its delisting is an earlier period, not a reused symbol."""
+    stats = _worker(
+        store,
+        [_live("BACK", "INE202B01038", listed=date(2025, 11, 7))],
+        [_gone("BACK", "INE202B01012", delisted=date(2021, 9, 29))],
+    ).run(START, END)
+
+    assert stats["delisted_records"] == 1 and stats["delisted_skipped"] == 0
+    rows = _rows(store)
+    assert {(r[1], r[2]) for r in rows} == {("INE202B01012", date(2021, 9, 29)),
+                                            ("INE202B01038", None)}  # fmt: skip

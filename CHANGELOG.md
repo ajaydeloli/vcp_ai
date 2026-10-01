@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed (delisting of a company that listed again under a later ISIN)
+- `vcp ingest security-master` no longer skips a delisting record whose instrument is held by the same issuer's equity under a later ISIN (DHFL, delisted 2021-09-29, INE202B01012 → PIRAMALFIN, INE202B01038). Like a relisting under the same ISIN, the delisting is kept as an earlier period of that instrument. A different issuer reusing the symbol is still refused.
+
 ### Added (audit P1-10: unmodelled corporate actions become warnings)
 - NSE records for price-affecting actions the scanner does not model (capital reduction, merger or amalgamation, scheme of arrangement, a bonus of debentures, rights in CCPS/warrants/NCDs) are no longer dropped: they are stored as `UNMODELLED` actions and raise a non-blocking `CORPORATE_ACTION_UNMODELLED` warning on their ex-date (`vcp quality list`). The warning clears when a manual override covers that date, or a person resolves it. Prices are still not adjusted for them; the gap detector still blocks a split-like jump.
 - Rights in non-equity securities (QUINT 2026-08-25, "Rights - 7 CCPS And 7 Warrants:40") are no longer read as an equity rights issue without a ratio, which blocked the stock.
