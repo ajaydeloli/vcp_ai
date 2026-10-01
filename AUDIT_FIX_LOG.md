@@ -855,3 +855,13 @@ Consolidations and capital reductions caused none of the 44. The whole equities 
 **Tests.** New `tests/unit/test_nse_sme_feed.py` (6), using real records (KSOLVES "BONUS 3:1/DIVIDEND", VCL split, DOLPHIN split): both feeds asked and merged with the right ratios; SME number not stored as ISIN; duplicate kept once; failure of either feed raises; non-list answer raises.
 
 **Verification.** Full suite: 746 passed, 0 failed (was 740). `ruff check`, `ruff format --check`, `mypy --strict src` clean.
+
+### Fix 2.7b — share consolidations as reverse splits
+
+**Change.** `NSECorporateActionProvider._parse_nse_action` reads a record mentioning a consolidation of shares as a SPLIT; `parse_ratio` already takes the two face values in order, so "From Re 1 Per Share To Rs 10 Per Share" gives (1, 10) and the adjustment engine's split formula gives price factor 10 and volume factor 0.1. A consolidation without two face values is kept and reported as an unparsed ratio. "Capital Reduction" (MAXIND, MELSTAR, EASTSILK) stays in `_UNHANDLED_MARKERS`: NSE's text has no ratio, so these need a manual override (2.7d).
+
+**Real data.** One consolidation in NSE's equities feed 2021–2026: VERTOZ, ex-date 2025-06-25. Its open gap (+950 % on 2025-07-11, first bar after the ex-date) is explained once the detector looks past non-trading ex-dates (2.7c): 9.17 × 10 = 91.7 against an open of 96.28.
+
+**Tests.** New `tests/unit/test_consolidation.py` (6) with the real VERTOZ, MAXIND and EASTSILK records: consolidation parsed as SPLIT (1, 10); engine factor (10, 0.1); consolidation without face values reported unparsed; capital reductions unhandled and reported; `parse_ratio` on the upper-case text.
+
+**Verification.** Full suite: 752 passed, 0 failed. `ruff check`, `ruff format --check`, `mypy --strict src` clean.

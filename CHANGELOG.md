@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed (audit 2.7b: share consolidations)
+- An NSE "Consolidation Of Equity Shares From Re 1 … To Rs 10 …" record is now a reverse split, SPLIT (1, 10), instead of an unhandled record (VERTOZ 2025-06-25). Capital reductions still carry no ratio and stay reported as unhandled.
+
 ### Fixed (audit 2.7a: SME corporate actions)
 - NSE corporate actions are fetched from both `index=equities` and `index=sme`. SME bonuses and splits (e.g. KSOLVES' 2021 bonuses) were missing, which left 34 blocking unexplained gaps on 31 active SME stocks. A failure of either feed aborts the run. The SME feed's internal number is no longer stored as an ISIN.
 

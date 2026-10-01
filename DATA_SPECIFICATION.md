@@ -578,6 +578,8 @@ Gap detector on raw prices (safety net)                    ─┘         │
 
 The NSE source is two feeds of the same API, `corporates-corporateActions`: `index=equities` (main board) and `index=sme` (SME/Emerge, series SM/ST). Both are fetched for every window and merged; the main-board feed lists no SME action (audit 2.7, verified 2026-10-01). The SME feed's `isin` field is an internal number, not an ISIN, so its actions resolve by symbol.
 
+A share consolidation ("Consolidation Of Equity Shares From Re 1 Per Share To Rs 10 Per Share") is a reverse split and is stored as a SPLIT with the usual `(old face value, new face value)` ratio, here (1, 10): prices before the ex-date are multiplied by 10 and volumes divided by 10. A capital reduction carries no ratio in NSE's text; it is reported as an unhandled record and needs a manual override (audit 2.7b).
+
 Raw candles are **never** flushed, re-fetched or overwritten. On an ex-date the system adds a resolved action and an adjustment-factor row, then recomputes that symbol's adjusted series. Past scans stay reproducible through `known_at` (§68A).
 
 ## Reconciliation rules

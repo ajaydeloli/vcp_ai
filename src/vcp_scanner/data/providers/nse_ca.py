@@ -215,6 +215,12 @@ class NSECorporateActionProvider:
                 action_type = CorporateActionType.DEMERGER
             elif "SPLIT" in text or "SUB-DIVISION" in text or "SUBDIVISION" in text:
                 action_type = CorporateActionType.SPLIT
+            elif "CONSOLIDAT" in text and "SHARE" in text:
+                # A consolidation is a reverse split: "Consolidation Of Equity Shares From Re 1
+                # Per Share To Rs 10 Per Share" (VERTOZ 2025) reads as SPLIT (1, 10), i.e. ten
+                # shares become one and prices are multiplied by 10. A consolidation without
+                # two face values stays visible as an unparsed ratio.
+                action_type = CorporateActionType.SPLIT
             elif "BONUS" in text:
                 action_type = CorporateActionType.BONUS
             elif "DIVIDEND" in text:
