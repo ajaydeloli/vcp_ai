@@ -979,3 +979,14 @@ Result, identical to the copy: 137 unexplained gaps, 92 instruments blocked by a
 **Tests.** New `tests/unit/test_trading_absence.py` (8): session counting; threshold 19 vs 20; holidays are not missed sessions; end to end with GOODYEAR's real prices (absence event on 2026-04-20, the −37 % gap kept as a warning, gate blocks until the lifetime's worth of bars); no calendar = old behaviour; sessions from settled, de-duplicated bhavcopy days.
 
 **Verification.** Full suite: 792 passed, 0 failed. `ruff check`, `ruff format --check`, `mypy --strict src` clean.
+
+### Real-data check of P1-2a–c (copy `data/p12.duckdb` of the main DB, 18:13–18:18 IST)
+
+`vcp quality scan`, then universe, RS and Trend Template for 2026-09-30, with the P1-2 code (corporate actions not re-ingested: P1-2a only changes how new records are read).
+- `quality scan`: 549 `TRADING_ABSENCE` events over the whole history (most on inactive or illiquid SME names, and most already expired by 2026-09-30); unexplained gaps unchanged at 137.
+- Gate on 2026-09-30, active instruments: blocked 13 → 26.
+  - **Unblocked (7):** BESTAGRO (returned 613 bars ago), BRITANNIA, KESORAMIND, PATINTLOG, SIGMAADV, TFL, UEL (events older than 253 bars).
+  - **Newly blocked (20), all `TRADING_ABSENCE`:** AHLWEST, ANDREWYU, ARIHANT, BURNPUR, EASTSILK, EUROTEXIND, KALYANI, KENNAMET, KIRLFER, KOVAI, MBECL, NEUEON, NOVARTIND, PIRAMALFIN, SHIVAUM, SICAGEN, SWANDEF, VISHAL, VIVIMEDLAB, WAAREEINDO.
+  - **Still blocked (6):** GOODYEAR, GRAUWEIL, LANCER, WATERBASE (now by `TRADING_ABSENCE`; their return gaps are warnings), DALMIASUG and QUINT (corporate actions without a factor, under 253 bars old).
+- Eligible 1,343 → 1,337: out KENNAMET, KIRLFER, KOVAI, NOVARTIND, PIRAMALFIN, SHIVAUM, WAAREEINDO; in BRITANNIA.
+- Trend Template 267 PASS either way: KENNAMET and SHIVAUM drop out (their windows spanned the absence); ASIANHOTNR and UTTAMSUGAR return (RS rank back to 70 against the smaller population).
