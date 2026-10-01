@@ -17,6 +17,9 @@ EQUITY_SERIES: frozenset[str] = frozenset({"EQ", "BE", "BZ", "SM", "ST"})
 # Company equity ISINs start with INE. ETFs and other fund units also trade in series EQ but
 # carry INF... ISINs; the scanner is for stocks, so they are skipped (2.2 real-data check).
 EQUITY_ISIN_PREFIX = "INE"
+# Security type (ISIN characters 8-9) of equity shares. Rights entitlements (ESSEN-RE ...)
+# trade in BE/ST with type "20"; they are short-lived and not stocks (step 2.6 rebuild).
+EQUITY_SECURITY_TYPE = "01"
 
 
 class BhavcopyFormat(StrEnum):

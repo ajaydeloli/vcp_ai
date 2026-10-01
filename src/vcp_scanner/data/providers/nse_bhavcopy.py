@@ -44,6 +44,7 @@ from urllib3.util.retry import Retry
 from vcp_scanner.data.schema import validate_ohlc
 from vcp_scanner.domain.bhavcopy import (
     EQUITY_ISIN_PREFIX,
+    EQUITY_SECURITY_TYPE,
     EQUITY_SERIES,
     BhavcopyFileStatus,
     BhavcopyFormat,
@@ -226,6 +227,11 @@ def parse_bhavcopy(
         if isin and not isin.startswith(EQUITY_ISIN_PREFIX):
             # ETFs and other fund units trade in EQ too; they carry INF... ISINs.
             key = f"{ser}:{isin[:3]}"
+            skipped[key] = skipped.get(key, 0) + 1
+            continue
+        if isin and isin[7:9] != EQUITY_SECURITY_TYPE:
+            # Rights entitlements (ISIN type 20) and other non-share lines.
+            key = f"{ser}:type{isin[7:9]}"
             skipped[key] = skipped.get(key, 0) + 1
             continue
 

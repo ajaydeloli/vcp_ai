@@ -54,7 +54,7 @@ def _zip(text: str, name: str = "cm28JUL2022bhav.csv") -> bytes:
 
 
 def _legacy_row(symbol: str, o: str, h: str, lo: str, c: str, vol: str = "100") -> str:
-    return f"{symbol},EQ,{o},{h},{lo},{c},{c},{c},{vol},1000,28-JUL-2022,10,INE000000001,\n"
+    return f"{symbol},EQ,{o},{h},{lo},{c},{c},{c},{vol},1000,28-JUL-2022,10,INE000A01011,\n"
 
 
 # --- URLs and layouts ------------------------------------------------------------------
@@ -300,3 +300,14 @@ def test_etf_units_in_equity_series_are_skipped() -> None:
     parsed = parse_bhavcopy(LEGACY_DAY, _zip(text))
     assert [r.symbol for r in parsed.rows] == ["STOCK"]
     assert parsed.skipped_series == {"EQ:INF": 1}
+
+
+def test_rights_entitlements_are_skipped() -> None:
+    text = (
+        LEGACY_HEADER
+        + _legacy_row("STOCK", "10", "11", "9", "10.5")
+        + "ESSEN-RE,BE,1,1.2,0.9,1.1,1.1,1,100,110,28-JUL-2022,10,INE418N20019,\n"
+    )
+    parsed = parse_bhavcopy(LEGACY_DAY, _zip(text))
+    assert [r.symbol for r in parsed.rows] == ["STOCK"]
+    assert parsed.skipped_series == {"BE:type20": 1}

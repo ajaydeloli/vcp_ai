@@ -726,3 +726,14 @@ Plus 2 gap-detector tests in `test_quality_events.py`.
 **Tests.** +3 in `test_bhavcopy_identity.py`: KPIGLOBAL → KPIGREEN with real ISINs gives one history and the old ISIN resolves to KPIGREEN; a same-day split and rename (SABTN → SABTNL) continues; DVR and same-day seed symbols are not adopted. Full suite: 724 passed, 0 failed. `ruff`, `mypy --strict src` clean.
 
 **Second rebuild** started 11:38 IST on a fresh copy (`data/migr26.duckdb`), with results recorded below.
+
+**Second rebuild** (`data/migr26.duckdb`, 11:38–12:06 IST): bhavcopy 12.5 min (from cache), then corporate actions 5.8 min, adjusted prices 3.3 min, features 4.2 min, universe 29 s, RS 8 s and Trend Template 2 min.
+- **Fork fix confirmed:** 978 inactive instruments (was 1,071); identifier changes 543, of which 68 are ISIN+symbol changes on the same day. KPIGREEN, ANGELONE, SHRIRAMFIN, 360ONE, HEGAM and NAVA all have full 2021→ history, every split/bonus factor applied, and no gap events.
+- **Universe and signals:** 1,330 eligible (was 1,327); Trend Template 272 PASS, 1,046 FAIL, 12 INSUFFICIENT_DATA.
+- **Why unexplained gaps rose to 438** (from 379): +106 / −47. Most of the rise is rights entitlements (`ESSEN-RE`, `SILGO-RE1` …, ISIN security type 20, series BE/ST): successive issues were now chained into one instrument.
+  - The rest are real price-scale events that the forks had hidden, e.g. AQYLON +1000 % on 2024-04-02 and ACL +1009 % on 2023-05-10. These are consolidations / capital reductions, which NSE lists but this scanner does not model yet. The gap net now blocks them correctly.
+- **Small fix (owner rule):** the parser now keeps only ISIN security type `01` (equity shares). Rights entitlements and other non-share lines are skipped, counted as `"<series>:type<NN>"`. Test `test_rights_entitlements_are_skipped`. Full suite: 725 passed.
+- **Blocking gaps in non-RE instruments:** 50 events on 44 active instruments, 76 on 62 inactive. Causes seen in samples:
+  - unmodelled consolidations / capital reductions;
+  - gaps after long suspensions (GOODYEAR, LANCER), which is audit P1-2;
+  - SME bonuses/splits missing from NSE's `index=equities` feed (JSLL; `index=sme` returned only 9 records).
