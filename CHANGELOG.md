@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed (demerger factor edge rules; owner decision 2026-10-01)
+- A demerger whose ex-date open is at or up to 1 % above the prior close now gets factor 1.0 instead of a blocking `factor_unknown` (DALMIASUG 2025-10-31). The plausibility floor is 0.02, not 0.05, so KESORAMIND's 2025-03-10 demerger (factor 0.04997) is applied.
+- `config/manual_corporate_actions.yaml` accepts `DEMERGER` entries with `price_factor`, which wins over the ex-date open (for demergers with no usable ex-date bar).
+
 ### Added (audit P1-8d: verify a scan on demand)
 - `vcp verify scan RUN_ID` rebuilds a recorded scan run on a copy of the database: it freezes the data at the run's cutoff, rebuilds the universe as known then (same deterministic id), RS and the Trend Template over that universe, and compares the results hash (exit 0 match, 2 mismatch with the differing instruments, 1 error). The copy is deleted unless `--keep`. A code commit different from the run's is reported. Without an id it lists recent runs.
 

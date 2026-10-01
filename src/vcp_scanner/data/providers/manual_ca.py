@@ -11,6 +11,7 @@ File format::
       - symbol: JSLL
         isin: INE0J5801029          # optional; resolves the instrument before the symbol
         action_type: SPLIT          # SPLIT, BONUS, RIGHTS, DEMERGER or DIVIDEND
+                                    # DEMERGER takes price_factor (0 < f <= 1), not ratio
         ex_date: 2025-06-12
         ratio: [10, 2]              # same conventions as the NSE parser
         cash_amount: null           # RIGHTS: issue price (face value + premium)
@@ -55,12 +56,20 @@ class ManualActionEntry(BaseModel):
     ex_date: date
     ratio: tuple[Annotated[float, Field(gt=0)], Annotated[float, Field(gt=0)]] | None = None
     cash_amount: Annotated[float | None, Field(ge=0)] = None
+    #: DEMERGER only: the parent's price factor (0 < f <= 1), e.g. 0.9079 when 9.21 % of the
+    #: value left with the demerged business. Stored as the ratio f:1.
+    price_factor: Annotated[float | None, Field(gt=0, le=1)] = None
     evidence: Annotated[str, Field(min_length=10)]
     approved_by: Annotated[str, Field(min_length=1)]
     entered_on: date
 
     @model_validator(mode="after")
     def _ratio_where_needed(self) -> ManualActionEntry:
+        is_demerger = self.action_type is CorporateActionType.DEMERGER
+        if is_demerger and (self.price_factor is None or self.ratio is not None):
+            raise ValueError("DEMERGER needs price_factor (and no ratio)")
+        if not is_demerger and self.price_factor is not None:
+            raise ValueError("price_factor is only for DEMERGER")
         if self.action_type in _NEEDS_RATIO and self.ratio is None:
             raise ValueError(f"{self.action_type.value} needs a ratio")
         is_split = self.action_type is CorporateActionType.SPLIT
@@ -118,6 +127,8 @@ class ManualCorporateActionProvider:
             if symbols is not None and symbol not in symbols:
                 continue
             num, den = e.ratio if e.ratio is not None else (None, None)
+            if e.price_factor is not None:
+                num, den = e.price_factor, 1.0
             actions.append(
                 CorporateAction(
                     corporate_action_id=deterministic_action_id(

@@ -147,9 +147,9 @@ def test_rights_above_market_have_no_bonus_element() -> None:
     [
         (_resolution(T.RIGHTS, num=1, den=5), ExDatePrices(100.0, 99.0, True)),  # no price
         (_resolution(T.RIGHTS, cash=50.0), ExDatePrices(100.0, 99.0, True)),  # no ratio
-        (_resolution(T.DEMERGER), ExDatePrices(100.0, 100.0, True)),  # open not below close
+        (_resolution(T.DEMERGER), ExDatePrices(100.0, 102.0, True)),  # open well above close
         (_resolution(T.DEMERGER), ExDatePrices(100.0, None, True)),  # did not trade
-        (_resolution(T.DEMERGER), ExDatePrices(100.0, 2.0, True)),  # implausible
+        (_resolution(T.DEMERGER), ExDatePrices(100.0, 1.0, True)),  # implausible (< 0.02)
     ],
 )
 def test_underivable_factor_on_raw_prices_is_unknown(

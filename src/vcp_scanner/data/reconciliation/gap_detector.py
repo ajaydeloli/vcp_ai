@@ -104,7 +104,8 @@ class GapDetector:
         flagged.
 
         * SPLIT/BONUS: the ratio's factor (``AdjustmentEngine`` convention).
-        * RIGHTS with a usable ratio and issue price: the TERP factor from the prior close.
+        * RIGHTS with a usable ratio and issue price: the TERP factor from the prior close;
+          DEMERGER: the ex-date open over the prior close, or a factor entered by hand.
         * A rights issue or demerger whose factor cannot be derived from these two bars (a
           demerger's factor *is* the ex-date open over the prior close; a rights issue with no
           issue price) explains a gap *down* as before; a separate ``factor_unknown`` event
@@ -124,7 +125,7 @@ class GapDetector:
             if r.action_type in PRICE_SCALING_ACTIONS:
                 factor *= _ENGINE.single_factor(r)[0]
                 continue
-            if r.action_type is CorporateActionType.RIGHTS:
+            if r.action_type in (CorporateActionType.RIGHTS, CorporateActionType.DEMERGER):
                 derived = derived_factor(r, bars)
                 if derived is not None:
                     factor *= derived[0]

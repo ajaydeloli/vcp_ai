@@ -825,8 +825,10 @@ Rights issues and demergers (step 2.4; owner decisions: automatic when NSE's fee
   - RELIANCE 2023-07-20: 2580 / 2841.85 = 0.90786. The 261.85 difference is JIOFIN's listing base price.
   - ITC 2025-01-06: 455.60 / 481.60 = 0.94601.
   - Kite differs for RELIANCE (about 0.9532, from RIL's 4.68 % cost-of-acquisition split). We follow NSE's price discovery, the basis NSE used for its own index and F&O adjustments.
+  - **Edge rules (owner decision 2026-10-01).** An ex-date open at or up to 1 % above the prior close means nothing measurable left: factor 1.0 (DALMIASUG 2025-10-31 opened exactly at 346.20). The plausibility floor is 0.02 (it was 0.05, which rejected KESORAMIND 2025-03-10: cement business to UltraTech, 204.72 → 10.23 = 0.04997).
+  - **Hand-entered factor.** A `DEMERGER` entry in `config/manual_corporate_actions.yaml` gives `price_factor` (0 < f ≤ 1, stored as the ratio `f:1`); it wins over the open price, which may be missing or unusable (no bar on the ex-date).
 - **When factors are derived.** Only from raw prices: both the prior bar and the ex-date bar must be `NSE_BHAVCOPY`. Provider-adjusted bars (Kite) already contain the action, so no factor is derived from them and no event is raised.
-- **Underivable on raw prices** (no issue price, as in `Rights 613:399`; no ex-date trade; open not below prior close; factor under 0.05): a blocking `CORPORATE_ACTION_UNRESOLVED` event (cause `factor_unknown`) from the ex-date.
+- **Underivable on raw prices** (no issue price, as in `Rights 613:399`; no ex-date trade; open more than 1 % above prior close; factor under 0.02; and no hand-entered factor): a blocking `CORPORATE_ACTION_UNRESOLVED` event (cause `factor_unknown`) from the ex-date.
 - **Gap detector.** An adjustable rights issue or demerger explains its ex-date gap, because either its factor or the `factor_unknown` block covers it.
 - **Pipeline order:** `ingest bhavcopy` → `ingest corporate-actions` (derives the factors from the stored bars) → `ingest adjusted-prices`.
 - **Other price-affecting actions** (consolidation, capital reduction, amalgamation, scheme of arrangement) are still reported as unhandled NSE records and left to the gap detector.

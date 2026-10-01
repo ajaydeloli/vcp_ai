@@ -6,6 +6,7 @@
 #   SPLIT  [old face value, new face value]   Rs 10 -> Rs 2 is [10, 2]; consolidation Re 1 -> Rs 10 is [1, 10]
 #   BONUS  [bonus shares, shares held]        1 bonus for every 2 held is [1, 2]
 #   RIGHTS [rights shares, shares held] with cash_amount = issue price (face value + premium)
+#   DEMERGER: no ratio; price_factor = the parent's price after / before (0 < f <= 1)
 # The ex-date is the first session the shares trade without the entitlement (with T+1
 # settlement, NSE's ex-date equals the record date). Check it against the bhavcopy: the price
 # jump, and for a split the ISIN change, fall on it.

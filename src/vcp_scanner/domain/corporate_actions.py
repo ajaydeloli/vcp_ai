@@ -150,9 +150,13 @@ PRICE_DERIVED_ACTIONS: frozenset[CorporateActionType] = frozenset(
     {CorporateActionType.RIGHTS, CorporateActionType.DEMERGER}
 )
 
-# A demerger that takes more than 95 % of the parent's value is implausible; treat the open
-# price as unusable rather than apply it.
-_MIN_DEMERGER_FACTOR = 0.05
+# A demerger that leaves less than 2 % of the parent's value is treated as a bad open price
+# rather than applied. (0.05 rejected KESORAMIND 2025-03-10: its cement business went to
+# UltraTech, 204.72 -> 10.23 = 0.04997; owner decision 2026-10-01.)
+_MIN_DEMERGER_FACTOR = 0.02
+# An ex-date open at or up to 1 % above the prior close means the special pre-open found no
+# measurable value leaving: factor 1.0 (DALMIASUG 2025-10-31 opened exactly at 346.20).
+_DEMERGER_NO_CHANGE_BAND = 0.01
 
 
 @dataclass(frozen=True, slots=True)
@@ -182,9 +186,19 @@ def derived_factor(
     * DEMERGER: NSE runs a special pre-open session on the ex-date that discovers the parent's
       price without the demerged business, so the ex-date open ``O`` over ``P`` is the factor
       (RELIANCE 2023-07-20: 2580 / 2841.85 = 0.9079; the 261.85 difference is JIOFIN's listing
-      base price). The share count does not change, so the volume factor is 1.0. ``O >= P``
-      or an implausibly small factor means the open is not usable.
+      base price). The share count does not change, so the volume factor is 1.0. An open at
+      or up to 1 % above ``P`` gives factor 1.0 (nothing measurable left); an open further
+      above ``P``, or a factor under 0.02, means the open is not usable. A factor entered by
+      hand (manual override, stored as the ratio ``f:1``) is used as given.
     """
+    if resolution.action_type is CorporateActionType.DEMERGER and has_usable_ratio(
+        resolution.ratio_numerator, resolution.ratio_denominator
+    ):
+        # A demerger price factor entered by hand (manual overrides, stored as ratio f:1)
+        # wins over the open price, which may be missing or unusable (UEL-type cases).
+        assert resolution.ratio_numerator is not None and resolution.ratio_denominator
+        manual = resolution.ratio_numerator / resolution.ratio_denominator
+        return (manual, 1.0) if 0 < manual <= 1 else None
     p = prices.prior_close
     if p is None or not math.isfinite(p) or p <= 0:
         return None
@@ -199,8 +213,10 @@ def derived_factor(
         return pf, 1.0 / pf
     if resolution.action_type is CorporateActionType.DEMERGER:
         o = prices.ex_open
-        if o is None or not math.isfinite(o) or o <= 0 or o >= p:
+        if o is None or not math.isfinite(o) or o <= 0:
             return None
+        if o >= p:
+            return (1.0, 1.0) if o <= p * (1 + _DEMERGER_NO_CHANGE_BAND) else None
         pf = o / p
         if pf < _MIN_DEMERGER_FACTOR:
             return None

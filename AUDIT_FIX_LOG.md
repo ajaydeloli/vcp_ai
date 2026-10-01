@@ -1053,3 +1053,25 @@ Without an id it lists recent runs (id, data and universe snapshots, commit, dir
 `p18-scan-runs` fast-forwarded into `main` after the evening run (19:15–19:27 IST, old code, "all steps OK", scanned 2026-10-01: 1,256 eligible, 203 PASS; the first POINT_IN_TIME_COMPLETE snapshot, since ASM/GSM were collected today, and 81 names excluded by those lists).
 - With the new code, under the daily-run lock: universe for 2026-10-01 → `uv_20261001_e7fa4e2d1c` (deterministic), RS, Trend Template → scan run `run-20261001-20261001T135918870959Z`, scan id `trend-2026-10-01-4c3375441181` (section hashes), 1,256 evaluated, 203 PASS / 1,047 FAIL / 6 INSUFFICIENT_DATA (same as the evening run), commit `5938668`, clean checkout, results hash `40c25da8763380b1`.
 - `vcp verify scan run-20261001-20261001T135918870959Z`: on a copy, froze the data at the run's cutoff (`snap-20261001T135918Z`), rebuilt features, the universe as known at its cutoff (**same id** `uv_20261001_e7fa4e2d1c`), RS and the Trend Template: **MATCH, 1,256 verdicts, hash `40c25da8763380b1`**. The copy (peak ~2.4 GB) was deleted; 10.8 minutes in all.
+
+## Clean-up batch (2026-10-01, after P1-8)
+
+### Fix C1 — demerger factor edge rules and hand-entered demerger factors
+
+**Finding.** The plan assumed the blocked demergers had no bar on the ex-date. On real data only UEL did; the others did trade:
+- KESORAMIND 2025-03-10 (cement business to UltraTech): open 10.23 over prior close 204.72 = 0.04997, rejected by the 0.05 plausibility floor;
+- DALMIASUG 2025-10-31: open exactly at the prior close, 346.20, so "open not below prior close" made the factor unknown;
+- UEL 2024-05-22: no bar on the ex-date and a +250 % jump on the next one, so nothing is derivable from prices;
+- (KMSUGAR 2026-10-01 derived normally, 27.10 / 33.68 = 0.805.)
+
+**Owner decision:** lower the floor to 0.02; an open at or up to 1 % above the prior close is factor 1.0; let the manual file carry a demerger price factor.
+
+**Change.**
+- `domain.corporate_actions`: `_MIN_DEMERGER_FACTOR` 0.05 → 0.02; `_DEMERGER_NO_CHANGE_BAND` = 1 %; `derived_factor` returns (1.0, 1.0) for an open within the band, and for a DEMERGER resolution with a usable ratio returns the hand-entered factor `num/den` (0 < f ≤ 1) before looking at prices.
+- `manual_ca.ManualActionEntry.price_factor` (DEMERGER only, 0 < f ≤ 1; a DEMERGER entry needs it and no ratio), stored as the ratio `f:1`.
+- The gap detector uses `derived_factor` for demergers too, so a hand-entered factor counts in the residual.
+- DATA_SPECIFICATION (rights and demergers) updated.
+
+**Tests.** New `tests/unit/test_demerger_rules.py` (10): KESORAMIND's real factor accepted; DALMIASUG's open at the prior close and +0.8 % give 1.0, +1.1 % stays unknown; a hand-entered factor wins without an ex-date bar; manual DEMERGER validation (ratio, cash or a factor above 1 refused; `price_factor` refused on other types); end to end through the worker, a manual factor 0.9 is stored for a demerger with no ex-date bar. `test_derived_factors` cases updated to the new edges (open 2 % above close; factor 0.01).
+
+**Verification.** Full suite: 813 passed, 0 failed. `ruff check`, `ruff format --check`, `mypy --strict src` clean.
