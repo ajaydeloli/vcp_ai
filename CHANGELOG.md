@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed (audit P1-2b: data-quality blocks end; owner decision 2026-10-01)
+- A dated blocking event (unexplained gap, corporate action without a usable factor, provider conflict) now stops applying once the stock has `data.quality.block_lifetime_bars` (253, new in `config/data.yaml`) of its own bars from the event date to the as-of date; the bad bar has then left every lookback. Before, a block lasted forever (BRITANNIA, PATINTLOG, SIGMAADV, TFL, UEL and KESORAMIND were blocked by events 385 to 1,329 bars old). Earlier as-of dates still see the block. Config loading refuses a lifetime shorter than the longest lookback (`ScannerConfig.longest_lookback_bars`).
+
 ### Fixed (audit P1-2a: debenture bonus)
 - NSE's "Scheme Of Arangement- Bonus - 1 Debenture For 1 Equity Share Held" (BRITANNIA 2021) is no longer read as a share bonus without a ratio, which blocked BRITANNIA; it is reported as an unhandled record. The raw row already stored stays (raw data is immutable); the block it causes expires under P1-2b.
 

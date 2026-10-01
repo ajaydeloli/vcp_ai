@@ -72,9 +72,18 @@ class SyncResult:
 class DuckDBDataQualityRepository:
     """Persistence plus the signal gate. ``known_at`` makes the gate point-in-time."""
 
-    def __init__(self, store: DuckDBStore, *, known_at: datetime | None = None) -> None:
+    def __init__(
+        self,
+        store: DuckDBStore,
+        *,
+        known_at: datetime | None = None,
+        block_lifetime_bars: int | None = None,
+    ) -> None:
         self._store = store
         self._known_at = known_at
+        # Audit P1-2: a dated block ends once the instrument has this many bars from the event
+        # date to the as-of date (the bad bar has left every lookback). None = never ends.
+        self._lifetime = block_lifetime_bars
 
     # ------------------------------------------------------------------ writes
 
@@ -217,6 +226,8 @@ class DuckDBDataQualityRepository:
         or constructor) only currently OPEN events count. With one, the gate answers as it
         would have then: the event must have been detected by ``known_at`` and not yet
         resolved at that time, so a later detection never blocks an earlier snapshot.
+        With ``block_lifetime_bars`` a dated event also stops applying once the instrument
+        has that many bars from its date to ``as_of_date`` (audit P1-2).
         """
         if not instrument_ids:
             return {}
@@ -227,16 +238,39 @@ class DuckDBDataQualityRepository:
         else:
             time_clause = "AND detected_at <= ? AND (status = 'OPEN' OR resolved_at > ?)"
             params += [cutoff, cutoff]
+        lifetime_clause = ""
+        if self._lifetime is not None:
+            # Audit P1-2: the block lasts while fewer than ``lifetime`` of the instrument's
+            # bars lie in [event date, as-of]. Once that many do, every lookback window ending
+            # at the as-of date starts on or after the event bar, so none spans the bad jump.
+            # Bars are read as known at ``cutoff`` when one is given (point-in-time).
+            bar_time = (
+                "AND p.known_to IS NULL"
+                if cutoff is None
+                else "AND p.known_from <= ? AND (p.known_to IS NULL OR p.known_to > ?)"
+            )
+            lifetime_clause = f"""
+              AND (e.trade_date IS NULL OR (
+                    SELECT count(*) FROM daily_prices p
+                    WHERE p.instrument_id = e.instrument_id
+                      AND p.trade_date >= e.trade_date AND p.trade_date <= ?
+                      {bar_time}
+                  ) < ?)"""
+            params.append(as_of_date)
+            if cutoff is not None:
+                params += [cutoff, cutoff]
+            params.append(self._lifetime)
         rows = self._store.conn.execute(
             f"""
-            SELECT DISTINCT instrument_id, event_type
-            FROM data_quality_events
-            WHERE blocks_signal
-              AND list_contains(CAST(? AS VARCHAR[]), instrument_id)
-              AND (trade_date IS NULL OR trade_date <= ?)
+            SELECT DISTINCT e.instrument_id, e.event_type
+            FROM data_quality_events e
+            WHERE e.blocks_signal
+              AND list_contains(CAST(? AS VARCHAR[]), e.instrument_id)
+              AND (e.trade_date IS NULL OR e.trade_date <= ?)
               {time_clause}
-            ORDER BY instrument_id, event_type
-            """,  # noqa: S608 - time_clause is a fixed literal above; values are bound
+              {lifetime_clause}
+            ORDER BY e.instrument_id, e.event_type
+            """,  # noqa: S608 - clauses are fixed literals above; values are bound
             params,
         ).fetchall()
         blocked: dict[str, list[str]] = {}

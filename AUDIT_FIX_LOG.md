@@ -953,3 +953,17 @@ Result, identical to the copy: 137 unexplained gaps, 92 instruments blocked by a
 `_parse_nse_action` no longer takes a BONUS text that mentions debentures; `DEBENTURE` joins `_UNHANDLED_MARKERS`, so BRITANNIA's 2021 "Scheme Of Arangement- Bonus - 1 Debenture For 1 Equity Share Held" is reported as unhandled. (The misspelt "ARANGEMENT" slipped past the `ARRANGEMENT` marker.) The raw BONUS row already stored stays, since raw data is immutable; its block expires under P1-2b.
 
 **Test.** `test_bonus_of_debentures_is_not_a_share_bonus` with the real record.
+
+### Fix P1-2b — a block ends once the bad bar has left every lookback (D2)
+
+**Change.**
+- `QualityGateConfig` (`data.quality` in `config/data.yaml`): `block_lifetime_bars` = 253 and `absence_min_missed_sessions` = 20 (used by P1-2c). `ScannerConfig.longest_lookback_bars()` = max of RS and universe history minimums, RS's longest window + 1, 252 (52-week extremes), 200 + the SMA200 slope lookback, and (stage SMA + slope weeks) × 5; today 253. A lifetime below it fails config loading.
+- `DuckDBDataQualityRepository(block_lifetime_bars=…)`: `blocked_instruments` counts the instrument's bars in `[trade_date, as_of]` (as known at `known_at` when given) and drops a dated event once that count reaches the lifetime. Undated events and the `None` default keep the old "forever" behaviour.
+- Wired into every gate: `_quality_gate` (RS, Trend Template) and `vcp ingest universe`.
+- DATA_SPECIFICATION 18A and DATABASE_SCHEMA 19.1 state the rule; the spec notes that Phase 6 must stay within the lifetime.
+
+**Why 253 bars and "≥":** with 253 bars in `[event, as-of]` the longest window (253 bars ending at the as-of bar) starts at the event bar itself, so it never contains both sides of the jump.
+
+**Tests.** New `tests/unit/test_block_lifetime.py` (6): the block ends exactly at the lifetime and still applies to earlier as-of dates; weekends do not count; no lifetime = forever; undated events never expire; point-in-time bars; config default equals the longest lookback, `None` allowed, 200 refused.
+
+**Verification.** Full suite: 785 passed, 0 failed (this run also covers P1-2a). `ruff check`, `ruff format --check`, `mypy --strict src` clean.

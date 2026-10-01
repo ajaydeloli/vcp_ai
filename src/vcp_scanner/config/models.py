@@ -464,6 +464,22 @@ class CompletenessConfig(StrictBaseModel):
     min_active_instruments: Annotated[int, Field(ge=1)] = 5
 
 
+class QualityGateConfig(StrictBaseModel):
+    """How long a data-quality block lasts, and what counts as a trading absence (audit P1-2).
+
+    ``block_lifetime_bars``: a dated blocking event stops applying once the instrument has this
+    many of its own bars from the event date up to the as-of date, i.e. once the bad bar has
+    left every lookback window. It must cover the longest lookback in the strategy config
+    (checked by ``ScannerConfig``). ``None`` keeps blocks forever (the pre-P1-2 behaviour).
+
+    ``absence_min_missed_sessions``: a stock that misses at least this many NSE sessions
+    between two of its bars starts a new history on its return (``TRADING_ABSENCE``).
+    """
+
+    block_lifetime_bars: Annotated[int, Field(ge=1)] | None = 253
+    absence_min_missed_sessions: Annotated[int, Field(ge=1)] = 20
+
+
 class DataConfig(StrictBaseModel):
     """Data persistence and provider configuration (PROJECT_DESIGN section 45)."""
 
@@ -475,6 +491,7 @@ class DataConfig(StrictBaseModel):
     trading_calendar: str = "NSE"
     completeness: CompletenessConfig = Field(default_factory=CompletenessConfig)
     corporate_actions: CorporateActionsConfig = Field(default_factory=CorporateActionsConfig)
+    quality: QualityGateConfig = Field(default_factory=QualityGateConfig)
 
 
 class MonitoringConfig(StrictBaseModel):
@@ -541,3 +558,30 @@ class ScannerConfig(StrictBaseModel):
     data: DataConfig = Field(default_factory=DataConfig)
     monitoring: MonitoringConfig = Field(default_factory=MonitoringConfig)
     logging: LoggingConfig = Field(default_factory=LoggingConfig)
+
+    def longest_lookback_bars(self) -> int:
+        """Bars the longest price lookback reaches back, as-of bar included (audit P1-2).
+
+        RS and universe history minimums, the 52-week extremes (252 bars), the SMA200 plus
+        its slope lookback, and the weekly stage SMA plus its slope (5 bars a week).
+        """
+        s = self.strategy
+        return max(
+            s.rs.min_history_days,
+            max(s.rs.windows_days) + 1,
+            self.universe.min_history_days,
+            252,
+            200 + s.trend_template.sma200_slope_lookback_days,
+            (s.stage.sma_weeks + s.stage.slope_lookback_weeks) * 5,
+        )
+
+    @model_validator(mode="after")
+    def validate_block_lifetime(self) -> ScannerConfig:
+        lifetime = self.data.quality.block_lifetime_bars
+        if lifetime is not None and lifetime < self.longest_lookback_bars():
+            raise ValueError(
+                f"data.quality.block_lifetime_bars ({lifetime}) must be >= the longest "
+                f"lookback ({self.longest_lookback_bars()} bars): a shorter block would end "
+                "while the bad bar is still inside a window"
+            )
+        return self

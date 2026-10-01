@@ -118,6 +118,7 @@ CREATE TABLE IF NOT EXISTS daily_prices (
 # emits signals asks the gate built on this table which instruments are blocked.
 #   event_id     deterministic per condition, so re-detection updates instead of duplicating
 #   trade_date   first date affected; NULL = all dates. A block applies to as_of >= trade_date
+#                until the instrument has data.quality.block_lifetime_bars bars from it (P1-2)
 #   blocks_signal only OPEN events with this flag stop signals
 #   resolved_by  'SYSTEM' = condition cleared on its own (may reopen); anything else is a
 #                human decision that the system never overrides

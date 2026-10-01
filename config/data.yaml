@@ -7,3 +7,14 @@ canonical_storage_dir: data/canonical
 primary_provider: kite
 secondary_provider: upstox
 trading_calendar: NSE
+
+# Data-quality gate (audit P1-2; DATA_SPECIFICATION 18A).
+quality:
+  # A dated blocking event (unexplained gap, corporate action without a factor, conflict,
+  # trading absence) stops applying once the stock has this many of its own bars from the
+  # event date to the as-of date: the bad bar has then left every lookback window. Must be
+  # >= the longest lookback (checked at load; 253 = RS / universe history minimum).
+  block_lifetime_bars: 253
+  # Missing at least this many NSE sessions between two bars is a trading absence: the
+  # stock's history restarts on its return.
+  absence_min_missed_sessions: 20

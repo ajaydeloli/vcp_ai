@@ -111,10 +111,13 @@ def _resolve_data_snapshot(store: DuckDBStore, requested: str | None) -> str | N
     return snapshot_id
 
 
-def _quality_gate(store: DuckDBStore, data_snapshot_id: str) -> Any:
+def _quality_gate(
+    store: DuckDBStore, data_snapshot_id: str, block_lifetime_bars: int | None
+) -> Any:
     """The data-quality gate for a run: LIVE sees current events; a frozen data snapshot sees
     only events already detected (and unresolved) at its ``known_at``, so a later detection
-    never blocks an earlier, reproducible run."""
+    never blocks an earlier, reproducible run. Dated blocks end after
+    ``block_lifetime_bars`` of the instrument's bars (audit P1-2)."""
     from vcp_scanner.data.repositories.duckdb_quality_repository import (
         DuckDBDataQualityRepository,
     )
@@ -126,7 +129,9 @@ def _quality_gate(store: DuckDBStore, data_snapshot_id: str) -> Any:
     if data_snapshot_id != LIVE_SNAPSHOT_ID:
         snapshot = DuckDBSnapshotRepository(store).load(data_snapshot_id)
         known_at = snapshot.known_at if snapshot else None
-    return DuckDBDataQualityRepository(store, known_at=known_at)
+    return DuckDBDataQualityRepository(
+        store, known_at=known_at, block_lifetime_bars=block_lifetime_bars
+    )
 
 
 def _matches(instrument_id: str, wanted: Sequence[str] | None) -> bool:
@@ -648,7 +653,9 @@ def run_compute_rs(args: argparse.Namespace) -> int:
         engine = RelativeStrengthEngine(
             DuckDBRelativeStrengthRepository(store, data_snapshot_id),
             config=cfg.strategy.rs,
-            quality_gate=_quality_gate(store, data_snapshot_id),
+            quality_gate=_quality_gate(
+                store, data_snapshot_id, cfg.data.quality.block_lifetime_bars
+            ),
         )
         rows = engine.compute_for_date(as_of, snapshot_id)
 
@@ -703,7 +710,9 @@ def run_compute_trend_template(args: argparse.Namespace) -> int:
             trend_repo,
             cfg.strategy.trend_template,
             rs_version=cfg.strategy.rs.version,
-            quality_gate=_quality_gate(store, data_snapshot_id),
+            quality_gate=_quality_gate(
+                store, data_snapshot_id, cfg.data.quality.block_lifetime_bars
+            ),
         )
         results = engine.evaluate_many(
             ids, as_of, weekly_contexts={c.instrument_id: c for c in contexts}

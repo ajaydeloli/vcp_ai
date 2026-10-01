@@ -678,7 +678,9 @@ def main(argv: Sequence[str] | None = None) -> int:
                 builder = UniverseBuilder(
                     repo,
                     cfg.universe,
-                    quality_gate=DuckDBDataQualityRepository(store),
+                    quality_gate=DuckDBDataQualityRepository(
+                        store, block_lifetime_bars=cfg.data.quality.block_lifetime_bars
+                    ),
                     include_provisional=args.allow_provisional,
                 )
 
