@@ -175,6 +175,22 @@ A single pullback is not automatically a VCP.
 
 ---
 
+## 8.1 Base and contraction segmentation (owner decisions 2026-10-01, Phase 6 spike)
+
+The sections above define what a base and a contraction measure but not how to find them. V1 uses:
+
+1. **Base start:** the highest confirmed swing high within the last `base.max_duration_days` bars, provided a prior advance of at least `prior_advance.min_return_pct` (20 %) occurred within the `prior_advance.lookback_days` (120) bars ending at that high (§7). The base ends at the as-of date (or at a breakout/invalidation, §45, §25).
+2. **Contractions:** from a swing high to the lowest low before the next confirmed swing high; the next contraction starts at that swing high. Swings shallower than `swing.min_depth_pct` (2 %) or shorter than `swing.min_duration_days` (3) are merged into the surrounding contraction as noise (§23).
+3. **Last contraction:** the one still in progress is provisional (§9A).
+4. **Maximum base length:** `base.max_duration_days` = 130 bars (about 26 weeks). With the 120-bar prior advance this stays within the 253-bar data-quality block lifetime (DATA_SPECIFICATION 18A, audit P1-2); a longer base would require a longer lifetime, and configuration loading must enforce that relation.
+5. **ATR** is the simple 14-bar average of true range as computed by the feature engine (`atr_14`), not Wilder's smoothing.
+
+The prior-advance (§7) and invalidation (§25) keys join the §60 configuration contract with these defaults.
+
+**Golden dataset (§57):** the owner labels a blind sheet of symbol/date windows with charts drawn from Trend Template passers, without detector output, starting with about 20 examples per class; Phase 6 acceptance runs against those labels.
+
+---
+
 # 9. Swing Detection
 
 Initial implementation:
