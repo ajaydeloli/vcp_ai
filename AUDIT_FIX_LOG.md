@@ -910,3 +910,22 @@ The notices give record dates; the ex-dates are the bhavcopy dates of the jump a
 **Found in the rebuild:** UEL's +250 % gap on 2024-05-27 (non-blocking, after a 6-day absence) was closed because the 2024-05-22 demerger fell in its window and 2.7c defers demergers. A demerger or rights issue only ever lowers the price, so the deferral now applies only to gaps down; for a gap up the action counts with factor 1.0 and the residual is the whole gap. UEL stays blocked by its own `factor_unknown` event for that demerger (no bar on the ex-date), as before 2.7.
 
 **Test.** `test_demerger_never_explains_a_gap_up` (UEL prices). Full suite: 778 passed, 0 failed; `ruff`, `mypy --strict src` clean.
+
+### Real-data check of 2.7a–d (copy `data/fix27.duckdb`, 17:03–17:20 IST)
+
+Copy of the main DB, then `vcp ingest corporate-actions --start 2021-01-01` (3.0 min, NSE only: Upstox token expired), adjusted prices (2.9 min), features (2.8 min), universe, RS and Trend Template for 2026-09-30 (2.4 min). Then the follow-up detector, `vcp quality scan`, and SETCO's gap closed as genuine with `vcp quality resolve` (owner decision), and universe/RS/Trend Template again.
+
+| | Main DB | Copy |
+|---|---|---|
+| New raw actions | | 116 (111 SME, VERTOZ consolidation, 4 manual) |
+| Unexplained gaps (all instruments) | 182 | 137 |
+| Blocking gap events on active instruments | 50 on 44 | 5 on 5 |
+| Instruments blocked by any cause (all) | 136 | 92 |
+| Eligible 2026-09-30 | 1,334 | 1,343 |
+| Trend Template PASS | 265 | 267 |
+
+- **38 of the 44 are unblocked.** No instrument is newly blocked.
+- **Still blocked (6):** the five long absences (BESTAGRO, GOODYEAR, GRAUWEIL, LANCER, WATERBASE; P1-2), and UEL. UEL's two gap events are resolved, but it was already blocked by a separate `CORPORATE_ACTION_UNRESOLVED` event (demerger 2024-05-22, `factor_unknown`: no bar on the ex-date), which 2.7 does not touch.
+- **Newly eligible (9):** DCI, DOLPHIN, JSLL, NPST, TEMBO, THEJO, VIVIANA, WEL (unblocked by 2.7), and KABRAEXTRU, which comes from the P0-4 point-in-time series (the main DB's snapshot predates that fix), not from 2.7.
+- **Trend Template:** new passes DOLPHIN, KABRAEXTRU, NPST, THEJO; ASIANHOTNR and UTTAMSUGAR drop out because their RS rank moves from 70 to 69 against the larger eligible set.
+- SETCO is unblocked but stays ineligible (series BE).
