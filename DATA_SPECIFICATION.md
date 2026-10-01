@@ -1305,6 +1305,25 @@ The adjustment engine must define how split/bonus events affect historical volum
 
 ---
 
+# 39A. Feature Definitions (audit P2-1, owner decision 2026-10-01)
+
+`technical_features_daily` (DATABASE_SCHEMA) is computed per instrument from adjusted prices of one data snapshot. Version `features-1.2.0`; any definition change bumps it, and readers ask for one version.
+
+| Feature | Definition |
+|---|---|
+| Window | N of the instrument's own bars (rows), ending at the current bar; NULL until full. Exchange holidays and the stock's missing days are not counted (absences of 20+ sessions are blocked, §18A). |
+| `sma_N` (20, 50, 150, 200) | Simple mean of `close_adj` over the window. |
+| `ema_10/20/50` | Not computed; stored NULL. Nothing reads them. |
+| True range | `max(high − low, abs(high − prev close), abs(low − prev close))`; NULL on the first bar. |
+| `atr_14` | Simple mean of the last 14 true ranges (not Wilder's smoothing). `atr_pct_14 = atr_14 / close × 100`. |
+| `high_N`, `low_N` (20, 50, 252) | Max of `high_adj` / min of `low_adj` over the window (252 = 52 weeks). |
+| `volume_avg_N` (5, 10, 20, 50) | Mean of `volume_adj` over the window, **including** the current bar. |
+| `volume_ratio_N` (20, 50) | `volume_adj(t) / mean(volume_adj over the N bars before t)`; the current bar is **excluded** so a spike is not diluted by itself (before 1.2.0 it was included). Needs N prior bars. |
+| `daily_return` | `close(t) / close(t−1) − 1`; NULL on the first bar. |
+| `rolling_volatility_N` | Population standard deviation of the last N daily returns. |
+
+---
+
 # 40. Volume Quality
 
 Track:

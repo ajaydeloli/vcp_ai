@@ -1140,3 +1140,16 @@ Read-only spike 21:00–21:15 IST; owner decisions 21:19 IST: (1) small bonuses:
 **Decision.** Keep `gap_pct` 30. A ratio test cannot tell a 1:4 bonus from a −20 % circuit, so a lower threshold (or a warning tier) would add about 850 false flags. The defence is a second source: the Upstox cross-check (owner to refresh the token) and, if still needed, a BSE feed.
 
 **Change.** `DATA_SPECIFICATION.md` §18A "Known limitation: small actions below `gap_pct`", with the numbers above and the effect of a miss (an unadjusted drop under 30 %: a false contraction risk for VCP detection, not a false Trend Template pass).
+
+### Fix A2 — audit P2-1: feature definitions (`features-1.2.0`)
+
+**Found.** `volume_ratio_20/50` divided today's volume by an average that included today, so a spike diluted itself (a 5× day after flat volume read 4.17, not 5.0). Nothing reads the ratios yet; VCP volume dry-up and breakout volume (Phase 6) will. `ema_10/20/50` are never computed (NULL), and ATR's smoothing was documented only in the VCP spec.
+
+**Change.**
+- `volume_ratio_N` = volume(t) / mean of the N bars before t (windows `p_20`, `p_50`: `N PRECEDING AND 1 PRECEDING`); needs N prior bars. `volume_avg_N` still includes the current bar.
+- Version `features-1.2.0` as one constant, `domain.features.FEATURES_CALCULATION_VERSION`, used by the feature engine and by the Trend Template's feature reads (was the literal "features-1.1.0" in both). After the deploy, `vcp compute features` writes 1.2.0 rows next to the old 1.1.0 rows; readers ask for 1.2.0.
+- `DATA_SPECIFICATION.md` §39A "Feature Definitions" (windows, SMA, simple ATR(14), highs/lows, volume averages and ratios, returns, volatility; EMAs not computed); `DATABASE_SCHEMA.md` technical_features_daily note.
+
+**Tests** (`test_daily_features.py`): the ratio equals volume over the mean of the 20 (50) prior bars, NULL until N prior bars exist; a 5× spike reads exactly 5.0; rows carry the current version.
+
+**Verification.** Full suite: 823 passed, 0 failed. `ruff check`, `ruff format --check`, `mypy --strict src` clean. Real-data check: together with A3 (below).

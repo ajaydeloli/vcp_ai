@@ -149,3 +149,62 @@ def test_atr_and_volatility_first_valid_bars():
     ).fetchall()
     assert rows[13][0] is None and rows[14][0] is not None  # bar 14 vs bar 15
     assert rows[19][1] is None and rows[20][1] is not None  # bar 20 vs bar 21
+
+
+def _volume_ratios(store, instrument_id: str) -> list[tuple[float | None, float | None]]:
+    return store.conn.execute(
+        "SELECT volume_ratio_20, volume_ratio_50 FROM technical_features_daily "
+        "WHERE instrument_id = ? ORDER BY trade_date",
+        [instrument_id],
+    ).fetchall()
+
+
+def test_volume_ratio_excludes_the_current_bar():
+    """Audit P2-1: volume_ratio_N = volume / mean of the N bars BEFORE today."""
+    store = DuckDBStore(":memory:")
+    store.migrate()
+    _seed(store, "VR_INST", 60)  # volume on bar k (0-based) is 1000 + k
+
+    DailyFeatureEngine(store).compute_for_instrument("VR_INST")
+    rows = _volume_ratios(store, "VR_INST")
+
+    # Bar 19 has only 19 prior bars: NULL; bar 20 is the first valid ratio.
+    assert rows[19][0] is None
+    for k in (20, 35, 59):
+        expected = (1000 + k) / (1000 + k - 10.5)  # mean of bars k-20 .. k-1
+        assert rows[k][0] is not None
+        assert abs(rows[k][0] - expected) < 1e-12
+    assert rows[49][1] is None
+    assert rows[50][1] is not None
+    assert abs(rows[50][1] - 1050 / (1000 + 24.5)) < 1e-12
+
+
+def test_volume_spike_is_not_diluted_by_itself():
+    """A 5x spike after flat volume reads 5.0 (it read 4.17 when today was in the mean)."""
+    store = DuckDBStore(":memory:")
+    store.migrate()
+    _seed(store, "SPIKE_INST", 30)
+    store.conn.execute(
+        "UPDATE daily_prices_adjusted SET volume_adj = CASE WHEN trade_date = "
+        "(SELECT MAX(trade_date) FROM daily_prices_adjusted) THEN 5000 ELSE 1000 END"
+    )
+
+    DailyFeatureEngine(store).compute_for_instrument("SPIKE_INST")
+
+    assert _volume_ratios(store, "SPIKE_INST")[-1][0] == 5.0
+
+
+def test_feature_rows_carry_the_current_definition_version():
+    from vcp_scanner.domain.features import FEATURES_CALCULATION_VERSION
+
+    store = DuckDBStore(":memory:")
+    store.migrate()
+    _seed(store, "VER_INST", 5)
+
+    DailyFeatureEngine(store).compute_for_instrument("VER_INST")
+
+    versions = store.conn.execute(
+        "SELECT DISTINCT calculation_version FROM technical_features_daily"
+    ).fetchall()
+    assert versions == [(FEATURES_CALCULATION_VERSION,)]
+    assert FEATURES_CALCULATION_VERSION == "features-1.2.0"

@@ -1011,7 +1011,7 @@ rolling_volatility_50
 calculation_version
 ```
 
-Windowed features are NULL until their window is full (AGENTS.md rule 4). `atr_14` needs 14 true ranges and `rolling_volatility_N` needs N daily returns; the first bar has no previous close, so its `daily_return` and true range are NULL. Ratios are NULL when their average is NULL. Introduced in `features-1.1.0`.
+Windowed features are NULL until their window is full (AGENTS.md rule 4). `atr_14` needs 14 true ranges and `rolling_volatility_N` needs N daily returns; the first bar has no previous close, so its `daily_return` and true range are NULL. Ratios are NULL when their average is NULL. Introduced in `features-1.1.0`. From `features-1.2.0` (audit P2-1) `volume_ratio_N` divides by the average of the N bars before the current one, so it needs N prior bars; `ema_*` are not computed (NULL). Full definitions: DATA_SPECIFICATION §39A.
 
 Additional features can be added without changing the raw market data.
 

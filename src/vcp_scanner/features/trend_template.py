@@ -37,6 +37,7 @@ from vcp_scanner.data.repositories.base import (
     TrendRepository,
 )
 from vcp_scanner.domain.enums import TrendTemplateStatus
+from vcp_scanner.domain.features import FEATURES_CALCULATION_VERSION
 from vcp_scanner.domain.trend import (
     TREND_CONDITION_NAMES,
     TrendConditionResult,
@@ -168,7 +169,7 @@ class TrendTemplateEngine:
         config: TrendTemplateConfig | None = None,
         *,
         rs_version: str = "rs-1.0.0",
-        features_version: str | None = "features-1.1.0",
+        features_version: str | None = FEATURES_CALCULATION_VERSION,
         quality_gate: DataQualityGate | None = None,
     ) -> None:
         # ``quality_gate=None`` disables gating (unit tests of the pure rules). Every

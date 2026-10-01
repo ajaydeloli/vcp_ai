@@ -1,6 +1,7 @@
 import logging
 
 from vcp_scanner.data.storage.duckdb_store import DuckDBStore
+from vcp_scanner.domain.features import FEATURES_CALCULATION_VERSION
 from vcp_scanner.domain.snapshot import LIVE_SNAPSHOT_ID, validate_snapshot_id
 
 logger = logging.getLogger(__name__)
@@ -17,7 +18,7 @@ class DailyFeatureEngine:
     def __init__(
         self,
         store: DuckDBStore,
-        calculation_version: str = "features-1.1.0",
+        calculation_version: str = FEATURES_CALCULATION_VERSION,
         data_snapshot_id: str = LIVE_SNAPSHOT_ID,
     ) -> None:
         self.store = store
@@ -30,15 +31,10 @@ class DailyFeatureEngine:
         Updates technical_features_daily and returns the number of rows inserted/updated.
         """
 
-        # We calculate True Range, then moving averages, and 52w highs/lows.
-        # EMA is trickier in pure SQL without recursive CTE, so we will use SMA for EMAs for now,
-        # or we can write a recursive CTE. Actually, for V1, we can compute SMA and EMA.
-        # To compute EMA accurately, standard recursive CTE:
-        # EMA_today = Price * alpha + EMA_yesterday * (1 - alpha)
-        # We'll omit true EMA if it's too complex and fallback to SMA or implement recursively later if strictly needed.
-        # The spec requires sma_20, sma_50, sma_150, sma_200. We will compute these.
-
-        # Note: 252 trading days for 52-week high/low.
+        # Definitions (DATA_SPECIFICATION "Feature definitions"): windows count the
+        # instrument's own bars; SMAs; ATR(14) is the simple mean of true range (not
+        # Wilder); 252 bars for 52-week extremes; volume_ratio_N divides by the average
+        # of the N prior bars. ema_* columns are not computed (stored NULL).
 
         sql = """
             WITH raw_tr AS (
@@ -94,10 +90,12 @@ class DailyFeatureEngine:
                     CASE WHEN COUNT(*) OVER w_20 = 20 THEN AVG(volume_adj) OVER w_20 ELSE NULL END AS volume_avg_20,
                     CASE WHEN COUNT(*) OVER w_50 = 50 THEN AVG(volume_adj) OVER w_50 ELSE NULL END AS volume_avg_50,
 
-                    CASE WHEN COUNT(*) OVER w_20 = 20
-                         THEN volume_adj / NULLIF(AVG(volume_adj) OVER w_20, 0) ELSE NULL END AS volume_ratio_20,
-                    CASE WHEN COUNT(*) OVER w_50 = 50
-                         THEN volume_adj / NULLIF(AVG(volume_adj) OVER w_50, 0) ELSE NULL END AS volume_ratio_50,
+                    -- Today's volume against the average of the N bars BEFORE it (audit P2-1,
+                    -- features-1.2.0): including today diluted the spike being measured.
+                    CASE WHEN COUNT(volume_adj) OVER p_20 = 20
+                         THEN volume_adj / NULLIF(AVG(volume_adj) OVER p_20, 0) ELSE NULL END AS volume_ratio_20,
+                    CASE WHEN COUNT(volume_adj) OVER p_50 = 50
+                         THEN volume_adj / NULLIF(AVG(volume_adj) OVER p_50, 0) ELSE NULL END AS volume_ratio_50,
 
                     -- Returns and Vol
                     daily_return,
@@ -113,7 +111,9 @@ class DailyFeatureEngine:
                     w_50  AS (PARTITION BY instrument_id ORDER BY trade_date ROWS BETWEEN 49 PRECEDING AND CURRENT ROW),
                     w_200 AS (PARTITION BY instrument_id ORDER BY trade_date ROWS BETWEEN 199 PRECEDING AND CURRENT ROW),
                     w_150 AS (PARTITION BY instrument_id ORDER BY trade_date ROWS BETWEEN 149 PRECEDING AND CURRENT ROW),
-                    w_252 AS (PARTITION BY instrument_id ORDER BY trade_date ROWS BETWEEN 251 PRECEDING AND CURRENT ROW)
+                    w_252 AS (PARTITION BY instrument_id ORDER BY trade_date ROWS BETWEEN 251 PRECEDING AND CURRENT ROW),
+                    p_20  AS (PARTITION BY instrument_id ORDER BY trade_date ROWS BETWEEN 20 PRECEDING AND 1 PRECEDING),
+                    p_50  AS (PARTITION BY instrument_id ORDER BY trade_date ROWS BETWEEN 50 PRECEDING AND 1 PRECEDING)
             )
             INSERT INTO technical_features_daily (
                 instrument_id, trade_date, sma_20, sma_50, sma_150, sma_200, ema_10, ema_20, ema_50,

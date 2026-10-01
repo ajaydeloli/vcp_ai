@@ -5,6 +5,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import date
 
+# Version of the feature definitions; bump on any definition change (audit P2-1:
+# 1.2.0 measures volume_ratio_N against the N bars before the current one).
+FEATURES_CALCULATION_VERSION = "features-1.2.0"
+
 
 @dataclass(frozen=True, slots=True)
 class DailyFeatures:
