@@ -31,7 +31,19 @@ class DuckDBUniverseRepository:
         snapshot: UniverseSnapshot,
         memberships: list[UniverseMembership],
     ) -> None:
-        """Persist a universe snapshot and its memberships."""
+        """Persist a universe snapshot and its memberships.
+
+        Snapshot ids are deterministic (audit P1-8): rebuilding with the same as-of date,
+        cutoff and config yields the same id, and the rebuild replaces the stored rows
+        instead of failing on the key or forking a second snapshot.
+        """
+        sid = snapshot.universe_snapshot_id
+        self._store.conn.execute(
+            "DELETE FROM universe_memberships WHERE universe_snapshot_id = ?", [sid]
+        )
+        self._store.conn.execute(
+            "DELETE FROM universe_snapshots WHERE universe_snapshot_id = ?", [sid]
+        )
         # Insert snapshot
         self._store.conn.execute(
             """
@@ -82,12 +94,8 @@ class DuckDBUniverseRepository:
                 rows,
             )
 
-    def load_snapshot(self, as_of_date: date) -> list[str]:
-        """Load eligible instrument IDs for a given date's universe snapshot.
-
-        If multiple snapshots exist for the same date, loads the most recently created one.
-        """
-        # Find the latest snapshot ID for the date
+    def latest_snapshot_id(self, as_of_date: date) -> str | None:
+        """The most recently created snapshot for ``as_of_date`` (``created_at`` = cutoff)."""
         row = self._store.conn.execute(
             """
             SELECT universe_snapshot_id
@@ -98,11 +106,29 @@ class DuckDBUniverseRepository:
             """,
             [as_of_date],
         ).fetchone()
+        return str(row[0]) if row else None
 
-        if not row:
-            return []
+    def snapshot_as_of(self, snapshot_id: str) -> date | None:
+        """The as-of date of a stored snapshot, or None if there is no such snapshot."""
+        row = self._store.conn.execute(
+            "SELECT as_of_date FROM universe_snapshots WHERE universe_snapshot_id = ?",
+            [snapshot_id],
+        ).fetchone()
+        return row[0] if row else None
 
-        snapshot_id = row[0]
+    def load_snapshot(self, as_of_date: date, snapshot_id: str | None = None) -> list[str]:
+        """Load eligible instrument IDs of a universe snapshot for ``as_of_date``.
+
+        ``snapshot_id`` names the snapshot explicitly (audit P1-8: a scan records which one it
+        used, and a reproduction must use that one). Without it the most recently created
+        snapshot for the date is used.
+        """
+        if snapshot_id is None:
+            snapshot_id = self.latest_snapshot_id(as_of_date)
+            if snapshot_id is None:
+                return []
+        elif self.snapshot_as_of(snapshot_id) != as_of_date:
+            raise ValueError(f"universe snapshot {snapshot_id} is not a snapshot for {as_of_date}")
 
         rows = self._store.conn.execute(
             """

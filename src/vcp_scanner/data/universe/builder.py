@@ -10,9 +10,8 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
-import uuid
 from dataclasses import replace
-from datetime import date, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from typing import TYPE_CHECKING
 
 from vcp_scanner.config.models import QualityGateConfig, UniverseConfig
@@ -112,6 +111,27 @@ def evaluate_eligibility(
     return True, None
 
 
+def universe_snapshot_id(
+    as_of_date: date, known_at: datetime, config_hash: str, method_version: str
+) -> str:
+    """Deterministic id from the snapshot's inputs (audit P1-8, D2).
+
+    The same as-of date, knowledge cutoff, config and method give the same id, so rebuilding a
+    past snapshot "as known at" its cutoff lands on the id a scan recorded. The cutoff is
+    normalised to UTC with microseconds, the precision ``created_at`` is stored with.
+    """
+    key = "|".join(
+        [
+            as_of_date.isoformat(),
+            known_at.astimezone(UTC).isoformat(timespec="microseconds"),
+            config_hash,
+            method_version,
+        ]
+    )
+    digest = hashlib.sha256(key.encode("utf-8")).hexdigest()[:10]
+    return f"uv_{as_of_date.strftime('%Y%m%d')}_{digest}"
+
+
 class UniverseBuilder:
     """Builds point-in-time universe snapshots."""
 
@@ -185,7 +205,9 @@ class UniverseBuilder:
         created_at = known_at if known_at is not None else self._clock()
         if created_at.tzinfo is None:
             raise ValueError("known_at must be timezone-aware")
-        snapshot_id = f"uv_{as_of_date.strftime('%Y%m%d')}_{uuid.uuid4().hex[:6]}"
+        snapshot_id = universe_snapshot_id(
+            as_of_date, created_at, self._hash_config(), UNIVERSE_METHOD_VERSION
+        )
 
         candidates = self._repo.load_universe_candidates(
             as_of_date,

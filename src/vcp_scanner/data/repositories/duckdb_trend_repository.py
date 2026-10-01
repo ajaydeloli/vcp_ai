@@ -79,9 +79,18 @@ _UPSERT_WEEKLY = """
 
 
 class DuckDBTrendRepository(TrendRepository):
-    def __init__(self, store: DuckDBStore, data_snapshot_id: str = LIVE_SNAPSHOT_ID) -> None:
+    def __init__(
+        self,
+        store: DuckDBStore,
+        data_snapshot_id: str = LIVE_SNAPSHOT_ID,
+        *,
+        rs_universe_snapshot_id: str | None = None,
+    ) -> None:
         self.store = store
         self.data_snapshot_id = validate_snapshot_id(data_snapshot_id)
+        # Audit P1-8 (D2): read RS ranked over exactly this universe snapshot (the one the
+        # scan evaluates) instead of whichever universe was created last.
+        self.rs_universe_snapshot_id = rs_universe_snapshot_id
 
     def save_trend_template_results(
         self,
@@ -232,6 +241,7 @@ class DuckDBTrendRepository(TrendRepository):
         (deterministic tie-break on the universe id), so a re-run over a newer universe
         supersedes older ones without deleting them.
         """
+        universe_snapshot_id = universe_snapshot_id or self.rs_universe_snapshot_id
         universe_clause = "AND r.universe_snapshot_id = ?" if universe_snapshot_id else ""
         params: list[object] = [instrument_id, as_of_date, calculation_version]
         params.append(self.data_snapshot_id)

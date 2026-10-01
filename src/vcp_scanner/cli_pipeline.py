@@ -693,7 +693,16 @@ def run_compute_trend_template(args: argparse.Namespace) -> int:
         data_snapshot_id = _resolve_data_snapshot(store, getattr(args, "data_snapshot_id", None))
         if data_snapshot_id is None:
             return 1
-        ids = DuckDBUniverseRepository(store).load_snapshot(as_of)
+        universe_repo = DuckDBUniverseRepository(store)
+        # Audit P1-8 (D2): evaluate a named universe snapshot when given; the latest otherwise.
+        universe_id = getattr(args, "universe_snapshot_id", None) or (
+            universe_repo.latest_snapshot_id(as_of)
+        )
+        try:
+            ids = universe_repo.load_snapshot(as_of, universe_id) if universe_id else []
+        except ValueError as e:
+            _err(f"Error: {e}")
+            return 1
         if args.instrument:
             ids = [i for i in ids if _matches(i, args.instrument)]
         if not ids:
@@ -704,7 +713,9 @@ def run_compute_trend_template(args: argparse.Namespace) -> int:
             return 1
 
         features = DuckDBFeatureRepository(store, data_snapshot_id)
-        trend_repo = DuckDBTrendRepository(store, data_snapshot_id)
+        trend_repo = DuckDBTrendRepository(
+            store, data_snapshot_id, rs_universe_snapshot_id=universe_id
+        )
 
         contexts = WeeklyStageEngine(features, cfg.strategy.stage).classify_many(ids, as_of)
         trend_repo.save_weekly_context(contexts)
@@ -732,6 +743,7 @@ def run_compute_trend_template(args: argparse.Namespace) -> int:
     counts = Counter(r.status.value for r in results)
     print(f"Trend template evaluated for {as_of}")
     print(f"  Scan ID     : {scan_id}")
+    print(f"  Universe    : {universe_id}")
     print(f"  Data snapshot: {data_snapshot_id}")
     print(f"  Config hash : {config_hash}")
     print(f"  Evaluated   : {len(results)}")

@@ -393,6 +393,10 @@ def build_parser() -> argparse.ArgumentParser:
         metavar="INSTRUMENT_ID",
         help="Restrict to an instrument (repeatable)",
     )
+    tt_parser.add_argument(
+        "--universe-snapshot-id",
+        help="Universe snapshot to evaluate (default: latest snapshot for --as-of)",
+    )
     _add_db_arg(tt_parser)
     _add_config_dir_arg(tt_parser)
     _add_data_snapshot_arg(tt_parser)

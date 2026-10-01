@@ -1013,3 +1013,12 @@ Result, identical to the copy: 137 unexplained gaps, 92 instruments blocked by a
 **Change.** `config.loader.section_config_hashes` (strategy, universe, gate = `data.quality`) and `scan_config_hash` (hash of those three). `run_compute_trend_template` uses `scan_config_hash` for the scan id and stored `config_hash`. `UniverseBuilder(gate_settings=…)` folds the gate settings into the snapshot's config hash; `vcp ingest universe` passes them. `vcp config validate` prints the scan hash and the section hashes; `vcp config hash` still prints the full-config hash.
 
 **Tests.** New `tests/unit/test_scan_config_hash.py` (4): the three sections; logging, monitoring and storage paths do not change the scan hash; a strategy, universe or gate change does; the universe hash includes gate settings when gated. Full suite: 796 passed, 0 failed; `ruff`, `mypy --strict src` clean.
+
+### Fix P1-8b — deterministic universe ids, an explicit universe for Trend Template (D2)
+
+**Change.**
+- `universe.builder.universe_snapshot_id(as_of, known_at, config_hash, method_version)`: `uv_YYYYMMDD_` + the first 10 hex of a SHA-256 over those inputs (cutoff normalised to UTC, microseconds). `UniverseBuilder.build_snapshot` uses it instead of `uuid4`.
+- `DuckDBUniverseRepository.save_snapshot` replaces a stored snapshot with the same id (same inputs) instead of failing or forking; new `latest_snapshot_id` and `snapshot_as_of`; `load_snapshot(as_of, snapshot_id=None)` loads a named snapshot and refuses one from another date.
+- `vcp compute trend-template --universe-snapshot-id`; without it the latest snapshot for the date is used, as before, and its id is printed. `DuckDBTrendRepository(rs_universe_snapshot_id=…)` makes the Trend Template read RS ranked over exactly that universe; before, it took the RS row of whichever universe was created last.
+
+**Tests.** New `tests/unit/test_universe_snapshot_ids.py` (4): the id is a function of its inputs (same instant in IST and UTC gives the same id; each input changes it); a rebuild with the same cutoff replaces, a later cutoff adds; load by id vs latest, wrong date refused; the trend repository reads RS of the named universe while "latest" would read another. Full suite: 800 passed, 0 failed; `ruff`, `mypy --strict src` clean.

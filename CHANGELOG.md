@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed (audit P1-8b: deterministic universe ids, explicit universe for scans)
+- Universe snapshot ids are derived from the as-of date, the knowledge cutoff, the config hash and the method version (`uv_YYYYMMDD_<10 hex>`), not random. Rebuilding with the same inputs replaces the stored snapshot instead of adding another.
+- `vcp compute trend-template --universe-snapshot-id` evaluates a named snapshot (default: the latest for the date, as before) and prints which one it used; the Trend Template reads RS ranked over that same universe snapshot.
+
 ### Changed (audit P1-8a: per-section config hashes; owner decision 2026-10-01)
 - Trend Template scan ids now hash only the sections that can change a result: `strategy`, `universe` and the data-quality gate (`data.quality`). Changing the log level, monitoring settings or storage paths no longer starts a new scan id. Existing scan ids change once with this release.
 - A gated universe snapshot's `config_hash` now includes the gate settings, which change eligibility.

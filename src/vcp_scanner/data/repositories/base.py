@@ -96,8 +96,9 @@ class UniverseRepository(Protocol):
         """Persist a universe snapshot for a specific date."""
         ...
 
-    def load_snapshot(self, as_of_date: date) -> list[str]:
-        """Load instrument IDs eligible in the universe as-of a given date."""
+    def load_snapshot(self, as_of_date: date, snapshot_id: str | None = None) -> list[str]:
+        """Load instrument IDs eligible in the universe as-of a given date (a named snapshot
+        when ``snapshot_id`` is given, else the most recent one)."""
         ...
 
 
