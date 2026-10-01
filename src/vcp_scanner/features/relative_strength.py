@@ -12,8 +12,8 @@ Statuses (AGENTS.md rule 4, missing is not zero):
 - PASS               ranked; rs_raw / rs_rank / rs_percentile are set
 - INSUFFICIENT_DATA  a window is missing or not finite; rs_raw, rank and percentile NULL and
                      the instrument is not in the ranking population
-- STALE_DATA         latest bar older than ``max_staleness_days`` before the as-of date;
-                     returns are kept, rs_raw is NULL, not ranked
+- STALE_DATA         more than ``rs_max_missed_sessions`` NSE sessions after the latest bar
+                     up to the as-of date (audit P2-2); returns kept, rs_raw NULL, not ranked
 """
 
 from __future__ import annotations
@@ -23,8 +23,9 @@ import math
 from collections.abc import Sequence
 from datetime import date
 
-from vcp_scanner.config.models import RSConfig
+from vcp_scanner.config.models import RSConfig, StalenessConfig
 from vcp_scanner.data.repositories.base import DataQualityGate, RelativeStrengthRepository
+from vcp_scanner.domain.sessions import missed_sessions_since
 from vcp_scanner.domain.trend import RSPriceInput, RSRow
 
 logger = logging.getLogger(__name__)
@@ -42,9 +43,17 @@ def _window_return(last: float, lagged: float | None) -> float | None:
 
 
 def compute_rs_rows(
-    inputs: Sequence[RSPriceInput], as_of_date: date, config: RSConfig
+    inputs: Sequence[RSPriceInput],
+    as_of_date: date,
+    config: RSConfig,
+    *,
+    sessions: Sequence[date] = (),
+    max_missed_sessions: int = StalenessConfig().rs_max_missed_sessions,
 ) -> list[RSRow]:
-    """Returns, raw score, status and rank for every input. Deterministic, no I/O."""
+    """Returns, raw score, status and rank for every input. Deterministic, no I/O.
+
+    ``sessions`` is the sorted market calendar staleness is counted against (audit P2-2).
+    """
     staged: list[tuple[str, tuple[float | None, ...], float | None, str]] = []
     for item in inputs:
         returns = tuple(_window_return(item.last_close, lag) for lag in item.lagged_closes)
@@ -56,7 +65,8 @@ def compute_rs_rows(
             candidate = terms[0]
             for term in terms[1:]:
                 candidate += term
-        if (as_of_date - item.last_trade_date).days > config.max_staleness_days:
+        missed = missed_sessions_since(sessions, item.last_trade_date, as_of_date)
+        if missed > max_missed_sessions:
             staged.append((item.instrument_id, returns, None, "STALE_DATA"))
         elif candidate is None:
             staged.append((item.instrument_id, returns, None, "INSUFFICIENT_DATA"))
@@ -91,8 +101,10 @@ class RelativeStrengthEngine:
         calculation_version: str | None = None,
         config: RSConfig | None = None,
         quality_gate: DataQualityGate | None = None,
+        staleness: StalenessConfig | None = None,
     ) -> None:
         self._repo = repository
+        self._staleness = staleness or StalenessConfig()
         # Instruments blocked by an unresolved data-quality event are left out of the ranking
         # population (audit P0-2): a suspected missed split would distort everyone's percentile.
         self._quality_gate = quality_gate
@@ -110,7 +122,13 @@ class RelativeStrengthEngine:
         blocked = self._blocked(members, as_of_date)
         population = [m for m in members if m not in blocked]
         inputs = self._repo.load_rs_inputs(population, as_of_date, self.config.windows_days)
-        rows = compute_rs_rows(inputs, as_of_date, self.config)
+        rows = compute_rs_rows(
+            inputs,
+            as_of_date,
+            self.config,
+            sessions=self._repo.load_sessions(as_of_date, universe_snapshot_id),
+            max_missed_sessions=self._staleness.rs_max_missed_sessions,
+        )
         return self._repo.save_relative_strength(
             as_of_date, universe_snapshot_id, self.calculation_version, rows
         )

@@ -1153,3 +1153,18 @@ Read-only spike 21:00–21:15 IST; owner decisions 21:19 IST: (1) small bonuses:
 **Tests** (`test_daily_features.py`): the ratio equals volume over the mean of the 20 (50) prior bars, NULL until N prior bars exist; a 5× spike reads exactly 5.0; rows carry the current version.
 
 **Verification.** Full suite: 823 passed, 0 failed. `ruff check`, `ruff format --check`, `mypy --strict src` clean. Real-data check: together with A3 (below).
+
+### Fix A3 — audit P2-2: one staleness rule, in NSE sessions
+
+**Found.** Three unrelated staleness rules: the spec (§26) proposed `max_market_staleness_trading_days: 1`; RS used `strategy.rs.max_staleness_days` = 4 **calendar** days; the universe used `universe.max_staleness_days` = 30 calendar days; the Trend Template needs a bar on the as-of date. Calendar days over-count long weekends and holidays and under-count nothing else, and the universe's 30 days let a stock that missed ~20 sessions stay eligible. Spike on 2026-10-01: all 1,257 eligible names had 0 missed sessions; the stale-excluded names had 22 to 1,419.
+
+**Change** (owner decision 2026-10-01: tiered, in sessions).
+- `data.quality.staleness` (`StalenessConfig`): `universe_max_missed_sessions` 5, `rs_max_missed_sessions` 1. Signals keep the fixed rule "a bar on the as-of session" (`DATA_NOT_READY`). The old `max_staleness_days` keys are removed (a config that still sets them is refused).
+- Missed sessions = sessions in (last bar, as-of] (`domain.sessions.missed_sessions_since`). The calendar (`data.repositories.session_calendar.load_session_calendar`) is the settled-OK bhavcopy days known at the cutoff: the universe's `known_at`, and for RS the universe snapshot's `created_at`, so `vcp verify scan` counts against the calendar the run saw. Without any known bhavcopy it falls back to the dates of the raw bars known then.
+- `UniverseBuilder` takes `staleness` (default: `gate_settings.staleness`), includes it in the snapshot config hash, and reports "Stale: last trade D, N NSE sessions before AS_OF (max M)". `RelativeStrengthEngine` takes `staleness`; `compute_rs_rows` takes the calendar.
+- `DATA_SPECIFICATION.md` §26 rewritten; `config/data.yaml` gains the block.
+- Universe snapshot ids and the scan config hash change once (new config content).
+
+**Tests.** `test_staleness_sessions.py` (session arithmetic incl. holidays and weekends; calendar as known at a cutoff, NO_SESSION and future days excluded; fallback to bar dates; RS calendar as known when the universe was built; defaults; old keys refused); RS ranking: one missed session ranked, two not, a holiday not counted; universe: the limit comes from `data.quality.staleness`. The RS/universe golden record was re-recorded: only the stale member's exclusion text and the snapshot config hash changed (eligibility and every RS value identical).
+
+**Verification.** Full suite: 830 passed, 0 failed. `ruff check`, `ruff format --check`, `mypy --strict src` clean.

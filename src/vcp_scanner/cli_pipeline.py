@@ -663,6 +663,7 @@ def run_compute_rs(args: argparse.Namespace) -> int:
             quality_gate=_quality_gate(
                 store, data_snapshot_id, cfg.data.quality.block_lifetime_bars
             ),
+            staleness=cfg.data.quality.staleness,
         )
         rows = engine.compute_for_date(as_of, snapshot_id)
 

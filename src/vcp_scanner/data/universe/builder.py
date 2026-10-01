@@ -10,13 +10,15 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+from collections.abc import Sequence
 from dataclasses import replace
 from datetime import UTC, date, datetime, timedelta
 from typing import TYPE_CHECKING
 
-from vcp_scanner.config.models import QualityGateConfig, UniverseConfig
+from vcp_scanner.config.models import QualityGateConfig, StalenessConfig, UniverseConfig
 from vcp_scanner.domain.enums import SurvivorshipStatus
 from vcp_scanner.domain.market import PROVIDER_ADJUSTED_SOURCES
+from vcp_scanner.domain.sessions import missed_sessions_since
 from vcp_scanner.domain.universe import (
     SurvivorshipEvidence,
     UniverseCandidate,
@@ -76,18 +78,28 @@ def derive_survivorship(
 
 
 def evaluate_eligibility(
-    candidate: UniverseCandidate, config: UniverseConfig, as_of_date: date
+    candidate: UniverseCandidate,
+    config: UniverseConfig,
+    as_of_date: date,
+    *,
+    sessions: Sequence[date] = (),
+    max_missed_sessions: int = StalenessConfig().universe_max_missed_sessions,
 ) -> tuple[bool, str | None]:
     """Apply the universe rules in order; the first failing rule names the exclusion.
 
     Order: staleness, exchange, series, minimum price (price that actually traded), 20-day
     and 50-day average traded value (raw close x raw volume), history length, ASM/GSM, T2T.
+    Staleness counts the market ``sessions`` after the last trade up to the as-of date
+    (audit P2-2); an empty calendar cannot show staleness.
     """
     c = config
     if c_last := candidate.last_trade_date:
-        stale_days = (as_of_date - c_last).days
-        if stale_days > c.max_staleness_days:
-            return False, f"Stale: last trade {c_last} is {stale_days}d before {as_of_date}"
+        missed = missed_sessions_since(sessions, c_last, as_of_date)
+        if missed > max_missed_sessions:
+            return False, (
+                f"Stale: last trade {c_last}, {missed} NSE sessions before {as_of_date} "
+                f"(max {max_missed_sessions})"
+            )
     if candidate.exchange != c.exchange:
         return False, f"Exchange {candidate.exchange} != {c.exchange}"
     if candidate.series not in c.eligible_series:
@@ -144,6 +156,7 @@ class UniverseBuilder:
         quality_gate: DataQualityGate | None = None,
         include_provisional: bool = False,
         gate_settings: QualityGateConfig | None = None,
+        staleness: StalenessConfig | None = None,
     ) -> None:
         self._repo = repository
         # Audit step 2.5: today's PROVISIONAL Kite bar is used only when explicitly allowed.
@@ -156,6 +169,10 @@ class UniverseBuilder:
         # Audit P1-8 (D3): the gate's settings (block lifetime, absence threshold) change
         # eligibility, so they belong in the snapshot's config hash when a gate is used.
         self._gate_settings = gate_settings
+        # Audit P2-2: staleness in missed NSE sessions (data.quality.staleness).
+        if staleness is None:
+            staleness = gate_settings.staleness if gate_settings else StalenessConfig()
+        self._staleness = staleness
 
     def _apply_quality_gate(
         self, memberships: list[UniverseMembership], as_of_date: date, known_at: datetime
@@ -182,9 +199,12 @@ class UniverseBuilder:
 
     def _hash_config(self) -> str:
         """Return a deterministic hash of the universe configuration."""
-        data = self._config.model_dump(mode="json")
+        data: dict[str, object] = {
+            "universe": self._config.model_dump(mode="json"),
+            "staleness": self._staleness.model_dump(mode="json"),
+        }
         if self._gate_settings is not None:
-            data = {"universe": data, "gate": self._gate_settings.model_dump(mode="json")}
+            data["gate"] = self._gate_settings.model_dump(mode="json")
         encoded = json.dumps(data, sort_keys=True).encode("utf-8")
         return hashlib.sha256(encoded).hexdigest()[:8]
 
@@ -215,9 +235,17 @@ class UniverseBuilder:
             sorted(PROVIDER_ADJUSTED_SOURCES),
             include_provisional=self._include_provisional,
         )
+        sessions = self._repo.load_sessions(as_of_date, created_at)
+        max_missed = self._staleness.universe_max_missed_sessions
         memberships = []
         for cand in candidates:
-            eligible, reason = evaluate_eligibility(cand, self._config, as_of_date)
+            eligible, reason = evaluate_eligibility(
+                cand,
+                self._config,
+                as_of_date,
+                sessions=sessions,
+                max_missed_sessions=max_missed,
+            )
             memberships.append(
                 UniverseMembership(
                     universe_snapshot_id=snapshot_id,

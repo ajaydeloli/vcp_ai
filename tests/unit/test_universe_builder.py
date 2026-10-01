@@ -2,7 +2,7 @@ from datetime import UTC, date, datetime
 
 import pytest
 
-from vcp_scanner.config.models import UniverseConfig
+from vcp_scanner.config.models import StalenessConfig, UniverseConfig
 from vcp_scanner.data.repositories.duckdb_universe_repository import DuckDBUniverseRepository
 from vcp_scanner.data.storage.duckdb_store import DuckDBStore
 from vcp_scanner.data.universe.builder import UniverseBuilder
@@ -150,15 +150,22 @@ def test_min_history_days_is_enforced(store):
 
 
 def test_staleness_limit_comes_from_config(store):
-    _seed(store, "OLD", 253, last=date(2022, 12, 1))  # 31 days before as-of
-    strict, m1 = UniverseBuilder(DuckDBUniverseRepository(store), _config()).build_snapshot(
+    """Audit P2-2: staleness counts missed sessions (here the calendar falls back to the
+    stored bar dates: no bhavcopy is loaded) against data.quality.staleness."""
+    _seed(store, "OLD", 253, last=date(2022, 12, 1))  # 31 sessions before as-of
+    _seed(store, "FRESH", 253)  # trades every day up to the as-of date
+    _, m1 = UniverseBuilder(DuckDBUniverseRepository(store), _config()).build_snapshot(
         date(2023, 1, 1)
     )
-    loose, m2 = UniverseBuilder(
-        DuckDBUniverseRepository(store), _config(max_staleness_days=60)
+    _, m2 = UniverseBuilder(
+        DuckDBUniverseRepository(store),
+        _config(),
+        staleness=StalenessConfig(universe_max_missed_sessions=31),
     ).build_snapshot(date(2023, 1, 1))
-    assert m1[0].eligible is False and "Stale" in m1[0].exclusion_reason
-    assert m2[0].eligible is True
+    old1 = next(m for m in m1 if m.instrument_id == "OLD")
+    old2 = next(m for m in m2 if m.instrument_id == "OLD")
+    assert old1.eligible is False and "31 NSE sessions" in old1.exclusion_reason
+    assert old2.eligible is True
 
 
 def _add_delisting(store, iid="GONE"):

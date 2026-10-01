@@ -272,7 +272,7 @@
     "asm_flag": null,
     "avg_traded_value": 100000000.0,
     "eligible": false,
-    "exclusion_reason": "Stale: last trade 2024-04-26 is 63d before 2024-06-28",
+    "exclusion_reason": "Stale: last trade 2024-04-26, 45 NSE sessions before 2024-06-28 (max 5)",
     "gsm_flag": null,
     "instrument_id": "U_STALE",
     "price": 100.0,
@@ -292,7 +292,7 @@
    }
   ],
   "snapshot": {
-   "config_hash": "64776503",
+   "config_hash": "c2d256fc",
    "method_version": "2.0",
    "survivorship_status": "PARTIAL"
   }

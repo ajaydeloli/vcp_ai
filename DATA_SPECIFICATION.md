@@ -958,28 +958,29 @@ may indicate a missing Tuesday bar if Tuesday was a trading day.
 
 A dataset may exist locally but still be too old to produce a current signal.
 
-The system must calculate:
+**One rule, counted in NSE sessions (audit P2-2, owner decision 2026-10-01).** Staleness is the number of market sessions after the stock's latest bar, up to and including the as-of date:
 
 ```text
-last_available_trade_date
+missed_sessions = #{ session s : last_bar_date < s <= as_of_date }
 ```
 
-and compare it with the required market cutoff.
+Sessions are the days whose NSE bhavcopy settled OK, as known at the run's knowledge cutoff (the universe snapshot's `created_at`), so weekends and exchange holidays never count and a rebuilt run counts against the calendar it saw. Without any known bhavcopy the calendar falls back to the distinct dates of the raw bars known then. Tiers:
 
-Configuration:
+| Use | Limit | Effect when exceeded |
+|---|---|---|
+| Signals (Trend Template, VCP) | a bar **on** the as-of session | `DATA_NOT_READY`, no signal |
+| Relative strength | `rs_max_missed_sessions: 1` | `STALE_DATA`: not ranked, returns kept |
+| Universe | `universe_max_missed_sessions: 5` | `Stale: …` exclusion |
 
 ```yaml
-data_quality:
-  max_market_staleness_trading_days: 1
+data:
+  quality:
+    staleness:
+      universe_max_missed_sessions: 5
+      rs_max_missed_sessions: 1
 ```
 
-If the market data exceeds the allowed staleness:
-
-```text
-no production signal
-```
-
-The system should report the reason.
+These replace `universe.max_staleness_days` (30 calendar days) and `strategy.rs.max_staleness_days` (4 calendar days); the old `max_market_staleness_trading_days: 1` proposal is the signal rule above. A stock that misses 20 or more sessions and returns is handled by `TRADING_ABSENCE` (§18A). The rule is reported as the exclusion reason or status.
 
 ---
 

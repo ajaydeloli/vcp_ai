@@ -10,6 +10,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from datetime import date
 
+from vcp_scanner.data.repositories.session_calendar import load_session_calendar
 from vcp_scanner.data.storage.duckdb_store import DuckDBStore
 from vcp_scanner.domain.snapshot import LIVE_SNAPSHOT_ID, validate_snapshot_id
 from vcp_scanner.domain.trend import RSPriceInput, RSRow
@@ -49,6 +50,15 @@ class DuckDBRelativeStrengthRepository:
             [universe_snapshot_id],
         ).fetchall()
         return [str(r[0]) for r in rows]
+
+    def load_sessions(self, as_of_date: date, universe_snapshot_id: str) -> list[date]:
+        """NSE sessions up to ``as_of_date`` as known when the universe snapshot was built
+        (audit P2-2), so a rebuilt run counts staleness against the same calendar."""
+        row = self.store.conn.execute(
+            "SELECT created_at FROM universe_snapshots WHERE universe_snapshot_id = ?",
+            [universe_snapshot_id],
+        ).fetchone()
+        return load_session_calendar(self.store.conn, as_of_date, row[0] if row else None)
 
     def load_rs_inputs(
         self, instrument_ids: Sequence[str], as_of_date: date, lags: Sequence[int]

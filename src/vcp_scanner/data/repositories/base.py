@@ -325,6 +325,11 @@ class RelativeStrengthRepository(Protocol):
         """Instrument ids marked eligible in the universe snapshot."""
         ...
 
+    def load_sessions(self, as_of_date: date, universe_snapshot_id: str) -> list[date]:
+        """Sorted NSE sessions up to ``as_of_date`` as known when the universe snapshot was
+        built (audit P2-2)."""
+        ...
+
     def load_rs_inputs(
         self, instrument_ids: Sequence[str], as_of_date: date, lags: Sequence[int]
     ) -> list[RSPriceInput]:
@@ -358,6 +363,10 @@ class UniverseInputRepository(Protocol):
         """One candidate per instrument with a raw bar on/before ``as_of_date`` known at
         ``known_at``, with its liquidity/price statistics, series and surveillance flags.
         PROVISIONAL bars (audit step 2.5) count only when ``include_provisional``."""
+        ...
+
+    def load_sessions(self, as_of_date: date, known_at: datetime) -> list[date]:
+        """Sorted NSE sessions up to ``as_of_date`` as known at ``known_at`` (audit P2-2)."""
         ...
 
     def count_known_delistings(self, known_at: datetime) -> int:

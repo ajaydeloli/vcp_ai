@@ -107,14 +107,31 @@ def test_zero_lagged_close_is_missing_not_infinite() -> None:
 # ---------------------------------------------------------------------------- staleness
 
 
-def test_staleness_boundary_is_inclusive_of_max_days() -> None:
-    limit = CFG.max_staleness_days
-    rows = _by_id([_inp("OK", 0.1, stale_days=limit), _inp("OLD", 0.2, stale_days=limit + 1)])
-    assert rows["OK"].rs_status == "PASS"
-    old = rows["OLD"]
-    assert old.rs_status == "STALE_DATA" and old.rs_raw is None
-    assert old.returns == pytest.approx((0.2,) * 4)  # measurements kept
-    assert rows["OK"].population_size == 1
+def test_staleness_counts_missed_sessions_not_calendar_days() -> None:
+    """Audit P2-2: at most one missed NSE session is ranked; weekends and holidays are not
+    sessions. AS_OF is Friday 2024-06-28; Monday 2024-06-24 is made a holiday here."""
+    sessions = [date(2024, 6, d) for d in (19, 20, 21, 25, 26, 27, 28)]
+    inputs = [
+        _inp("TODAY", 0.1),
+        _inp("ONE", 0.2, stale_days=1),  # Thu 27: one missed session (28)
+        _inp("TWO", 0.3, stale_days=2),  # Wed 26: two missed sessions
+        _inp("HOLIDAY", 0.4, stale_days=7),  # Fri 21 -> Tue 25 (24 is a holiday): 4 missed
+    ]
+    rows = {r.instrument_id: r for r in compute_rs_rows(inputs, AS_OF, CFG, sessions=sessions)}
+    assert rows["TODAY"].rs_status == "PASS"
+    assert rows["ONE"].rs_status == "PASS"
+    assert rows["TWO"].rs_status == "STALE_DATA" and rows["TWO"].rs_raw is None
+    assert rows["TWO"].returns == pytest.approx((0.3,) * 4)  # measurements kept
+    assert rows["HOLIDAY"].rs_status == "STALE_DATA"
+    assert rows["TODAY"].population_size == 2
+
+    loose = compute_rs_rows(inputs, AS_OF, CFG, sessions=sessions, max_missed_sessions=4)
+    assert all(r.rs_status == "PASS" for r in loose)
+
+
+def test_no_calendar_cannot_show_staleness() -> None:
+    (row,) = compute_rs_rows([_inp("OLD", 0.1, stale_days=60)], AS_OF, CFG)
+    assert row.rs_status == "PASS"
 
 
 # ---------------------------------------------------------------------------- rank range

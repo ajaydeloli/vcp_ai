@@ -52,10 +52,7 @@ class RSConfig(StrictBaseModel):
     windows_days: list[int] = Field(default_factory=lambda: [63, 126, 189, 252])
     weights: list[float] = Field(default_factory=lambda: [0.40, 0.20, 0.20, 0.20])
     min_history_days: Annotated[int, Field(ge=253)] = 253
-    # An instrument whose latest bar is older than this many calendar days before the
-    # as-of date is not ranked (a suspended/stale name must not carry an old return into
-    # today's percentile). 4 covers a long weekend plus one holiday.
-    max_staleness_days: Annotated[int, Field(ge=0)] = 4
+    # Staleness is data.quality.staleness.rs_max_missed_sessions (audit P2-2).
 
     @model_validator(mode="after")
     def validate_weights(self) -> RSConfig:
@@ -433,8 +430,7 @@ class UniverseConfig(StrictBaseModel):
     min_daily_turnover_inr: Annotated[float, Field(ge=0)] = 10_000_000.0  # 20d avg, 1 crore
     min_avg_traded_value_50d_inr: Annotated[float, Field(ge=0)] = 10_000_000.0  # 50d avg
     min_history_days: Annotated[int, Field(ge=253)] = 253
-    # Latest bar older than this many calendar days before the as-of date => not trading.
-    max_staleness_days: Annotated[int, Field(ge=0)] = 30
+    # Staleness is data.quality.staleness.universe_max_missed_sessions (audit P2-2).
     exclude_asm_gsm: bool = True
     exclude_trade_to_trade: bool = True
     # EQ only: BE (trade-to-trade) and SME series (SM/ST) are excluded by default (§14).
@@ -464,6 +460,23 @@ class CompletenessConfig(StrictBaseModel):
     min_active_instruments: Annotated[int, Field(ge=1)] = 5
 
 
+class StalenessConfig(StrictBaseModel):
+    """How old a stock's latest bar may be, in missed NSE sessions (audit P2-2).
+
+    Missed sessions are the market sessions after the stock's latest bar up to and including
+    the as-of date, so holidays and weekends never count (DATA_SPECIFICATION section 26).
+    Signals (Trend Template, VCP) need a bar on the as-of session itself; that rule is fixed,
+    not configured here.
+
+    ``universe_max_missed_sessions``: more than this and the stock is "Stale" (not eligible).
+    ``rs_max_missed_sessions``: more than this and the stock is not ranked (``STALE_DATA``),
+    so an old return cannot sit in today's percentiles.
+    """
+
+    universe_max_missed_sessions: Annotated[int, Field(ge=0)] = 5
+    rs_max_missed_sessions: Annotated[int, Field(ge=0)] = 1
+
+
 class QualityGateConfig(StrictBaseModel):
     """How long a data-quality block lasts, and what counts as a trading absence (audit P1-2).
 
@@ -478,6 +491,7 @@ class QualityGateConfig(StrictBaseModel):
 
     block_lifetime_bars: Annotated[int, Field(ge=1)] | None = 253
     absence_min_missed_sessions: Annotated[int, Field(ge=1)] = 20
+    staleness: StalenessConfig = Field(default_factory=StalenessConfig)
 
 
 class DataConfig(StrictBaseModel):

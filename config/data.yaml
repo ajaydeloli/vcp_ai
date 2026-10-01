@@ -18,3 +18,8 @@ quality:
   # Missing at least this many NSE sessions between two bars is a trading absence: the
   # stock's history restarts on its return.
   absence_min_missed_sessions: 20
+  # Staleness in missed NSE sessions after the stock's latest bar, up to and including the
+  # as-of date (audit P2-2; DATA_SPECIFICATION 26). Signals need a bar on the as-of session.
+  staleness:
+    universe_max_missed_sessions: 5   # more => "Stale", not eligible
+    rs_max_missed_sessions: 1         # more => STALE_DATA, not ranked

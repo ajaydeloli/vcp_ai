@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed (audit P2-2: staleness in NSE sessions; owner decision 2026-10-01)
+- Staleness is now counted in missed NSE sessions (settled bhavcopy days after the stock's last bar, up to the as-of date), so weekends and holidays never count. New `data.quality.staleness`: the universe excludes a stock after more than 5 missed sessions (was 30 calendar days), RS stops ranking it after more than 1 (was 4 calendar days); signals still need a bar on the as-of session. `universe.max_staleness_days` and `strategy.rs.max_staleness_days` are removed.
+- Universe snapshot ids and scan config hashes change once with this release.
+
 ### Changed (audit P2-1: feature definitions, `features-1.2.0`)
 - `volume_ratio_20` and `volume_ratio_50` now compare today's volume with the average of the 20 (50) bars **before** today; the old average included today, which diluted the spike being measured. They need 20 (50) prior bars. Feature rows are written as `features-1.2.0`; the Trend Template reads that version (its inputs are unchanged).
 - `DATA_SPECIFICATION.md` §39A documents every daily feature: SMAs, ATR(14) as a simple mean of true range (not Wilder), 20/50/252-bar highs and lows, volume averages, returns and volatility. EMA columns are not computed.

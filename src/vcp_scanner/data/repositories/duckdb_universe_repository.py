@@ -7,6 +7,7 @@ from collections.abc import Sequence
 from datetime import date, datetime
 from typing import TYPE_CHECKING
 
+from vcp_scanner.data.repositories.session_calendar import load_session_calendar
 from vcp_scanner.domain.universe import (
     SurvivorshipEvidence,
     UniverseCandidate,
@@ -317,6 +318,10 @@ class DuckDBUniverseRepository:
             )
             for row in rows
         ]
+
+    def load_sessions(self, as_of_date: date, known_at: datetime) -> list[date]:
+        """NSE sessions up to ``as_of_date`` as known at ``known_at`` (audit P2-2)."""
+        return load_session_calendar(self._store.conn, as_of_date, known_at)
 
     def count_known_delistings(self, known_at: datetime) -> int:
         row = self._store.conn.execute(
