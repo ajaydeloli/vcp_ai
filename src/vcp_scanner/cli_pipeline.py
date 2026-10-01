@@ -21,6 +21,7 @@ from vcp_scanner.config.loader import (
     scan_config_hash,
     section_config_hashes,
 )
+from vcp_scanner.config.models import CorporateActionsConfig
 from vcp_scanner.data.storage.duckdb_store import DuckDBStore
 from vcp_scanner.domain.errors import ProviderError
 from vcp_scanner.domain.market import Instrument
@@ -209,12 +210,21 @@ def primary_unhandled(provider: Any) -> list[str]:
     return list(getattr(provider, "unhandled_records", []))
 
 
-def _build_ca_providers(upstox_token: str | None) -> tuple[Any, Any]:
+def _build_ca_providers(
+    upstox_token: str | None, ca_cfg: CorporateActionsConfig | None = None
+) -> tuple[Any, Any]:
     from vcp_scanner.data.providers.nse_ca import NSECorporateActionProvider
     from vcp_scanner.data.providers.upstox_ca import UpstoxCorporateActionProvider
 
+    c = ca_cfg or CorporateActionsConfig()
     secondary: Any = (
-        UpstoxCorporateActionProvider(access_token=upstox_token) if upstox_token else _NoActions()
+        UpstoxCorporateActionProvider(
+            access_token=upstox_token,
+            min_request_interval_seconds=c.secondary_min_request_interval_seconds,
+            max_failure_share=c.secondary_max_failure_share,
+        )
+        if upstox_token
+        else _NoActions()
     )
     return NSECorporateActionProvider(), secondary
 
@@ -501,7 +511,7 @@ def run_corporate_actions(args: argparse.Namespace) -> int:
             "Warning: UPSTOX_ACCESS_TOKEN is not set; actions will stay SINGLE_SOURCE "
             "(NSE only) and will not be cross-confirmed."
         )
-    primary, secondary = _build_ca_providers(upstox_token)
+    primary, secondary = _build_ca_providers(upstox_token, ca_cfg)
 
     with _open_store(args.db) as store:
         instruments = _select_instruments(
@@ -543,6 +553,12 @@ def run_corporate_actions(args: argparse.Namespace) -> int:
             return 1
         if worker.manual_count:
             print(f"Applied {worker.manual_count} manual corporate action(s) from {manual_path}.")
+        failed = list(getattr(secondary, "failed", []))
+        if failed:
+            _err(
+                f"Warning: Upstox could not be read for {len(failed)} instrument(s); their "
+                f"actions stay NSE-only this run (first: {'; '.join(failed[:3])[:200]})"
+            )
         unavailable = worker.secondary_unavailable
         if unavailable:
             _err(

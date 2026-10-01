@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import logging
+import time
+from collections.abc import Callable
 from datetime import UTC, date, datetime
 from typing import Any
 
@@ -26,9 +28,30 @@ class UpstoxCorporateActionProvider:
     PROVIDER_NAME = "UPSTOX"
     BASE_URL = "https://api.upstox.com/v2"
 
-    def __init__(self, access_token: str | None = None, *, clock: Clock = utc_now) -> None:
+    def __init__(
+        self,
+        access_token: str | None = None,
+        *,
+        clock: Clock = utc_now,
+        min_request_interval_seconds: float = 0.25,
+        max_failure_share: float = 0.05,
+        sleep: Callable[[float], None] = time.sleep,
+        monotonic: Callable[[], float] = time.monotonic,
+    ) -> None:
         self._access_token = access_token
         self._clock = clock
+        # Pacing (owner-approved fix, 2026-10-01): one request per instrument, ~2,600 per run.
+        # Unpaced (~5 req/s) the 22:00 run drew HTTP 429 for 30 instruments. Upstox documents
+        # 25/s and 250/min per API; 0.25 s keeps a run under 250/min (~11 min for 2,600).
+        self._min_interval = min_request_interval_seconds
+        self._max_failure_share = max_failure_share
+        self._sleep = sleep
+        self._monotonic = monotonic
+        self._last_request: float | None = None
+        #: "SYMBOL: reason" for instruments whose fetch failed in the last ``get_actions`` call
+        #: when their share stayed within ``max_failure_share``. They are not in
+        #: ``queried_instrument_ids``, so reconciliation treats them as NSE-only.
+        self.failed: list[str] = []
         self._session = requests.Session()
         #: Instrument ids actually queried by the last ``get_actions`` call (HTTP 200, or 404 =
         #: "no record"). Reconciliation treats Upstox's silence about a split/bonus as
@@ -41,9 +64,10 @@ class UpstoxCorporateActionProvider:
         self.coverage_start: dict[str, date] = {}
 
         # Configure retries
+        # Back off 2, 4, 8, 16 s; a 429's Retry-After header is honoured (urllib3 default).
         retries = Retry(
-            total=3,
-            backoff_factor=1.0,
+            total=5,
+            backoff_factor=2.0,
             status_forcelist=[429, 500, 502, 503, 504],
             allowed_methods=["GET"],
         )
@@ -71,6 +95,8 @@ class UpstoxCorporateActionProvider:
         failures: list[str] = []
         self.queried_instrument_ids = set()
         self.coverage_start = {}
+        self.failed = []
+        attempted = 0
 
         for instrument in instruments:
             # Upstox keys equities by ISIN ("NSE_EQ|<ISIN>"), never by trading symbol
@@ -89,6 +115,8 @@ class UpstoxCorporateActionProvider:
                 # [start, end] window is applied client-side on the ex-date below.
                 url = f"{self.BASE_URL}/fundamentals/{instrument.isin}/corporate-actions"
 
+                self._pace()
+                attempted += 1
                 response = self._session.get(url, timeout=10)
 
                 # Bad credentials fail every remaining request: stop, do not return a
@@ -127,15 +155,31 @@ class UpstoxCorporateActionProvider:
                 failures.append(f"{instrument.symbol}: {e}")
 
         if failures:
-            # Ingestion is idempotent, so failing loudly and re-running is safe; returning
-            # the partial list would hide instruments whose splits/bonuses were never fetched.
             preview = "; ".join(failures[:5])
-            raise ProviderError(
+            summary = (
                 f"Upstox corporate actions failed for {len(failures)} of "
                 f"{len(instruments)} instruments (first: {preview})"
             )
+            # A few failures (rate limits, timeouts) are tolerated: the failed instruments are
+            # not in ``queried_instrument_ids``, so Upstox's silence about them is never used
+            # as evidence and their actions stay NSE-only for this run. Beyond the share the
+            # source is treated as broken and the run fails (ingestion is idempotent).
+            if len(failures) > self._max_failure_share * max(attempted, 1):
+                raise ProviderError(summary)
+            logger.warning("%s; continuing with the rest (NSE only for these).", summary)
+            self.failed = failures
 
         return actions
+
+    def _pace(self) -> None:
+        """Keep at least ``min_request_interval_seconds`` between requests."""
+        now = self._monotonic()
+        if self._last_request is not None:
+            wait = self._min_interval - (now - self._last_request)
+            if wait > 0:
+                self._sleep(wait)
+                now = self._monotonic()
+        self._last_request = now
 
     def _parse_upstox_action(
         self, instrument: Instrument, item: dict[str, Any]

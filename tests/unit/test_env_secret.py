@@ -48,7 +48,7 @@ def test_corporate_actions_run_without_upstox_when_token_is_a_placeholder(
 
     seen: dict[str, object] = {}
 
-    def fake_build(token: str | None):  # noqa: ANN202
+    def fake_build(token: str | None, ca_cfg: object = None):  # noqa: ANN202
         seen["token"] = token
         raise SystemExit(0)  # stop right after provider construction
 

@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed (Upstox rate limits)
+- Upstox corporate-action requests are spaced 0.25 s apart and retried with longer backoff, so a full run (~2,600 instruments, ~11 min) stays under Upstox's 250 requests per minute. A run where a few instruments still fail (at most 5 %) keeps the rest and warns: those instruments stay NSE-only for that run. Before, 30 rate-limited instruments out of 2,593 failed the whole corporate-actions step (2026-10-01 22:00 run). New settings `data.corporate_actions.secondary_min_request_interval_seconds` and `secondary_max_failure_share`.
+
 ### Changed (audit P2-2: staleness in NSE sessions; owner decision 2026-10-01)
 - Staleness is now counted in missed NSE sessions (settled bhavcopy days after the stock's last bar, up to the as-of date), so weekends and holidays never count. New `data.quality.staleness`: the universe excludes a stock after more than 5 missed sessions (was 30 calendar days), RS stops ranking it after more than 1 (was 4 calendar days); signals still need a bar on the as-of session. `universe.max_staleness_days` and `strategy.rs.max_staleness_days` are removed.
 - Universe snapshot ids and scan config hashes change once with this release.

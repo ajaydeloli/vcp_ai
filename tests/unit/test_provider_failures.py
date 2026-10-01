@@ -119,7 +119,7 @@ def test_upstox_auth_failure_raises() -> None:
         p.get_actions(START, END, [_inst("AAA"), _inst("BBB")])
 
 
-def test_upstox_partial_failures_raise_instead_of_returning_partial_list() -> None:
+def test_upstox_failures_beyond_the_tolerated_share_raise() -> None:
     p = _with_session(UpstoxCorporateActionProvider("tok"), _resp(200, json_data={"data": []}))
     p._session.get.side_effect = [_resp(200, json_data={"data": []}), _resp(502, text="bad gw")]
     with pytest.raises(ProviderError, match="1 of 2"):
@@ -138,3 +138,42 @@ def test_upstox_records_which_instruments_it_actually_queried() -> None:
     no_isin = Instrument(instrument_id="NSE_EQ|CCC", symbol="CCC", exchange="NSE")
     p.get_actions(START, END, [_inst("AAA"), _inst("BBB"), no_isin])
     assert p.queried_instrument_ids == {"NSE_EQ|AAA", "NSE_EQ|BBB"}  # no ISIN -> not asked
+
+
+def test_upstox_a_few_failures_are_tolerated_and_reported() -> None:
+    """1 of 40 failed (2.5 % <= 5 %): the rest is kept; the failed one is not 'queried', so
+    its silence is no evidence and its actions stay NSE-only."""
+    p = UpstoxCorporateActionProvider("tok", min_request_interval_seconds=0)
+    ok = _resp(200, json_data={"data": []})
+    p._session = MagicMock()
+    p._session.get.side_effect = [ok] * 39 + [_resp(429, text="too many")]
+    insts = [_inst(f"S{i:02d}") for i in range(40)]
+    assert p.get_actions(START, END, insts) == []
+    assert p.failed == ["S39: HTTP 429"]
+    assert "NSE_EQ|S39" not in p.queried_instrument_ids
+    assert len(p.queried_instrument_ids) == 39
+
+
+def test_upstox_failure_share_is_configurable() -> None:
+    p = UpstoxCorporateActionProvider("tok", min_request_interval_seconds=0, max_failure_share=0)
+    p._session = MagicMock()
+    p._session.get.side_effect = [_resp(200, json_data={"data": []})] * 39 + [_resp(429)]
+    with pytest.raises(ProviderError, match="1 of 40"):
+        p.get_actions(START, END, [_inst(f"S{i:02d}") for i in range(40)])
+
+
+def test_upstox_requests_are_paced() -> None:
+    clock = [100.0]
+    waits: list[float] = []
+
+    def fake_sleep(seconds: float) -> None:
+        waits.append(seconds)
+        clock[0] += seconds
+
+    p = UpstoxCorporateActionProvider(
+        "tok", min_request_interval_seconds=0.25, sleep=fake_sleep, monotonic=lambda: clock[0]
+    )
+    p._session = MagicMock()
+    p._session.get.side_effect = [_resp(404, text="none")] * 3
+    p.get_actions(START, END, [_inst("AAA"), _inst("BBB"), _inst("CCC")])
+    assert waits == [0.25, 0.25]  # none before the first request

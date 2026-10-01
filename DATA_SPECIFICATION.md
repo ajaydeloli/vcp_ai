@@ -598,6 +598,8 @@ Manual overrides (audit 2.7d, owner decision 2026-10-01) live in the version-con
 
 Upstox coverage (verified live 2026-09-30): Upstox returns only about the last 12 months of events per ISIN, so "asked" means asked **and within Upstox's coverage**: from the earliest ex-date Upstox returned for that ISIN to the end of the window; an ISIN with no Upstox records gives no evidence. Upstox writes a split as the share ratio `old:new` ("1:5" for face value 5 -> 1); it is converted to this spec's `(old face value, new face value)` convention on ingestion.
 
+Upstox fetch pacing and partial failures (owner decision 2026-10-01): Upstox is asked once per instrument (about 2,600 requests per run), at most one request every `secondary_min_request_interval_seconds` (0.25 s, under the documented 250 requests per minute), with retries on HTTP 429/5xx backing off 2, 4, 8, 16 s and honouring `Retry-After`. If some instruments still fail, the run keeps the rest when the failures are at most `secondary_max_failure_share` (5 %) of the instruments asked: the failed ones were not "asked", so their actions stay NSE-only (`SINGLE_SOURCE`) for that run, and a warning names them. More failures than that fail the step (the source is treated as broken). Rejected credentials still downgrade the whole run to NSE-only.
+
 Policy (audit P0-2, 2026-09-30): only price-scaling actions (split, bonus) can block, because only they change adjusted prices; the secondary source's silence counts as evidence only when it was actually asked. Blocking means the symbol emits `NO_SIGNAL` with `CORPORATE_ACTION_UNRESOLVED` (critical data-quality failure, §55). The pipeline continues for all other symbols.
 
 Point-in-time application: an action adjusts prices only when `ex_date <= as_of_date` **and** `known_from <= known_at`. Never apply a future action to earlier observations.
@@ -638,6 +640,8 @@ corporate_actions:
   secondary_source: upstox
   secondary_grace_days: 3          # proposal: tolerates secondary-feed lag
   conflict_blocks_signals: true
+  secondary_min_request_interval_seconds: 0.25
+  secondary_max_failure_share: 0.05
   unexplained_gap:
     gap_pct: 30
     split_like_max_integer: 10     # proposal: ratio near p/q with p,q <= 10

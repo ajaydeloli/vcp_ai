@@ -448,6 +448,11 @@ class CorporateActionsConfig(StrictBaseModel):
     secondary_source: str = "upstox"
     secondary_grace_days: Annotated[int, Field(ge=0)] = 3
     conflict_blocks_signals: bool = True
+    # Secondary (Upstox) fetch: seconds between per-instrument requests, and the share of
+    # instruments allowed to fail (rate limits, timeouts) before the run fails. Failed
+    # instruments stay NSE-only for that run (DATA_SPECIFICATION 18A).
+    secondary_min_request_interval_seconds: Annotated[float, Field(ge=0)] = 0.25
+    secondary_max_failure_share: Annotated[float, Field(ge=0, le=1)] = 0.05
     unexplained_gap: UnexplainedGapConfig = Field(default_factory=UnexplainedGapConfig)
 
 

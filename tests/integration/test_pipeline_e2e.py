@@ -88,7 +88,7 @@ def test_full_pipeline_from_an_empty_database(
     fake_market = FakeMarketDataProvider({f"NSE_EQ|{s}": _series(s) for s in SYMBOLS})
     monkeypatch.setattr(cli_pipeline, "_build_market_provider", lambda key, tok: fake_market)
     monkeypatch.setattr(
-        cli_pipeline, "_build_ca_providers", lambda tok: (_NoActions(), _NoActions())
+        cli_pipeline, "_build_ca_providers", lambda tok, cfg=None: (_NoActions(), _NoActions())
     )
 
     start, end, as_of = DAYS[0].isoformat(), AS_OF.isoformat(), AS_OF.isoformat()
