@@ -1181,16 +1181,20 @@ Features for all 3,365 instruments (3,123,370 rows written as `features-1.2.0` n
 
 `batch-a` fast-forwarded into `main` and pushed. Backup `data/vcp_scanner.pre_batcha.duckdb` (replaces `pre_c1`); the run held the daily-run lock. Features (all instruments, `features-1.2.0`), universe, RS and Trend Template for 2026-10-01. Same result as the copy: universe `uv_20261001_0385a05ca4`, 1,257 eligible, RS 1,257 PASS, Trend Template 203 PASS / 1,048 FAIL / 6 INSUFFICIENT_DATA, scan run `run-20261001-20261001T161603895333Z`, results hash `7769987bb8868a73` (unchanged).
 
-## Fix U1 — Upstox rate limits failed the 22:00 corporate-actions step (2026-10-01)
+## Fix U1 — Upstox rate limits failed the 22:00 corporate-actions step (2026-10-01/02)
 
-**Found.** The 22:00 IST daily run on 2026-10-01 was the first with a valid Upstox token (refreshed 21:36). It sent 2,593 per-ISIN requests in about 8 minutes (~5.4/s, ~320/min). Upstox documents 25/s, 250/min and 1,000 per 30 min per API. 30 instruments still got HTTP 429 after three retries (first: CONCOR), and any failure aborted the whole step, so none of that run's corporate actions were saved (log: "FAILED: corporate actions"). Prices, features and the 19:15 scan were unaffected.
+**Found.** The 22:00 IST daily run on 2026-10-01 was the first with a valid Upstox token (refreshed 21:36). It sent 2,593 per-ISIN requests in about 8 minutes (~5.4/s, ~320/min); 30 instruments got HTTP 429 after three retries (first: CONCOR), and any failure aborted the whole step, so none of that run's corporate actions were saved ("FAILED: corporate actions"). Prices, features and the 19:15 scan were unaffected. Upstox documents 25/s, 250/min and 1,000 per 30 minutes per API.
 
-**Change** (owner approved).
-- `UpstoxCorporateActionProvider`: at most one request every `min_request_interval_seconds` (0.25 s: 240/min, ~11 min for 2,600); retries 5 with backoff factor 2 (2, 4, 8, 16 s) on 429/5xx, honouring `Retry-After`.
-- Partial failures up to `max_failure_share` (5 %) of the instruments asked are tolerated: the provider keeps the rest and lists the failures in `failed`. The failed instruments are not in `queried_instrument_ids`, so (audit P0-2) Upstox's silence about them is never evidence and their actions stay NSE-only. Above the share the step still fails. `vcp ingest corporate-actions` prints a warning naming them.
-- Config: `data.corporate_actions.secondary_min_request_interval_seconds` (0.25) and `secondary_max_failure_share` (0.05). `DATA_SPECIFICATION.md` §18A.
-- Not handled: the documented 1,000 requests per 30 minutes. The 22:00 run made 2,563 successful requests in 8 minutes, so it is not enforced on this endpoint today; if it is later, the failure share will trip and the step fails loudly.
+**First attempt (commit 7854d49, not deployed):** 0.25 s pacing (240/min) and tolerating up to 5 % failures. Its live check on a copy (23:53–00:12 IST) stalled: Upstox now answered every request with HTTP 429 ("UDAPI10005 Too Many Request Sent", confirmed by a single probe at 00:12 and 00:13), i.e. the 30-minute limit is enforced, and urllib3's 429 retries with backoff would have stretched the run over hours. The copy run was stopped and the copy deleted.
 
-**Tests** (`test_provider_failures.py`): 1 failure in 40 is tolerated and reported, and the failed instrument is not "queried"; a zero share raises; 1 of 2 still raises; requests are spaced 0.25 s apart (none before the first).
+**Change** (owner decision 2026-10-02 00:15 IST: budget + rotation).
+- Pacing 1.9 s (~950 per 30 min).
+- Per-run budget `data.corporate_actions.secondary_max_requests_per_run` = 800 (~25 min): instruments with an NSE split/bonus/rights/demerger in the window first, then the least recently checked (`select_secondary_instruments`, deterministic). New table `secondary_ca_checks (provider, instrument_id, checked_at)` (DATABASE_SCHEMA), written for the instruments actually queried.
+- HTTP 429 is no longer retried by urllib3: one wait (Retry-After, capped 60 s), one retry, then stop asking for the run (`rate_limited`, warning, step OK). Server errors: 3 retries, backoff 2/4/8 s.
+- Up to 5 % other failures tolerated (`failed`, warning); more fail the step.
+- Correctness rests on audit P0-2's coverage rule: only instruments in `queried_instrument_ids` count as asked, so an unasked or failed instrument is never escalated by Upstox's silence; earlier Upstox observations stay stored and are reconciled with every later run.
+- `vcp ingest corporate-actions` prints how many instruments Upstox was asked about, and warnings for rate-limit stops and failures. `DATA_SPECIFICATION.md` §18A; `tests/conftest.py` skips the pacing pause in unit tests.
 
-**Verification.** Full suite: 833 passed, 0 failed (two tests that stub `_build_ca_providers` take the new config argument). `ruff check`, `ruff format --check`, `mypy --strict src` clean.
+**Tests.** `test_upstox_budget.py`: selection order (NSE action first, never checked, then oldest; ties by id; all within budget); the worker rotates AAA → BBB → CCC while EEE (an NSE split) is asked every run, and records the checks; no budget asks everyone; the check log upserts; one 429 waits Retry-After and continues; a second 429 stops without failing and asks nothing more; Retry-After capped at 60 s. `test_provider_failures.py`: 1 server error in 40 tolerated and reported; a zero share raises; pacing spaces requests.
+
+**Verification.** Full suite: 841 passed, 0 failed. `ruff check`, `ruff format --check`, `mypy --strict src` clean. Two tests that stub `_build_ca_providers` take the new config argument.

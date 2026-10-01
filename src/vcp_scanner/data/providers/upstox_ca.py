@@ -33,25 +33,29 @@ class UpstoxCorporateActionProvider:
         access_token: str | None = None,
         *,
         clock: Clock = utc_now,
-        min_request_interval_seconds: float = 0.25,
+        min_request_interval_seconds: float = 1.9,
         max_failure_share: float = 0.05,
-        sleep: Callable[[float], None] = time.sleep,
+        sleep: Callable[[float], None] | None = None,
         monotonic: Callable[[], float] = time.monotonic,
     ) -> None:
         self._access_token = access_token
         self._clock = clock
-        # Pacing (owner-approved fix, 2026-10-01): one request per instrument, ~2,600 per run.
-        # Unpaced (~5 req/s) the 22:00 run drew HTTP 429 for 30 instruments. Upstox documents
-        # 25/s and 250/min per API; 0.25 s keeps a run under 250/min (~11 min for 2,600).
+        # Pacing (owner decision 2026-10-01): Upstox documents 25/s, 250/min and 1,000 per
+        # 30 min per API, and enforced the 30-minute limit after the unpaced 22:00 run. 1.9 s
+        # between requests stays under all three (~950 per 30 min).
         self._min_interval = min_request_interval_seconds
         self._max_failure_share = max_failure_share
-        self._sleep = sleep
+        # Resolved at construction, so tests can swap the module default for a no-op.
+        self._sleep = sleep if sleep is not None else _default_sleep
         self._monotonic = monotonic
         self._last_request: float | None = None
         #: "SYMBOL: reason" for instruments whose fetch failed in the last ``get_actions`` call
         #: when their share stayed within ``max_failure_share``. They are not in
         #: ``queried_instrument_ids``, so reconciliation treats them as NSE-only.
         self.failed: list[str] = []
+        #: Set when Upstox kept answering HTTP 429 (rate limit) and the run stopped asking;
+        #: the instruments not reached are simply not queried (NSE-only this run).
+        self.rate_limited: str | None = None
         self._session = requests.Session()
         #: Instrument ids actually queried by the last ``get_actions`` call (HTTP 200, or 404 =
         #: "no record"). Reconciliation treats Upstox's silence about a split/bonus as
@@ -64,11 +68,12 @@ class UpstoxCorporateActionProvider:
         self.coverage_start: dict[str, date] = {}
 
         # Configure retries
-        # Back off 2, 4, 8, 16 s; a 429's Retry-After header is honoured (urllib3 default).
+        # Server errors: back off 2, 4, 8 s. HTTP 429 is handled in ``get_actions`` (one wait,
+        # then stop), so a rate limit cannot stretch a run into hours of retries.
         retries = Retry(
-            total=5,
+            total=3,
             backoff_factor=2.0,
-            status_forcelist=[429, 500, 502, 503, 504],
+            status_forcelist=[500, 502, 503, 504],
             allowed_methods=["GET"],
         )
         self._session.mount("https://", HTTPAdapter(max_retries=retries))
@@ -96,6 +101,7 @@ class UpstoxCorporateActionProvider:
         self.queried_instrument_ids = set()
         self.coverage_start = {}
         self.failed = []
+        self.rate_limited = None
         attempted = 0
 
         for instrument in instruments:
@@ -118,6 +124,19 @@ class UpstoxCorporateActionProvider:
                 self._pace()
                 attempted += 1
                 response = self._session.get(url, timeout=10)
+                if response.status_code == 429:
+                    # Wait once (Retry-After, capped), then stop asking for this run.
+                    self._sleep(_retry_after_seconds(response))
+                    self._last_request = self._monotonic()
+                    response = self._session.get(url, timeout=10)
+                    if response.status_code == 429:
+                        attempted -= 1
+                        self.rate_limited = (
+                            f"Upstox rate limit (HTTP 429) after {attempted} of "
+                            f"{len(instruments)} instruments"
+                        )
+                        logger.warning("%s; the rest stay NSE-only this run.", self.rate_limited)
+                        break
 
                 # Bad credentials fail every remaining request: stop, do not return a
                 # partial list that looks like a complete one.
@@ -262,3 +281,17 @@ def _parse_date(raw: object) -> date | None:
         return datetime.strptime(str(raw), "%d %b %Y").replace(tzinfo=UTC).date()
     except ValueError:
         return None
+
+
+def _retry_after_seconds(response: Any, default: float = 30.0, cap: float = 60.0) -> float:
+    """Seconds to wait after HTTP 429: the Retry-After header (seconds) if given, capped."""
+    raw = getattr(response, "headers", {}).get("Retry-After") if response is not None else None
+    try:
+        value = float(raw) if raw is not None else default
+    except (TypeError, ValueError):
+        value = default
+    return max(0.0, min(value, cap))
+
+
+def _default_sleep(seconds: float) -> None:
+    time.sleep(seconds)

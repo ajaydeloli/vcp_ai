@@ -573,6 +573,17 @@ CREATE TABLE IF NOT EXISTS scan_runs (
 )
 """
 
+# When each instrument was last asked of a secondary corporate-action source (rotation under a
+# per-run request budget; DATA_SPECIFICATION 18A). Operational state, overwritten in place.
+_DDL_SECONDARY_CA_CHECKS = """
+CREATE TABLE IF NOT EXISTS secondary_ca_checks (
+    provider        VARCHAR     NOT NULL,
+    instrument_id   VARCHAR     NOT NULL,
+    checked_at      TIMESTAMPTZ NOT NULL,
+    PRIMARY KEY (provider, instrument_id)
+)
+"""
+
 _DDL_SCAN_RUN_RESULTS = """
 CREATE TABLE IF NOT EXISTS scan_run_results (
     scan_run_id          VARCHAR     NOT NULL,
@@ -616,6 +627,7 @@ _ALL_DDL: list[tuple[str, str]] = [
     ("surveillance_collections", _DDL_SURVEILLANCE_COLLECTIONS),
     ("scan_runs", _DDL_SCAN_RUNS),
     ("scan_run_results", _DDL_SCAN_RUN_RESULTS),
+    ("secondary_ca_checks", _DDL_SECONDARY_CA_CHECKS),
 ]
 
 

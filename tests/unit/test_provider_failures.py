@@ -141,15 +141,15 @@ def test_upstox_records_which_instruments_it_actually_queried() -> None:
 
 
 def test_upstox_a_few_failures_are_tolerated_and_reported() -> None:
-    """1 of 40 failed (2.5 % <= 5 %): the rest is kept; the failed one is not 'queried', so
-    its silence is no evidence and its actions stay NSE-only."""
+    """1 of 40 failed (server error; 2.5 % <= 5 %): the rest is kept; the failed one is not
+    'queried', so its silence is no evidence and its actions stay NSE-only."""
     p = UpstoxCorporateActionProvider("tok", min_request_interval_seconds=0)
     ok = _resp(200, json_data={"data": []})
     p._session = MagicMock()
-    p._session.get.side_effect = [ok] * 39 + [_resp(429, text="too many")]
+    p._session.get.side_effect = [ok] * 39 + [_resp(502, text="bad gateway")]
     insts = [_inst(f"S{i:02d}") for i in range(40)]
     assert p.get_actions(START, END, insts) == []
-    assert p.failed == ["S39: HTTP 429"]
+    assert p.failed == ["S39: HTTP 502"]
     assert "NSE_EQ|S39" not in p.queried_instrument_ids
     assert len(p.queried_instrument_ids) == 39
 
@@ -157,7 +157,7 @@ def test_upstox_a_few_failures_are_tolerated_and_reported() -> None:
 def test_upstox_failure_share_is_configurable() -> None:
     p = UpstoxCorporateActionProvider("tok", min_request_interval_seconds=0, max_failure_share=0)
     p._session = MagicMock()
-    p._session.get.side_effect = [_resp(200, json_data={"data": []})] * 39 + [_resp(429)]
+    p._session.get.side_effect = [_resp(200, json_data={"data": []})] * 39 + [_resp(502)]
     with pytest.raises(ProviderError, match="1 of 40"):
         p.get_actions(START, END, [_inst(f"S{i:02d}") for i in range(40)])
 

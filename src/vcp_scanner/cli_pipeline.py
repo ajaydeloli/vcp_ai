@@ -489,6 +489,9 @@ def run_corporate_actions(args: argparse.Namespace) -> int:
     from vcp_scanner.data.repositories.duckdb_quality_repository import (
         DuckDBDataQualityRepository,
     )
+    from vcp_scanner.data.repositories.duckdb_secondary_check_repository import (
+        DuckDBSecondaryCheckRepository,
+    )
     from vcp_scanner.domain.errors import ConfigError
 
     _load_env(args.env_file)
@@ -537,6 +540,8 @@ def run_corporate_actions(args: argparse.Namespace) -> int:
             conflict_blocks_signals=ca_cfg.conflict_blocks_signals,
             market=DuckDBMarketDataRepository(store),
             manual_provider=ManualCorporateActionProvider(manual_path),
+            secondary_budget=ca_cfg.secondary_max_requests_per_run,
+            secondary_checks=DuckDBSecondaryCheckRepository(store),
         )
         print(
             f"Ingesting corporate actions for {len(instruments)} instruments, {start} to {end}..."
@@ -553,6 +558,14 @@ def run_corporate_actions(args: argparse.Namespace) -> int:
             return 1
         if worker.manual_count:
             print(f"Applied {worker.manual_count} manual corporate action(s) from {manual_path}.")
+        if worker.secondary_requested and worker.secondary_requested < len(instruments):
+            print(
+                f"Upstox asked about {worker.secondary_requested} of {len(instruments)} "
+                "instruments this run (rotation under its rate limit)."
+            )
+        limited = getattr(secondary, "rate_limited", None)
+        if limited:
+            _err(f"Warning: {limited}; the rest stay NSE-only this run.")
         failed = list(getattr(secondary, "failed", []))
         if failed:
             _err(

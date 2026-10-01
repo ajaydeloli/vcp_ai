@@ -649,6 +649,18 @@ MATERIAL_DIFFERENCE
 UNRESOLVED
 ```
 
+## 18.1 Secondary corporate-action checks (`secondary_ca_checks`)
+
+When each instrument was last asked of a secondary corporate-action source (Upstox), for the per-run request budget and rotation (DATA_SPECIFICATION 18A). Operational state: one row per (provider, instrument), overwritten in place; not market data and not bitemporal.
+
+| Column | Type | Meaning |
+|---|---|---|
+| `provider` | VARCHAR | `UPSTOX` |
+| `instrument_id` | VARCHAR | instrument asked (HTTP 200 or 404) |
+| `checked_at` | TIMESTAMPTZ | the run's knowledge time |
+
+Primary key `(provider, instrument_id)`.
+
 ---
 
 # 19. Data Quality

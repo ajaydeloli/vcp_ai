@@ -598,7 +598,11 @@ Manual overrides (audit 2.7d, owner decision 2026-10-01) live in the version-con
 
 Upstox coverage (verified live 2026-09-30): Upstox returns only about the last 12 months of events per ISIN, so "asked" means asked **and within Upstox's coverage**: from the earliest ex-date Upstox returned for that ISIN to the end of the window; an ISIN with no Upstox records gives no evidence. Upstox writes a split as the share ratio `old:new` ("1:5" for face value 5 -> 1); it is converted to this spec's `(old face value, new face value)` convention on ingestion.
 
-Upstox fetch pacing and partial failures (owner decision 2026-10-01): Upstox is asked once per instrument (about 2,600 requests per run), at most one request every `secondary_min_request_interval_seconds` (0.25 s, under the documented 250 requests per minute), with retries on HTTP 429/5xx backing off 2, 4, 8, 16 s and honouring `Retry-After`. If some instruments still fail, the run keeps the rest when the failures are at most `secondary_max_failure_share` (5 %) of the instruments asked: the failed ones were not "asked", so their actions stay NSE-only (`SINGLE_SOURCE`) for that run, and a warning names them. More failures than that fail the step (the source is treated as broken). Rejected credentials still downgrade the whole run to NSE-only.
+Upstox request budget, rotation and rate limits (owner decisions 2026-10-01). Upstox is asked once per instrument and documents 25 requests/s, 250/min and 1,000 per 30 minutes; after one unpaced run (~2,600 requests in 8 minutes) it enforced the 30-minute limit. So:
+- **Pacing:** at most one request every `secondary_min_request_interval_seconds` (1.9 s, ~950 per 30 minutes).
+- **Budget and rotation:** a run asks at most `secondary_max_requests_per_run` (800, about 25 minutes) instruments: first every instrument with an NSE split, bonus, rights issue or demerger in the window (so a new action is cross-checked on every run of its grace period), then the least recently checked (never checked first; `secondary_ca_checks` remembers when each was asked). With ~2,600 instruments each is checked about every three runs. An instrument not asked in a run is "not asked" for that run's reconciliation: its NSE actions keep their status, and Upstox's earlier observations stay stored and still count.
+- **HTTP 429:** one wait (`Retry-After`, capped at 60 s, default 30 s), one retry; a second 429 stops asking for the rest of the run with a warning. The instruments not reached stay NSE-only; the step does not fail.
+- **Other failures** (timeouts, server errors after 3 retries backing off 2, 4, 8 s): up to `secondary_max_failure_share` (5 %) of the instruments asked are tolerated with a warning naming them (NSE-only this run); more fail the step. Rejected credentials still downgrade the whole run to NSE-only.
 
 Policy (audit P0-2, 2026-09-30): only price-scaling actions (split, bonus) can block, because only they change adjusted prices; the secondary source's silence counts as evidence only when it was actually asked. Blocking means the symbol emits `NO_SIGNAL` with `CORPORATE_ACTION_UNRESOLVED` (critical data-quality failure, §55). The pipeline continues for all other symbols.
 
@@ -640,7 +644,8 @@ corporate_actions:
   secondary_source: upstox
   secondary_grace_days: 3          # proposal: tolerates secondary-feed lag
   conflict_blocks_signals: true
-  secondary_min_request_interval_seconds: 0.25
+  secondary_min_request_interval_seconds: 1.9
+  secondary_max_requests_per_run: 800
   secondary_max_failure_share: 0.05
   unexplained_gap:
     gap_pct: 30

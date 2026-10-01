@@ -4,7 +4,8 @@ from __future__ import annotations
 
 import dataclasses
 import logging
-from datetime import date, datetime
+from collections.abc import Iterable
+from datetime import UTC, date, datetime
 from typing import Protocol
 
 from vcp_scanner.data.adjustment.engine import AdjustmentEngine, ex_date_prices
@@ -16,11 +17,12 @@ from vcp_scanner.data.repositories.base import CorporateActionRepository
 from vcp_scanner.data.repositories.duckdb_quality_repository import DuckDBDataQualityRepository
 from vcp_scanner.domain.corporate_actions import (
     PRICE_DERIVED_ACTIONS,
+    CorporateAction,
     CorporateActionAdjustment,
     CorporateActionResolution,
     ExDatePrices,
 )
-from vcp_scanner.domain.enums import DataQualityFlag
+from vcp_scanner.domain.enums import CorporateActionType, DataQualityFlag
 from vcp_scanner.domain.errors import ProviderAuthError
 from vcp_scanner.domain.market import Candle, Instrument
 from vcp_scanner.infrastructure.clock import Clock, utc_now
@@ -45,8 +47,17 @@ class CorporateActionIngestionWorker:
         conflict_blocks_signals: bool = True,
         market: DailyBarSource | None = None,
         manual_provider: CorporateActionProvider | None = None,
+        secondary_budget: int | None = None,
+        secondary_checks: SecondaryCheckLog | None = None,
     ) -> None:
         self._clock = clock
+        # Owner decision 2026-10-01: the secondary source is asked about at most
+        # ``secondary_budget`` instruments per run (Upstox rate limits), chosen by
+        # ``select_secondary_instruments``; ``secondary_checks`` remembers when each was asked.
+        self._secondary_budget = secondary_budget
+        self._secondary_checks = secondary_checks
+        #: Instruments the secondary source was asked about by the last ``run`` (selected).
+        self.secondary_requested = 0
         # Optional (audit 2.7d): hand-entered actions (source MANUAL). Reconciliation gives
         # their (type, ex-date) MANUAL_OVERRIDE.
         self._manual = manual_provider
@@ -91,8 +102,11 @@ class CorporateActionIngestionWorker:
 
         logger.info(f"Fetching secondary (Upstox) corporate actions from {start} to {end}")
         self.secondary_unavailable = None
+        provider_name = str(getattr(self.secondary_provider, "PROVIDER_NAME", "SECONDARY"))
+        selected = self._select_secondary(instruments, primary_actions, provider_name)
+        self.secondary_requested = len(selected) if selected is not None else 0
         try:
-            secondary_actions = self.secondary_provider.get_actions(start, end, instruments)
+            secondary_actions = self.secondary_provider.get_actions(start, end, selected)
         except ProviderAuthError as exc:
             # Owner decision (2026-10-01): rejected credentials (e.g. an expired Upstox token)
             # downgrade the run to NSE-only instead of aborting it. Nothing from the secondary
@@ -121,6 +135,8 @@ class CorporateActionIngestionWorker:
             if self.secondary_unavailable
             else getattr(self.secondary_provider, "queried_instrument_ids", None) or set()
         )
+        if self._secondary_checks is not None and queried:
+            self._secondary_checks.record_checked(provider_name, queried, known_at)
         coverage = getattr(self.secondary_provider, "coverage_start", None)
         secondary_windows: dict[str, tuple[date, date]] = {}
         for provider_iid in queried:
@@ -238,6 +254,29 @@ class CorporateActionIngestionWorker:
             adjusted_count,
         )
 
+    def _select_secondary(
+        self,
+        instruments: list[Instrument] | None,
+        primary_actions: list[CorporateAction],
+        provider_name: str,
+    ) -> list[Instrument] | None:
+        if instruments is None or self._secondary_budget is None:
+            return instruments
+        priority = {
+            canonical_instrument_id(self.resolver, a.instrument_id, isin=a.isin)
+            for a in primary_actions
+            if a.action_type in CONFIRMABLE_ACTIONS
+        }
+        last = self._secondary_checks.last_checked(provider_name) if self._secondary_checks else {}
+        selected = select_secondary_instruments(instruments, priority, last, self._secondary_budget)
+        logger.info(
+            "Secondary source: asking %d of %d instruments (%d with an NSE action first).",
+            len(selected),
+            len(instruments),
+            len(priority & {i.instrument_id for i in selected}),
+        )
+        return selected
+
     def _ex_prices(
         self, instrument_id: str, resolutions: list[CorporateActionResolution]
     ) -> dict[date, ExDatePrices]:
@@ -264,3 +303,46 @@ def _factor_key(adjustments: list[CorporateActionAdjustment]) -> list[tuple[str,
          round(float(a.volume_factor), 10))
         for a in adjustments
     )  # fmt: skip
+
+
+#: NSE actions the secondary source is asked to confirm first: the ones that rescale prices.
+CONFIRMABLE_ACTIONS = frozenset(
+    {
+        CorporateActionType.SPLIT,
+        CorporateActionType.BONUS,
+        CorporateActionType.RIGHTS,
+        CorporateActionType.DEMERGER,
+    }
+)
+
+_NEVER = datetime(1900, 1, 1, tzinfo=UTC)
+
+
+def select_secondary_instruments(
+    instruments: list[Instrument],
+    priority: set[str],
+    last_checked: dict[str, datetime],
+    budget: int,
+) -> list[Instrument]:
+    """Up to ``budget`` instruments to ask the secondary source about (deterministic).
+
+    Instruments with a price-affecting primary action in the window come first, so a new
+    split or bonus is cross-checked on every run of its grace period; the rest of the budget
+    goes to the least recently checked (never checked first), ties by instrument id. Over
+    successive runs every instrument is checked in turn.
+    """
+    ordered = sorted(
+        instruments,
+        key=lambda i: (
+            i.instrument_id not in priority,
+            last_checked.get(i.instrument_id, _NEVER),
+            i.instrument_id,
+        ),
+    )
+    return ordered[:budget]
+
+
+class SecondaryCheckLog(Protocol):
+    def last_checked(self, provider: str) -> dict[str, datetime]: ...
+
+    def record_checked(self, provider: str, instrument_ids: Iterable[str], at: datetime) -> int: ...
