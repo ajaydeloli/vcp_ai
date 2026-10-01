@@ -23,3 +23,8 @@ quality:
   staleness:
     universe_max_missed_sessions: 5   # more => "Stale", not eligible
     rs_max_missed_sessions: 1         # more => STALE_DATA, not ranked
+
+# User-Agent for NSE downloads (bhavcopy, corporate actions, ASM/GSM, security master). NSE
+# refuses non-browser clients, so a desktop browser string is sent; set this to a newer one if
+# NSE starts refusing the built-in string (src/vcp_scanner/data/providers/nse_http.py).
+nse_user_agent: null

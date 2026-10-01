@@ -25,3 +25,6 @@ reports/*
 
 # Notebooks
 .ipynb_checkpoints/
+
+# Personal scratch notes and scripts (audit P3-1)
+scratch/

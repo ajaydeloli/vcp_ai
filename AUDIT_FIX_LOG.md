@@ -1249,3 +1249,16 @@ Order: C7, C9, C10, C6, C5, C8 (C8 last: the only one that changes scan results)
 **Tests** (`test_scan_config_hash.py`): the universe hash equals the shared canonical hash of its sections; the CLI has no private snapshot lookup.
 
 **Verification.** Full suite: 850 passed, 0 failed. `ruff check`, `ruff format --check`, `mypy --strict src` clean. Real-data check: with C9 and C10 (below).
+
+### Fix C9 — audit P3-1: secrets off the command line, one configurable NSE User-Agent, no tracked scratch files
+
+**Found.** `vcp auth kite --api-secret` put the Kite secret into shell history; five NSE providers each hard-coded a browser User-Agent (two different Chrome versions); `scratch/` (personal notes and scripts) was committed.
+
+**Change** (owner decisions 2026-10-02).
+- `--api-secret` is refused with exit 2 and a pointer to `KITE_API_SECRET` in `.env` or the environment; the value is not echoed. (`--api-key` stays: the key is not a secret.)
+- `data/providers/nse_http.py`: one `DEFAULT_NSE_USER_AGENT` (Chrome 124), `nse_user_agent()` / `set_nse_user_agent()`; all five NSE providers use it. `data.nse_user_agent` in `config/data.yaml` (null = default) is applied by the CLI at start-up. The module documents why a browser string is sent. **Deviation from the plan:** no contact suffix. A live probe (03:59 IST) with `... Safari/537.36 vcp-scanner (+https://github.com/ajaydeloli/vcp_ai)` timed out on NSE's corporate-actions API while the plain string got HTTP 200, so adding it would break the daily run.
+- `scratch/` removed from git (`git rm --cached`; the files stay on disk) and added to `.gitignore`.
+
+**Tests** (`test_hygiene.py`): every NSE provider sends the configured string; blank falls back to the default; the CLI applies `data.nse_user_agent` from the config folder; `--api-secret` is refused without echoing the value; `scratch/` is ignored.
+
+**Verification.** Full suite: 855 passed, 0 failed. `ruff check`, `ruff format --check`, `mypy --strict src` clean.

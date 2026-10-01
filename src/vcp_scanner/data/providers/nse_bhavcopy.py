@@ -41,6 +41,7 @@ import requests
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
+from vcp_scanner.data.providers.nse_http import nse_user_agent
 from vcp_scanner.data.schema import validate_ohlc
 from vcp_scanner.domain.bhavcopy import (
     EQUITY_ISIN_PREFIX,
@@ -63,10 +64,6 @@ HOLIDAY_URL = "https://www.nseindia.com/api/holiday-master?type=trading"
 # A 404 for a date at least this many days old is final: NSE's archive is complete by then.
 SETTLE_DAYS = 3
 
-_USER_AGENT = (
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
-    "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
-)
 
 # Canonical field -> column name, per layout.
 _COLUMNS: dict[BhavcopyFormat, dict[str, str]] = {
@@ -339,7 +336,11 @@ class NseBhavcopyProvider:
             )
             session.mount("https://", HTTPAdapter(max_retries=retries))
             session.headers.update(
-                {"User-Agent": _USER_AGENT, "Accept": "*/*", "Referer": "https://www.nseindia.com/"}
+                {
+                    "User-Agent": nse_user_agent(),
+                    "Accept": "*/*",
+                    "Referer": "https://www.nseindia.com/",
+                }
             )
         self._session = session
 

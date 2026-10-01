@@ -512,6 +512,9 @@ class DataConfig(StrictBaseModel):
     primary_provider: str = "kite"
     secondary_provider: str | None = "upstox"
     trading_calendar: str = "NSE"
+    # User-Agent for NSE requests; NSE refuses non-browser clients (data/providers/nse_http.py).
+    # None = the built-in browser string.
+    nse_user_agent: str | None = None
     completeness: CompletenessConfig = Field(default_factory=CompletenessConfig)
     corporate_actions: CorporateActionsConfig = Field(default_factory=CorporateActionsConfig)
     quality: QualityGateConfig = Field(default_factory=QualityGateConfig)

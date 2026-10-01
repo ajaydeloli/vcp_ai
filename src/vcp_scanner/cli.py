@@ -161,10 +161,8 @@ def build_parser() -> argparse.ArgumentParser:
         "--api-key",
         help="Kite Connect API Key (defaults to KITE_API_KEY env var)",
     )
-    kite_auth_parser.add_argument(
-        "--api-secret",
-        help="Kite Connect API Secret (defaults to KITE_API_SECRET env var)",
-    )
+    # Removed (audit P3-1): a secret on the command line ends up in shell history.
+    kite_auth_parser.add_argument("--api-secret", help=argparse.SUPPRESS)
     kite_auth_parser.add_argument(
         "--env-file",
         default=".env",
@@ -564,9 +562,25 @@ def _setup_logging(args: argparse.Namespace) -> None:
         configure_logging(level=level, json_format=json_format)
 
 
+def _apply_nse_user_agent(args: argparse.Namespace) -> None:
+    """Use ``data.nse_user_agent`` from the config folder for NSE requests (audit P3-1).
+
+    Commands without ``--config-dir`` read the default ``config`` folder; a missing or invalid
+    config leaves the built-in string (commands that need the config report the error).
+    """
+    from vcp_scanner.data.providers.nse_http import set_nse_user_agent
+
+    try:
+        cfg = load_scanner_config(getattr(args, "config_dir", None) or "config")
+    except Exception:
+        return
+    set_nse_user_agent(cfg.data.nse_user_agent)
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
+    _apply_nse_user_agent(args)
 
     if args.command is not None:
         _setup_logging(args)
@@ -623,13 +637,20 @@ def main(argv: Sequence[str] | None = None) -> int:
 
             load_dotenv(args.env_file)
             api_key = args.api_key or env_secret("KITE_API_KEY")
-            api_secret = args.api_secret or env_secret("KITE_API_SECRET")
+            if args.api_secret:
+                print(
+                    "Error: --api-secret was removed because the command line is saved in shell "
+                    f"history. Put KITE_API_SECRET in {args.env_file} (or the environment).",
+                    file=sys.stderr,
+                )
+                return 2
+            api_secret = env_secret("KITE_API_SECRET")
 
             if not api_key or not api_secret:
                 print(
                     "Error: Kite API Key and Secret are required "
                     f"(set KITE_API_KEY/KITE_API_SECRET in {args.env_file}, the environment, "
-                    "or pass --api-key/--api-secret).",
+                    "or pass --api-key).",
                     file=sys.stderr,
                 )
                 return 1

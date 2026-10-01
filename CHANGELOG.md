@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed (audit P3-1: hygiene)
+- `vcp auth kite --api-secret` is no longer accepted (the command line is kept in shell history); put `KITE_API_SECRET` in `.env` or the environment.
+- The browser User-Agent sent to NSE is one setting, `data.nse_user_agent` in `config/data.yaml` (default: a current Chrome string), instead of five hard-coded copies.
+- `scratch/` is no longer tracked by git.
+
 ### Changed (audit P2-6: one config hash)
 - Universe snapshot config hashes use the same canonical serialisation as scan config hashes, so universe snapshot ids change once. Results are unchanged.
 

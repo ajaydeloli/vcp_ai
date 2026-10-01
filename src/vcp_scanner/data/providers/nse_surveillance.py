@@ -15,6 +15,7 @@ from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
 from vcp_scanner.data.identity import mint_instrument_id
+from vcp_scanner.data.providers.nse_http import nse_user_agent
 from vcp_scanner.domain.errors import ProviderError
 from vcp_scanner.domain.market import SurveillanceRecord
 from vcp_scanner.infrastructure.clock import Clock, utc_now
@@ -65,11 +66,7 @@ class NSESurveillanceProvider:
 
         self._session.headers.update(
             {
-                "User-Agent": (
-                    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-                    "AppleWebKit/537.36 (KHTML, like Gecko) "
-                    "Chrome/120.0.0.0 Safari/537.36"
-                ),
+                "User-Agent": nse_user_agent(),
                 "Accept": "*/*",
                 "Referer": "https://www.nseindia.com/",
             }
