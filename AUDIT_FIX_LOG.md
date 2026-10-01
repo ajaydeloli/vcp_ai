@@ -700,3 +700,29 @@ Plus 2 gap-detector tests in `test_quality_events.py`.
 **Test.** `test_expired_upstox_token_runs_nse_only_without_escalating`: a split inside what would be Upstox's coverage stays SINGLE_SOURCE across the grace period, and its factor is kept.
 
 **Verification.** Full suite: 721 passed, 0 failed (was 720). `ruff check`, `ruff format --check`, `mypy --strict src` clean.
+
+## Step 2.6 — first full rebuild found split histories; identity fix (2026-10-01)
+
+**First rebuild** (`data/migr26_v1.duckdb`: copy of the Fix 5b DB + continuous bhavcopy 2021-01-01..2026-09-30 + all downstream steps; the report came from the first version of `scripts/migration_report.py`).
+- Bhavcopy: 1,425 sessions, 674 no-session dates, 3,121,990 bars, 0 rejected; 28,480 Kite bars superseded; 1,071 new inactive instruments; 450 identifier changes. Time: 35 min.
+- Corporate actions 5.8 min, adjusted prices 3.3 min (3,661 instruments), features 4.3 min, universe 29 s (1,327 eligible), RS 8 s, Trend Template 2 min (273 PASS).
+- Kite vs ours for the 20 Fix 5b stocks: 15 identical. The rest are explained by Kite's dividend adjustments (INFY, ITC, TATASTEEL) and its demerger method (RELIANCE, ITC, HINDUNILVR's 2025-12-05 demerger).
+  - TATASTEEL's 2021–22 Kite history drifts against the official NSE file (ratio 0.922 → 0.945 with ±0.3 % day-to-day noise; 32 small warnings). The NSE bhavcopy is the official record, so Kite's series is the noisy one.
+- Trend Template for the 20 stocks: same pass/fail and the same weekly stage everywhere. Condition 10 (RS ≥ 70) now fails for 7 more stocks because RS is ranked against the whole eligible market, not 20 stocks.
+
+**Bug found (step 2.2 identity).** 48 instruments had their history split in two, e.g. ANGELONE, SHRIRAMFIN, 360ONE, HEG, KPIGREEN, NAVA, PDSL and LINC.
+- The cause: the stock changed symbol and later ISIN (split), and EQUITY_L seeds today's ID with today's ISIN. The old part was minted as a separate inactive instrument (e.g. `NSE_EQ|KPIGLOBAL`) because its ISIN and symbol matched no seed.
+- NSE's corporate-action feed quotes the *old* ISIN, so actions landed on the old piece. KPIGREEN's 2025-01-03 1:2 bonus became an unexplained (blocking) gap on the new piece.
+
+**Fix.**
+- `bhavcopy_identity._same_company_by_symbol`:
+  - continues an open period of the same issuer when the old symbol is not trading that day and the row's ISIN is a later issue (split and rename on one day);
+  - adopts a seed whose ISIN is a later issue of the same issuer and whose symbol is not trading that day (the row is the seed's past);
+  - treats several candidates as ambiguous, leading to a new instrument.
+- Differential-voting shares (a later issue trading beside the ordinary shares) are never taken for a predecessor.
+- `DuckDBInstrumentResolver.resolve` also checks `instrument_identifier_history` for former ISINs, before the security master.
+- `scripts/migration_report.py`: uses the latest universe snapshot and the full Trend Template scan (the first version double-counted the copied 20-stock snapshot).
+
+**Tests.** +3 in `test_bhavcopy_identity.py`: KPIGLOBAL → KPIGREEN with real ISINs gives one history and the old ISIN resolves to KPIGREEN; a same-day split and rename (SABTN → SABTNL) continues; DVR and same-day seed symbols are not adopted. Full suite: 724 passed, 0 failed. `ruff`, `mypy --strict src` clean.
+
+**Second rebuild** started 11:38 IST on a fresh copy (`data/migr26.duckdb`), with results recorded below.

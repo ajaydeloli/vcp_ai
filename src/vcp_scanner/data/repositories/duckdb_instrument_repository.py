@@ -124,6 +124,20 @@ class DuckDBInstrumentResolver:
             if row:
                 return str(row[0])
 
+            # A former ISIN (before a face-value split): NSE's corporate-action feed keeps
+            # quoting it, e.g. KPIGREEN's 2025 bonus under INE542W01017 (audit step 2.6).
+            row = conn.execute(
+                """
+                SELECT instrument_id FROM instrument_identifier_history
+                WHERE isin = ?
+                ORDER BY valid_from DESC
+                LIMIT 1
+                """,
+                [isin],
+            ).fetchone()
+            if row:
+                return str(row[0])
+
             row = conn.execute(
                 """
                 SELECT instrument_id FROM security_master_history

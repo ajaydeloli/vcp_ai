@@ -6,9 +6,14 @@ ISIN 0-1 trading day after a face-value split (TATASTEEL INE081A01012 -> INE081A
 
 1. **Known ISIN** (any past period, or ``instruments.isin``) -> that instrument. If its open
    period has another symbol or ISIN, the period is closed and a new one opened.
-2. **Unknown ISIN, same symbol, same issuer** (:func:`same_issuer_equity`) as an instrument
-   currently trading under that symbol, or a seeded instrument with that symbol and no
-   history yet -> the same instrument, with an ``ISIN_CHANGE`` period.
+2. **Unknown ISIN, same issuer** (:func:`same_issuer_equity`) as an instrument that is
+   currently trading under the same symbol, or whose symbol stopped trading today while the
+   row's ISIN is a later issue (a split and a rename on the same day) -> the same instrument,
+   with an ``ISIN_CHANGE`` period. A seeded instrument with the row's symbol and no history
+   yet is adopted the same way. A seed with a *later* ISIN of the same issuer, whose own
+   symbol is not trading that day, is the row's future identity and is adopted too: a stock
+   renamed and split since (KPIGLOBAL INE542W01017 -> KPIGREEN INE542W01025) keeps one
+   history under today's id (found in the step 2.6 rebuild: 48 histories were split in two).
 3. **Otherwise a new instrument.** Its ID is ``mint_instrument_id(symbol)``; if that ID is
    already held by a different issuer (NSE reused the symbol), the ISIN disambiguates it.
 
@@ -81,9 +86,15 @@ class DayIdentity:
     replayed: bool = False  # True when looked up from a previous run
 
 
+def _serial(isin: str) -> str:
+    """Issue serial of an Indian ISIN (characters 10-11); a face-value change increments it."""
+    return isin[9:11].upper()
+
+
 class BhavcopyIdentityResolver:
     def __init__(self, state: IdentityState) -> None:
         self._state = state
+        self._today_symbols: set[str] = set()
 
     @property
     def state(self) -> IdentityState:
@@ -120,6 +131,7 @@ class BhavcopyIdentityResolver:
         # Two passes: known ISINs first, so a new ISIN never claims a symbol that its rightful
         # owner (same symbol, known ISIN) also uses on this day.
         ordered = sorted(rows, key=lambda r: (r.isin not in state.isin_owner, r.symbol, r.series))
+        self._today_symbols = {r.symbol for r in ordered}
         for row in ordered:
             iid = self._resolve_row(row, result)
             result.mapping[(row.symbol, row.series)] = iid
@@ -143,13 +155,32 @@ class BhavcopyIdentityResolver:
 
     def _same_company_by_symbol(self, row: BhavcopyRow) -> str | None:
         state = self._state
+        today = self._today_symbols
+        same_symbol: list[str] = []
+        continued: list[str] = []
         for iid, period in state.open_periods.items():
-            if period.symbol == row.symbol and same_issuer_equity(period.isin, row.isin):
-                return iid
+            if not same_issuer_equity(period.isin, row.isin):
+                continue
+            if period.symbol == row.symbol:
+                same_symbol.append(iid)
+            elif period.symbol not in today and _serial(row.isin) > _serial(period.isin):
+                continued.append(iid)
+        if len(same_symbol) == 1:
+            return same_symbol[0]
+        if not same_symbol and len(continued) == 1:
+            return continued[0]
         seed = state.seeds.get(row.symbol)
         if seed is not None and (seed.isin is None or same_issuer_equity(seed.isin, row.isin)):
             return seed.instrument_id
-        return None
+        future = [
+            s.instrument_id
+            for s in state.seeds.values()
+            if s.isin is not None
+            and same_issuer_equity(s.isin, row.isin)
+            and _serial(s.isin) > _serial(row.isin)
+            and s.symbol not in today
+        ]
+        return future[0] if len(future) == 1 else None
 
     def _new_instrument(self, row: BhavcopyRow, result: DayIdentity) -> str:
         state = self._state

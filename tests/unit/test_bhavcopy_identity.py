@@ -220,3 +220,52 @@ def test_unexplained_isin_change_is_a_non_blocking_warning() -> None:
     assert e.flag is DataQualityFlag.SYMBOL_MAPPING_UNCERTAIN
     assert e.severity is EventSeverity.WARNING and not e.blocks_signal
     assert e.trade_date == date(2022, 7, 29)
+
+
+# --- step 2.6 rebuild: renamed + split stocks must keep one history ------------------
+
+
+def test_renamed_and_split_stock_keeps_one_history_under_todays_id() -> None:
+    # KPI Green: KPIGLOBAL (INE542W01017) -> renamed KPIGREEN (2022) -> split, INE542W01025.
+    store = _store(Instrument("NSE_EQ|KPIGREEN", "KPIGREEN", isin="INE542W01025"))
+    days = [date(2021, 1, 4), date(2022, 4, 27), date(2024, 7, 18)]
+    first = _run(store, days[0], [_row(days[0], "KPIGLOBAL", "INE542W01017")])
+    assert first.mapping[("KPIGLOBAL", "EQ")] == "NSE_EQ|KPIGREEN" and not first.new_instruments
+    _run(store, days[1], [_row(days[1], "KPIGREEN", "INE542W01017")])
+    _run(store, days[2], [_row(days[2], "KPIGREEN", "INE542W01025")])
+    periods = DuckDBIdentityRepository(store).load_periods("NSE_EQ|KPIGREEN")
+    assert [(p.symbol, p.isin, p.change_reason) for p in periods] == [
+        ("KPIGLOBAL", "INE542W01017", "FIRST_SEEN"),
+        ("KPIGREEN", "INE542W01017", "SYMBOL_CHANGE"),
+        ("KPIGREEN", "INE542W01025", "ISIN_CHANGE"),
+    ]
+    # Corporate actions quoting the old ISIN resolve to the same instrument.
+    from vcp_scanner.data.repositories.duckdb_instrument_repository import (
+        DuckDBInstrumentResolver,
+    )
+
+    assert (
+        DuckDBInstrumentResolver(store).resolve(isin="INE542W01017", symbol="KPIGLOBAL")
+        == "NSE_EQ|KPIGREEN"
+    )
+
+
+def test_split_and_rename_on_the_same_day_continue_the_history() -> None:
+    # SABTN (…036) -> SABTNL with a new ISIN (…044) on one day; no seed involved.
+    store = _store()
+    _run(store, date(2021, 1, 4), [_row(date(2021, 1, 4), "SABTN", "INE416A01036")])
+    day = _run(store, date(2023, 5, 2), [_row(date(2023, 5, 2), "SABTNL", "INE416A01044")])
+    assert day.mapping[("SABTNL", "EQ")] == "NSE_EQ|SABTN"
+    assert [p.change_reason for p in day.opened] == ["ISIN_CHANGE+SYMBOL_CHANGE"]
+
+
+def test_differential_voting_shares_are_not_taken_for_a_predecessor() -> None:
+    # A later-issued line of the same issuer trading beside the ordinary shares stays apart,
+    # and a seed is never adopted by a *later* ISIN or while its own symbol trades.
+    store = _store(Instrument("NSE_EQ|TATAMOTORS", "TATAMOTORS", isin="INE155A01022"))
+    d = date(2021, 1, 4)
+    day = _run(store, d, [_row(d, "TATAMTRDVR", "INE155A01030")])
+    assert day.mapping[("TATAMTRDVR", "EQ")] == "NSE_EQ|TATAMTRDVR"
+    store2 = _store(Instrument("NSE_EQ|NEWCO", "NEWCO", isin="INE777Q01020"))
+    both = _run(store2, d, [_row(d, "OLDCO", "INE777Q01012"), _row(d, "NEWCO", "INE777Q01020")])
+    assert both.mapping[("OLDCO", "EQ")] == "NSE_EQ|OLDCO"
