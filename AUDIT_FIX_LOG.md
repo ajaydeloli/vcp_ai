@@ -1047,3 +1047,9 @@ Without an id it lists recent runs (id, data and universe snapshots, commit, dir
 **Tests.** The end-to-end pipeline test verifies its first run: exit 0 and "MATCH: 6 verdicts", the work dir is emptied, the main DB still has two runs; with the recorded hash altered the command exits 2 and reports the mismatch; the listing shows the run.
 
 **Verification.** Full suite: 803 passed, 0 failed (the new checks extend the existing end-to-end test). `ruff check`, `ruff format --check`, `mypy --strict src` clean.
+
+### Real-data check of P1-8 on the main DB (19:28–19:42 IST, code at 5938668)
+
+`p18-scan-runs` fast-forwarded into `main` after the evening run (19:15–19:27 IST, old code, "all steps OK", scanned 2026-10-01: 1,256 eligible, 203 PASS; the first POINT_IN_TIME_COMPLETE snapshot, since ASM/GSM were collected today, and 81 names excluded by those lists).
+- With the new code, under the daily-run lock: universe for 2026-10-01 → `uv_20261001_e7fa4e2d1c` (deterministic), RS, Trend Template → scan run `run-20261001-20261001T135918870959Z`, scan id `trend-2026-10-01-4c3375441181` (section hashes), 1,256 evaluated, 203 PASS / 1,047 FAIL / 6 INSUFFICIENT_DATA (same as the evening run), commit `5938668`, clean checkout, results hash `40c25da8763380b1`.
+- `vcp verify scan run-20261001-20261001T135918870959Z`: on a copy, froze the data at the run's cutoff (`snap-20261001T135918Z`), rebuilt features, the universe as known at its cutoff (**same id** `uv_20261001_e7fa4e2d1c`), RS and the Trend Template: **MATCH, 1,256 verdicts, hash `40c25da8763380b1`**. The copy (peak ~2.4 GB) was deleted; 10.8 minutes in all.
