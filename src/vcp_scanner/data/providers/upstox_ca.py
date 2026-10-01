@@ -242,7 +242,13 @@ class UpstoxCorporateActionProvider:
                 if action_type == CorporateActionType.SPLIT:
                     num, den = den, num
 
-            cash_amount = float(item["amount"]) if item.get("amount") is not None else None
+            # Upstox sends amount 0.0 on splits, bonuses and rights (live check 2026-10-02):
+            # "not reported", not a zero issue price. Read as 0 it disagreed with NSE's rights
+            # issue price and turned every rights issue into a PROVIDER_CONFLICT (no factor).
+            raw_amount = item.get("amount")
+            cash_amount = float(raw_amount) if raw_amount is not None else None
+            if cash_amount is not None and cash_amount <= 0:
+                cash_amount = None
 
             # Deterministic ID: the same Upstox record maps to the same row on every fetch.
             action_id = deterministic_action_id(

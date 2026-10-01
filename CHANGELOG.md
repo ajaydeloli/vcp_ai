@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed (Upstox amount 0 on rights issues)
+- Upstox reports `amount: 0` on splits, bonuses and rights issues; it is now read as "not reported". Before, a rights issue's NSE issue price disagreed with that 0, the rights issue became a provider conflict and lost its price-adjustment factor (seen on 9 stocks, e.g. NATCOPHARM, in the first live Upstox run).
+
 ### Fixed (Upstox rate limits; owner decision 2026-10-02)
 - A run now asks Upstox about at most 800 instruments, one request every 1.9 s (about 25 minutes, under Upstox's 1,000 requests per 30 minutes): first every instrument with an NSE split, bonus, rights issue or demerger in the window, then the least recently checked, so each instrument is checked about every three runs (new table `secondary_ca_checks`). Before, every run asked all ~2,600 instruments unpaced, and the 2026-10-01 22:00 run failed when Upstox rate-limited 30 of them.
 - A rate limit (HTTP 429 twice in a row) stops the Upstox requests for that run with a warning instead of failing it; a few other failures (at most 5 %) are tolerated with a warning. Instruments not asked stay NSE-only for that run. New settings `data.corporate_actions.secondary_min_request_interval_seconds`, `secondary_max_requests_per_run`, `secondary_max_failure_share`.

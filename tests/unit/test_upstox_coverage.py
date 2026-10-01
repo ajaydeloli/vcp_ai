@@ -157,3 +157,23 @@ def test_expired_upstox_token_runs_nse_only_without_escalating() -> None:
     assert worker.secondary_unavailable is not None and "401" in worker.secondary_unavailable
     assert _status(repo, recent) is CorporateActionStatus.SINGLE_SOURCE
     assert len(repo.load_adjustments(IID)) == 1  # the NSE split still feeds a factor
+
+
+# ---------------------------------------------------------------------------- zero amount
+
+
+def test_zero_amount_is_not_reported_and_rights_are_confirmed() -> None:
+    """Live 2026-10-02: Upstox sends amount 0.0 on rights (NATCOPHARM 2:21, ex 2026-10-01).
+    Read as a 0 issue price it disagreed with NSE's 750 and made a PROVIDER_CONFLICT."""
+    ex = date(2026, 9, 15)
+    payload = [{"name": "Rights", "expiry_date": "15 Sep 2026", "ratio": "2:21", "amount": 0.0}]
+    (rights,) = _upstox(payload).get_actions(*WINDOW, [KOTAK])
+    assert rights.cash_amount is None
+    nse = CorporateAction(
+        corporate_action_id=deterministic_action_id("NSE", IID, "RIGHTS", ex, 2.0, 21.0, 750.0),
+        instrument_id=IID, action_type=T.RIGHTS, source="NSE", created_at=T0,
+        ex_date=ex, ratio_numerator=2.0, ratio_denominator=21.0, cash_amount=750.0,
+    )  # fmt: skip
+    worker, repo = _worker([nse], _upstox(payload))
+    worker.run(*WINDOW, [KOTAK], known_at=T0)
+    assert _status(repo, ex) is CorporateActionStatus.CONFIRMED

@@ -1198,3 +1198,13 @@ Features for all 3,365 instruments (3,123,370 rows written as `features-1.2.0` n
 **Tests.** `test_upstox_budget.py`: selection order (NSE action first, never checked, then oldest; ties by id; all within budget); the worker rotates AAA → BBB → CCC while EEE (an NSE split) is asked every run, and records the checks; no budget asks everyone; the check log upserts; one 429 waits Retry-After and continues; a second 429 stops without failing and asks nothing more; Retry-After capped at 60 s. `test_provider_failures.py`: 1 server error in 40 tolerated and reported; a zero share raises; pacing spaces requests.
 
 **Verification.** Full suite: 841 passed, 0 failed. `ruff check`, `ruff format --check`, `mypy --strict src` clean. Two tests that stub `_build_ca_providers` take the new config argument.
+
+### Fix U2 — Upstox's zero amount made every rights issue a conflict (found in the U1 live check)
+
+**Found.** Live check of U1 on a copy of the main DB (00:27–00:56 IST, 800 of 2,593 instruments asked in 25.5 minutes, no rate limit hit): the first Upstox data ever stored (269 rows) moved 254 resolutions from SINGLE_SOURCE to CONFIRMED, but every one of the 9 rights issues it saw became PROVIDER_CONFLICT on `cash_amount` (NATCOPHARM 2:21 at 750, CENTEXT, GENESYS, SHANTIGOLD, DUCON, KSHITIJPOL, VHLTD, JAYKAY, RATNAVEER). Upstox sends `amount: 0.0` on splits, bonuses and rights (all 18 such rows), and the parser read it as an issue price of 0. A PROVIDER_CONFLICT rights issue gets no adjustment factor, so these stocks would have lost their TERP factors. The resulting events are warnings, not blocks. (The tenth new conflict, DTIL's 2026-08-12 dividend that only Upstox reports, is a genuine one-source dividend and only a warning.)
+
+**Change.** `UpstoxCorporateActionProvider._parse_upstox_action`: an amount of 0 or less is "not reported" (None), so reconciliation compares cash amounts only when both sources give one (its existing rule).
+
+**Test.** `test_upstox_coverage.py::test_zero_amount_is_not_reported_and_rights_are_confirmed`: the Upstox rights row has no amount, and NSE 2:21 at 750 plus Upstox 2:21 reconcile to CONFIRMED.
+
+**Verification.** Full suite: 842 passed, 0 failed. `ruff check`, `ruff format --check`, `mypy --strict src` clean.
