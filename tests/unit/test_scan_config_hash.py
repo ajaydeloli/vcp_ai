@@ -57,3 +57,26 @@ def test_universe_snapshot_hash_includes_gate_settings_when_gated() -> None:
         for n in (253, 300)
     ]
     assert plain not in gated and gated[0] != gated[1]
+
+
+def test_universe_hash_uses_the_shared_canonical_hash() -> None:
+    """Audit P2-6: one serialisation for every config hash (scan and universe)."""
+    from vcp_scanner.config.loader import compute_config_hash
+    from vcp_scanner.config.models import QualityGateConfig, StalenessConfig
+
+    gate = QualityGateConfig()
+    builder = UniverseBuilder(_NoInputs(), UniverseConfig(), gate_settings=gate)  # type: ignore[arg-type]
+    expected = compute_config_hash(
+        {
+            "universe": UniverseConfig().model_dump(mode="json"),
+            "staleness": StalenessConfig().model_dump(mode="json"),
+            "gate": gate.model_dump(mode="json"),
+        }
+    )[:8]
+    assert builder._hash_config() == expected
+
+
+def test_cli_has_no_private_copy_of_the_snapshot_lookup() -> None:
+    from vcp_scanner import cli_pipeline
+
+    assert not hasattr(cli_pipeline, "_latest_snapshot_id")

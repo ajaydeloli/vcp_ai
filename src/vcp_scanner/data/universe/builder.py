@@ -8,13 +8,13 @@ behind ``UniverseInputRepository``. No storage engine is imported here.
 from __future__ import annotations
 
 import hashlib
-import json
 import logging
 from collections.abc import Sequence
 from dataclasses import replace
 from datetime import UTC, date, datetime, timedelta
 from typing import TYPE_CHECKING
 
+from vcp_scanner.config.loader import compute_config_hash
 from vcp_scanner.config.models import QualityGateConfig, StalenessConfig, UniverseConfig
 from vcp_scanner.domain.enums import SurvivorshipStatus
 from vcp_scanner.domain.market import PROVIDER_ADJUSTED_SOURCES
@@ -198,15 +198,15 @@ class UniverseBuilder:
         ]
 
     def _hash_config(self) -> str:
-        """Return a deterministic hash of the universe configuration."""
+        """Short hash of the settings that decide eligibility, with the same canonical
+        serialisation as the scan config hash (``compute_config_hash``; audit P2-6)."""
         data: dict[str, object] = {
             "universe": self._config.model_dump(mode="json"),
             "staleness": self._staleness.model_dump(mode="json"),
         }
         if self._gate_settings is not None:
             data["gate"] = self._gate_settings.model_dump(mode="json")
-        encoded = json.dumps(data, sort_keys=True).encode("utf-8")
-        return hashlib.sha256(encoded).hexdigest()[:8]
+        return compute_config_hash(data)[:8]
 
     def build_snapshot(
         self, as_of_date: date, *, known_at: datetime | None = None

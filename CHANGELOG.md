@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed (audit P2-6: one config hash)
+- Universe snapshot config hashes use the same canonical serialisation as scan config hashes, so universe snapshot ids change once. Results are unchanged.
+
 ### Added (backups before the daily run)
 - `vcp run daily` now checks that the database opens and copies it to `data/backups/` before any step, keeping the newest 3 copies. A damaged database or a failed backup stops the run with the newest backup and the command to restore it. Flags `--backup-dir`, `--backup-keep`, `--no-backup`.
 

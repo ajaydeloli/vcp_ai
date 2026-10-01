@@ -180,17 +180,6 @@ def _adjusted_instrument_ids(
     return [r[0] for r in rows]
 
 
-def _latest_snapshot_id(store: DuckDBStore, as_of: date) -> str | None:
-    row = store.conn.execute(
-        """
-        SELECT universe_snapshot_id FROM universe_snapshots
-        WHERE as_of_date = ? ORDER BY created_at DESC LIMIT 1
-        """,
-        [as_of],
-    ).fetchone()
-    return str(row[0]) if row else None
-
-
 # ---------------------------------------------------------------------------
 # Provider factories (patched in tests)
 # ---------------------------------------------------------------------------
@@ -664,6 +653,9 @@ def run_compute_rs(args: argparse.Namespace) -> int:
     from vcp_scanner.data.repositories.duckdb_rs_repository import (
         DuckDBRelativeStrengthRepository,
     )
+    from vcp_scanner.data.repositories.duckdb_universe_repository import (
+        DuckDBUniverseRepository,
+    )
     from vcp_scanner.features.relative_strength import RelativeStrengthEngine
 
     as_of = _parse_date(args.as_of)
@@ -679,7 +671,9 @@ def run_compute_rs(args: argparse.Namespace) -> int:
         data_snapshot_id = _resolve_data_snapshot(store, getattr(args, "data_snapshot_id", None))
         if data_snapshot_id is None:
             return 1
-        snapshot_id = args.universe_snapshot_id or _latest_snapshot_id(store, as_of)
+        snapshot_id = args.universe_snapshot_id or DuckDBUniverseRepository(
+            store
+        ).latest_snapshot_id(as_of)
         if not snapshot_id:
             _err(
                 f"Error: no universe snapshot for {as_of}. "

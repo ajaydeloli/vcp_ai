@@ -1235,3 +1235,17 @@ Two earlier attempts (01:26, 01:57) were cut short by power failures on the owne
 **Verification.** Full suite: 848 passed, 0 failed. `ruff check`, `ruff format --check`, `mypy --strict src` clean.
 
 **Real-data check** (main DB, 03:51 IST, under the daily-run lock): health check passed instantly; checkpoint, copy, fsync, verification and rename of the 1.96 GB database took 9.4 s, giving `data/backups/vcp_scanner_20261001_222137.duckdb` (UTC timestamp). 918 GB free.
+
+## Clean-up batch 2 (2026-10-02; owner decisions 02:55 IST: RS rank to 99 in rs-1.1.0, NSE user-agent kept but configurable, `--api-secret` removed)
+
+Order: C7, C9, C10, C6, C5, C8 (C8 last: the only one that changes scan results). P2-4 (performance) deferred: the full rebuild is a few minutes and the daily run is incremental. P2-5 (Parquet lake) dropped for now: DuckDB covers storage and snapshots.
+
+### Fix C7 — audit P2-6: one snapshot lookup, one config hash
+
+**Found.** `cli_pipeline._latest_snapshot_id` duplicated `DuckDBUniverseRepository.latest_snapshot_id`; `UniverseBuilder._hash_config` serialised config with its own `json.dumps` instead of `compute_config_hash`, which the scan hash uses.
+
+**Change.** `vcp compute rs` uses the repository's lookup (the CLI copy is gone). The universe hash is `compute_config_hash({universe, staleness, gate})[:8]`, the same canonical serialisation as the scan hash. Universe snapshot ids change once (the hash's bytes changed, not the settings it covers); scan config hashes and all results are unchanged. The RS/universe golden record was re-recorded: only `snapshot.config_hash` changed (c2d256fc → 2179f3e8).
+
+**Tests** (`test_scan_config_hash.py`): the universe hash equals the shared canonical hash of its sections; the CLI has no private snapshot lookup.
+
+**Verification.** Full suite: 850 passed, 0 failed. `ruff check`, `ruff format --check`, `mypy --strict src` clean. Real-data check: with C9 and C10 (below).
