@@ -192,3 +192,32 @@ def test_worker_without_checker_keeps_previous_behaviour(env) -> None:
     run = worker.ingest_instrument(A0, START, END, ingestion_time=RUN_TIME)
     assert run.status == "SUCCESS"
     assert provider.call_log == []
+
+
+def _settle(store, days) -> None:
+    for d in days:
+        store.conn.execute(
+            "INSERT INTO bhavcopy_files (trade_date, sha256, status, url, file_format, recorded_at)"
+            " VALUES (?, ?, 'OK', 'u', 'CM_UDIFF', ?)",
+            [d, f"h{d}", datetime(2024, 2, 1, tzinfo=UTC)],
+        )
+
+
+def test_day_absent_from_a_settled_bhavcopy_is_not_missing_data(env) -> None:
+    """Audit P1-2b (C6): NSE's file for that day lists every stock that traded; a stock not
+    in it was suspended or did not trade, so the Kite gap check must not report it."""
+    store, repo = env
+    suspended = date(2024, 1, 16)
+    _seed_market(repo, skip={"A0": {suspended}})
+    _settle(store, [suspended])
+    report = CompletenessChecker(store).check("A0", START, END)
+    assert report.status is CompletenessStatus.COMPLETE
+
+
+def test_hole_on_a_day_without_settled_bhavcopy_is_still_reported(env) -> None:
+    store, repo = env
+    hole, other = date(2024, 1, 16), date(2024, 1, 17)
+    _seed_market(repo, skip={"A0": {hole}})
+    _settle(store, [other])  # bhavcopy for a different day only
+    report = CompletenessChecker(store).check("A0", START, END)
+    assert report.missing_sessions == (hole,)

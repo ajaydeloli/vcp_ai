@@ -1281,3 +1281,15 @@ Order: C7, C9, C10, C6, C5, C8 (C8 last: the only one that changes scan results)
 - **C10:** blocking signals 631 → 633. Two open gap events start blocking, both deep crashes the old ratio list missed: GOLDSTAR 2023-01-23 (-94.2 %) and ISHAN 2024-01-25 (-96.5 %). Both are older than the 253-bar block lifetime, so neither blocks today. No gap event stopped blocking.
 - **C7:** universe `uv_20261001_266d79117c` (new id, as expected), 1,257 eligible, 8 blocked (unchanged).
 - **Results:** RS 1,257; Trend Template 203 PASS, results hash `7769987bb8868a73` (unchanged).
+
+### Fix C6 — audit P1-2b: a stock absent from a settled bhavcopy is not missing data
+
+**Found.** `CompletenessChecker` (Kite path, `vcp ingest market`) observes sessions from the cross-section and reports every session without a bar as missing, raising a blocking `MISSING_CANDLES` event. A suspended or untraded stock has no bar on those days by design. The daily run uses the NSE bhavcopy path, so the main DB has no such events today, but `vcp ingest market` would raise them.
+
+**Change.** A session whose NSE bhavcopy settled OK lists every stock that traded; a stock without a bar on such a day did not trade on NSE, so it is not counted missing (long absences are `TRADING_ABSENCE`, §18A). Sessions without a settled bhavcopy are checked as before.
+
+**Tests** (`test_completeness.py`): a day absent from a settled bhavcopy is COMPLETE; a hole on a day without settled bhavcopy is still reported.
+
+**Real-data check** (main DB read-only, 04:51 IST; window 2025-10-01 → 2026-10-01, 248 observed sessions, 3,207 instruments): old rule 626 instruments INCOMPLETE with 34,118 "missing" bars (suspensions, untraded SME and BE days, e.g. GOODYEAR 2025-10-01 → 2026-04-17); new rule 0.
+
+**Verification.** Full suite: 859 passed, 0 failed. `ruff check`, `ruff format --check`, `mypy --strict src` clean.

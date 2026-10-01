@@ -19,6 +19,10 @@ Limits, stated plainly:
   repaired automatically.
 * A date with no bar for any instrument is invisible (holiday or total outage); the
   ingestion run statuses are what surface a total outage.
+* A session whose NSE bhavcopy settled OK lists every stock that traded that day. If the
+  stock has no bar on such a day it did not trade on NSE (suspension, trade-to-trade gap):
+  that is an absence, not missing data, and it is not reported here (audit P1-2b, C6).
+  Long absences are handled by ``TRADING_ABSENCE``.
 """
 
 from __future__ import annotations
@@ -216,7 +220,16 @@ class CompletenessChecker:
                 [instrument_id, lo, end],
             ).fetchall()
         }
-        missing = [s for s in expected if s not in have]
+        settled = {
+            r[0]
+            for r in self._store.conn.execute(
+                "SELECT DISTINCT trade_date FROM bhavcopy_files"
+                " WHERE status = 'OK' AND trade_date BETWEEN ? AND ?",
+                [lo, end],
+            ).fetchall()
+        }
+        # A settled bhavcopy day without a bar: the stock did not trade on NSE (C6).
+        missing = [s for s in expected if s not in have and s not in settled]
         suspect = tuple(d for d, _, _ in scan.suspect_dates if lo <= d <= end)
         if not missing:
             return CompletenessReport(

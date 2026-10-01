@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed (audit P1-2b: missing candles on suspensions)
+- The Kite completeness check no longer reports a stock as missing bars on days NSE's bhavcopy shows it did not trade (suspension, untraded day). On the last year of data the old rule flagged 626 stocks.
+
 ### Changed (audit P3-1: unexplained gaps; owner decision 2026-10-02)
 - Every unexplained price drop of 30 % or more now blocks the stock until a corporate action explains it or it is marked genuine. Before, only drops "close to" a small-integer ratio blocked, but that test matched 81 of 83 real cases, so in practice almost nothing changes (2 more blocks today). The nearest ratio is still shown as a hint when it is within 3 % of one.
 
