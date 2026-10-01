@@ -13,7 +13,7 @@ from urllib3.util.retry import Retry
 from vcp_scanner.data.identity import deterministic_action_id
 from vcp_scanner.domain.corporate_actions import CorporateAction
 from vcp_scanner.domain.enums import CorporateActionType
-from vcp_scanner.domain.errors import ProviderError
+from vcp_scanner.domain.errors import ProviderAuthError, ProviderError
 from vcp_scanner.domain.market import Instrument
 from vcp_scanner.infrastructure.clock import Clock, utc_now
 
@@ -94,7 +94,7 @@ class UpstoxCorporateActionProvider:
                 # Bad credentials fail every remaining request: stop, do not return a
                 # partial list that looks like a complete one.
                 if response.status_code in (401, 403):
-                    raise ProviderError(
+                    raise ProviderAuthError(
                         f"Upstox API authentication failed: HTTP {response.status_code} "
                         f"{response.text[:200]}"
                     )

@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed (owner decision 2026-10-01: Upstox credentials rejected)
+- An Upstox HTTP 401/403 (`ProviderAuthError`, e.g. an expired token) no longer aborts `vcp ingest corporate-actions`. The run continues NSE-only, nothing is escalated because of Upstox's silence, and the CLI prints a warning to refresh `UPSTOX_ACCESS_TOKEN`. Other Upstox failures still abort the run.
+
 ### Added (audit step 2.5: Kite as provisional bar and cross-check)
 - `vcp ingest market --today` stores today's Kite bar as `PROVISIONAL` (`IngestionWorker.ingest_instrument(provisional=True)`, `save_daily(data_status=...)`).
 - `--allow-provisional` on `vcp ingest adjusted-prices` and `vcp ingest universe`.

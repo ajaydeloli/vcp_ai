@@ -143,3 +143,17 @@ def test_instrument_without_upstox_records_never_escalates() -> None:
     worker.run(*WINDOW, [KOTAK], known_at=T0 - timedelta(days=30))
     worker.run(*WINDOW, [KOTAK], known_at=T0)
     assert _status(repo, old) is CorporateActionStatus.SINGLE_SOURCE
+
+
+def test_expired_upstox_token_runs_nse_only_without_escalating() -> None:
+    """Owner decision 2026-10-01: HTTP 401 from Upstox downgrades the run to NSE-only."""
+    expired = UpstoxCorporateActionProvider("tok")
+    expired._session = MagicMock()
+    expired._session.get.return_value = MagicMock(status_code=401, text="Invalid token")
+    recent = date(2026, 5, 4)  # would be a conflict if Upstox had answered without it
+    worker, repo = _worker([_nse_split(recent)], expired)
+    worker.run(*WINDOW, [KOTAK], known_at=T0 - timedelta(days=30))
+    worker.run(*WINDOW, [KOTAK], known_at=T0)
+    assert worker.secondary_unavailable is not None and "401" in worker.secondary_unavailable
+    assert _status(repo, recent) is CorporateActionStatus.SINGLE_SOURCE
+    assert len(repo.load_adjustments(IID)) == 1  # the NSE split still feeds a factor

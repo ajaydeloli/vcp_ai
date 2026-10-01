@@ -26,6 +26,14 @@ class ProviderError(VCPScannerError):
     category = ErrorCategory.PROVIDER_ERROR
 
 
+class ProviderAuthError(ProviderError):
+    """The provider rejected the credentials (HTTP 401/403): every further request will fail.
+
+    For the secondary corporate-action source this downgrades the run to primary-only
+    (owner decision, 2026-10-01) instead of aborting it.
+    """
+
+
 class DataValidationError(VCPScannerError):
     category = ErrorCategory.DATA_VALIDATION_ERROR
 

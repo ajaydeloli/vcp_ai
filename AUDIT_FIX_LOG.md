@@ -687,3 +687,16 @@ Plus 2 gap-detector tests in `test_quality_events.py`.
 - Interface dummy updated.
 
 **Verification.** Full suite: 720 passed, 0 failed (was 702). `ruff check`, `ruff format --check`, `mypy --strict src` clean.
+
+## Follow-up — expired Upstox token no longer aborts corporate actions (2026-10-01)
+
+**Owner decision:** warn and run NSE-only.
+
+**Change.**
+- New `domain.errors.ProviderAuthError(ProviderError)`; `UpstoxCorporateActionProvider` raises it on HTTP 401/403.
+- `CorporateActionIngestionWorker` catches it from the secondary source only. It sets `secondary_unavailable`, uses no secondary actions and ignores `queried_instrument_ids` (silence proves nothing), and continues. `vcp ingest corporate-actions` prints a warning.
+- Other secondary failures (HTTP 5xx, partial fetch) still abort, as before.
+
+**Test.** `test_expired_upstox_token_runs_nse_only_without_escalating`: a split inside what would be Upstox's coverage stays SINGLE_SOURCE across the grace period, and its factor is kept.
+
+**Verification.** Full suite: 721 passed, 0 failed (was 720). `ruff check`, `ruff format --check`, `mypy --strict src` clean.

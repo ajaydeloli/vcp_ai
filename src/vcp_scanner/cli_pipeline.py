@@ -521,6 +521,13 @@ def run_corporate_actions(args: argparse.Namespace) -> int:
             # Nothing was saved or adjusted: a failed fetch must not look like "no actions".
             _err(f"Error: corporate action ingestion failed: {e}")
             return 1
+        unavailable = worker.secondary_unavailable
+        if unavailable:
+            _err(
+                "Warning: Upstox rejected the credentials, so this run used NSE only (actions stay "
+                "SINGLE_SOURCE). Refresh UPSTOX_ACCESS_TOKEN in .env. Detail: "
+                f"{unavailable[:160]}"
+            )
 
         # DATA_SPECIFICATION 18A workflow: after reconcile, run the gap safety net over raw
         # prices and publish any conflicts or suspected missed actions to the signal gate.

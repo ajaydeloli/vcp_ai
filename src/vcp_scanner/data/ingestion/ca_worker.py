@@ -21,6 +21,7 @@ from vcp_scanner.domain.corporate_actions import (
     ExDatePrices,
 )
 from vcp_scanner.domain.enums import DataQualityFlag
+from vcp_scanner.domain.errors import ProviderAuthError
 from vcp_scanner.domain.market import Candle, Instrument
 from vcp_scanner.infrastructure.clock import Clock, utc_now
 
@@ -48,6 +49,8 @@ class CorporateActionIngestionWorker:
         # Optional (audit step 2.4): raw bars, from which rights and demerger factors are
         # derived. Without it those actions get no factor (the pre-2.4 behavior).
         self._market = market
+        #: Set by ``run`` when the secondary source rejected its credentials (NSE-only run).
+        self.secondary_unavailable: str | None = None
         # Optional (audit P0-2): keep CORPORATE_ACTION_UNRESOLVED events in step with the
         # current PROVIDER_CONFLICT resolutions so the signal gate can see them.
         self._quality = quality_repository
@@ -81,7 +84,16 @@ class CorporateActionIngestionWorker:
         primary_actions = self.primary_provider.get_actions(start, end, instruments)
 
         logger.info(f"Fetching secondary (Upstox) corporate actions from {start} to {end}")
-        secondary_actions = self.secondary_provider.get_actions(start, end, instruments)
+        self.secondary_unavailable = None
+        try:
+            secondary_actions = self.secondary_provider.get_actions(start, end, instruments)
+        except ProviderAuthError as exc:
+            # Owner decision (2026-10-01): rejected credentials (e.g. an expired Upstox token)
+            # downgrade the run to NSE-only instead of aborting it. Nothing from the secondary
+            # counts as evidence, so no action is escalated because Upstox was silent.
+            self.secondary_unavailable = str(exc)
+            logger.warning("Secondary corporate-action source unavailable, NSE only: %s", exc)
+            secondary_actions = []
 
         all_new_actions = primary_actions + secondary_actions
 
@@ -93,7 +105,11 @@ class CorporateActionIngestionWorker:
         # actually returned for that instrument (``coverage_start``; found in audit Fix 5b).
         # A provider that reports queried ids but no coverage dates is trusted for the whole
         # requested window.
-        queried = getattr(self.secondary_provider, "queried_instrument_ids", None) or set()
+        queried = (
+            set()
+            if self.secondary_unavailable
+            else getattr(self.secondary_provider, "queried_instrument_ids", None) or set()
+        )
         coverage = getattr(self.secondary_provider, "coverage_start", None)
         secondary_windows: dict[str, tuple[date, date]] = {}
         for provider_iid in queried:
