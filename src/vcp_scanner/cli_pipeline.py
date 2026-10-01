@@ -16,7 +16,7 @@ from collections.abc import Sequence
 from datetime import UTC, date, datetime
 from typing import Any
 
-from vcp_scanner.config.loader import compute_config_hash, load_scanner_config
+from vcp_scanner.config.loader import load_scanner_config, scan_config_hash
 from vcp_scanner.data.storage.duckdb_store import DuckDBStore
 from vcp_scanner.domain.errors import ProviderError
 from vcp_scanner.domain.market import Instrument
@@ -686,7 +686,8 @@ def run_compute_trend_template(args: argparse.Namespace) -> int:
     except Exception as e:
         _err(f"Configuration error: {e}")
         return 1
-    config_hash = compute_config_hash(cfg)
+    # Audit P1-8 (D3): only result-relevant sections (strategy, universe, gate).
+    config_hash = scan_config_hash(cfg)
 
     with _open_store(args.db) as store:
         data_snapshot_id = _resolve_data_snapshot(store, getattr(args, "data_snapshot_id", None))

@@ -43,6 +43,29 @@ def compute_config_hash(config_data: Any) -> str:
     return hashlib.sha256(canonical_json.encode("utf-8")).hexdigest()
 
 
+def section_config_hashes(config: ScannerConfig) -> dict[str, str]:
+    """Hashes of the config sections that can change a scan's result (audit P1-8).
+
+    ``strategy`` (Trend Template, RS, stage, VCP, scoring), ``universe`` (eligibility rules) and
+    ``gate`` (``data.quality``: how long data-quality blocks last, what a trading absence is).
+    Logging, monitoring and storage paths are left out: they cannot change a result.
+    """
+    return {
+        "strategy": compute_config_hash(config.strategy),
+        "universe": compute_config_hash(config.universe),
+        "gate": compute_config_hash(config.data.quality),
+    }
+
+
+def scan_config_hash(config: ScannerConfig) -> str:
+    """One hash over the result-relevant sections only (audit P1-8, D3).
+
+    Used for Trend Template scan ids: a change of log level or monitoring settings no longer
+    forks a scan, while any strategy, universe or gate change still does.
+    """
+    return compute_config_hash(section_config_hashes(config))
+
+
 def _read_yaml(file_path: Path) -> dict[str, Any]:
     """Read a YAML file safely into a Python dictionary."""
     if not file_path.exists():

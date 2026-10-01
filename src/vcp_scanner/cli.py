@@ -10,6 +10,8 @@ from vcp_scanner.config.loader import (
     compute_config_hash,
     load_logging_config,
     load_scanner_config,
+    scan_config_hash,
+    section_config_hashes,
 )
 from vcp_scanner.config.models import LoggingConfig
 from vcp_scanner.domain.errors import ConfigError
@@ -554,6 +556,9 @@ def main(argv: Sequence[str] | None = None) -> int:
                 print("Configuration is valid.")
                 print(f"Strategy version: {cfg.strategy.scoring.version}")
                 print(f"Configuration hash: {cfg_hash}")
+                print(f"Scan config hash  : {scan_config_hash(cfg)}")
+                for section, digest in section_config_hashes(cfg).items():
+                    print(f"  {section:<9}: {digest}")
                 return 0
             except ConfigError as err:
                 print(f"Configuration error: {err}", file=sys.stderr)
@@ -681,6 +686,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                     quality_gate=DuckDBDataQualityRepository(
                         store, block_lifetime_bars=cfg.data.quality.block_lifetime_bars
                     ),
+                    gate_settings=cfg.data.quality,
                     include_provisional=args.allow_provisional,
                 )
 

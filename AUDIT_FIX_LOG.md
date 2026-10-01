@@ -996,3 +996,20 @@ Result, identical to the copy: 137 unexplained gaps, 92 instruments blocked by a
 `p12-blocks` fast-forwarded into `audit-fixes`. Backup `data/vcp_scanner.pre_p12.duckdb` (replaces `pre27`); the run held the daily-run lock. `vcp quality scan`, universe, RS and Trend Template for 2026-09-30. Results identical to the copy: 549 `TRADING_ABSENCE` events, 1,337 eligible, Trend Template 267 PASS / 1,057 FAIL / 13 INSUFFICIENT_DATA; blocked active instruments 26 (7 unblocked, 20 newly blocked by `TRADING_ABSENCE`, 6 still blocked).
 
 **Still open:** DALMIASUG and QUINT (corporate actions without a factor; they expire 253 bars after their ex-dates unless fixed earlier); UEL-style demerger factors when the stock did not trade on the ex-date; capital reductions (MAXIND, EASTSILK, MELSTAR) need manual entries.
+
+## Audit P1-8 — scan records and reproducibility (2026-10-01)
+
+**Spike (read-only, 18:35–18:50 IST).** On a copy of the main DB a data snapshot was frozen at 2026-10-01 13:00 UTC and the 2026-09-30 universe, RS and Trend Template were rerun under it, twice. RS and all 1,337 Trend Template rows were identical (content hash) to the LIVE run of 18:23 IST, and the second frozen run matched the first: the computations are deterministic and the bitemporal inputs are complete enough to rebuild a past state. What is missing is lineage:
+1. no record of a scan run: the TT results do not say which universe snapshot they used, the stored code version is the constant "0.1.0", and nothing keeps counts, times or a result hash; reproducing an old scan also needs the code that made it;
+2. universe snapshot ids are random (`uuid4`), so every rebuild adds one (four for 2026-09-30), and Trend Template has no way to choose one: it takes the newest by `created_at`, so a rebuild "as known at" an earlier time would silently use a later live universe (the spike only worked because its cutoff was later than the live snapshot);
+3. the TT scan id hashes the whole config, so a log-level change gives a new id (`a761043093fe` → `89c7ed5e2b8f`), while the universe hash leaves out `data.quality`, which changes eligibility;
+4. rerunning a LIVE scan with the same date and config overwrites it, so what was seen on the evening is lost;
+5. one frozen snapshot costs about 0.9 GB (adjusted prices ~0.1 GB, features ~0.8 GB), too much to keep every evening.
+
+**Owner decisions (D1–D4):** an immutable `scan_runs` record per scan; deterministic universe ids and an explicit universe for TT; per-section config hashes; reproduce on demand (`vcp verify scan`), freezing only scans worth keeping.
+
+### Fix P1-8a — per-section config hashes (D3)
+
+**Change.** `config.loader.section_config_hashes` (strategy, universe, gate = `data.quality`) and `scan_config_hash` (hash of those three). `run_compute_trend_template` uses `scan_config_hash` for the scan id and stored `config_hash`. `UniverseBuilder(gate_settings=…)` folds the gate settings into the snapshot's config hash; `vcp ingest universe` passes them. `vcp config validate` prints the scan hash and the section hashes; `vcp config hash` still prints the full-config hash.
+
+**Tests.** New `tests/unit/test_scan_config_hash.py` (4): the three sections; logging, monitoring and storage paths do not change the scan hash; a strategy, universe or gate change does; the universe hash includes gate settings when gated. Full suite: 796 passed, 0 failed; `ruff`, `mypy --strict src` clean.

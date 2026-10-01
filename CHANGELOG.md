@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed (audit P1-8a: per-section config hashes; owner decision 2026-10-01)
+- Trend Template scan ids now hash only the sections that can change a result: `strategy`, `universe` and the data-quality gate (`data.quality`). Changing the log level, monitoring settings or storage paths no longer starts a new scan id. Existing scan ids change once with this release.
+- A gated universe snapshot's `config_hash` now includes the gate settings, which change eligibility.
+- `vcp config validate` prints the scan config hash and each section's hash.
+
 ### Added (audit P1-2c: trading absences; owner decision 2026-10-01)
 - New data-quality flag `TRADING_ABSENCE`: a stock that misses 20 or more NSE sessions (`data.quality.absence_min_missed_sessions`; sessions = settled bhavcopy days) is blocked from its return until it has a full block lifetime (253 bars) of new history, so no feature window mixes prices from both sides of the absence. Detected by `vcp quality scan` and `vcp ingest corporate-actions`.
 - The price jump on such a return is no longer a blocking unexplained gap; it stays recorded as a warning (`after_trading_absence_sessions`).

@@ -15,7 +15,7 @@ from dataclasses import replace
 from datetime import date, datetime, timedelta
 from typing import TYPE_CHECKING
 
-from vcp_scanner.config.models import UniverseConfig
+from vcp_scanner.config.models import QualityGateConfig, UniverseConfig
 from vcp_scanner.domain.enums import SurvivorshipStatus
 from vcp_scanner.domain.market import PROVIDER_ADJUSTED_SOURCES
 from vcp_scanner.domain.universe import (
@@ -123,6 +123,7 @@ class UniverseBuilder:
         clock: Clock = utc_now,
         quality_gate: DataQualityGate | None = None,
         include_provisional: bool = False,
+        gate_settings: QualityGateConfig | None = None,
     ) -> None:
         self._repo = repository
         # Audit step 2.5: today's PROVISIONAL Kite bar is used only when explicitly allowed.
@@ -132,6 +133,9 @@ class UniverseBuilder:
         # Optional (audit P0-2). When set, instruments with an unresolved signal-blocking
         # data-quality event become ineligible, judged as known at the snapshot's created_at.
         self._quality_gate = quality_gate
+        # Audit P1-8 (D3): the gate's settings (block lifetime, absence threshold) change
+        # eligibility, so they belong in the snapshot's config hash when a gate is used.
+        self._gate_settings = gate_settings
 
     def _apply_quality_gate(
         self, memberships: list[UniverseMembership], as_of_date: date, known_at: datetime
@@ -159,6 +163,8 @@ class UniverseBuilder:
     def _hash_config(self) -> str:
         """Return a deterministic hash of the universe configuration."""
         data = self._config.model_dump(mode="json")
+        if self._gate_settings is not None:
+            data = {"universe": data, "gate": self._gate_settings.model_dump(mode="json")}
         encoded = json.dumps(data, sort_keys=True).encode("utf-8")
         return hashlib.sha256(encoded).hexdigest()[:8]
 
