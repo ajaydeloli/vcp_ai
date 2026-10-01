@@ -168,7 +168,7 @@ class TrendTemplateEngine:
         trend_repo: TrendRepository,
         config: TrendTemplateConfig | None = None,
         *,
-        rs_version: str = "rs-1.0.0",
+        rs_version: str = "rs-1.1.0",
         features_version: str | None = FEATURES_CALCULATION_VERSION,
         quality_gate: DataQualityGate | None = None,
     ) -> None:

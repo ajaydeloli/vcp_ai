@@ -46,9 +46,9 @@ class TrendTemplateConfig(StrictBaseModel):
 
 
 class RSConfig(StrictBaseModel):
-    """TREND_TEMPLATE_SPECIFICATION section 3, 5 (rs-1.0.0)."""
+    """TREND_TEMPLATE_SPECIFICATION section 3, 5 (rs-1.1.0; rs-1.0.0 kept for old scans)."""
 
-    version: str = "rs-1.0.0"
+    version: Literal["rs-1.0.0", "rs-1.1.0"] = "rs-1.1.0"
     windows_days: list[int] = Field(default_factory=lambda: [63, 126, 189, 252])
     weights: list[float] = Field(default_factory=lambda: [0.40, 0.20, 0.20, 0.20])
     min_history_days: Annotated[int, Field(ge=253)] = 253

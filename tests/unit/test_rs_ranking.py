@@ -1,7 +1,8 @@
 """RS ranking tests required by TREND_TEMPLATE_SPECIFICATION section 7 (audit P1-6).
 
 Known-answer ranking, ties, NULL-history exclusion, population invariance with respect to the
-Trend Template stage, staleness boundary and the rank range of ``rs-1.0.0``. Synthetic data only.
+Trend Template stage, staleness boundary and the rank range of ``rs-1.1.0`` (and
+``rs-1.0.0``). Synthetic data only.
 """
 
 from __future__ import annotations
@@ -41,8 +42,8 @@ def _by_id(inputs: list[RSPriceInput], cfg: RSConfig = CFG) -> dict[str, RSRow]:
 
 def test_known_answer_ranking() -> None:
     rows = _by_id([_inp("A", 0.4), _inp("B", 0.3), _inp("C", 0.2), _inp("D", 0.1)])
-    # pct = (below + 0.5 * equal) / N ; rank = 1 + floor(98 * pct)
-    expected = {"A": (0.875, 86), "B": (0.625, 62), "C": (0.375, 37), "D": (0.125, 13)}
+    # rs-1.1.0: pct = (below + 0.5 * (equal - 1)) / (N - 1) ; rank = 1 + floor(98 * pct)
+    expected = {"A": (1.0, 99), "B": (2 / 3, 66), "C": (1 / 3, 33), "D": (0.0, 1)}
     for iid, (pct, rank) in expected.items():
         row = rows[iid]
         assert row.rs_percentile == pytest.approx(pct)
@@ -137,18 +138,37 @@ def test_no_calendar_cannot_show_staleness() -> None:
 # ---------------------------------------------------------------------------- rank range
 
 
-def test_rank_range_is_1_to_98_under_rs_1_0_0_and_monotonic() -> None:
-    """Spec quirk (TREND_TEMPLATE_SPECIFICATION section 3): with pct counting the instrument's
-    own half-weight, the top pct is (N - 0.5) / N < 1, so rank 99 is unreachable in rs-1.0.0."""
-    for n in (1, 2, 10, 100, 1000, 3000):
+def test_rank_range_is_1_to_99_under_rs_1_1_0_and_monotonic() -> None:
+    """rs-1.1.0 (owner decision 2026-10-02): the weakest gets 1, the strongest 99."""
+    for n in (2, 10, 100, 1000, 3000):
         rows = compute_rs_rows([_inp(f"S{i}", i / n) for i in range(n)], AS_OF, CFG)
         ranks = [r.rs_rank for r in sorted(rows, key=lambda r: r.rs_raw or 0.0)]
-        assert all(r is not None and 1 <= r <= 98 for r in ranks)
+        assert all(r is not None and 1 <= r <= 99 for r in ranks)
         assert ranks == sorted(ranks)
-        if n >= 49:
-            assert max(ranks) == 98
-            assert min(ranks) == 1
+        assert ranks[0] == 1 and ranks[-1] == 99
+
+
+def test_single_instrument_ranks_99_and_ties_share_a_rank() -> None:
+    (only,) = compute_rs_rows([_inp("ONE", 0.1)], AS_OF, CFG)
+    assert only.rs_rank == 99 and only.rs_percentile == 1.0
+    rows = _by_id([_inp("LO", 0.0), _inp("T1", 0.5), _inp("T2", 0.5), _inp("HI", 1.0)])
+    assert rows["T1"].rs_rank == rows["T2"].rs_rank == 50  # pct (1 + 0.5) / 3 = 0.5
+    assert (rows["LO"].rs_rank, rows["HI"].rs_rank) == (1, 99)
+
+
+def test_rs_1_0_0_is_kept_for_old_scans() -> None:
+    """The old formula counts the instrument's own half-weight: top rank 98."""
+    old = RSConfig(version="rs-1.0.0")
+    rows = compute_rs_rows([_inp(f"S{i}", i / 100) for i in range(100)], AS_OF, old)
+    assert max(r.rs_rank or 0 for r in rows) == 98
     assert 1 + math.floor(98 * (1000 - 0.5) / 1000) == 98
+
+
+def test_unknown_rs_version_is_refused() -> None:
+    from pydantic import ValidationError
+
+    with pytest.raises(ValidationError):
+        RSConfig(version="rs-9.9.9")  # type: ignore[arg-type]
 
 
 # ---------------------------------------------------------------------------- engine + population
@@ -209,4 +229,4 @@ def test_rs_is_unchanged_when_a_stock_leaves_the_trend_template_stage_not_the_po
     only_abc = compute_rs_rows(
         [replace(_inp(i, returns[i]), instrument_id=i) for i in "ABC"], AS_OF, CFG
     )
-    assert {r.instrument_id: r.rs_rank for r in only_abc}["A"] != ranks["A"]
+    assert {r.instrument_id: r.rs_rank for r in only_abc}["B"] != ranks["B"]

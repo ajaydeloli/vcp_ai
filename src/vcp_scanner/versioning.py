@@ -26,7 +26,7 @@ STRATEGY_VERSION: Final[str] = "strategy-1.0.0"
 
 # Owned by TREND_TEMPLATE_SPECIFICATION.md
 TREND_ALGORITHM_VERSION: Final[str] = "trend-1.0.0"
-RS_ALGORITHM_VERSION: Final[str] = "rs-1.0.0"
+RS_ALGORITHM_VERSION: Final[str] = "rs-1.1.0"
 STAGE_ALGORITHM_VERSION: Final[str] = "stage-1.0.0"
 
 # Owned by SCORING_SPECIFICATION.md

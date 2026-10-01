@@ -199,7 +199,7 @@ def test_domain_models_creation() -> None:
         rs_raw=0.25,
         rs_rank=85,
         population_size=1500,
-        calculation_version="rs-1.0.0",
+        calculation_version="rs-1.1.0",
     )
     assert rs.rs_rank == 85
 

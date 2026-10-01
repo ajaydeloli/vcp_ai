@@ -11,7 +11,7 @@ trend_template:
   extreme_basis: high_low
 
 rs:
-  version: rs-1.0.0
+  version: rs-1.1.0
   windows_days: [63, 126, 189, 252]
   weights: [0.40, 0.20, 0.20, 0.20]
   min_history_days: 253

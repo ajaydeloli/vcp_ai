@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed (RS rank 1–99, `rs-1.1.0`; owner decision 2026-10-02)
+- RS ranks now run 1–99: the strongest stock is 99, the weakest 1. The old formula counted each stock half against itself, so the top rank was 98. Ranks move up slightly, so a few stocks near the Trend Template's RS minimum (70) can change from FAIL to PASS. `strategy.rs.version: rs-1.0.0` keeps the old formula for re-running old scans.
+
 ### Fixed (audit P1-2a: data-quality history)
 - Every change of a data-quality event (opened, resolved, reopened, blocking or not) is now kept with its date in `data_quality_event_history`. Point-in-time runs (`vcp verify scan`, backtests) see the block exactly as it was then; before, reopening an event erased the period in which it had been resolved.
 

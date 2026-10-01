@@ -76,7 +76,7 @@ class TrendTemplateResult:
 
 @dataclass(frozen=True, slots=True)
 class RelativeStrengthResult:
-    """``rs-1.0.0`` output. ``rs_raw`` and ``rs_rank`` are None for INSUFFICIENT_DATA."""
+    """``rs-1.1.0`` output. ``rs_raw`` and ``rs_rank`` are None for INSUFFICIENT_DATA."""
 
     instrument_id: str
     as_of_date: date
@@ -108,7 +108,7 @@ class WeeklyContext:
 
 @dataclass(frozen=True, slots=True)
 class RSPriceInput:
-    """Adjusted closes one instrument contributes to an RS calculation (``rs-1.0.0``).
+    """Adjusted closes one instrument contributes to an RS calculation (``rs-1.1.0``).
 
     ``last_close`` is the newest bar on or before the as-of date; ``lagged_closes[k]`` is the
     close ``windows_days[k]`` sessions before it, or None when the history is too short.

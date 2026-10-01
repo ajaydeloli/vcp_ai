@@ -81,7 +81,7 @@ def _insert_rs(store: DuckDBStore, instrument_id: str, as_of: date, rank: int | 
         INSERT INTO relative_strength_snapshots (
             as_of_date, instrument_id, ret_63, ret_126, ret_189, ret_252, rs_raw, rs_rank,
             rs_percentile, population_size, rs_status, universe_snapshot_id, calculation_version
-        ) VALUES (?, ?, NULL, NULL, NULL, NULL, ?, ?, NULL, 100, ?, 'U1', 'rs-1.0.0')
+        ) VALUES (?, ?, NULL, NULL, NULL, NULL, ?, ?, NULL, 100, ?, 'U1', 'rs-1.1.0')
         """,
         [
             as_of,
@@ -496,11 +496,11 @@ def test_different_config_hashes_do_not_overwrite_each_other() -> None:
 
 def test_load_relative_strength_reads_snapshot(env: Env) -> None:
     as_of = env.seed(_uptrend(300), rs_rank=91)
-    rs = env.trend.load_relative_strength(INSTRUMENT, as_of, "rs-1.0.0")
+    rs = env.trend.load_relative_strength(INSTRUMENT, as_of, "rs-1.1.0")
     assert rs is not None and rs.rs_rank == 91 and rs.population_size == 100
     assert env.trend.load_relative_strength(INSTRUMENT, as_of, "rs-9.9.9") is None
     assert (
-        env.trend.load_relative_strength(INSTRUMENT, as_of - timedelta(days=1), "rs-1.0.0") is None
+        env.trend.load_relative_strength(INSTRUMENT, as_of - timedelta(days=1), "rs-1.1.0") is None
     )
 
 

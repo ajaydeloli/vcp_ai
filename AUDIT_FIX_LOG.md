@@ -1308,3 +1308,15 @@ Order: C7, C9, C10, C6, C5, C8 (C8 last: the only one that changes scan results)
 **Verification.** Full suite: 865 passed, 0 failed (before a one-line mypy fix in `resolve`; mypy then clean). `ruff check`, `ruff format --check` clean.
 
 **Real-data check** (copy `data/c5.duckdb` of the main DB, 04:56–05:10 IST): `migrate()` seeded the 802 existing events (747 OPEN, 55 RESOLVED) into 857 history intervals (747 open, 55 OPEN-then-RESOLVED pairs). Universe/RS/Trend Template for 2026-10-01 with the history gate: 1,257 eligible, 8 blocked, 203 PASS, results hash `7769987bb8868a73` (unchanged). `vcp verify scan` of that run (frozen data, universe rebuilt as known at its cutoff through the history gate): **MATCH**, same universe id.
+
+### Fix C8 — audit P3-1: RS rank reaches 99 (`rs-1.1.0`; owner decision 2026-10-02)
+
+**Found.** `rs-1.0.0` ranks `pct = (count_below + 0.5·count_equal) / N`, where `count_equal` includes the instrument itself, so the strongest stock's `pct` is `(N − 0.5)/N` and ranks run 1–98, not Minervini's 1–99 (documented quirk, audit 2026-09-30 Fix 7).
+
+**Change.** `rs-1.1.0` (new default, `strategy.rs.version`): `pct = (count_below + 0.5·(count_equal − 1)) / (N − 1)` over the other instruments (N = 1: 1.0), `rs_rank = 1 + floor(98·pct)`: weakest 1, strongest 99, ties share. `rs-1.0.0` stays selectable to re-run old scans (`RSConfig.version` is a Literal of the two). `RS_ALGORITHM_VERSION`, the Trend Template's default RS version, `config/strategy.yaml` and TREND_TEMPLATE_SPECIFICATION §3 updated. RS rows are stored per version, so old `rs-1.0.0` rows stay as they were. This is a strategy change: scan config hashes and scan ids change.
+
+**Tests** (`test_rs_ranking.py`): known answer for four stocks (99/66/33/1); range 1–99 and monotonic for 2–3,000 stocks; a single stock ranks 99; ties share 50; `rs-1.0.0` still tops at 98; an unknown version is refused. Golden RS/universe record re-recorded: only the 9 RS rows' `rs_percentile`/`rs_rank` changed.
+
+**Verification.** Full suite: 868 passed, 0 failed. `ruff check`, `ruff format --check`, `mypy --strict src` clean.
+
+**Real-data check** (copy `data/c8.duckdb` of the main DB, 05:13–05:16 IST, 2026-10-01): of 1,251 ranked stocks, 1,226 keep their rank, 13 move up 1 and 12 move down 1 (the old formula's self-count shifted ranks by up to half a step; the top rank is now 99, was 98). Trend Template: 203 PASS / 1,048 FAIL / 6 INSUFFICIENT_DATA, **no stock changes status**; results hash `8bdc231dc0f6fb4c` (was `7769987bb8868a73`; the hash includes `rs_rank`).

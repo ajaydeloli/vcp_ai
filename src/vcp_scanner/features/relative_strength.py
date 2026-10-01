@@ -1,12 +1,15 @@
-"""Relative strength ranking (``rs-1.0.0``, TREND_TEMPLATE_SPECIFICATION section 3).
+"""Relative strength ranking (``rs-1.1.0``, TREND_TEMPLATE_SPECIFICATION section 3).
 
 Pure strategy code (audit Fix 6): the formula and ranking live here as plain Python; prices
 come from and rows go to a ``RelativeStrengthRepository``. No storage engine is imported.
 
     R_n     = adj_close(t) / adj_close(t - n) - 1
     rs_raw  = sum(weight_k * R_k)        (default 0.40/0.20/0.20/0.20 over 63/126/189/252)
-    pct     = (count_below + 0.5 * count_equal) / N     over instruments with an rs_raw
-    rs_rank = 1 + floor(98 * pct)
+    rs-1.1.0 (default; audit P3-1, owner decision 2026-10-02):
+    pct     = (count_below + 0.5 * (count_equal - 1)) / (N - 1)    (others only; N = 1: 1.0)
+    rs_rank = 1 + floor(98 * pct)                                    -> 1 .. 99
+    rs-1.0.0 (kept for re-running old scans): pct = (count_below + 0.5 * count_equal) / N,
+    which counts the instrument's own half-weight, so the top rank was 98.
 
 Statuses (AGENTS.md rule 4, missing is not zero):
 - PASS               ranked; rs_raw / rs_rank / rs_percentile are set
@@ -82,7 +85,12 @@ def compute_rs_rows(
         if raw is not None and population:
             below = sum(1 for other in ranked if other < raw)
             equal = sum(1 for other in ranked if other == raw)
-            pct = (below + 0.5 * equal) / population
+            if config.version == "rs-1.0.0":
+                pct = (below + 0.5 * equal) / population
+            elif population == 1:
+                pct = 1.0
+            else:
+                pct = (below + 0.5 * (equal - 1)) / (population - 1)
             rank = 1 + math.floor(98 * pct)
         rows.append(RSRow(iid, returns, raw, rank, pct, population, status))
     return rows

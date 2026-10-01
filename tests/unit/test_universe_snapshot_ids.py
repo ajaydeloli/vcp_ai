@@ -81,12 +81,12 @@ def test_trend_repo_reads_rs_of_the_named_universe(store: DuckDBStore) -> None:
         store.conn.execute(
             "INSERT INTO relative_strength_snapshots (as_of_date, instrument_id, rs_raw, rs_rank,"
             " population_size, rs_status, universe_snapshot_id, calculation_version,"
-            " data_snapshot_id) VALUES (?, 'NSE_EQ|X', 1.0, ?, 10, 'OK', ?, 'rs-1.0.0', 'LIVE')",
+            " data_snapshot_id) VALUES (?, 'NSE_EQ|X', 1.0, ?, 10, 'OK', ?, 'rs-1.1.0', 'LIVE')",
             [D, rank, uid],
         )
-    latest = DuckDBTrendRepository(store).load_relative_strength("NSE_EQ|X", D, "rs-1.0.0")
+    latest = DuckDBTrendRepository(store).load_relative_strength("NSE_EQ|X", D, "rs-1.1.0")
     named = DuckDBTrendRepository(store, rs_universe_snapshot_id="uv_old").load_relative_strength(
-        "NSE_EQ|X", D, "rs-1.0.0"
+        "NSE_EQ|X", D, "rs-1.1.0"
     )
     assert latest is not None and latest.rs_rank == 55.0
     assert named is not None and named.rs_rank == 91.0
