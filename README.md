@@ -169,3 +169,16 @@ current status of each.
 | Scoring and ranking (Phase 7) | `SCORING_SPECIFICATION.md` |
 | Agent entry point / detailed agent rules | `AGENTS.md` / `AI_AGENT_RULES.md` |
 | Change history | `CHANGELOG.md` |
+
+## Daily run, backups and recovery
+
+`scripts/daily_run.sh` runs `vcp run daily` (Windows Task Scheduler, Mon–Fri 19:15 and 22:00 IST; one run at a time). Before any step it checks that `data/vcp_scanner.duckdb` opens and answers a query, then copies it to `data/backups/vcp_scanner_<UTC date>_<time>.duckdb`, keeping the newest 3 (`--backup-keep`, `--backup-dir`, `--no-backup`). A damaged database or a failed backup stops the run before anything is written; `data/logs/daily_runs.log` records `FAILED: database check/backup` and the run's output names the newest backup with the restore command:
+
+```bash
+mv data/vcp_scanner.duckdb data/vcp_scanner.duckdb.damaged
+cp data/backups/vcp_scanner_<newest>.duckdb data/vcp_scanner.duckdb
+.venv/bin/vcp run daily --db data/vcp_scanner.duckdb --config-dir config --env-file .env
+```
+
+A run that stops halfway (power cut, crash) needs no restore: DuckDB keeps every completed write and rolls back the unfinished one, and the next run catches up.
+

@@ -490,6 +490,19 @@ def build_parser() -> argparse.ArgumentParser:
     _add_db_arg(daily_parser)
     _add_config_dir_arg(daily_parser)
     daily_parser.add_argument("--env-file", default=".env", help="Path to .env file")
+    daily_parser.add_argument(
+        "--backup-dir",
+        default=None,
+        help="Where the pre-run database backups go (default: <db folder>/backups)",
+    )
+    daily_parser.add_argument(
+        "--backup-keep", type=int, default=3, help="Number of backups to keep (default 3)"
+    )
+    daily_parser.add_argument(
+        "--no-backup",
+        action="store_true",
+        help="Skip the pre-run health check and backup (not recommended)",
+    )
 
     # quality subcommands (audit P0-2)
     quality_parser = subparsers.add_parser("quality", help="Data-quality events that block signals")

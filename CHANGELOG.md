@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (backups before the daily run)
+- `vcp run daily` now checks that the database opens and copies it to `data/backups/` before any step, keeping the newest 3 copies. A damaged database or a failed backup stops the run with the newest backup and the command to restore it. Flags `--backup-dir`, `--backup-keep`, `--no-backup`.
+
 ### Fixed (Upstox amount 0 on rights issues)
 - Upstox reports `amount: 0` on splits, bonuses and rights issues; it is now read as "not reported". Before, a rights issue's NSE issue price disagreed with that 0, the rights issue became a provider conflict and lost its price-adjustment factor (seen on 9 stocks, e.g. NATCOPHARM, in the first live Upstox run).
 

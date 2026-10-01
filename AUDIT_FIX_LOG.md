@@ -1216,3 +1216,16 @@ Two earlier attempts (01:26, 01:57) were cut short by power failures on the owne
 - 269 Upstox observations stored (the first ever). Resolutions: 263 SINGLE_SOURCE → CONFIRMED, including all 9 rights issues that U1 alone turned into conflicts (NATCOPHARM, CENTEXT, GENESYS, …); 187 adjustment factors (179 without U2: the rights TERP factors are back).
 - One new PROVIDER_CONFLICT: DTIL's 2026-08-12 dividend reported only by Upstox (warning, no price effect).
 - Blocking data-quality events 235 → 235 (none new, none cleared); no change for any of the 2026-10-01 eligible stocks.
+
+## Fix B1 — health check and rolling backups before the daily run (2026-10-02)
+
+**Why.** Two power failures on the owner's PC during the night of 2026-10-01 interrupted the Upstox checks. DuckDB survived (writes are all or nothing; the main DB opened with all data), but nothing backed the database up automatically: every backup so far was taken by hand before a fix, and rebuilding means re-downloading five years of NSE data. Owner decision 2026-10-02: back up before every daily run.
+
+**Change.**
+- `vcp_scanner.backup`: `check_database` (opens the file and runs a query; with `checkpoint` folds the WAL in first), `backup_database` (health check with checkpoint, disk-space check, copy to `<name>_<YYYYMMDD_HHMMSS>.duckdb.partial`, fsync, open-and-check the copy, rename, keep the newest `keep`, remove stale `.partial` files), `list_backups`, `restore_hint`.
+- `vcp run daily` step 0: check, then back up to `<db folder>/backups/` (newest 3). A failure stops the run before any step, prints the newest backup and the restore command, and logs `FAILED: database check/backup`. New flags `--backup-dir`, `--backup-keep`, `--no-backup`.
+- `README.md` "Daily run, backups and recovery".
+
+**Tests** (`test_backup.py`): healthy file passes, garbage and missing files fail; five backups keep the newest three and the copy opens with its data; an uncheckpointed insert is in the backup; a leftover `.partial` is removed and never listed; a damaged database is refused, the restore hint names the good backup, and that backup is not rotated out; `run_daily` on a damaged database runs no step and logs the failure.
+
+**Verification.** Full suite: 848 passed, 0 failed. `ruff check`, `ruff format --check`, `mypy --strict src` clean.

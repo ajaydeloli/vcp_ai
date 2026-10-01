@@ -3,6 +3,10 @@
 ``vcp run daily`` chains the existing commands. It is safe to run late or after skipped
 evenings: every step catches up on its own.
 
+0. Health check and backup (owner decision 2026-10-02): the database must open and answer a
+   query, then it is copied to ``<db folder>/backups/`` (newest ``--backup-keep`` copies kept).
+   A database that fails the check, or a backup that fails, stops the run before anything is
+   written, and the message names the newest backup to restore (``vcp_scanner.backup``).
 1. ``ingest security-master``: listings, delistings and today's ASM/GSM/T2T lists. NSE
    publishes only the *current* surveillance lists, so this is the one thing a skipped evening
    loses for good; the day is recorded in ``surveillance_collections`` either way.
@@ -24,6 +28,13 @@ from collections.abc import Callable
 from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 
+from vcp_scanner.backup import (
+    DEFAULT_KEEP,
+    backup_database,
+    check_database,
+    default_backup_dir,
+    restore_hint,
+)
 from vcp_scanner.data.providers._time import IST
 from vcp_scanner.data.storage.duckdb_store import DuckDBStore
 
@@ -61,6 +72,24 @@ def run_daily(args: argparse.Namespace, cli_main: Callable[[list[str]], int]) ->
     started = datetime.now(UTC)
     today = started.astimezone(IST).date()
     results: list[tuple[str, int]] = []
+
+    if not getattr(args, "no_backup", False):
+        backup_dir = Path(getattr(args, "backup_dir", None) or default_backup_dir(db))
+        keep = int(getattr(args, "backup_keep", None) or DEFAULT_KEEP)
+        print(f"=== database check and backup ({datetime.now(UTC).astimezone(IST):%H:%M} IST)")
+        error = check_database(db)
+        try:
+            if error is not None:
+                raise RuntimeError(f"database failed its health check: {error}")
+            backup = backup_database(db, backup_dir, keep=keep, now=started)
+        except Exception as exc:
+            message = f"ERROR: {exc}. Nothing was run.\n{restore_hint(db, backup_dir)}"
+            print(message)
+            _append_summary(
+                db, f"{started.astimezone(IST):%Y-%m-%d %H:%M} IST | FAILED: database check/backup"
+            )
+            return 1
+        print(f"Backup: {backup} ({backup.stat().st_size / 1e9:.2f} GB, newest {keep} kept)")
 
     def step(name: str, argv: list[str]) -> int:
         print(f"\n=== {name} ({datetime.now(UTC).astimezone(IST):%H:%M} IST)")
@@ -130,8 +159,12 @@ def run_daily(args: argparse.Namespace, cli_main: Callable[[list[str]], int]) ->
             "WARNING: today's ASM/GSM lists were not collected. NSE publishes only the current "
             "lists, so today's universe stays PARTIAL. Re-run `vcp run daily` today if possible."
         )
+    _append_summary(db, summary)
+    return 1 if failed else 0
+
+
+def _append_summary(db: str, line: str) -> None:
     log = Path(db).resolve().parent / "logs" / "daily_runs.log"
     log.parent.mkdir(parents=True, exist_ok=True)
     with log.open("a", encoding="utf-8") as fh:
-        fh.write(summary + "\n")
-    return 1 if failed else 0
+        fh.write(line + "\n")
