@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed (audit 2.7c: gap safety net window; owner decision 2026-10-01)
+- An action now explains a gap when its ex-date falls after the previous bar and up to the gap bar, not only on the gap bar's own date. Illiquid stocks often do not trade on the ex-date, and their correctly adjusted splits, bonuses and rights still blocked them (DOLPHIN, UEL, TIL …).
+- The action must also account for the gap's size: the previous close times the combined factor (split/bonus ratio, rights TERP) must land within `gap_pct` of the open. A long absence is not explained by an unrelated action inside it, and an ex-date action whose ratio does not fit the jump is now flagged. Such events record `residual_gap_pct_after_actions`.
+
 ### Fixed (audit 2.7b: share consolidations)
 - An NSE "Consolidation Of Equity Shares From Re 1 … To Rs 10 …" record is now a reverse split, SPLIT (1, 10), instead of an unhandled record (VERTOZ 2025-06-25). Capital reductions still carry no ratio and stay reported as unhandled.
 

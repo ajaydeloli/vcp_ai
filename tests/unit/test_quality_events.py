@@ -408,9 +408,13 @@ def test_gap_is_not_explained_by_an_action_that_does_not_adjust_prices(
 )
 def test_gap_is_explained_by_an_applied_split_or_bonus(status: CorporateActionStatus) -> None:
     detector = GapDetector(UnexplainedGapConfig(gap_pct=30))
-    for action_type in (CorporateActionType.SPLIT, CorporateActionType.BONUS):
-        res = _gap_resolution(action_type=action_type, status=status)
+    # Ratios that halve the price: split 2:1 (face value 2 -> 1) and bonus 1:1. Since audit
+    # 2.7c the action must also fit the jump's size; a bonus 2:1 (price x 1/3) would not.
+    for action_type, num in ((CorporateActionType.SPLIT, 2.0), (CorporateActionType.BONUS, 1.0)):
+        res = _gap_resolution(action_type=action_type, status=status, num=num, den=1.0)
         assert detector.detect(_bars([(100, 100), (50, 50)]), [res], T0) == []
+    misfit = _gap_resolution(action_type=CorporateActionType.BONUS, status=status, num=2.0)
+    assert len(detector.detect(_bars([(100, 100), (50, 50)]), [misfit], T0)) == 1
 
 
 @pytest.mark.parametrize(

@@ -865,3 +865,21 @@ Consolidations and capital reductions caused none of the 44. The whole equities 
 **Tests.** New `tests/unit/test_consolidation.py` (6) with the real VERTOZ, MAXIND and EASTSILK records: consolidation parsed as SPLIT (1, 10); engine factor (10, 0.1); consolidation without face values reported unparsed; capital reductions unhandled and reported; `parse_ratio` on the upper-case text.
 
 **Verification.** Full suite: 752 passed, 0 failed. `ruff check`, `ruff format --check`, `mypy --strict src` clean.
+
+### Fix 2.7c — gap safety net: ex-date window with a size check
+
+**Owner decision (2026-10-01):** accept an ex-date between the bars, but only when the action accounts for the gap's size.
+
+**Change.** `GapDetector.detect` no longer looks up the gap bar's date in the set of ex-dates. For each gap of at least `gap_pct` it takes the applied actions (`explains_price_gap`) with `previous bar < ex_date <= gap bar` and computes the residual `open / (previous close × F) − 1`:
+- SPLIT/BONUS: `F` from the ratio, using `AdjustmentEngine.single_factor` so the detector and the adjusted prices agree (a consolidation's 10 included);
+- RIGHTS: `F` = TERP factor (`derived_factor`) with the previous close as prior close;
+- DEMERGER, or RIGHTS without an issue price: no factor can be computed from these two bars, so the gap counts as explained as before; the worker's `factor_unknown` event blocks the symbol when the adjustment engine cannot derive the factor either.
+
+The gap is explained when `|residual| < gap_pct`. Otherwise the event carries `residual_gap_pct_after_actions`. Behaviour change on the ex-date itself: a split/bonus whose ratio does not fit the jump is now flagged (before, any applied split/bonus on that date silenced it).
+
+**Why.** Seven of the 50 blocking events (DOLPHIN, DRCSYSTEMS, ESSENTIA, KEEPLEARN, TIL, UEL ×2) had correct actions and correctly adjusted prices; the stocks just did not trade on the ex-date. Eight of the SME events from 2.7a are the same case.
+
+**Tests.** New `tests/unit/test_gap_window.py` (10) on real bhavcopy prices: DOLPHIN split, UEL bonus, TIL rights (TERP), VERTOZ consolidation and HECPROJECT bonus explained across non-trading ex-dates and flagged without the action; GOODYEAR's 908-day absence stays flagged with an unrelated 10:1 split inside it (residual +528 %); a misfitting ratio on the ex-date is flagged; an ex-date on the previous bar is outside the window; GICL's same-day split and bonus combine (the split alone leaves −47 %); a demerger without a derivable factor defers to its own event. Existing gap-detector and golden tests unchanged and passing.
+- `test_quality_events.test_gap_is_explained_by_an_applied_split_or_bonus` used a 2:1 ratio for the bonus too, which predicts a third of the price, not half; it now uses bonus 1:1 and also asserts that the misfitting bonus 2:1 is flagged.
+
+**Verification.** Full suite: 762 passed, 0 failed. `ruff check`, `ruff format --check`, `mypy --strict src` clean.

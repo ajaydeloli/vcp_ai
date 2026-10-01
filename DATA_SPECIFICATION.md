@@ -606,11 +606,17 @@ Catches actions that both feeds missed. It compares the day's **raw open** with 
 
 ```text
 abs(raw_open(t) / raw_close(t-1) - 1) >= gap_pct
-AND no *applied* split/bonus with ex_date = t (for that instrument)
+AND NOT explained by the *applied* actions with t-1 < ex_date <= t   (t-1 = previous bar)
 -> data_quality_event UNEXPLAINED_GAP, severity HIGH
+
+explained  <=>  abs(raw_open(t) / (raw_close(t-1) * F) - 1) < gap_pct
+F = product of the window's price factors: split/bonus from the ratio (adjustment engine
+    convention), rights from TERP with raw_close(t-1) as the prior close
 ```
 
-"Applied" (audit P0-3) means a SPLIT or BONUS resolution whose status feeds adjustment factors (`CONFIRMED`, `SINGLE_SOURCE`, `MANUAL_OVERRIDE`) **and** whose ratio is present, finite and positive. A dividend, a rights issue, a `PROVIDER_CONFLICT`, or a split whose ratio could not be read does not rescale prices, so it never explains a gap.
+The window (audit 2.7c, owner decision 2026-10-01): an illiquid stock (series BE/BZ/SM) often does not trade on the ex-date, so the action's jump shows on the first bar after it; before 2.7c those gaps stayed flagged although the adjusted prices were right (DOLPHIN, UEL, TIL …). The size check keeps a long trading absence from being explained by an unrelated action inside it, and also flags an action on the ex-date whose ratio does not fit the jump. A demerger, or a rights issue without an issue price, has no factor computable from these two bars; it explains the gap as before, and when the adjustment engine cannot derive its factor either, a blocking `factor_unknown` event covers it. An unexplained gap with actions in its window records `residual_gap_pct_after_actions` in the event context.
+
+"Applied" (audit P0-3, step 2.4) means a resolution whose status feeds adjustment factors (`CONFIRMED`, `SINGLE_SOURCE`, `MANUAL_OVERRIDE`) and that is either a SPLIT or BONUS with a present, finite and positive ratio, or a RIGHTS issue or DEMERGER (factor derived from prices). A dividend, a `PROVIDER_CONFLICT`, or a split whose ratio could not be read does not rescale prices, so it never explains a gap.
 
 - **Unknown ratio.** An adjustable split/bonus with no usable ratio gets factor 1.0 from the adjustment engine, so its price jump stays in the adjusted series. It raises a `CORPORATE_ACTION_UNRESOLVED` event (`context.cause = ratio_unknown`) that **always blocks** from the ex-date, independent of `conflict_blocks_signals`. Like a conflict, it cannot be closed with `vcp quality resolve`. It clears when a later resolution for the same action carries a usable ratio.
 
