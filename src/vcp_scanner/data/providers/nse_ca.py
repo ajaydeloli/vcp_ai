@@ -29,6 +29,9 @@ _BONUS_BEFORE_RE = re.compile(r"(\d+)\s*:\s*(\d+)\s*BONUS")
 # Also "Rights Issue 4:17@ Premium Rs 390/-" and "Rights 7:10 @ Prm Rs 102/-" (live, 2026-10-01).
 _RIGHTS_RE = re.compile(r"RIGHTS(?:\s+ISSUE)?\s*(\d+(?:\.\d+)?)\s*:\s*(\d+(?:\.\d+)?)")
 _PREMIUM_RE = re.compile(r"(?:PREMIUM|PRM)\.?\s*(?:(?:RS|RE|INR)\.?)?\s*(\d+(?:\.\d+)?)")
+# An Indian ISIN: "IN", a 1-char issuer type, 4-char issuer, 2-digit security type, 2-char issue
+# number and a check digit (e.g. INE920A01029).
+_ISIN_RE = re.compile(r"IN[A-Z0-9]{9}[0-9]")
 # Price-affecting events this provider does not model. Dropping them silently would leave the
 # price series unadjusted with no trace, so they are reported instead (audit P1-2).
 _UNHANDLED_MARKERS = (
@@ -97,7 +100,11 @@ class NSECorporateActionProvider:
 
     PROVIDER_NAME = "NSE"
     BASE_URL = "https://www.nseindia.com"
-    API_URL = "https://www.nseindia.com/api/corporates-corporateActions?index=equities"
+    API_URL = "https://www.nseindia.com/api/corporates-corporateActions"
+    #: NSE keeps main-board and SME (Emerge) actions in separate feeds. ``equities`` misses
+    #: every SME bonus/split (series SM/ST); ``sme`` has them in the same record format
+    #: (verified live 2026-10-01: 907 records 2021-01-01..2026-09-30).
+    INDEXES: tuple[str, ...] = ("equities", "sme")
 
     def __init__(self, *, clock: Clock = utc_now) -> None:
         self._clock = clock
@@ -144,38 +151,54 @@ class NSECorporateActionProvider:
         self.unparsed_ratios = []
         self.unhandled_records = []
 
-        # Format dates as DD-MM-YYYY for NSE API
-        params = {"from_date": start.strftime("%d-%m-%Y"), "to_date": end.strftime("%d-%m-%Y")}
+        seen: set[str] = set()
+        for index in self.INDEXES:
+            # Format dates as DD-MM-YYYY for NSE API
+            params = {
+                "index": index,
+                "from_date": start.strftime("%d-%m-%Y"),
+                "to_date": end.strftime("%d-%m-%Y"),
+            }
+            try:
+                response = self._session.get(self.API_URL, params=params, timeout=15)
 
-        try:
-            response = self._session.get(self.API_URL, params=params, timeout=15)
+                if response.status_code != 200:
+                    raise ProviderError(
+                        f"NSE corporate actions request failed (index={index}): "
+                        f"HTTP {response.status_code} {response.text[:200]}"
+                    )
 
-            if response.status_code != 200:
+                data = response.json()
+                if not isinstance(data, list):
+                    raise ProviderError(
+                        f"NSE corporate actions (index={index}): expected a list, "
+                        f"got {type(data).__name__}"
+                    )
+
+                # NSE API returns a list of dictionaries
+                for item in data:
+                    # If instruments filter is provided, skip unmatched
+                    if instruments:
+                        symbol = item.get("symbol", "")
+                        if not any(inst.symbol == symbol for inst in instruments):
+                            continue
+
+                    action = self._parse_nse_action(item)
+                    # A stock that migrated from SME to the main board may be listed in both
+                    # feeds; the deterministic ID keeps one copy.
+                    if action and action.corporate_action_id not in seen:
+                        seen.add(action.corporate_action_id)
+                        actions.append(action)
+
+            except ProviderError:
+                raise
+            except Exception as e:
+                # An empty list would read as "no corporate actions", which leaves splits and
+                # bonuses unadjusted. A failed fetch (of either feed) must never look like an
+                # empty result.
                 raise ProviderError(
-                    f"NSE corporate actions request failed: "
-                    f"HTTP {response.status_code} {response.text[:200]}"
-                )
-
-            data = response.json()
-
-            # NSE API returns a list of dictionaries
-            for item in data:
-                # If instruments filter is provided, skip unmatched
-                if instruments:
-                    symbol = item.get("symbol", "")
-                    if not any(inst.symbol == symbol for inst in instruments):
-                        continue
-
-                action = self._parse_nse_action(item)
-                if action:
-                    actions.append(action)
-
-        except ProviderError:
-            raise
-        except Exception as e:
-            # An empty list would read as "no corporate actions", which leaves splits and
-            # bonuses unadjusted. A failed fetch must never look like an empty result.
-            raise ProviderError(f"NSE corporate actions fetch error: {e}") from e
+                    f"NSE corporate actions fetch error (index={index}): {e}"
+                ) from e
 
         return actions
 
@@ -237,11 +260,16 @@ class NSECorporateActionProvider:
             # the ingestion worker remaps it through the InstrumentResolver (ISIN first),
             # so a renamed symbol still lands on the instrument's permanent ID.
             symbol = item.get("symbol", "")
+            # The SME feed's "isin" field holds an internal number ("341033" for KSOLVES),
+            # not an ISIN. Passing it on would resolve nothing and store junk, so only a real
+            # ISIN is kept; the resolver then falls back to the symbol.
+            raw_isin = str(item.get("isin") or "").strip().upper()
+            isin = raw_isin if _ISIN_RE.fullmatch(raw_isin) else None
 
             # Deterministic ID: the same NSE record maps to the same row on every fetch.
             action_id = deterministic_action_id(
                 self.PROVIDER_NAME,
-                item.get("isin") or symbol,
+                isin or symbol,
                 action_type.value,
                 ex_date,
                 num,
@@ -252,7 +280,7 @@ class NSECorporateActionProvider:
             return CorporateAction(
                 corporate_action_id=action_id,
                 instrument_id=mint_instrument_id("NSE", symbol),
-                isin=item.get("isin"),
+                isin=isin,
                 action_type=action_type,
                 source=self.PROVIDER_NAME,
                 created_at=self._clock(),

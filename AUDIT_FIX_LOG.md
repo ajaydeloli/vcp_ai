@@ -829,3 +829,29 @@ The 1,677 bars fewer than the trial build are exactly the rights-entitlement row
   - Settings: run as soon as possible after a missed start; 2 h limit; a flock in the script prevents two runs at once.
   - Output goes to `data/logs/daily_run_<date>.out`; the summary goes to `data/logs/daily_runs.log`.
   - Verified by starting the late task manually; it launched `vcp run daily` in WSL.
+
+## Step 2.7 — unblocking the 44 listed stocks held back by unexplained gaps (2026-10-01)
+
+**Spike (read-only, 16:00–16:25 IST).** The 50 blocking `UNEXPLAINED_GAP` events on 44 active instruments in the main DB, checked against NSE's feeds (`index=equities` and `index=sme`, by date window and by symbol), the raw bhavcopy and the stored actions:
+
+| Group | Events | Cause |
+|---|---|---|
+| A | 34 | SME bonus/split listed in `index=sme`, which we never fetched. 8 of them have no bar on the ex-date (illiquid SM stocks). |
+| B | 7 | Action stored and prices correctly adjusted (DOLPHIN, DRCSYSTEMS, ESSENTIA, KEEPLEARN, TIL, UEL ×2), but no bar on the ex-date and `GapDetector` only accepted an ex-date equal to the gap bar's date. |
+| C | 3 | In no NSE feed: DTIL 2021-08-05 bonus 1:2; GICL 2025-10-15 split Rs 10 → Rs 5 plus bonus 1:1; JSLL 2025-06-12 split Rs 10 → Rs 2 (record-date notices on nsearchives). |
+| D | 1 | SETCO 2026-06-02: interim dividend Rs 13 on a Rs 28.62 share; the gap is genuine. |
+| E | 5 | Long absences from NSE, no action in between (P1-2): BESTAGRO 259 days, GOODYEAR and GRAUWEIL 908, WATERBASE 1,027, LANCER 1,207. |
+
+Consolidations and capital reductions caused none of the 44. The whole equities feed 2021–2026 has four such records: VERTOZ (consolidation Re 1 → Rs 10) and EASTSILK, MAXIND, MELSTAR (capital reduction, no ratio). Of the 41 open gaps of +100 % or more, only VERTOZ and EASTSILK have a feed record; most of the rest follow trading absences of 26–1,735 days (relistings, often after a resolution plan; P1-2).
+
+**Owner decision:** fix A–C (SME feed, ex-date window with a residual check, consolidation parsing, a manual-override file); SETCO is closed as genuine with `vcp quality resolve`; E stays for P1-2.
+
+### Fix 2.7a — NSE SME corporate-action feed
+
+**Change.** `NSECorporateActionProvider` fetches `index=equities` and `index=sme` (`INDEXES`) with the same date window and merges them; a record listed in both (an SME stock that migrated) is kept once by its deterministic ID. A failure or a non-list answer from either feed raises `ProviderError`, naming the feed. The SME feed's `isin` field holds an internal number ("341033" for KSOLVES), so only values shaped like an ISIN are kept; otherwise the action resolves by symbol.
+
+**Real-data check.** 2021-01-01..2026-09-30: `sme` has 907 records; the current parser reads 97 bonuses, 16 splits, 36 rights and 2 demergers from them, and fails only on two "RIGHTS 1:1" with no premium (reported as unparsed, as for the main board).
+
+**Tests.** New `tests/unit/test_nse_sme_feed.py` (6), using real records (KSOLVES "BONUS 3:1/DIVIDEND", VCL split, DOLPHIN split): both feeds asked and merged with the right ratios; SME number not stored as ISIN; duplicate kept once; failure of either feed raises; non-list answer raises.
+
+**Verification.** Full suite: 746 passed, 0 failed (was 740). `ruff check`, `ruff format --check`, `mypy --strict src` clean.
