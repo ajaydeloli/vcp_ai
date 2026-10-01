@@ -330,15 +330,24 @@ class DuckDBUniverseRepository:
         starts: dict[str, date | None] = {}
         for flag in ("ASM", "GSM"):
             row = conn.execute(
-                "SELECT min(valid_from) FROM surveillance_flags_history"
-                " WHERE flag_type = ? AND known_from <= ?",
+                "SELECT min(collected_on) FROM surveillance_collections"
+                " WHERE flag_type = ? AND recorded_at <= ?",
                 [flag, known_at],
             ).fetchone()
             starts[flag] = row[0] if row else None
+        on_day = frozenset(
+            str(r[0])
+            for r in conn.execute(
+                "SELECT flag_type FROM surveillance_collections"
+                " WHERE collected_on = ? AND recorded_at <= ?",
+                [as_of_date, known_at],
+            ).fetchall()
+        )
         return SurvivorshipEvidence(
             window_start=window_start,
             missing_price_days=missing,
             first_price_day=first_price_day,
             flag_history_start=starts,
             delistings=self.count_known_delistings(known_at),
+            flag_collected_on=on_day,
         )

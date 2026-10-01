@@ -480,3 +480,17 @@ def test_delisted_records_never_create_instruments(store):
         delisting_provider=FakeSecurityMasterProvider([delisted]),
     ).run(start=date(2000, 1, 1), end=date(2024, 1, 1))
     assert [r[0] for r in _instrument_rows(store)] == ["NSE_EQ|AAA"]
+
+
+def test_each_run_records_which_lists_were_collected(store):
+    """Daily run: the collection day is stored per list, even when a list is empty."""
+    flag = SurveillanceRecord(
+        instrument_id="NSE_EQ|YESBANK", flag="ASM", valid_from=date(2024, 1, 1), source="NSE"
+    )
+    worker = _sm_worker(store, flags=[flag])
+    worker._surv_provider.collected_flag_types = frozenset({"ASM", "GSM"})
+    worker.run(start=date(2024, 1, 1), end=date(2024, 3, 1))
+    rows = store.conn.execute(
+        "SELECT flag_type, record_count FROM surveillance_collections ORDER BY 1"
+    ).fetchall()
+    assert rows == [("ASM", 1), ("GSM", 0)]

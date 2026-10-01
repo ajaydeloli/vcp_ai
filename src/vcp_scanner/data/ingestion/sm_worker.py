@@ -466,6 +466,26 @@ class SecurityMasterIngestionWorker:
                 )
                 closed += 1
 
+        # 3. Record which lists were collected today (audit P0-4 / daily run): without a row,
+        # a day's flags are unknown and that day's universe cannot be POINT_IN_TIME_COMPLETE.
+        counts: dict[str, int] = dict.fromkeys(
+            getattr(self._surv_provider, "collected_flag_types", None) or {r.flag for r in records},
+            0,
+        )
+        for rec in records:
+            counts[rec.flag] = counts.get(rec.flag, 0) + 1
+        for flag_type, n in counts.items():
+            self._store.conn.execute(
+                """
+                INSERT INTO surveillance_collections (collected_on, flag_type, record_count,
+                                                      recorded_at)
+                VALUES (?, ?, ?, ?)
+                ON CONFLICT (collected_on, flag_type) DO UPDATE SET
+                    record_count = excluded.record_count, recorded_at = excluded.recorded_at
+                """,
+                [today, flag_type, n, known_at],
+            )
+
         logger.info(
             "Surveillance flags: %d inserted, %d closed",
             inserted,

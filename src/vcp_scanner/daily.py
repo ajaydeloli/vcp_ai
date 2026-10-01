@@ -1,0 +1,137 @@
+"""The evening run: bring the database up to date and scan every new session (daily run).
+
+``vcp run daily`` chains the existing commands. It is safe to run late or after skipped
+evenings: every step catches up on its own.
+
+1. ``ingest security-master``: listings, delistings and today's ASM/GSM/T2T lists. NSE
+   publishes only the *current* surveillance lists, so this is the one thing a skipped evening
+   loses for good; the day is recorded in ``surveillance_collections`` either way.
+2. ``ingest bhavcopy`` from the day after the last settled file: every missed session is
+   loaded in date order; today's file not being published yet just stops the load (PENDING).
+3. ``ingest corporate-actions`` over the 60 days before the first new session.
+4. ``ingest adjusted-prices`` and ``compute features`` (full history, cheap).
+5. ``ingest universe`` / ``compute rs`` / ``compute trend-template`` for every session after
+   the last scanned one (one session on the first run).
+
+One line per run is appended to ``<db folder>/logs/daily_runs.log``.
+"""
+
+from __future__ import annotations
+
+import argparse
+import logging
+from collections.abc import Callable
+from datetime import UTC, date, datetime, timedelta
+from pathlib import Path
+
+from vcp_scanner.data.providers._time import IST
+from vcp_scanner.data.storage.duckdb_store import DuckDBStore
+
+logger = logging.getLogger(__name__)
+
+CA_LOOKBACK_DAYS = 60
+
+
+def _query(db: str, sql: str, params: list[object] | None = None) -> list[tuple[object, ...]]:
+    with DuckDBStore(db) as store:
+        store.migrate()
+        return store.conn.execute(sql, params or []).fetchall()
+
+
+def _date(value: object) -> date | None:
+    return value if isinstance(value, date) else None
+
+
+def sessions_to_scan(db: str) -> list[date]:
+    """Sessions with prices that have no Trend Template result yet (latest only on a first run)."""
+    last_scan = _date(_query(db, "SELECT max(as_of_date) FROM trend_template_results")[0][0])
+    rows = _query(
+        db,
+        "SELECT trade_date FROM bhavcopy_files WHERE status = 'OK'"
+        " GROUP BY trade_date ORDER BY trade_date",
+    )
+    sessions = [d for (d,) in rows if isinstance(d, date)]
+    if last_scan is None:
+        return sessions[-1:]
+    return [d for d in sessions if d > last_scan]
+
+
+def run_daily(args: argparse.Namespace, cli_main: Callable[[list[str]], int]) -> int:
+    db, cfg, env = args.db, args.config_dir, args.env_file
+    started = datetime.now(UTC)
+    today = started.astimezone(IST).date()
+    results: list[tuple[str, int]] = []
+
+    def step(name: str, argv: list[str]) -> int:
+        print(f"\n=== {name} ({datetime.now(UTC).astimezone(IST):%H:%M} IST)")
+        code = cli_main(argv)
+        results.append((name, code))
+        return code
+
+    step(
+        "security master + ASM/GSM/T2T lists",
+        ["ingest", "security-master", "--start", args.history_start, "--db", db],
+    )
+
+    last_settled = _date(
+        _query(
+            db,
+            "SELECT max(trade_date) FROM bhavcopy_files WHERE status IN ('OK', 'NO_SESSION')",
+        )[0][0]
+    )
+    bhav_start = (
+        last_settled + timedelta(days=1) if last_settled else date.fromisoformat(args.history_start)
+    )
+    if bhav_start <= today:
+        step(
+            "NSE bhavcopy",
+            ["ingest", "bhavcopy", "--start", bhav_start.isoformat(), "--db", db,
+             "--config-dir", cfg],
+        )  # fmt: skip
+    ca_start = min(bhav_start, today) - timedelta(days=CA_LOOKBACK_DAYS)
+    step(
+        "corporate actions",
+        ["ingest", "corporate-actions", "--start", ca_start.isoformat(), "--db", db,
+         "--config-dir", cfg, "--env-file", env],
+    )  # fmt: skip
+    step("adjusted prices", ["ingest", "adjusted-prices", "--db", db])
+    step("features", ["compute", "features", "--db", db])
+
+    scan_dates = sessions_to_scan(db)
+    for d in scan_dates:
+        iso = d.isoformat()
+        step(f"universe {iso}", ["ingest", "universe", "--as-of", iso, "--db", db,
+                                 "--config-dir", cfg])  # fmt: skip
+        step(f"RS {iso}", ["compute", "rs", "--as-of", iso, "--db", db, "--config-dir", cfg])
+        step(f"Trend Template {iso}", ["compute", "trend-template", "--as-of", iso, "--db", db,
+                                       "--config-dir", cfg])  # fmt: skip
+
+    collected = sorted(
+        str(r[0])
+        for r in _query(
+            db,
+            "SELECT flag_type FROM surveillance_collections WHERE collected_on = ?",
+            [started.date()],
+        )
+    )
+    latest = _date(
+        _query(db, "SELECT max(trade_date) FROM bhavcopy_files WHERE status = 'OK'")[0][0]
+    )
+    failed = [name for name, code in results if code != 0]
+    summary = (
+        f"{started.astimezone(IST):%Y-%m-%d %H:%M} IST | prices to {latest} | "
+        f"scanned {', '.join(d.isoformat() for d in scan_dates) or 'nothing new'} | "
+        f"surveillance lists collected: {', '.join(collected) or 'NONE'} | "
+        + (f"FAILED: {', '.join(failed)}" if failed else "all steps OK")
+    )
+    print("\n=== Daily run summary\n" + summary)
+    if "ASM" not in collected or "GSM" not in collected:
+        print(
+            "WARNING: today's ASM/GSM lists were not collected. NSE publishes only the current "
+            "lists, so today's universe stays PARTIAL. Re-run `vcp run daily` today if possible."
+        )
+    log = Path(db).resolve().parent / "logs" / "daily_runs.log"
+    log.parent.mkdir(parents=True, exist_ok=True)
+    with log.open("a", encoding="utf-8") as fh:
+        fh.write(summary + "\n")
+    return 1 if failed else 0

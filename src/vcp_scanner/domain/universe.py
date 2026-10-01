@@ -66,7 +66,9 @@ class SurvivorshipEvidence:
     ``missing_price_days``: calendar days in the look-back window with no settled NSE
     bhavcopy entry (OK or NO_SESSION); ``None`` when no bhavcopy data exists at all.
     ``flag_history_start``: first date each surveillance list (ASM, GSM) was collected;
-    ``None`` when never collected. ``delistings``: delisting records in the security master.
+    ``None`` when never collected. ``flag_collected_on``: surveillance lists collected on the
+    as-of date itself (NSE publishes only the current lists, so a missed day stays unknown).
+    ``delistings``: delisting records in the security master.
     """
 
     window_start: date
@@ -74,3 +76,4 @@ class SurvivorshipEvidence:
     first_price_day: date | None
     flag_history_start: dict[str, date | None]
     delistings: int
+    flag_collected_on: frozenset[str] = frozenset()

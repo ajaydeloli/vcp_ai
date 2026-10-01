@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (daily run)
+- `vcp run daily` runs every evening and catches up after skipped evenings. Steps:
+  1. security master with the ASM/GSM/T2T lists;
+  2. NSE bhavcopy from the day after the last settled file;
+  3. corporate actions for the last 60 days;
+  4. adjusted prices and features;
+  5. universe, RS and Trend Template for every session not scanned yet.
+  It appends one summary line per run to `<db folder>/logs/daily_runs.log` and warns when today's ASM/GSM lists were not collected.
+- Table `surveillance_collections` records each day a surveillance list was collected in full, including empty lists; it is seeded once from existing flags. A universe snapshot is POINT_IN_TIME_COMPLETE only if ASM and GSM were collected on its as-of date ("ASM list not collected on …").
+
 ### Changed (audit P0-4: point-in-time universe)
 - The universe takes each date's series and trade-to-trade status from the NSE bhavcopy (`daily_series`) instead of today's EQUITY_L. Delisted, merged and renamed names take part on dates when they traded.
 - The survivorship label is derived from the data: price coverage of a 380-day window, plus ASM and GSM collection dates. The reasons are stored in `universe_snapshots.survivorship_detail` and printed by `vcp ingest universe`. The `survivorship_coverage_verified` config field is removed. `UNIVERSE_METHOD_VERSION` is now 2.0.

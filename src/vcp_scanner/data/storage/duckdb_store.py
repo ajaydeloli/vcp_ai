@@ -530,6 +530,19 @@ CREATE TABLE IF NOT EXISTS daily_series (
 )
 """
 
+# One row per day a surveillance list (ASM, GSM, T2T) was collected in full (audit P0-4 /
+# daily run). NSE publishes only the current lists, so a day without a row is a day whose
+# flags can never be known exactly; universe snapshots for it cannot be POINT_IN_TIME_COMPLETE.
+_DDL_SURVEILLANCE_COLLECTIONS = """
+CREATE TABLE IF NOT EXISTS surveillance_collections (
+    collected_on    DATE        NOT NULL,
+    flag_type       VARCHAR     NOT NULL,
+    record_count    INTEGER     NOT NULL,
+    recorded_at     TIMESTAMPTZ NOT NULL,
+    PRIMARY KEY (collected_on, flag_type)
+)
+"""
+
 _ALL_DDL: list[tuple[str, str]] = [
     ("instruments", _DDL_INSTRUMENTS),
     ("provider_instruments", _DDL_PROVIDER_INSTRUMENTS),
@@ -556,6 +569,7 @@ _ALL_DDL: list[tuple[str, str]] = [
     ("bhavcopy_files", _DDL_BHAVCOPY_FILES),
     ("instrument_identifier_history", _DDL_INSTRUMENT_IDENTIFIER_HISTORY),
     ("daily_series", _DDL_DAILY_SERIES),
+    ("surveillance_collections", _DDL_SURVEILLANCE_COLLECTIONS),
 ]
 
 
@@ -657,9 +671,20 @@ class DuckDBStore:
         self._migrate_derived_snapshot_lineage()
         self._add_column_if_missing("trend_template_results", "blocked_by", "VARCHAR")
         self._add_column_if_missing("universe_snapshots", "survivorship_detail", "VARCHAR")
+        new_collections = not self._column_nullability("surveillance_collections")
         for table_name, ddl in _ALL_DDL:
             self.conn.execute(ddl)
             logger.debug("Ensured table: %s", table_name)
+        if new_collections:
+            # Databases from before per-day tracking: every flag row's valid_from is a day the
+            # lists were collected, so seed the collection days from them (once).
+            self.conn.execute(
+                """
+                INSERT OR IGNORE INTO surveillance_collections
+                SELECT valid_from, flag_type, count(*), min(known_from)
+                FROM surveillance_flags_history GROUP BY 1, 2
+                """
+            )
         logger.info("DuckDBStore migration complete (%d tables)", len(_ALL_DDL))
 
     def _migrate_trend_conditions_config_hash(self) -> None:

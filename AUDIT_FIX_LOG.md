@@ -801,3 +801,24 @@ The 1,677 bars fewer than the trial build are exactly the rights-entitlement row
 - Full suite: 734 passed, 0 failed. `ruff`, `mypy --strict src` clean.
 
 **To make future snapshots COMPLETE:** run `vcp ingest security-master` every trading day, so ASM/GSM history accumulates. From the first collected date onward, snapshots whose 380-day bhavcopy window is complete are POINT_IN_TIME_COMPLETE. This belongs in the daily evening run (next item).
+
+## Daily run with catch-up and per-day surveillance tracking (2026-10-01)
+
+**Owner question:** what does a skipped evening lose?
+- Prices, T2T (from series), corporate actions, adjusted prices, features and scans can all be recomputed later. A late scan is a reconstruction, not what was seen live.
+- The ASM/GSM lists cannot be recovered, because NSE publishes only the current list.
+
+**Change.**
+- New `src/vcp_scanner/daily.py` and `vcp run daily`. They chain the existing commands in order:
+  1. security master (collects the lists);
+  2. bhavcopy from the day after the last OK/NO_SESSION file;
+  3. corporate actions from 60 days before the first new session;
+  4. adjusted prices;
+  5. features;
+  6. universe, RS and Trend Template for each OK session after the last Trend Template date (only the latest on a first run).
+- A failed step fails the run (exit 1), but later steps still run. Today's file being unpublished is not a failure.
+- One summary line per run goes to `logs/daily_runs.log` next to the database.
+- Table `surveillance_collections` (PK collected_on + flag_type). `SecurityMasterIngestionWorker` records each list it collected, including empty ones (`NSESurveillanceProvider.collected_flag_types`). The table is seeded once from existing flag rows.
+- `survivorship_evidence` / `derive_survivorship`: ASM and GSM must be collected on the as-of date itself, otherwise "<list> list not collected on <date>".
+
+**Tests.** New `tests/unit/test_daily_run.py` (4): first run scans only the latest session; skipped evenings are all scanned; step order and the bhavcopy start date; a failed step fails the run while later steps still run. Also an sm_worker collection test and the point-in-time tests for skipped evenings. Full suite: 740 passed. `ruff`, `mypy --strict src` clean.

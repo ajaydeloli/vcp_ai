@@ -47,8 +47,8 @@ def derive_survivorship(
 
     POINT_IN_TIME_COMPLETE needs (1) a settled NSE bhavcopy entry for every calendar day of
     the look-back window, so delisted and suspended names are present exactly as they traded,
-    and (2) ASM and GSM lists collected on or before the as-of date (they have no public
-    history; collection starts when the daily security-master run starts). Without bhavcopy
+    and (2) ASM and GSM lists collected on the as-of date itself (they have no public history:
+    a day the daily security-master run was skipped stays unknown). Without bhavcopy
     data and without any delisting record the population is today's listings only: BIASED.
     Anything in between is PARTIAL, with the reasons recorded.
     """
@@ -69,6 +69,8 @@ def derive_survivorship(
             reasons.append(f"{flag} list never collected")
         elif start > as_of_date:
             reasons.append(f"{flag} history starts {start}")
+        elif flag not in evidence.flag_collected_on:
+            reasons.append(f"{flag} list not collected on {as_of_date}")
     if not reasons:
         return SurvivorshipStatus.POINT_IN_TIME_COMPLETE, None
     return SurvivorshipStatus.PARTIAL, "; ".join(reasons)

@@ -448,6 +448,27 @@ def build_parser() -> argparse.ArgumentParser:
     _add_db_arg(vkc)
     vkc.add_argument("--env-file", default=".env", help="Path to .env file with Kite credentials")
 
+    # run subcommands: the evening pipeline with catch-up
+    run_parser = subparsers.add_parser("run", help="Pipelines that chain several commands")
+    run_sub = run_parser.add_subparsers(dest="run_command", help="Pipelines")
+    daily_parser = run_sub.add_parser(
+        "daily",
+        help=(
+            "Evening run: security master + ASM/GSM lists, NSE bhavcopy, corporate actions, "
+            "adjusted prices, features, then universe/RS/Trend Template for every new session. "
+            "Catches up after skipped evenings (except the surveillance lists of those days)."
+        ),
+    )
+    daily_parser.add_argument(
+        "--history-start",
+        default="2021-01-01",
+        metavar="YYYY-MM-DD",
+        help="First day of history (used only when the database has no bhavcopy yet)",
+    )
+    _add_db_arg(daily_parser)
+    _add_config_dir_arg(daily_parser)
+    daily_parser.add_argument("--env-file", default=".env", help="Path to .env file")
+
     # quality subcommands (audit P0-2)
     quality_parser = subparsers.add_parser("quality", help="Data-quality events that block signals")
     quality_subparsers = quality_parser.add_subparsers(
@@ -856,6 +877,14 @@ def main(argv: Sequence[str] | None = None) -> int:
 
             return cli_pipeline.run_verify_kite_crosscheck(args)
         parser.parse_args(["verify", "--help"])
+        return 0
+
+    if args.command == "run":
+        if args.run_command == "daily":
+            from vcp_scanner.daily import run_daily
+
+            return run_daily(args, main)
+        parser.parse_args(["run", "--help"])
         return 0
 
     if args.command == "quality":

@@ -84,11 +84,19 @@ def _manifest(store: DuckDBStore, start: date, end: date) -> None:
     )
 
 
-def _flags(store: DuckDBStore, flag: str, start: date) -> None:
+def _flags(store: DuckDBStore, flag: str, start: date, days: int = 1) -> None:
+    """The list was collected on ``days`` consecutive days from ``start``."""
     store.conn.execute(
         "INSERT INTO surveillance_flags_history (instrument_id, flag_type, valid_from, source,"
         " known_from) VALUES ('NSE_EQ|OTHER', ?, ?, 'NSE', ?)",
         [flag, start, T0],
+    )
+    store.conn.execute(
+        """
+        INSERT OR IGNORE INTO surveillance_collections
+        SELECT CAST(? AS DATE) + CAST(i AS INTEGER), ?, 1, ? FROM range(0, ?) t(i)
+        """,
+        [start, flag, T0, days],
     )
 
 
@@ -136,6 +144,7 @@ def _evidence(**kw: object) -> SurvivorshipEvidence:
         "first_price_day": date(2021, 1, 1),
         "flag_history_start": {"ASM": date(2021, 1, 1), "GSM": date(2021, 1, 1)},
         "delistings": 100,
+        "flag_collected_on": frozenset({"ASM", "GSM"}),
     }
     base.update(kw)
     return SurvivorshipEvidence(**base)  # type: ignore[arg-type]
@@ -149,6 +158,11 @@ def _evidence(**kw: object) -> SurvivorshipEvidence:
             _evidence(flag_history_start={"ASM": date(2026, 10, 1), "GSM": None}),
             SurvivorshipStatus.PARTIAL,
             "ASM history starts 2026-10-01; GSM list never collected",
+        ),
+        (
+            _evidence(flag_collected_on=frozenset({"GSM"})),
+            SurvivorshipStatus.PARTIAL,
+            "ASM list not collected on 2023-06-30",
         ),
         (
             _evidence(missing_price_days=3),
@@ -193,9 +207,17 @@ def test_snapshot_label_from_stored_data(store: DuckDBStore) -> None:
     ).fetchone()
     assert stored == ("PARTIAL", snap.survivorship_detail)
 
-    # Lists known from before the as-of date and a full price window: complete.
-    _flags(store, "ASM", date(2022, 1, 1))
-    _flags(store, "GSM", date(2022, 1, 1))
+    # Collected from before the as-of date, but not on it (a skipped evening): still partial.
+    _flags(store, "ASM", date(2022, 1, 1), days=10)
+    _flags(store, "GSM", date(2022, 1, 1), days=10)
+    snap, _ = _build(store)
+    assert snap.survivorship_detail == (
+        "ASM list not collected on 2023-06-30; GSM list not collected on 2023-06-30"
+    )
+
+    # Collected on the as-of date and a full price window: complete.
+    _flags(store, "ASM", AS_OF)
+    _flags(store, "GSM", AS_OF)
     snap, _ = _build(store)
     assert (snap.survivorship_status, snap.survivorship_detail) == (
         SurvivorshipStatus.POINT_IN_TIME_COMPLETE,
@@ -206,8 +228,8 @@ def test_snapshot_label_from_stored_data(store: DuckDBStore) -> None:
 def test_missing_bhavcopy_days_in_the_window_make_it_partial(store: DuckDBStore) -> None:
     _bars(store, "NSE_EQ|A", AS_OF)
     _manifest(store, date(2022, 6, 1), AS_OF - timedelta(days=5))
-    _flags(store, "ASM", date(2021, 1, 1))
-    _flags(store, "GSM", date(2021, 1, 1))
+    _flags(store, "ASM", AS_OF)
+    _flags(store, "GSM", AS_OF)
     snap, _ = _build(store)
     assert snap.survivorship_status is SurvivorshipStatus.PARTIAL
     assert "bhavcopy history incomplete" in (snap.survivorship_detail or "")

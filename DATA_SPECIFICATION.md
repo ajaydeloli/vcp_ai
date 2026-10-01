@@ -444,6 +444,8 @@ Each snapshot is built from what was true on its as-of date (`UNIVERSE_METHOD_VE
   - The exchange is NSE for any bhavcopy-traded name.
 - **Trade-to-trade (T2T):** the BE/BZ series of that day, with full history from 2021. Today's `sec_list` T2T list is the fallback.
 - **ASM/GSM.** Collected from NSE's `reportASM` and `reportGSM` on each security-master run and stored with the collection date. There is no public history before the first collection, so the daily security-master run must not be skipped.
+- **Collection days.** Each collection day is stored per list in `surveillance_collections`. A snapshot is complete for ASM/GSM only if both lists were collected on its as-of date; a skipped evening leaves that date `PARTIAL` ("ASM list not collected on …") permanently.
+- **Daily run.** `vcp run daily` runs every trading evening, after NSE publishes the bhavcopy (about 19:00 IST). It catches up prices, corporate actions and scans for skipped evenings; the only loss from a skipped evening is that day's ASM/GSM list.
 - **Survivorship label** (`derive_survivorship`). It is derived from the data, and the reasons are stored in `universe_snapshots.survivorship_detail`. The operator attestation `survivorship_coverage_verified` has been removed.
   - `POINT_IN_TIME_COMPLETE`: both conditions hold.
     - Every calendar day of the 380-day look-back window has a settled bhavcopy entry (OK or NO_SESSION).

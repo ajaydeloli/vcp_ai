@@ -39,6 +39,8 @@ class NSESurveillanceProvider:
     # get_flags ignores its window and returns the full set active today, so a flag
     # missing from the feed really has lapsed (the worker relies on this to close flags).
     returns_active_snapshot = True
+    #: Lists fetched in full by ``get_flags`` (an empty list is still a collection).
+    collected_flag_types: frozenset[str] = frozenset({"ASM", "GSM", "T2T"})
     BASE_URL = "https://www.nseindia.com"
 
     # Known API routes for surveillance data
