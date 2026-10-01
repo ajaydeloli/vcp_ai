@@ -102,3 +102,10 @@ def test_demerger_without_a_derivable_factor_defers_to_its_own_event() -> None:
     # trade on the ex-date the engine raises factor_unknown, which blocks on its own.
     bars = [_bar(date(2024, 5, 21), 43.8, 43.8), _bar(date(2024, 5, 27), 20.0, 20.0)]
     assert GapDetector().detect(bars, [_res(T.DEMERGER, date(2024, 5, 22), None, None)], AT) == []
+
+
+def test_demerger_never_explains_a_gap_up() -> None:
+    # UEL: demerger ex 2024-05-22, next bar 2024-05-27 opened at 153.3 against 43.8 (+250 %).
+    bars = [_bar(date(2024, 5, 21), 43.8, 43.8), _bar(date(2024, 5, 27), 153.3, 153.3)]
+    (event,) = GapDetector().detect(bars, [_res(T.DEMERGER, date(2024, 5, 22), None, None)], AT)
+    assert event.context["residual_gap_pct_after_actions"] == pytest.approx(250.0)

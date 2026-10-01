@@ -107,8 +107,9 @@ class GapDetector:
         * RIGHTS with a usable ratio and issue price: the TERP factor from the prior close.
         * A rights issue or demerger whose factor cannot be derived from these two bars (a
           demerger's factor *is* the ex-date open over the prior close; a rights issue with no
-          issue price) explains the gap as before; a separate ``factor_unknown`` event blocks
-          the symbol when the adjustment engine cannot derive it either.
+          issue price) explains a gap *down* as before; a separate ``factor_unknown`` event
+          blocks the symbol when the adjustment engine cannot derive it either. Both only
+          lower prices, so they never explain a gap up (UEL +250 % on 2024-05-27).
 
         Returns ``None`` when no adjusting action falls in the window, ``0.0`` when one is
         deferred as above, else the residual gap ratio.
@@ -128,7 +129,9 @@ class GapDetector:
                 if derived is not None:
                     factor *= derived[0]
                     continue
-            return 0.0  # demerger, or rights without a derivable factor: see docstring
+            if curr.open < prev.close:
+                return 0.0  # demerger, or rights without a derivable factor: see docstring
+            # Both only ever lower the price, so they cannot account for a gap up.
         return curr.open / (prev.close * factor) - 1.0
 
     def _build_event(

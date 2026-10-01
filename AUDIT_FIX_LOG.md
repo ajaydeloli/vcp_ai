@@ -904,3 +904,9 @@ The notices give record dates; the ex-dates are the bhavcopy dates of the jump a
 **Tests.** New `tests/unit/test_manual_corporate_actions.py` (15): the repository file's four entries; missing file; six invalid-entry cases, rights without issue price and duplicates raise; the provider serves entries outside the window with deterministic IDs and honours the filter; manual alone and manual against two disagreeing feeds give `MANUAL_OVERRIDE` with the manual ratio; end to end through the worker on DuckDB, JSLL gets price factor 0.2 from 2025-06-12.
 
 **Verification.** Full suite: 777 passed, 0 failed. `ruff check`, `ruff format --check`, `mypy --strict src` clean.
+
+### Follow-up 2.7c — a demerger never explains a gap up (small fix)
+
+**Found in the rebuild:** UEL's +250 % gap on 2024-05-27 (non-blocking, after a 6-day absence) was closed because the 2024-05-22 demerger fell in its window and 2.7c defers demergers. A demerger or rights issue only ever lowers the price, so the deferral now applies only to gaps down; for a gap up the action counts with factor 1.0 and the residual is the whole gap. UEL stays blocked by its own `factor_unknown` event for that demerger (no bar on the ex-date), as before 2.7.
+
+**Test.** `test_demerger_never_explains_a_gap_up` (UEL prices). Full suite: 778 passed, 0 failed; `ruff`, `mypy --strict src` clean.
