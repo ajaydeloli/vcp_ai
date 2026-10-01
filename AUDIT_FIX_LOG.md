@@ -1293,3 +1293,18 @@ Order: C7, C9, C10, C6, C5, C8 (C8 last: the only one that changes scan results)
 **Real-data check** (main DB read-only, 04:51 IST; window 2025-10-01 → 2026-10-01, 248 observed sessions, 3,207 instruments): old rule 626 instruments INCOMPLETE with 34,118 "missing" bars (suspensions, untraded SME and BE days, e.g. GOODYEAR 2025-10-01 → 2026-04-17); new rule 0.
 
 **Verification.** Full suite: 859 passed, 0 failed. `ruff check`, `ruff format --check`, `mypy --strict src` clean.
+
+### Fix C5 — audit P1-2a: data-quality event history; the point-in-time gate reads it
+
+**Found.** `data_quality_events` holds one row per event. When the system reopened an event it had closed, the upsert set `resolved_at = NULL`, so a backtest asking "was this stock blocked on day X, as known then?" saw it blocked through the interval where it had been unblocked. A change of `blocks_signal` (e.g. C10) was not dated either.
+
+**Change.**
+- New table `data_quality_event_history` (system-time intervals per event state; DATABASE_SCHEMA 19.1). `sync_events` compares each event's (status, blocks_signal, resolved_by) before and after and records every change at `at`; `resolve` records the human resolution. A change at or before the current interval's start replaces it (no overlaps).
+- `blocked_instruments(known_at=...)` checks the interval containing the cutoff (OPEN and blocking) instead of `detected_at`/`resolved_at`; without a cutoff it reads the current row as before.
+- `migrate()` seeds history once for events that have none (OPEN from `detected_at`, RESOLVED from `resolved_at`); reopen cycles from before C5 cannot be recovered.
+
+**Tests** (`test_event_history.py`): open → system-cleared → reopened is unblocked only in between; a `blocks_signal` change is dated; a human resolution is dated and a refresh does not reopen it; unchanged state adds no history; migrate seeds once (idempotent) and the gate uses it; an older knowledge time replaces the current interval.
+
+**Verification.** Full suite: 865 passed, 0 failed (before a one-line mypy fix in `resolve`; mypy then clean). `ruff check`, `ruff format --check` clean.
+
+**Real-data check** (copy `data/c5.duckdb` of the main DB, 04:56–05:10 IST): `migrate()` seeded the 802 existing events (747 OPEN, 55 RESOLVED) into 857 history intervals (747 open, 55 OPEN-then-RESOLVED pairs). Universe/RS/Trend Template for 2026-10-01 with the history gate: 1,257 eligible, 8 blocked, 203 PASS, results hash `7769987bb8868a73` (unchanged). `vcp verify scan` of that run (frozen data, universe rebuilt as known at its cutoff through the history gate): **MATCH**, same universe id.

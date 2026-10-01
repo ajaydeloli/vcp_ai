@@ -143,6 +143,21 @@ CREATE TABLE IF NOT EXISTS data_quality_events (
 )
 """
 
+# Every state an event has been in, as system-time intervals (audit P1-2a, C5). The event row
+# above holds only the latest state; reopening it overwrote resolved_at, so the gate could not
+# tell that a stock was unblocked in between. The point-in-time gate reads this table.
+_DDL_DATA_QUALITY_EVENT_HISTORY = """
+CREATE TABLE IF NOT EXISTS data_quality_event_history (
+    event_id        VARCHAR     NOT NULL,
+    status          VARCHAR     NOT NULL,   -- OPEN | RESOLVED
+    blocks_signal   BOOLEAN     NOT NULL,
+    valid_from      TIMESTAMPTZ NOT NULL,   -- system time this state became known
+    valid_to        TIMESTAMPTZ,            -- NULL while current
+    resolved_by     VARCHAR,
+    PRIMARY KEY (event_id, valid_from)
+)
+"""
+
 _DDL_DATA_SNAPSHOTS = """
 CREATE TABLE IF NOT EXISTS data_snapshots (
     data_snapshot_id    VARCHAR     NOT NULL,
@@ -628,6 +643,7 @@ _ALL_DDL: list[tuple[str, str]] = [
     ("scan_runs", _DDL_SCAN_RUNS),
     ("scan_run_results", _DDL_SCAN_RUN_RESULTS),
     ("secondary_ca_checks", _DDL_SECONDARY_CA_CHECKS),
+    ("data_quality_event_history", _DDL_DATA_QUALITY_EVENT_HISTORY),
 ]
 
 
@@ -743,6 +759,7 @@ class DuckDBStore:
                 FROM surveillance_flags_history GROUP BY 1, 2
                 """
             )
+        self._seed_event_history()
         logger.info("DuckDBStore migration complete (%d tables)", len(_ALL_DDL))
 
     def _migrate_trend_conditions_config_hash(self) -> None:
@@ -784,6 +801,37 @@ class DuckDBStore:
             raise
         self.conn.execute("COMMIT")
         logger.info("Rebuilt trend_template_conditions with config_hash in its key")
+
+    def _seed_event_history(self) -> None:
+        """Give every event without history the intervals its row can still prove (C5).
+
+        OPEN: one OPEN interval from ``detected_at``. RESOLVED: OPEN from ``detected_at`` to
+        ``resolved_at``, then RESOLVED. Earlier reopen cycles were overwritten before the
+        history existed and cannot be recovered.
+        """
+        self.conn.execute(
+            """
+            INSERT INTO data_quality_event_history
+                (event_id, status, blocks_signal, valid_from, valid_to, resolved_by)
+            SELECT e.event_id, 'OPEN', e.blocks_signal, e.detected_at,
+                   CASE WHEN e.status = 'RESOLVED' THEN e.resolved_at END, NULL
+            FROM data_quality_events e
+            WHERE NOT EXISTS (SELECT 1 FROM data_quality_event_history h
+                              WHERE h.event_id = e.event_id)
+              AND (e.status = 'OPEN' OR e.resolved_at > e.detected_at)
+            """
+        )
+        self.conn.execute(
+            """
+            INSERT INTO data_quality_event_history
+                (event_id, status, blocks_signal, valid_from, valid_to, resolved_by)
+            SELECT e.event_id, 'RESOLVED', e.blocks_signal, e.resolved_at, NULL, e.resolved_by
+            FROM data_quality_events e
+            WHERE e.status = 'RESOLVED' AND e.resolved_at IS NOT NULL
+              AND NOT EXISTS (SELECT 1 FROM data_quality_event_history h
+                              WHERE h.event_id = e.event_id AND h.valid_to IS NULL)
+            """
+        )
 
     def _column_nullability(self, table: str) -> dict[str, bool]:
         """Map column name -> is_nullable for ``table`` (empty if it does not exist)."""

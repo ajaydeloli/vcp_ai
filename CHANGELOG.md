@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed (audit P1-2a: data-quality history)
+- Every change of a data-quality event (opened, resolved, reopened, blocking or not) is now kept with its date in `data_quality_event_history`. Point-in-time runs (`vcp verify scan`, backtests) see the block exactly as it was then; before, reopening an event erased the period in which it had been resolved.
+
 ### Fixed (audit P1-2b: missing candles on suspensions)
 - The Kite completeness check no longer reports a stock as missing bars on days NSE's bhavcopy shows it did not trade (suspension, untraded day). On the last year of data the old rule flagged 626 stocks.
 

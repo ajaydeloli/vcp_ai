@@ -14,6 +14,11 @@ detector currently sees: new conditions are opened, still-present ones are refre
 conditions that have cleared are closed by the system (``resolved_by = 'SYSTEM'``) and may
 reopen if they return. A human resolution (``resolve``) is final: the system never reopens
 or overwrites it.
+
+History (audit P1-2a, C5). Every change of an event's status or ``blocks_signal`` closes its
+current interval in ``data_quality_event_history`` and opens a new one, so the point-in-time
+gate (``known_at``) sees exactly the state each event had then, including a resolution that
+was later reopened.
 """
 
 from __future__ import annotations
@@ -108,14 +113,8 @@ class DuckDBDataQualityRepository:
 
         conn = self._store.conn
         ids = [e.event_id for e in current]
-        existing = {
-            r[0]
-            for r in conn.execute(
-                "SELECT event_id FROM data_quality_events"
-                " WHERE instrument_id = ? AND event_type = ?",
-                [instrument_id, flag.value],
-            ).fetchall()
-        }
+        before = self._states(instrument_id, flag)
+        existing = set(before)
         rows = [
             (
                 e.event_id,
@@ -146,6 +145,10 @@ class DuckDBDataQualityRepository:
                 """,
                 [at, SYSTEM_RESOLVER, instrument_id, flag.value, ids],
             ).fetchall()
+            after = self._states(instrument_id, flag)
+            for event_id, state in after.items():
+                if before.get(event_id) != state:
+                    self._record(event_id, state, at)
         except Exception:
             conn.execute("ROLLBACK")
             raise
@@ -183,7 +186,55 @@ class DuckDBDataQualityRepository:
             """,
             [resolved_at, who, note.strip(), event_id],
         ).fetchone()
+        if row is not None:
+            blocks = self._store.conn.execute(
+                "SELECT blocks_signal FROM data_quality_events WHERE event_id = ?", [event_id]
+            ).fetchone()
+            blocking = bool(blocks[0]) if blocks is not None else True
+            self._record(event_id, ("RESOLVED", blocking, who), resolved_at)
         return row is not None
+
+    def _states(
+        self, instrument_id: str, flag: DataQualityFlag
+    ) -> dict[str, tuple[str, bool, str | None]]:
+        rows = self._store.conn.execute(
+            "SELECT event_id, status, blocks_signal, resolved_by FROM data_quality_events"
+            " WHERE instrument_id = ? AND event_type = ?",
+            [instrument_id, flag.value],
+        ).fetchall()
+        return {str(r[0]): (str(r[1]), bool(r[2]), r[3]) for r in rows}
+
+    def _record(self, event_id: str, state: tuple[str, bool, str | None], at: datetime) -> None:
+        """Close the event's current history interval at ``at`` and open ``state`` (C5).
+
+        A change stamped at or before the current interval's start (a re-run with an older
+        knowledge time) replaces that interval instead, so intervals never overlap.
+        """
+        status, blocks, who = state
+        conn = self._store.conn
+        cur = conn.execute(
+            "SELECT valid_from FROM data_quality_event_history"
+            " WHERE event_id = ? AND valid_to IS NULL",
+            [event_id],
+        ).fetchone()
+        if cur is not None and at <= cur[0]:
+            conn.execute(
+                "UPDATE data_quality_event_history SET status = ?, blocks_signal = ?,"
+                " resolved_by = ? WHERE event_id = ? AND valid_to IS NULL",
+                [status, blocks, who, event_id],
+            )
+            return
+        conn.execute(
+            "UPDATE data_quality_event_history SET valid_to = ?"
+            " WHERE event_id = ? AND valid_to IS NULL",
+            [at, event_id],
+        )
+        conn.execute(
+            "INSERT INTO data_quality_event_history"
+            " (event_id, status, blocks_signal, valid_from, valid_to, resolved_by)"
+            " VALUES (?, ?, ?, ?, NULL, ?)",
+            [event_id, status, blocks, at, who],
+        )
 
     # ------------------------------------------------------------------ reads
 
@@ -234,9 +285,13 @@ class DuckDBDataQualityRepository:
         cutoff = known_at if known_at is not None else self._known_at
         params: list[Any] = [list(instrument_ids), as_of_date]
         if cutoff is None:
-            time_clause = "AND status = 'OPEN'"
+            time_clause = "AND e.blocks_signal AND e.status = 'OPEN'"
         else:
-            time_clause = "AND detected_at <= ? AND (status = 'OPEN' OR resolved_at > ?)"
+            # Audit P1-2a (C5): the state the event had at the cutoff, from its history.
+            time_clause = """AND EXISTS (
+                SELECT 1 FROM data_quality_event_history h
+                WHERE h.event_id = e.event_id AND h.status = 'OPEN' AND h.blocks_signal
+                  AND h.valid_from <= ? AND (h.valid_to IS NULL OR h.valid_to > ?))"""
             params += [cutoff, cutoff]
         lifetime_clause = ""
         if self._lifetime is not None:
@@ -264,8 +319,7 @@ class DuckDBDataQualityRepository:
             f"""
             SELECT DISTINCT e.instrument_id, e.event_type
             FROM data_quality_events e
-            WHERE e.blocks_signal
-              AND list_contains(CAST(? AS VARCHAR[]), e.instrument_id)
+            WHERE list_contains(CAST(? AS VARCHAR[]), e.instrument_id)
               AND (e.trade_date IS NULL OR e.trade_date <= ?)
               {time_clause}
               {lifetime_clause}
