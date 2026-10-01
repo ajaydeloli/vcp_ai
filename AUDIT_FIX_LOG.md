@@ -1262,3 +1262,22 @@ Order: C7, C9, C10, C6, C5, C8 (C8 last: the only one that changes scan results)
 **Tests** (`test_hygiene.py`): every NSE provider sends the configured string; blank falls back to the default; the CLI applies `data.nse_user_agent` from the config folder; `--api-secret` is refused without echoing the value; `scratch/` is ignored.
 
 **Verification.** Full suite: 855 passed, 0 failed. `ruff check`, `ruff format --check`, `mypy --strict src` clean.
+
+### Fix C10 — audit P3-1: the split-like test separated nothing; every unexplained down gap blocks
+
+**Found.** `GapDetector._is_split_like` blocked a gap when its open/prev-close ratio was within 3 percentage points of some p/q (p < q <= 10), first match. The audit item was the absolute tolerance. A first fix (relative 3 %, closest match) was checked on a copy (04:03–04:08 IST): it stopped 42 of the open blocking gap events from blocking, including recent -47 % to -65 % gaps (CHAVDA 2026-09-24, AILIMITED 2026-08-26, PSRAJ, VMARCIND …) that could be missed splits. Measuring it showed the real problem: the candidate ratios are so dense that of the 83 open unexplained down-gaps, 81 were within the old tolerance of one (relative 3 %: 38; 5 %: 69; 6 %: 79). The test never separated missed splits from crashes; it blocked almost every deep drop by accident.
+
+**Decision** (owner, 2026-10-02 04:1x IST): every unexplained down gap of `gap_pct` (30 %) or more blocks until an action is added or a person marks it genuine (`vcp quality resolve`); up gaps only warn, as before. The first fix was discarded, not committed.
+
+**Change.** `_is_split_like` returns "blocks" for every down gap and names the nearest p/q only when it is within `split_like_tolerance_pct` (now relative, `|ratio/(p/q) - 1|`) as a hint (`context.suspected_ratio`, "Close to a q:p split/bonus"). Context key `is_split_like` kept for existing readers. DATA_SPECIFICATION §18A, config comment.
+
+**Tests** (`test_gap_detector.py`): a -88 % drop blocks with no ratio named; an up gap does not block; 0.1025 → 10:1, 0.66 → 3:2, 0.50 → 2:1.
+
+**Verification.** Full suite: 857 passed, 0 failed. `ruff check`, `ruff format --check`, `mypy --strict src` clean.
+
+### Real-data check of C7, C9, C10 (copy `data/c2.duckdb` of the main DB, 04:44–04:49 IST, worktree code)
+
+`vcp quality scan`, universe, RS and Trend Template for 2026-10-01:
+- **C10:** blocking signals 631 → 633. Two open gap events start blocking, both deep crashes the old ratio list missed: GOLDSTAR 2023-01-23 (-94.2 %) and ISHAN 2024-01-25 (-96.5 %). Both are older than the 253-bar block lifetime, so neither blocks today. No gap event stopped blocking.
+- **C7:** universe `uv_20261001_266d79117c` (new id, as expected), 1,257 eligible, 8 blocked (unchanged).
+- **Results:** RS 1,257; Trend Template 203 PASS, results hash `7769987bb8868a73` (unchanged).

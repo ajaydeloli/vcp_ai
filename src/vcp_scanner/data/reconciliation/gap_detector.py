@@ -161,19 +161,19 @@ class GapDetector:
             # An action fell in the window but did not account for the gap's size.
             context["residual_gap_pct_after_actions"] = round(residual * 100, 2)
 
-        if is_split_like and expected_ratio:
+        if expected_ratio:
             context["suspected_ratio"] = expected_ratio
             desc = (
                 f"Unexplained gap of {gap_ratio * 100:.1f}%. "
-                f"Looks like a {expected_ratio} split/bonus."
+                f"Close to a {expected_ratio} split/bonus."
             )
         else:
             desc = f"Unexplained gap of {gap_ratio * 100:.1f}%."
 
-        # DATA_SPECIFICATION 18A: a gap alone may be genuine (earnings, circuit moves), so it
-        # only raises a warning. A gap that also looks like a small-integer split/bonus is a
-        # suspected missed corporate action and blocks signals until an action is added or a
-        # human marks the gap genuine.
+        # DATA_SPECIFICATION 18A (C10, owner decision 2026-10-02): an unexplained down gap of
+        # gap_pct or more blocks signals until an action is added or a human marks it genuine
+        # (``vcp quality resolve``); an up gap only warns. ``is_split_like`` keeps its name in
+        # the context for existing readers and means "blocks as a suspected missed action".
         return DataQualityEvent(
             event_id=make_event_id(
                 DataQualityFlag.UNEXPLAINED_GAP,
@@ -192,22 +192,27 @@ class GapDetector:
         )
 
     def _is_split_like(self, prev_close: float, curr_open: float) -> tuple[bool, str | None]:
-        """Check if the price drop resembles a small-integer fraction."""
+        """Does an unexplained gap block, and which small-integer ratio is it nearest to?
+
+        Owner decision 2026-10-02 (audit P3-1, C10): every unexplained *down* gap of
+        ``gap_pct`` or more blocks. A ratio test cannot separate a missed split from a crash:
+        with p < q <= 10 the candidate ratios are so dense that, on the full NSE history, 81 of
+        83 open down-gaps were within the old 3-point tolerance of one. The nearest ratio is
+        still reported when it is within ``split_like_tolerance_pct`` *relative* to it, as a
+        hint for the person resolving the event. Up gaps (a missed consolidation, or news)
+        stay warnings.
+        """
         if curr_open >= prev_close:
-            return False, None  # Splits/bonuses drop the price
-
+            return False, None
         ratio = curr_open / prev_close
-        max_int = self._config.split_like_max_integer
         tolerance = self._config.split_like_tolerance_pct / 100.0
-
-        # Try to find a fraction p/q where p, q <= max_int
-        # that is within the tolerance of the actual ratio.
-        # Since it's a price drop, q > p.
-        for q in range(2, max_int + 1):
+        best: tuple[float, int, int] | None = None
+        for q in range(2, self._config.split_like_max_integer + 1):
             for p in range(1, q):
-                target = p / q
-                if abs(ratio - target) <= tolerance:
-                    # For a fraction p/q, it corresponds to a split of q for p.
-                    return True, f"{q}:{p}"
-
-        return False, None
+                error = abs(ratio / (p / q) - 1.0)
+                if best is None or error < best[0]:
+                    best = (error, p, q)
+        if best is None or best[0] > tolerance:
+            return True, None
+        _, p, q = best
+        return True, f"{q}:{p}"  # p/q of the old price: q shares for every p

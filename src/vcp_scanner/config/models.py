@@ -440,6 +440,8 @@ class UniverseConfig(StrictBaseModel):
 class UnexplainedGapConfig(StrictBaseModel):
     gap_pct: Annotated[float, Field(gt=0)] = 30.0
     split_like_max_integer: Annotated[int, Field(gt=0)] = 10
+    # Only names the nearest ratio in the event (relative: |ratio/(p/q) - 1| <= this %);
+    # every unexplained down gap blocks (C10, owner decision 2026-10-02).
     split_like_tolerance_pct: Annotated[float, Field(ge=0)] = 3.0
 
 

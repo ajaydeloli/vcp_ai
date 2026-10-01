@@ -106,3 +106,28 @@ def test_dividend_on_the_ex_date_does_not_explain_a_split_like_gap():
     events = detector.detect(candles, [dividend])
     assert len(events) == 1
     assert events[0].blocks_signal is True
+
+
+def _gap_event(prev: float, open_: float):
+    detector = GapDetector()
+    candles = [
+        _make_candle(date(2024, 1, 1), prev, prev),
+        _make_candle(date(2024, 1, 2), open_, open_),
+    ]
+    (event,) = detector.detect(candles, [])
+    return event
+
+
+def test_every_unexplained_down_gap_blocks() -> None:
+    """C10 (owner decision 2026-10-02): a ratio test cannot separate a missed split from a
+    crash, so every unexplained down gap of gap_pct or more blocks; up gaps only warn."""
+    crash = _gap_event(100.0, 12.0)  # -88 %, 4 % from 1/8: no ratio named
+    assert crash.blocks_signal is True
+    assert "suspected_ratio" not in crash.context
+    assert _gap_event(100.0, 150.0).blocks_signal is False
+
+
+def test_nearest_ratio_is_named_when_within_the_relative_tolerance() -> None:
+    assert _gap_event(100.0, 10.25).context["suspected_ratio"] == "10:1"  # 2.5 % off 1/10
+    assert _gap_event(100.0, 66.0).context["suspected_ratio"] == "3:2"  # 1 % off 2/3
+    assert _gap_event(100.0, 50.0).context["suspected_ratio"] == "2:1"

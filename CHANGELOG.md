@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed (audit P3-1: unexplained gaps; owner decision 2026-10-02)
+- Every unexplained price drop of 30 % or more now blocks the stock until a corporate action explains it or it is marked genuine. Before, only drops "close to" a small-integer ratio blocked, but that test matched 81 of 83 real cases, so in practice almost nothing changes (2 more blocks today). The nearest ratio is still shown as a hint when it is within 3 % of one.
+
 ### Changed (audit P3-1: hygiene)
 - `vcp auth kite --api-secret` is no longer accepted (the command line is kept in shell history); put `KITE_API_SECRET` in `.env` or the environment.
 - The browser User-Agent sent to NSE is one setting, `data.nse_user_agent` in `config/data.yaml` (default: a current Chrome string), instead of five hard-coded copies.
