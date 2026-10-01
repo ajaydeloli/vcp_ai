@@ -131,7 +131,8 @@ def test_weekly_bars_from_two_snapshots_coexist(store: DuckDBStore) -> None:
 
 def _seed_universe(store: DuckDBStore, universe_id: str, created: str, members: list[str]) -> None:
     store.conn.execute(
-        "INSERT INTO universe_snapshots VALUES (?, 'test_uni', ?, ?, 'hash', 'v1', 'COMPLETE')",
+        "INSERT INTO universe_snapshots VALUES "
+        "(?, 'test_uni', ?, ?, 'hash', 'v1', 'COMPLETE', NULL)",
         [universe_id, AS_OF, created],
     )
     for m in members:

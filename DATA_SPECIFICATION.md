@@ -433,6 +433,24 @@ status
 
 Provider mappings must be stored separately.
 
+## 14.1 Point-in-time universe (audit 2026-10-01 P0-4)
+
+Each snapshot is built from what was true on its as-of date (`UNIVERSE_METHOD_VERSION` 2.0):
+
+- **Population.** Every instrument with a raw bar on or before the as-of date. Since step 2 this includes names that were delisted, merged or renamed later, because the NSE bhavcopy lists everything that traded.
+- **Series.**
+  - The series a stock traded in on its last session on or before the as-of date comes from `daily_series` (that day's bhavcopy; EQ is preferred when a stock had two rows).
+  - Today's EQUITY_L series is used only for instruments without bhavcopy data.
+  - The exchange is NSE for any bhavcopy-traded name.
+- **Trade-to-trade (T2T):** the BE/BZ series of that day, with full history from 2021. Today's `sec_list` T2T list is the fallback.
+- **ASM/GSM.** Collected from NSE's `reportASM` and `reportGSM` on each security-master run and stored with the collection date. There is no public history before the first collection, so the daily security-master run must not be skipped.
+- **Survivorship label** (`derive_survivorship`). It is derived from the data, and the reasons are stored in `universe_snapshots.survivorship_detail`. The operator attestation `survivorship_coverage_verified` has been removed.
+  - `POINT_IN_TIME_COMPLETE`: both conditions hold.
+    - Every calendar day of the 380-day look-back window has a settled bhavcopy entry (OK or NO_SESSION).
+    - The ASM and GSM lists were collected on or before the as-of date.
+  - `BIASED`: no bhavcopy data and no delisting records (current listings only).
+  - `PARTIAL`: anything else, e.g. "ASM history starts 2026-10-01" (owner decision 2026-10-01: collect from now; earlier snapshots stay PARTIAL, so they cannot validate thresholds).
+
 ---
 
 # 15. Liquidity Data

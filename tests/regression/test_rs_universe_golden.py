@@ -111,7 +111,8 @@ def _seed_rs(store: DuckDBStore) -> None:
     series("R_GAPPY", [100.0 + 0.15 * (n - i) for i in range(n)], holes)
 
     store.conn.execute(
-        "INSERT INTO universe_snapshots VALUES ('u-golden', 'golden', ?, ?, 'h', '1.1', 'BIASED')",
+        "INSERT INTO universe_snapshots VALUES "
+        "('u-golden', 'golden', ?, ?, 'h', '1.1', 'BIASED', NULL)",
         [AS_OF, KNOWN_AT],
     )
     members = [*shapes, "R_SHORT", "R_STALE", "R_NAN", "R_GAPPY", "R_NOPRICES"]

@@ -672,6 +672,8 @@ def main(argv: Sequence[str] | None = None) -> int:
                 print(f"  Eligible       : {eligible}")
                 print(f"  Excluded       : {excluded}")
                 print(f"  Survivorship   : {snapshot.survivorship_status.value}")
+                if snapshot.survivorship_detail:
+                    print(f"    Why          : {snapshot.survivorship_detail}")
                 return 0
 
         elif args.ingest_command == "security-master":

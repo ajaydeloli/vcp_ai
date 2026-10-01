@@ -7,7 +7,12 @@ from collections.abc import Sequence
 from datetime import date, datetime
 from typing import TYPE_CHECKING
 
-from vcp_scanner.domain.universe import UniverseCandidate, UniverseMembership, UniverseSnapshot
+from vcp_scanner.domain.universe import (
+    SurvivorshipEvidence,
+    UniverseCandidate,
+    UniverseMembership,
+    UniverseSnapshot,
+)
 
 if TYPE_CHECKING:
     from vcp_scanner.data.storage.duckdb_store import DuckDBStore
@@ -32,8 +37,8 @@ class DuckDBUniverseRepository:
             """
             INSERT INTO universe_snapshots (
                 universe_snapshot_id, universe_name, as_of_date, created_at,
-                config_hash, method_version, survivorship_status
-            ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                config_hash, method_version, survivorship_status, survivorship_detail
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             """,
             [
                 snapshot.universe_snapshot_id,
@@ -43,6 +48,7 @@ class DuckDBUniverseRepository:
                 snapshot.config_hash,
                 snapshot.method_version,
                 snapshot.survivorship_status.value,
+                snapshot.survivorship_detail,
             ],
         )
 
@@ -197,6 +203,22 @@ class DuckDBUniverseRepository:
                 PARTITION BY instrument_id ORDER BY valid_from DESC, known_from DESC
             ) = 1
         ),
+        -- Audit P0-4: the series each stock actually traded in on its last session on/before
+        -- as_of_date, from that day's NSE bhavcopy (EQ preferred when a stock had two rows).
+        -- Today's EQUITY_L series back-dated over history is only the fallback for
+        -- instruments without bhavcopy data.
+        day_series AS (
+            SELECT instrument_id, series
+            FROM daily_series
+            WHERE trade_date <= ?
+              AND recorded_at <= ?
+            QUALIFY ROW_NUMBER() OVER (
+                PARTITION BY instrument_id
+                ORDER BY trade_date DESC,
+                         CASE series WHEN 'EQ' THEN 0 WHEN 'BE' THEN 1 WHEN 'BZ' THEN 2
+                                     WHEN 'SM' THEN 3 ELSE 4 END
+            ) = 1
+        ),
         -- Get active surveillance flags
         surv_flags AS (
             SELECT
@@ -218,13 +240,18 @@ class DuckDBUniverseRepository:
             r.avg_traded_value_50d,
             r.days_history,
             r.last_trade_date,
-            sm.series,
-            sm.exchange,
+            COALESCE(ds.series, sm.series) AS series,
+            CASE WHEN ds.series IS NOT NULL THEN 'NSE' ELSE sm.exchange END AS exchange,
             sf.asm_flag,
             sf.gsm_flag,
-            sf.t2t_flag
+            -- Trade-to-trade means the BE/BZ series that day; the bhavcopy gives its history.
+            CASE
+                WHEN ds.series IS NULL THEN sf.t2t_flag
+                WHEN ds.series IN ('BE', 'BZ') THEN 'YES'
+            END AS t2t_flag
         FROM recent_stats r
         LEFT JOIN sec_master sm ON r.instrument_id = sm.instrument_id
+        LEFT JOIN day_series ds ON r.instrument_id = ds.instrument_id
         LEFT JOIN surv_flags sf ON r.instrument_id = sf.instrument_id
         """
         rows = self._store.conn.execute(
@@ -240,6 +267,8 @@ class DuckDBUniverseRepository:
                 as_of_date,
                 known_at,
                 known_at,  # sec_master
+                as_of_date,
+                known_at,  # day_series
                 as_of_date,
                 as_of_date,
                 known_at,
@@ -275,3 +304,41 @@ class DuckDBUniverseRepository:
             [known_at, known_at],
         ).fetchone()
         return int(row[0]) if row else 0
+
+    def survivorship_evidence(
+        self, as_of_date: date, known_at: datetime, window_start: date
+    ) -> SurvivorshipEvidence:
+        """What the data can prove about a snapshot's completeness (audit P0-4)."""
+        conn = self._store.conn
+        has_bhavcopy = conn.execute(
+            "SELECT min(trade_date) FROM bhavcopy_files WHERE status = 'OK' AND recorded_at <= ?",
+            [known_at],
+        ).fetchone()
+        first_price_day = has_bhavcopy[0] if has_bhavcopy else None
+        missing: int | None = None
+        if first_price_day is not None:
+            settled = conn.execute(
+                """
+                SELECT count(DISTINCT trade_date) FROM bhavcopy_files
+                WHERE trade_date BETWEEN ? AND ? AND recorded_at <= ?
+                  AND status IN ('OK', 'NO_SESSION')
+                """,
+                [window_start, as_of_date, known_at],
+            ).fetchone()
+            days = (as_of_date - window_start).days + 1
+            missing = days - int(settled[0] if settled else 0)
+        starts: dict[str, date | None] = {}
+        for flag in ("ASM", "GSM"):
+            row = conn.execute(
+                "SELECT min(valid_from) FROM surveillance_flags_history"
+                " WHERE flag_type = ? AND known_from <= ?",
+                [flag, known_at],
+            ).fetchone()
+            starts[flag] = row[0] if row else None
+        return SurvivorshipEvidence(
+            window_start=window_start,
+            missing_price_days=missing,
+            first_price_day=first_price_day,
+            flag_history_start=starts,
+            delistings=self.count_known_delistings(known_at),
+        )

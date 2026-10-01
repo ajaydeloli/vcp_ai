@@ -435,10 +435,6 @@ class UniverseConfig(StrictBaseModel):
     min_history_days: Annotated[int, Field(ge=253)] = 253
     # Latest bar older than this many calendar days before the as-of date => not trading.
     max_staleness_days: Annotated[int, Field(ge=0)] = 30
-    # Operator attestation that the security master covers delisted/merged names for the
-    # whole history (PROJECT_DESIGN 14A). Without it a snapshot is never
-    # POINT_IN_TIME_COMPLETE, whatever the data looks like.
-    survivorship_coverage_verified: bool = False
     exclude_asm_gsm: bool = True
     exclude_trade_to_trade: bool = True
     # EQ only: BE (trade-to-trade) and SME series (SM/ST) are excluded by default (§14).

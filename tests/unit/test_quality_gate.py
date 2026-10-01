@@ -162,7 +162,7 @@ def _seed_rising(store: DuckDBStore, iid: str, slope: float) -> None:
 
 def _seed_universe(store: DuckDBStore, members: list[str]) -> None:
     store.conn.execute(
-        "INSERT INTO universe_snapshots VALUES ('uni', 'u', ?, ?, 'h', 'v1', 'COMPLETE')",
+        "INSERT INTO universe_snapshots VALUES ('uni', 'u', ?, ?, 'h', 'v1', 'COMPLETE', NULL)",
         [AS_OF, T0],
     )
     for m in members:
@@ -315,7 +315,8 @@ def db(tmp_path: Path) -> str:
             )
         repo.save_daily(candles)
         s.conn.execute(
-            "INSERT INTO universe_snapshots VALUES ('uni-1', 'u', ?, ?, 'h', 'v1', 'COMPLETE')",
+            "INSERT INTO universe_snapshots VALUES "
+            "('uni-1', 'u', ?, ?, 'h', 'v1', 'COMPLETE', NULL)",
             [DAYS[-1], INGESTED],
         )
         s.conn.execute(

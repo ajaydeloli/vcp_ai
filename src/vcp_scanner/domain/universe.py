@@ -17,6 +17,8 @@ class UniverseSnapshot:
     config_hash: str
     method_version: str
     survivorship_status: SurvivorshipStatus
+    #: Why the status is not POINT_IN_TIME_COMPLETE ("; "-joined reasons), None when it is.
+    survivorship_detail: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -55,3 +57,20 @@ class UniverseCandidate:
     asm_flag: str | None
     gsm_flag: str | None
     t2t_flag: str | None
+
+
+@dataclass(frozen=True, slots=True)
+class SurvivorshipEvidence:
+    """What the stored data can prove about one universe snapshot (audit P0-4).
+
+    ``missing_price_days``: calendar days in the look-back window with no settled NSE
+    bhavcopy entry (OK or NO_SESSION); ``None`` when no bhavcopy data exists at all.
+    ``flag_history_start``: first date each surveillance list (ASM, GSM) was collected;
+    ``None`` when never collected. ``delistings``: delisting records in the security master.
+    """
+
+    window_start: date
+    missing_price_days: int | None
+    first_price_day: date | None
+    flag_history_start: dict[str, date | None]
+    delistings: int

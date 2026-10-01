@@ -130,7 +130,8 @@ def test_trend_template_tags_results_and_scan_id_with_the_snapshot(
     cli_main(["ingest", "adjusted-prices", "--db", db, "--known-at", KNOWN_AT])
     with DuckDBStore(db) as store:
         store.conn.execute(
-            "INSERT INTO universe_snapshots VALUES ('uni-1', 'u', ?, ?, 'h', 'v1', 'COMPLETE')",
+            "INSERT INTO universe_snapshots VALUES "
+            "('uni-1', 'u', ?, ?, 'h', 'v1', 'COMPLETE', NULL)",
             [as_of, INGESTED],
         )
         store.conn.execute(

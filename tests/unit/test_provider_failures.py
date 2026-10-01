@@ -91,9 +91,18 @@ def test_surveillance_asm_failure_raises() -> None:
 def test_surveillance_t2t_failure_raises() -> None:
     asm_ok = _resp(200, json_data={"longterm": {"data": []}, "shortterm": {"data": []}})
     # homepage, ASM ok, then sec_list fails
+    gsm_ok = _resp(200, json_data=[])
     p = _with_session(NSESurveillanceProvider(), _resp(200), asm_ok, _resp(500, text="boom"))
-    p._session.get.side_effect = [_resp(200), asm_ok, _resp(500, text="boom")]
-    with pytest.raises(ProviderError):
+    p._session.get.side_effect = [_resp(200), asm_ok, gsm_ok, _resp(500, text="boom")]
+    with pytest.raises(ProviderError, match="T2T|sec_list"):
+        p.get_flags(START, END)
+
+
+def test_surveillance_gsm_failure_raises() -> None:
+    asm_ok = _resp(200, json_data={"longterm": {"data": []}, "shortterm": {"data": []}})
+    p = _with_session(NSESurveillanceProvider(), _resp(200))
+    p._session.get.side_effect = [_resp(200), asm_ok, _resp(503, text="down")]
+    with pytest.raises(ProviderError, match="GSM"):
         p.get_flags(START, END)
 
 

@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed (audit P0-4: point-in-time universe)
+- The universe takes each date's series and trade-to-trade status from the NSE bhavcopy (`daily_series`) instead of today's EQUITY_L. Delisted, merged and renamed names take part on dates when they traded.
+- The survivorship label is derived from the data: price coverage of a 380-day window, plus ASM and GSM collection dates. The reasons are stored in `universe_snapshots.survivorship_detail` and printed by `vcp ingest universe`. The `survivorship_coverage_verified` config field is removed. `UNIVERSE_METHOD_VERSION` is now 2.0.
+- The NSE GSM list (`/api/reportGSM`) is collected with ASM and T2T on every security-master run.
+
 ### Changed (owner decision 2026-10-01: Upstox credentials rejected)
 - An Upstox HTTP 401/403 (`ProviderAuthError`, e.g. an expired token) no longer aborts `vcp ingest corporate-actions`. The run continues NSE-only, nothing is escalated because of Upstox's silence, and the CLI prints a warning to refresh `UPSTOX_ACCESS_TOKEN`. Other Upstox failures still abort the run.
 

@@ -43,6 +43,8 @@ class NSESurveillanceProvider:
 
     # Known API routes for surveillance data
     ASM_URL = "https://www.nseindia.com/api/reportASM?index=equities"
+    # Live check 2026-10-01: returns a JSON list with symbol, isin, gsmStage, survDesc.
+    GSM_URL = "https://www.nseindia.com/api/reportGSM"
     SEC_LIST_URL = "https://nsearchives.nseindia.com/content/equities/sec_list.csv"
 
     def __init__(self, *, clock: Clock = utc_now) -> None:
@@ -83,6 +85,7 @@ class NSESurveillanceProvider:
         records: list[SurveillanceRecord] = []
 
         records.extend(self._fetch_asm_flags())
+        records.extend(self._fetch_gsm_flags())
         records.extend(self._fetch_t2t_flags())
 
         logger.info("NSE surveillance: fetched %d flag records", len(records))
@@ -136,6 +139,46 @@ class NSESurveillanceProvider:
             # is missing from it, so a swallowed failure would silently clear real flags.
             raise ProviderError(f"NSE ASM fetch error: {e}") from e
 
+        return records
+
+    def _fetch_gsm_flags(self) -> list[SurveillanceRecord]:
+        """Fetch GSM (Graded Surveillance Measure) stocks (audit P0-4).
+
+        Every listed stock counts as flagged, whatever its stage: the universe rule excludes
+        ASM/GSM names, and the stage is kept in ``extra`` for later refinement.
+        """
+        records: list[SurveillanceRecord] = []
+        try:
+            resp = self._session.get(self.GSM_URL, timeout=15)
+            if resp.status_code != 200:
+                raise ProviderError(
+                    f"NSE GSM fetch failed: HTTP {resp.status_code} {resp.text[:200]}"
+                )
+            data = resp.json()
+            items = data if isinstance(data, list) else data.get("data", [])
+            today = self._clock().date()
+            for item in items:
+                symbol = str(item.get("symbol", "")).strip()
+                if not symbol:
+                    continue
+                records.append(
+                    SurveillanceRecord(
+                        instrument_id=mint_instrument_id("NSE", symbol),
+                        flag="GSM",
+                        valid_from=today,
+                        valid_to=None,
+                        source=self.PROVIDER_NAME,
+                        extra={
+                            "stage": str(item.get("gsmStage", "")),
+                            "description": str(item.get("survDesc", "")),
+                        },
+                    )
+                )
+        except ProviderError:
+            raise
+        except Exception as e:
+            # Same rule as ASM: a failed fetch must not look like "no GSM stocks".
+            raise ProviderError(f"NSE GSM fetch error: {e}") from e
         return records
 
     def _fetch_t2t_flags(self) -> list[SurveillanceRecord]:

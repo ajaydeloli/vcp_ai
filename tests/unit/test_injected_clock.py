@@ -88,6 +88,8 @@ def test_surveillance_flags_valid_from_uses_injected_clock() -> None:
     def fake_get(url: str, **_: object) -> MagicMock:
         if url == provider.ASM_URL:
             return asm
+        if url == provider.GSM_URL:
+            return _response([{"symbol": "CCC", "gsmStage": "I", "survDesc": "GSM Stage I"}])
         if url == provider.SEC_LIST_URL:
             return sec_list
         return _response()
@@ -95,7 +97,7 @@ def test_surveillance_flags_valid_from_uses_injected_clock() -> None:
     with patch.object(provider._session, "get", side_effect=fake_get):
         records = provider.get_flags(date(2024, 1, 1), date(2024, 6, 1))
 
-    assert {r.flag for r in records} == {"ASM", "T2T"}
+    assert {r.flag for r in records} == {"ASM", "GSM", "T2T"}
     assert {r.valid_from for r in records} == {FIXED.date()}
 
 

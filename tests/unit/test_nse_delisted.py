@@ -9,19 +9,19 @@ from __future__ import annotations
 
 import io
 import zipfile
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 from urllib.parse import quote
 from xml.sax.saxutils import escape
 
 import pytest
 
-from vcp_scanner.config.models import UniverseConfig
 from vcp_scanner.data.ingestion.sm_worker import SecurityMasterIngestionWorker
 from vcp_scanner.data.providers.nse_delisted import NSEDelistedProvider
 from vcp_scanner.data.repositories.duckdb_universe_repository import DuckDBUniverseRepository
 from vcp_scanner.data.storage.duckdb_store import DuckDBStore
-from vcp_scanner.data.universe.builder import UniverseBuilder
+from vcp_scanner.data.universe.builder import derive_survivorship
+from vcp_scanner.domain.enums import SurvivorshipStatus
 from vcp_scanner.domain.errors import ProviderError
 from vcp_scanner.domain.market import SecurityRecord
 
@@ -387,11 +387,17 @@ def test_earlier_live_row_with_another_isin_blocks_delisted_record(store):
 
 
 def test_ingesting_delisted_names_moves_survivorship_off_biased(store):
-    builder = UniverseBuilder(DuckDBUniverseRepository(store), UniverseConfig(), clock=CLOCK)
+    repo = DuckDBUniverseRepository(store)
+
+    def status() -> SurvivorshipStatus:
+        as_of = CLOCK().date()
+        evidence = repo.survivorship_evidence(as_of, CLOCK(), as_of - timedelta(days=380))
+        return derive_survivorship(evidence, as_of)[0]
+
     _worker(store, [_live("LIVE", "INE111A01011")], None).run(START, END)
-    assert builder._survivorship_status(CLOCK()).value == "BIASED"
+    assert status().value == "BIASED"
 
     _worker(store, [_live("LIVE", "INE111A01011")], [_gone("GONE", "INE222B01011")]).run(START, END)
-    status = builder._survivorship_status(CLOCK())
-    assert status.value == "PARTIAL"
-    assert not status.may_validate_thresholds  # NSE's list omits mergers: never "complete"
+    # Delisting records without bhavcopy prices: still not complete (audit P0-4).
+    assert status().value == "PARTIAL"
+    assert not status().may_validate_thresholds

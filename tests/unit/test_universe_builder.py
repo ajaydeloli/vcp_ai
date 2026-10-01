@@ -177,24 +177,13 @@ def test_survivorship_biased_without_delisting_data(store):
     assert snap.survivorship_status.value == "BIASED"
 
 
-def test_survivorship_partial_until_coverage_attested(store):
+def test_survivorship_partial_with_delistings_but_no_bhavcopy(store):
     _seed(store, "LIVE", 253)
     _add_delisting(store)
     snap, _ = UniverseBuilder(DuckDBUniverseRepository(store), _config()).build_snapshot(
         date(2023, 1, 1)
     )
     assert snap.survivorship_status.value == "PARTIAL"
-
-
-def test_survivorship_complete_needs_data_and_attestation(store):
-    _seed(store, "LIVE", 253)
-    cfg = _config(survivorship_coverage_verified=True)
-    # attestation alone, with no delisting records, is not enough
-    snap, _ = UniverseBuilder(DuckDBUniverseRepository(store), cfg).build_snapshot(date(2023, 1, 1))
-    assert snap.survivorship_status.value == "BIASED"
-    _add_delisting(store)
-    snap, _ = UniverseBuilder(DuckDBUniverseRepository(store), cfg).build_snapshot(date(2023, 1, 1))
-    assert snap.survivorship_status.value == "POINT_IN_TIME_COMPLETE"
 
 
 def test_known_at_rebuilds_snapshot_as_it_was_known(store):

@@ -761,3 +761,43 @@ The 1,677 bars fewer than the trial build are exactly the rights-entitlement row
 - suspension gaps block permanently (P1-2);
 - the Upstox token needs refreshing;
 - the survivorship label is still PARTIAL (P0-4).
+
+## Fix P0-4 — point-in-time universe (2026-10-01)
+
+**Owner decision:** ASM/GSM have no free history, so collect them from now; earlier snapshots are labelled PARTIAL with the reason.
+
+**Change.**
+- `DuckDBUniverseRepository.load_universe_candidates`:
+  - new `day_series` CTE, giving the series on the last session on or before the as-of date (known at `known_at`, EQ preferred);
+  - series = bhavcopy series, with today's EQUITY_L series only as the fallback;
+  - exchange = NSE for bhavcopy names;
+  - T2T = BE/BZ that day.
+- `survivorship_evidence()`: bhavcopy manifest days settled in the window, first ASM/GSM collection dates and delistings. Pure `derive_survivorship()` in the builder; `SURVIVORSHIP_WINDOW_DAYS` = 380.
+- `UniverseSnapshot.survivorship_detail` and the `universe_snapshots.survivorship_detail` column (migration adds it). The CLI prints the reason.
+- Removed `UniverseConfig.survivorship_coverage_verified`.
+- `UNIVERSE_METHOD_VERSION` 1.1 → 2.0; the RS/universe golden file was re-recorded, and only `config_hash` and `method_version` changed.
+- `NSESurveillanceProvider` also collects GSM (`/api/reportGSM`; 77 stocks on 2026-10-01).
+
+**Real-data check** (`data/p04.duckdb`, a copy of the main DB plus a security-master run):
+
+| As of | Screened | Eligible | Eligible but gone today | Eligible though not EQ today | BE/BZ that day though EQ today | Label |
+|---|---|---|---|---|---|---|
+| 2022-06-30 | 2,049 | 831 | 28 (HDFC, MINDTREE, PEL, TV18BRDCST, SHRIRAMCIT, IDFC …) | 50 | 70 | PARTIAL: ASM and GSM history start 2026-10-01 |
+| 2024-03-28 | 2,428 | 1,196 | 16 (IDFC, ISEC, GSPL, UJJIVAN …) | 61 | 237 | PARTIAL, same reason |
+| 2026-09-30 | 3,363 | 1,335 | 0 | 1 | 0 | PARTIAL, same reason (the lists were first collected 2026-10-01) |
+
+**Found, not fixed:** `sm_worker._accept_delisted` skips DHFL's delisting record (ISIN INE202B01012) because the bhavcopy instrument `NSE_EQ|DHFL` carries the same issuer's later ISIN (…038). Same-issuer ISINs should be treated as one security there. This is small, but the delisting date only feeds the survivorship count, and DHFL's prices are already present.
+
+**Tests.**
+- New `tests/unit/test_point_in_time_universe.py` (9):
+  - series and T2T per date;
+  - a delisted name screened while it traded;
+  - `derive_survivorship` (5 cases);
+  - the label from stored data, persisted with its reason;
+  - missing bhavcopy days → PARTIAL.
+- GSM in the provider tests (injected clock, GSM failure raises).
+- `test_nse_delisted` uses the derived label.
+- Positional `universe_snapshots` inserts in tests now include the new column.
+- Full suite: 734 passed, 0 failed. `ruff`, `mypy --strict src` clean.
+
+**To make future snapshots COMPLETE:** run `vcp ingest security-master` every trading day, so ASM/GSM history accumulates. From the first collected date onward, snapshots whose 380-day bhavcopy window is complete are POINT_IN_TIME_COMPLETE. This belongs in the daily evening run (next item).

@@ -32,6 +32,7 @@ from vcp_scanner.domain.trend import (
     WeeklyContext,
 )
 from vcp_scanner.domain.universe import (
+    SurvivorshipEvidence,
     UniverseCandidate,
     UniverseMembership,
     UniverseSnapshot,
@@ -360,6 +361,12 @@ class UniverseInputRepository(Protocol):
 
     def count_known_delistings(self, known_at: datetime) -> int:
         """Security-master rows with a delisting date, as known at ``known_at``."""
+        ...
+
+    def survivorship_evidence(
+        self, as_of_date: date, known_at: datetime, window_start: date
+    ) -> SurvivorshipEvidence:
+        """Coverage facts behind a snapshot's survivorship label (audit P0-4)."""
         ...
 
 

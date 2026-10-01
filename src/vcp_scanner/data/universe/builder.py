@@ -12,13 +12,18 @@ import json
 import logging
 import uuid
 from dataclasses import replace
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from typing import TYPE_CHECKING
 
 from vcp_scanner.config.models import UniverseConfig
 from vcp_scanner.domain.enums import SurvivorshipStatus
 from vcp_scanner.domain.market import PROVIDER_ADJUSTED_SOURCES
-from vcp_scanner.domain.universe import UniverseCandidate, UniverseMembership, UniverseSnapshot
+from vcp_scanner.domain.universe import (
+    SurvivorshipEvidence,
+    UniverseCandidate,
+    UniverseMembership,
+    UniverseSnapshot,
+)
 from vcp_scanner.infrastructure.clock import Clock, utc_now
 
 if TYPE_CHECKING:
@@ -26,7 +31,47 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-UNIVERSE_METHOD_VERSION = "1.1"
+#: 2.0 (audit P0-4): series and trade-to-trade status per date from the NSE bhavcopy; the
+#: survivorship label is derived from the data (with reasons), no longer attested in config.
+UNIVERSE_METHOD_VERSION = "2.0"
+
+#: Calendar days of history a snapshot depends on: 253 sessions of minimum history plus the
+#: 50-day traded-value window fit in about 380 calendar days.
+SURVIVORSHIP_WINDOW_DAYS = 380
+
+
+def derive_survivorship(
+    evidence: SurvivorshipEvidence, as_of_date: date
+) -> tuple[SurvivorshipStatus, str | None]:
+    """Survivorship label and reasons from what the data proves (audit P0-4).
+
+    POINT_IN_TIME_COMPLETE needs (1) a settled NSE bhavcopy entry for every calendar day of
+    the look-back window, so delisted and suspended names are present exactly as they traded,
+    and (2) ASM and GSM lists collected on or before the as-of date (they have no public
+    history; collection starts when the daily security-master run starts). Without bhavcopy
+    data and without any delisting record the population is today's listings only: BIASED.
+    Anything in between is PARTIAL, with the reasons recorded.
+    """
+    reasons: list[str] = []
+    if evidence.missing_price_days is None:
+        if evidence.delistings == 0:
+            return SurvivorshipStatus.BIASED, "prices cover current listings only"
+        reasons.append("no NSE bhavcopy history: delisted names lack prices")
+    elif evidence.missing_price_days > 0:
+        first = evidence.first_price_day
+        reasons.append(
+            f"bhavcopy history incomplete: {evidence.missing_price_days} day(s) missing since "
+            f"{evidence.window_start}" + (f" (history starts {first})" if first else "")
+        )
+    for flag in ("ASM", "GSM"):
+        start = evidence.flag_history_start.get(flag)
+        if start is None:
+            reasons.append(f"{flag} list never collected")
+        elif start > as_of_date:
+            reasons.append(f"{flag} history starts {start}")
+    if not reasons:
+        return SurvivorshipStatus.POINT_IN_TIME_COMPLETE, None
+    return SurvivorshipStatus.PARTIAL, "; ".join(reasons)
 
 
 def evaluate_eligibility(
@@ -115,21 +160,6 @@ class UniverseBuilder:
         encoded = json.dumps(data, sort_keys=True).encode("utf-8")
         return hashlib.sha256(encoded).hexdigest()[:8]
 
-    def _survivorship_status(self, known_at: datetime) -> SurvivorshipStatus:
-        """Derive the survivorship label from what the security master actually holds.
-
-        PROJECT_DESIGN 14A: ``POINT_IN_TIME_COMPLETE`` needs delisted names and historical
-        membership. Nothing in the data can prove completeness, so it is granted only when
-        the operator attests coverage (``survivorship_coverage_verified``) AND delisting
-        records exist. Otherwise the label is honest about the gap, and results must not be
-        used to validate thresholds (``SurvivorshipStatus.may_validate_thresholds``).
-        """
-        if self._repo.count_known_delistings(known_at) == 0:
-            return SurvivorshipStatus.BIASED  # current listings only
-        if not self._config.survivorship_coverage_verified:
-            return SurvivorshipStatus.PARTIAL  # some delisted names, completeness unproven
-        return SurvivorshipStatus.POINT_IN_TIME_COMPLETE
-
     def build_snapshot(
         self, as_of_date: date, *, known_at: datetime | None = None
     ) -> tuple[UniverseSnapshot, list[UniverseMembership]]:
@@ -178,6 +208,10 @@ class UniverseBuilder:
 
         memberships = self._apply_quality_gate(memberships, as_of_date, created_at)
 
+        evidence = self._repo.survivorship_evidence(
+            as_of_date, created_at, as_of_date - timedelta(days=SURVIVORSHIP_WINDOW_DAYS)
+        )
+        status, detail = derive_survivorship(evidence, as_of_date)
         snapshot = UniverseSnapshot(
             universe_snapshot_id=snapshot_id,
             universe_name="VCP_BASE",
@@ -185,7 +219,8 @@ class UniverseBuilder:
             created_at=created_at,
             config_hash=self._hash_config(),
             method_version=UNIVERSE_METHOD_VERSION,
-            survivorship_status=self._survivorship_status(created_at),
+            survivorship_status=status,
+            survivorship_detail=detail,
         )
 
         eligible_count = sum(m.eligible for m in memberships)

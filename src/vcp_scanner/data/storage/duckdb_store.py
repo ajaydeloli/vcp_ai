@@ -306,7 +306,8 @@ CREATE TABLE IF NOT EXISTS universe_snapshots (
     created_at            TIMESTAMPTZ NOT NULL,
     config_hash           VARCHAR NOT NULL,
     method_version        VARCHAR NOT NULL,
-    survivorship_status   VARCHAR NOT NULL
+    survivorship_status   VARCHAR NOT NULL,
+    survivorship_detail   VARCHAR
 )
 """
 
@@ -655,6 +656,7 @@ class DuckDBStore:
         self._migrate_adjusted_snapshot_key()
         self._migrate_derived_snapshot_lineage()
         self._add_column_if_missing("trend_template_results", "blocked_by", "VARCHAR")
+        self._add_column_if_missing("universe_snapshots", "survivorship_detail", "VARCHAR")
         for table_name, ddl in _ALL_DDL:
             self.conn.execute(ddl)
             logger.debug("Ensured table: %s", table_name)

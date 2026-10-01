@@ -106,7 +106,7 @@ def test_non_finite_weekly_close_is_insufficient() -> None:
 def _seed_rs(store: DuckDBStore, closes: dict[str, list[float]]) -> None:
     store.conn.execute(
         "INSERT INTO universe_snapshots VALUES "
-        "('u1', 'test', '2023-12-31', current_timestamp, 'h', 'v1', 'BIASED')"
+        "('u1', 'test', '2023-12-31', current_timestamp, 'h', 'v1', 'BIASED', NULL)"
     )
     for iid, series in closes.items():
         store.conn.execute(

@@ -152,7 +152,7 @@ def _seed(store: DuckDBStore, returns: dict[str, float], members: list[str]) -> 
         )
     store.conn.execute(
         "INSERT INTO universe_snapshots VALUES ('u', 'test', ?, "
-        "TIMESTAMPTZ '2024-06-30 00:00:00+00', 'h', '1.1', 'BIASED')",
+        "TIMESTAMPTZ '2024-06-30 00:00:00+00', 'h', '1.1', 'BIASED', NULL)",
         [AS_OF],
     )
     store.conn.executemany(

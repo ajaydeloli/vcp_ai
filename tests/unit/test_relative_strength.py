@@ -12,7 +12,7 @@ def test_relative_strength():
     # Insert universe
     store.conn.execute(
         "INSERT INTO universe_snapshots VALUES "
-        "('snap_1', 'test_uni', '2023-12-31', current_timestamp, 'hash', 'v1', 'COMPLETE')"
+        "('snap_1', 'test_uni', '2023-12-31', current_timestamp, 'hash', 'v1', 'COMPLETE', NULL)"
     )
     store.conn.execute(
         "INSERT INTO universe_memberships VALUES "
