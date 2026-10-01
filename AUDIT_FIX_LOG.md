@@ -1208,3 +1208,11 @@ Features for all 3,365 instruments (3,123,370 rows written as `features-1.2.0` n
 **Test.** `test_upstox_coverage.py::test_zero_amount_is_not_reported_and_rights_are_confirmed`: the Upstox rights row has no amount, and NSE 2:21 at 750 plus Upstox 2:21 reconcile to CONFIRMED.
 
 **Verification.** Full suite: 842 passed, 0 failed. `ruff check`, `ruff format --check`, `mypy --strict src` clean.
+
+### Real-data check of U1–U2 (copy `data/upstox.duckdb` of the main DB, 02:02–02:31 IST, code at 6a5d259)
+
+Two earlier attempts (01:26, 01:57) were cut short by power failures on the owner's PC; the third ran to completion. `vcp ingest corporate-actions --start 2026-08-02` with the live Upstox token:
+- Upstox asked about 800 of 2,593 instruments (23 with an NSE action first) in 26.8 minutes; no HTTP 429; `secondary_ca_checks` holds the 800.
+- 269 Upstox observations stored (the first ever). Resolutions: 263 SINGLE_SOURCE → CONFIRMED, including all 9 rights issues that U1 alone turned into conflicts (NATCOPHARM, CENTEXT, GENESYS, …); 187 adjustment factors (179 without U2: the rights TERP factors are back).
+- One new PROVIDER_CONFLICT: DTIL's 2026-08-12 dividend reported only by Upstox (warning, no price effect).
+- Blocking data-quality events 235 → 235 (none new, none cleared); no change for any of the 2026-10-01 eligible stocks.
