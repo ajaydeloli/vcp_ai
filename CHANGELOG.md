@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Documented (audit P1-10 second part: small corporate actions)
+- `DATA_SPECIFICATION.md` §18A now records that the gap safety net cannot catch a missed bonus or split that moves the price by less than 30 % (for example 1:4), and why the threshold stays at 30 %: on the full NSE history a lower one would flag about 850 earnings, news and circuit drops. A second corporate-action source (Upstox, or a BSE feed) is the remedy.
+
 ### Fixed (same-day ratio action and demerger/rights; superseded readings)
 - A rights issue or demerger on the same ex-date as a split or bonus is now derived from the prior close on the post-split/bonus scale. Before, the split/bonus was counted twice: AHLEAST's 2022-10-06 demerger + 1:2 bonus got factor 0.352 instead of 0.528, leaving a +50 % jump in its adjusted prices. The gap detector uses the same order.
 - An older, ratio-less SPLIT/BONUS/RIGHTS reading of a record that the parser now stores as `UNMODELLED` (same instrument and ex-date) no longer raises a second, blocking event (QUINT 2026-08-25, BRITANNIA 2021-05-25); the record is reported once, as the unmodelled warning.

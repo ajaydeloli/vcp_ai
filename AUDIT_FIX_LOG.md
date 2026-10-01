@@ -1128,3 +1128,15 @@ Security master, corporate actions from 2021-01-01, adjusted prices, features, u
 ### Applied to the main DB (20:43–20:56 IST, code at 0f5f9ae)
 
 `cleanup-1` fast-forwarded into `main`. Backup `data/vcp_scanner.pre_c1.duckdb` (replaces `pre_p12`); the run held the daily-run lock. Security master, corporate actions from 2021-01-01, adjusted prices, features, universe/RS/Trend Template for 2026-10-01. Same result as the copy: universe `uv_20261001_95180a301f`, 1,257 evaluated, 203 PASS / 1,048 FAIL / 6 INSUFFICIENT_DATA, scan run `run-20261001-20261001T152358846215Z`, results hash `7769987bb8868a73` (identical to the copy's).
+
+## Batch A — audit items Phase 6 relies on (2026-10-01, before Phase 6)
+
+Read-only spike 21:00–21:15 IST; owner decisions 21:19 IST: (1) small bonuses: document and rely on a second source; (2) `volume_ratio_N` excludes the current bar, ATR and EMA documented; (3) one staleness rule in NSE sessions, tiered by use.
+
+### Fix A1 — audit P1-10 second part: small actions below the gap threshold (documented, no code change)
+
+**Spike** (main DB, NSE bhavcopy 2021-01-01 → 2026-10-01). 1,772 opening gaps of −12 % to −30 %; 1,468 within 1 % of a small-integer ratio. Removing market-wide days (2025-04-07 alone had 364) and gaps explained by actions in the window left 1,058; 134 sit exactly at a −5/−10/−20 % circuit and 855 are neither at a circuit nor a locked bar. A random 25 of those 855 had no NSE corporate-action record within ±10 days (SPANDANA, TARIL, CHENNPETRO …: earnings and news drops). 29 small gaps were explained by small bonuses the NSE feed does carry.
+
+**Decision.** Keep `gap_pct` 30. A ratio test cannot tell a 1:4 bonus from a −20 % circuit, so a lower threshold (or a warning tier) would add about 850 false flags. The defence is a second source: the Upstox cross-check (owner to refresh the token) and, if still needed, a BSE feed.
+
+**Change.** `DATA_SPECIFICATION.md` §18A "Known limitation: small actions below `gap_pct`", with the numbers above and the effect of a miss (an unadjusted drop under 30 %: a false contraction risk for VCP detection, not a false Trend Template pass).
