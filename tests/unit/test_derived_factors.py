@@ -101,6 +101,8 @@ def test_real_demerger_record_is_a_demerger(symbol: str) -> None:
         (" Rights 21:20@ Premium Rs 25/-", "10", (21.0, 20.0), 35.0),
         ("Rights 1:19.07 @ Premium Rs 0", "1", (1.0, 19.07), 1.0),
         (" Rights 613:399", "10", (613.0, 399.0), None),  # no premium: price unknown
+        ("Rights Issue 4:17@ Premium Rs 390/-", "10", (4.0, 17.0), 400.0),
+        ("Rights 7:10 @ Prm Rs 102/-", "10", (7.0, 10.0), 112.0),
     ],
 )
 def test_rights_subject_variants(

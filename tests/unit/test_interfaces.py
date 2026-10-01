@@ -102,10 +102,12 @@ class DummyFundamentalProvider:
 
 
 class DummyMarketDataRepository:
-    def load_daily(self, instrument_id: str, start: date, end: date) -> list[Candle]:
+    def load_daily(
+        self, instrument_id: str, start: date, end: date, *, include_provisional: bool = False
+    ) -> list[Candle]:
         return []
 
-    def save_daily(self, candles: list[Candle]) -> int:
+    def save_daily(self, candles: list[Candle], *, data_status: str = "OK") -> int:
         return len(candles)
 
     def latest_timestamp(self, instrument_id: str) -> datetime | None:

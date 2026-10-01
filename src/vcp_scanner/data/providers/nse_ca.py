@@ -26,8 +26,9 @@ _AMOUNT_RE = re.compile(r"(?:RS|RE|INR)\.?\s*(\d+(?:\.\d+)?)")
 _BONUS_AFTER_RE = re.compile(r"BONUS[^\d]*(\d+)\s*:\s*(\d+)")
 _BONUS_BEFORE_RE = re.compile(r"(\d+)\s*:\s*(\d+)\s*BONUS")
 # "Rights 1:14 @ Premium Rs 530/-", "Rights 1:19.07 @ Premium Rs 0", "Rights 21:20@ Premium ..."
-_RIGHTS_RE = re.compile(r"RIGHTS\s*(\d+(?:\.\d+)?)\s*:\s*(\d+(?:\.\d+)?)")
-_PREMIUM_RE = re.compile(r"PREMIUM\s*(?:(?:RS|RE|INR)\.?)?\s*(\d+(?:\.\d+)?)")
+# Also "Rights Issue 4:17@ Premium Rs 390/-" and "Rights 7:10 @ Prm Rs 102/-" (live, 2026-10-01).
+_RIGHTS_RE = re.compile(r"RIGHTS(?:\s+ISSUE)?\s*(\d+(?:\.\d+)?)\s*:\s*(\d+(?:\.\d+)?)")
+_PREMIUM_RE = re.compile(r"(?:PREMIUM|PRM)\.?\s*(?:(?:RS|RE|INR)\.?)?\s*(\d+(?:\.\d+)?)")
 # Price-affecting events this provider does not model. Dropping them silently would leave the
 # price series unadjusted with no trace, so they are reported instead (audit P1-2).
 _UNHANDLED_MARKERS = (

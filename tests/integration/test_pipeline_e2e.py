@@ -95,7 +95,7 @@ def test_full_pipeline_from_an_empty_database(
     steps = [
         ["ingest", "security-master", "--start", start, "--end", end, "--no-delisted",
          "--db", db],
-        ["ingest", "market", "--start", start, "--end", end, "--db", db,
+        ["ingest", "market", "--kite-history", "--start", start, "--end", end, "--db", db,
          "--config-dir", CONFIG_DIR, "--env-file", env],
         ["ingest", "corporate-actions", "--start", start, "--end", end, "--db", db,
          "--config-dir", CONFIG_DIR, "--env-file", env],

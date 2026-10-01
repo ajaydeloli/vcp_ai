@@ -203,6 +203,14 @@ def build_parser() -> argparse.ArgumentParser:
         default="config",
         help="Path to directory containing configuration YAML files (default: config)",
     )
+    universe_parser.add_argument(
+        "--allow-provisional",
+        action="store_true",
+        help=(
+            "Use today's PROVISIONAL Kite bar (taken before the NSE bhavcopy is published). "
+            "Default: provisional bars are ignored"
+        ),
+    )
 
     sm_parser = ingest_subparsers.add_parser(
         "security-master", help="Ingest NSE security master and surveillance flags"
@@ -261,16 +269,45 @@ def build_parser() -> argparse.ArgumentParser:
         help="Instrument to build (repeatable). Default: every instrument with raw prices",
     )
     adjusted_parser.add_argument(
+        "--allow-provisional",
+        action="store_true",
+        help=(
+            "Use today's PROVISIONAL Kite bar (taken before the NSE bhavcopy is published). "
+            "Default: provisional bars are ignored"
+        ),
+    )
+    adjusted_parser.add_argument(
         "--db",
         default=DEFAULT_DB_PATH,
         help="Path to DuckDB database file (default: data/vcp_scanner.duckdb)",
     )
 
     market_parser = ingest_subparsers.add_parser(
-        "market", help="Ingest daily OHLCV bars from Kite Connect"
+        "market",
+        help=(
+            "Kite Connect bars: today's PROVISIONAL bar (--today), or Kite history for "
+            "comparison (--kite-history). Daily history comes from `ingest bhavcopy`"
+        ),
     )
     _add_range_args(market_parser)
     _add_instrument_args(market_parser)
+    market_mode = market_parser.add_mutually_exclusive_group()
+    market_mode.add_argument(
+        "--today",
+        action="store_true",
+        help=(
+            "Fetch today's bar (IST) and store it as PROVISIONAL until the NSE bhavcopy "
+            "supersedes it; --start/--end are ignored"
+        ),
+    )
+    market_mode.add_argument(
+        "--kite-history",
+        action="store_true",
+        help=(
+            "Ingest Kite's (provider-adjusted) history for --start..--end. Comparison only: "
+            "the price source of truth is `vcp ingest bhavcopy`"
+        ),
+    )
     market_parser.add_argument(
         "--force",
         action="store_true",
@@ -385,6 +422,31 @@ def build_parser() -> argparse.ArgumentParser:
     vka.add_argument("--limit", type=int, default=3, help="Actions to take from the database")
     _add_db_arg(vka)
     vka.add_argument("--env-file", default=".env", help="Path to .env file with Kite credentials")
+
+    vkc = verify_subparsers.add_parser(
+        "kite-crosscheck",
+        help=(
+            "Compare our adjusted closes with Kite's history and attribute every difference "
+            "to a corporate action (fetches Kite history; writes nothing)"
+        ),
+    )
+    vkc.add_argument(
+        "--instrument",
+        action="append",
+        required=True,
+        metavar="ID_OR_SYMBOL",
+        help="Instrument to check (repeatable)",
+    )
+    vkc.add_argument("--start", metavar="YYYY-MM-DD", help="First day (default: 2 years ago)")
+    vkc.add_argument("--end", metavar="YYYY-MM-DD", help="Last day (default: today)")
+    vkc.add_argument(
+        "--tolerance",
+        type=float,
+        default=0.002,
+        help="Relative step in the Kite/ours ratio treated as a difference (default 0.002)",
+    )
+    _add_db_arg(vkc)
+    vkc.add_argument("--env-file", default=".env", help="Path to .env file with Kite credentials")
 
     # quality subcommands (audit P0-2)
     quality_parser = subparsers.add_parser("quality", help="Data-quality events that block signals")
@@ -593,7 +655,10 @@ def main(argv: Sequence[str] | None = None) -> int:
                 store.migrate()
                 repo = DuckDBUniverseRepository(store)
                 builder = UniverseBuilder(
-                    repo, cfg.universe, quality_gate=DuckDBDataQualityRepository(store)
+                    repo,
+                    cfg.universe,
+                    quality_gate=DuckDBDataQualityRepository(store),
+                    include_provisional=args.allow_provisional,
                 )
 
                 snapshot, memberships = builder.build_snapshot(as_of_date=as_of, known_at=known_at)
@@ -720,7 +785,9 @@ def main(argv: Sequence[str] | None = None) -> int:
                     )
                 market_repo = DuckDBMarketDataRepository(store)
                 adjusted_builder = AdjustedPriceBuilder(
-                    market_repo, DuckDBCorporateActionRepository(store)
+                    market_repo,
+                    DuckDBCorporateActionRepository(store),
+                    include_provisional=args.allow_provisional,
                 )
                 results = adjusted_builder.build_all(
                     computed_at=datetime.now(UTC),
@@ -782,6 +849,10 @@ def main(argv: Sequence[str] | None = None) -> int:
             from vcp_scanner import cli_pipeline
 
             return cli_pipeline.run_verify_kite_adjustment(args)
+        if args.verify_command == "kite-crosscheck":
+            from vcp_scanner import cli_pipeline
+
+            return cli_pipeline.run_verify_kite_crosscheck(args)
         parser.parse_args(["verify", "--help"])
         return 0
 

@@ -83,12 +83,15 @@ class DuckDBMarketDataRepository:
         instrument_id: str,
         start: date,
         end: date,
+        *,
+        include_provisional: bool = False,
     ) -> list[Candle]:
         """Return current canonical daily bars in [start, end] (inclusive).
 
         Only rows with ``known_to IS NULL`` are returned — i.e. the current
         truth for each trade_date.  Superseded corrections are invisible here;
-        use ``load_daily_as_of`` for point-in-time reads.
+        use ``load_daily_as_of`` for point-in-time reads. PROVISIONAL bars (today's Kite bar
+        before the bhavcopy is published, audit step 2.5) are left out unless asked for.
         """
         rows = self._store.conn.execute(
             """
@@ -101,9 +104,10 @@ class DuckDBMarketDataRepository:
               AND trade_date   >= ?
               AND trade_date   <= ?
               AND known_to IS NULL
+              AND (? OR data_status <> 'PROVISIONAL')
             ORDER BY trade_date
             """,
-            [instrument_id, start, end],
+            [instrument_id, start, end, include_provisional],
         ).fetchall()
 
         candles: list[Candle] = []
@@ -127,7 +131,7 @@ class DuckDBMarketDataRepository:
             )
         return candles
 
-    def save_daily(self, candles: list[Candle]) -> int:
+    def save_daily(self, candles: list[Candle], *, data_status: str = "OK") -> int:
         """Append-only save of daily candles.  Bitemporal on conflict.
 
         For each candle:
@@ -140,6 +144,10 @@ class DuckDBMarketDataRepository:
         4. Insert new row with ``known_from = now_utc``, ``known_to = NULL``.
 
         Returns the number of new rows actually inserted (rejections not counted).
+
+        ``data_status`` is stored on every inserted row; ``PROVISIONAL`` marks today's Kite bar
+        taken before the NSE bhavcopy is published (audit step 2.5). The bhavcopy bar later
+        supersedes it, and no non-bhavcopy bar ever supersedes a bhavcopy bar.
         """
         now_utc = self._clock()
         inserted = 0
@@ -223,7 +231,7 @@ class DuckDBMarketDataRepository:
                     candle.close,
                     candle.volume,
                     candle.provider,
-                    "OK",
+                    data_status,
                     candle.provider_request_id or "unknown",
                     src_hash,
                     known_from,
@@ -382,8 +390,12 @@ class DuckDBMarketDataRepository:
         start: date,
         end: date,
         known_at: datetime,
+        *,
+        include_provisional: bool = False,
     ) -> list[Candle]:
         """Return bars as they were known at a specific system timestamp.
+
+        PROVISIONAL bars are left out unless ``include_provisional`` (audit step 2.5).
 
         Implements the ``get_daily(..., known_at=...)`` read pattern from
         DATABASE_SCHEMA §14.  Rows satisfy:
@@ -401,9 +413,10 @@ class DuckDBMarketDataRepository:
               AND trade_date   <= ?
               AND known_from   <= ?
               AND (known_to IS NULL OR known_to > ?)
+              AND (? OR data_status <> 'PROVISIONAL')
             ORDER BY trade_date
             """,
-            [instrument_id, start, end, known_at, known_at],
+            [instrument_id, start, end, known_at, known_at, include_provisional],
         ).fetchall()
 
         candles: list[Candle] = []
@@ -431,7 +444,9 @@ class DuckDBMarketDataRepository:
     # Adjusted prices (derived, rebuildable; DATABASE_SCHEMA section 14)
     # ------------------------------------------------------------------
 
-    def save_adjusted_daily(self, rows: list[DailyPriceAdjustedRow]) -> int:
+    def save_adjusted_daily(
+        self, rows: list[DailyPriceAdjustedRow], *, prune_missing: bool = False
+    ) -> int:
         """Persist derived adjusted bars, all-or-nothing.
 
         Keyed by ``(instrument_id, trade_date, adjustment_version, computed_from_snapshot_id)``.
@@ -439,6 +454,10 @@ class DuckDBMarketDataRepository:
         re-saving the same version under the same snapshot refreshes its values and
         ``computed_at`` (idempotent rebuild). A row with no snapshot is stored under the
         explicit unfrozen marker ``LIVE``.
+
+        ``prune_missing`` (full rebuilds): rows of the same (instrument, version, snapshot)
+        whose trade date is not in ``rows`` are deleted, so a bar that no longer feeds the
+        build (e.g. a PROVISIONAL bar left out, audit step 2.5) does not linger.
 
         Returns the number of rows written.
         """
@@ -483,6 +502,25 @@ class DuckDBMarketDataRepository:
         with self._store.registered("_adjusted_rows", columns, list(by_key.values())) as view:
             conn.execute("BEGIN TRANSACTION")
             try:
+                if prune_missing:
+                    conn.execute(
+                        f"""
+                        DELETE FROM daily_prices_adjusted a
+                        WHERE EXISTS (
+                            SELECT 1 FROM {view} v
+                            WHERE v.instrument_id = a.instrument_id
+                              AND v.adjustment_version = a.adjustment_version
+                              AND v.computed_from_snapshot_id = a.computed_from_snapshot_id
+                        )
+                        AND NOT EXISTS (
+                            SELECT 1 FROM {view} v
+                            WHERE v.instrument_id = a.instrument_id
+                              AND v.adjustment_version = a.adjustment_version
+                              AND v.computed_from_snapshot_id = a.computed_from_snapshot_id
+                              AND v.trade_date = a.trade_date
+                        )
+                        """
+                    )
                 conn.execute(
                     f"""
                     INSERT INTO daily_prices_adjusted ({cols})

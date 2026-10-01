@@ -117,6 +117,8 @@ class DuckDBUniverseRepository:
         as_of_date: date,
         known_at: datetime,
         provider_adjusted_sources: Sequence[str],
+        *,
+        include_provisional: bool = False,
     ) -> list[UniverseCandidate]:
         """Point-in-time statistics per instrument (``UniverseInputRepository``).
 
@@ -125,7 +127,9 @@ class DuckDBUniverseRepository:
         of a provider-adjusted source is divided by the split/bonus factors that provider had
         already applied (audit P0-1), so it is the price that actually traded.
         """
-        query = """
+        # Audit step 2.5: today's PROVISIONAL Kite bar counts only when asked for.
+        provisional_filter = "" if include_provisional else "AND data_status <> 'PROVISIONAL'"
+        query = f"""
         WITH windowed AS (
             SELECT
                 instrument_id,
@@ -142,6 +146,7 @@ class DuckDBUniverseRepository:
             WHERE trade_date <= ?
               AND known_from <= ?
               AND (known_to IS NULL OR known_to > ?)
+              {provisional_filter}
         ),
         -- Audit P0-1: a provider-adjusted bar (Kite) was already scaled by every split/bonus
         -- with trade_date < ex_date <= its fetch date. Undo those factors to recover the price

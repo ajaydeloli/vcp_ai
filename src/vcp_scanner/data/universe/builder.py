@@ -75,8 +75,11 @@ class UniverseBuilder:
         *,
         clock: Clock = utc_now,
         quality_gate: DataQualityGate | None = None,
+        include_provisional: bool = False,
     ) -> None:
         self._repo = repository
+        # Audit step 2.5: today's PROVISIONAL Kite bar is used only when explicitly allowed.
+        self._include_provisional = include_provisional
         self._config = config
         self._clock = clock
         # Optional (audit P0-2). When set, instruments with an unresolved signal-blocking
@@ -147,7 +150,10 @@ class UniverseBuilder:
         snapshot_id = f"uv_{as_of_date.strftime('%Y%m%d')}_{uuid.uuid4().hex[:6]}"
 
         candidates = self._repo.load_universe_candidates(
-            as_of_date, created_at, sorted(PROVIDER_ADJUSTED_SOURCES)
+            as_of_date,
+            created_at,
+            sorted(PROVIDER_ADJUSTED_SOURCES),
+            include_provisional=self._include_provisional,
         )
         memberships = []
         for cand in candidates:

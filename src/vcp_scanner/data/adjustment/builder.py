@@ -72,8 +72,13 @@ class AdjustedPriceBuilder:
         market_repository: DuckDBMarketDataRepository,
         corporate_action_repository: CorporateActionRepository,
         engine: AdjustmentEngine | None = None,
+        *,
+        include_provisional: bool = False,
     ) -> None:
         self._market = market_repository
+        # Audit step 2.5: today's PROVISIONAL Kite bar is adjusted only when explicitly allowed.
+        # A later build without it removes that row again (``prune_missing``).
+        self._include_provisional = include_provisional
         self._corporate_actions = corporate_action_repository
         self._engine = engine or AdjustmentEngine()
 
@@ -95,11 +100,20 @@ class AdjustedPriceBuilder:
         """
         snapshot_id = snapshot.data_snapshot_id if snapshot else LIVE_SNAPSHOT_ID
         if snapshot is None:
-            candles = self._market.load_daily(instrument_id, _FAR_PAST, _FAR_FUTURE)
+            candles = self._market.load_daily(
+                instrument_id,
+                _FAR_PAST,
+                _FAR_FUTURE,
+                include_provisional=self._include_provisional,
+            )
             adjustments = self._corporate_actions.load_adjustments(instrument_id)
         else:
             candles = self._market.load_daily_as_of(
-                instrument_id, _FAR_PAST, _FAR_FUTURE, snapshot.known_at
+                instrument_id,
+                _FAR_PAST,
+                _FAR_FUTURE,
+                snapshot.known_at,
+                include_provisional=self._include_provisional,
             )
             adjustments = self._corporate_actions.load_adjustments(
                 instrument_id, known_at=snapshot.known_at
@@ -117,7 +131,7 @@ class AdjustedPriceBuilder:
             computed_at=computed_at,
             data_snapshot_id=snapshot.data_snapshot_id if snapshot else None,
         )
-        written = self._market.save_adjusted_daily(rows)
+        written = self._market.save_adjusted_daily(rows, prune_missing=True)
 
         version = rows[0].adjustment_version
         logger.info(

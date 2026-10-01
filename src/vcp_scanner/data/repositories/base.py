@@ -47,12 +47,18 @@ class MarketDataRepository(Protocol):
         instrument_id: str,
         start: date,
         end: date,
+        *,
+        include_provisional: bool = False,
     ) -> list[Candle]:
-        """Load raw or canonical daily bars between start and end inclusive."""
+        """Load raw or canonical daily bars between start and end inclusive.
+
+        PROVISIONAL bars (audit step 2.5) only when ``include_provisional``."""
         ...
 
-    def save_daily(self, candles: list[Candle]) -> int:
-        """Append-only save of daily candles. Returns count of rows inserted."""
+    def save_daily(self, candles: list[Candle], *, data_status: str = "OK") -> int:
+        """Append-only save of daily candles. Returns count of rows inserted.
+
+        ``data_status="PROVISIONAL"`` marks today's bar before the final source arrives."""
         ...
 
     def latest_timestamp(self, instrument_id: str) -> datetime | None:
@@ -344,9 +350,12 @@ class UniverseInputRepository(Protocol):
         as_of_date: date,
         known_at: datetime,
         provider_adjusted_sources: Sequence[str],
+        *,
+        include_provisional: bool = False,
     ) -> list[UniverseCandidate]:
         """One candidate per instrument with a raw bar on/before ``as_of_date`` known at
-        ``known_at``, with its liquidity/price statistics, series and surveillance flags."""
+        ``known_at``, with its liquidity/price statistics, series and surveillance flags.
+        PROVISIONAL bars (audit step 2.5) count only when ``include_provisional``."""
         ...
 
     def count_known_delistings(self, known_at: datetime) -> int:

@@ -797,9 +797,20 @@ Rights issues and demergers (step 2.4; owner decisions: automatic when NSE's fee
 - **Pipeline order:** `ingest bhavcopy` → `ingest corporate-actions` (derives the factors from the stored bars) → `ingest adjusted-prices`.
 - **Other price-affecting actions** (consolidation, capital reduction, amalgamation, scheme of arrangement) are still reported as unhandled NSE records and left to the gap detector.
 
+Kite's role (step 2.5):
+
+- **Today's PROVISIONAL bar.** `vcp ingest market --today` stores Kite's bar for today (IST) with `daily_prices.data_status = 'PROVISIONAL'`. It is always re-fetched, so a later fetch in the session replaces it, and no completeness check runs. The bhavcopy bar supersedes it in the evening, and it can never supersede a bhavcopy bar.
+- **Reads leave PROVISIONAL bars out unless explicitly allowed.** This covers `load_daily`, `load_daily_as_of`, the universe candidates, the adjusted-price builder, the quality scan and the corporate-action worker.
+  - `--allow-provisional` on `vcp ingest adjusted-prices` and `vcp ingest universe` opts in.
+  - A later build without the flag removes the provisional adjusted row again (`save_adjusted_daily(prune_missing=True)`).
+- **Kite history** (`vcp ingest market --kite-history`) is for comparison only. `vcp ingest market` with no mode exits with an error that points to `vcp ingest bhavcopy`.
+- **Cross-check.** `vcp verify kite-crosscheck --instrument X [--start] [--end] [--tolerance 0.002]` is read-only. It compares our LIVE adjusted closes with Kite's history and explains every step in the Kite/ours ratio:
+  - INFO `KITE_DIVIDEND` / `DEMERGER_METHOD`: known methodology differences;
+  - WARNING `FACTOR_MISMATCH` (split, bonus or rights applied with different factors), `UNEXPLAINED`, `BAR_MISMATCH` (one bad bar) or `LEVEL_MISMATCH` (latest bars differ).
+  - Exit codes: 0 no warnings, 2 warnings, 1 error.
+
 Still to come in step 2 (see `AUDIT_FIX_LOG.md`):
 
-- Kite's provisional/cross-check role (2.5);
 - migration (2.6).
 
 ---

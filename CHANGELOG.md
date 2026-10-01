@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (audit step 2.5: Kite as provisional bar and cross-check)
+- `vcp ingest market --today` stores today's Kite bar as `PROVISIONAL` (`IngestionWorker.ingest_instrument(provisional=True)`, `save_daily(data_status=...)`).
+- `--allow-provisional` on `vcp ingest adjusted-prices` and `vcp ingest universe`.
+- `vcp verify kite-crosscheck` (`data/quality/kite_crosscheck.py`) explains every step in the Kite/ours close ratio by corporate action.
+
+### Changed (audit step 2.5)
+- **Breaking:** `vcp ingest market` needs a mode: `--today` (provisional bar) or `--kite-history` (Kite history, comparison only). Daily history comes from `vcp ingest bhavcopy`.
+- `load_daily`, `load_daily_as_of` and the universe candidates leave PROVISIONAL bars out unless `include_provisional=True`.
+- `save_adjusted_daily(prune_missing=True)` (used by full rebuilds) deletes rows of the same instrument, version and snapshot that the build no longer produces.
+- `vcp verify kite-adjustment` only samples splits and bonuses (rights and demergers now also explain gaps, but have no ratio factor to test).
+- The NSE rights parser also reads `Rights Issue a:b@ Premium ...` and `Prm Rs ...` (live variants).
+
 ### Added (audit step 2.4: rights issues and demergers)
 - NSE corporate actions:
   - `Demerger` records now parse as `DEMERGER` (they were dropped as unhandled);

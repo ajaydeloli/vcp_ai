@@ -72,7 +72,7 @@ def test_cli_ingest_security_master_invalid_date() -> None:
 @pytest.mark.parametrize(
     "argv",
     [
-        ["ingest", "market", "--start", "bad"],
+        ["ingest", "market", "--kite-history", "--start", "bad"],
         ["ingest", "corporate-actions", "--start", "bad"],
         ["compute", "rs", "--as-of", "bad"],
         ["compute", "trend-template", "--as-of", "bad"],

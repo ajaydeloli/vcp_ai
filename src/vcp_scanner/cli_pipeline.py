@@ -235,11 +235,25 @@ def run_market_ingest(args: argparse.Namespace) -> int:
         DuckDBDataQualityRepository,
     )
 
-    _load_env(args.env_file)
-    start = _parse_date(args.start)
-    end = _parse_date(args.end) if args.end else datetime.now(UTC).date()
-    if start is None or end is None:
+    provisional = bool(getattr(args, "today", False))
+    if not provisional and not getattr(args, "kite_history", False):
+        _err(
+            "Error: daily history comes from NSE bhavcopy (`vcp ingest bhavcopy`). Use "
+            "--today for today's PROVISIONAL Kite bar, or --kite-history to fetch Kite's "
+            "provider-adjusted history for comparison."
+        )
         return 1
+    _load_env(args.env_file)
+    if provisional:
+        from vcp_scanner.data.providers._time import IST
+
+        start = end = datetime.now(UTC).astimezone(IST).date()
+    else:
+        parsed_start = _parse_date(args.start)
+        parsed_end = _parse_date(args.end) if args.end else datetime.now(UTC).date()
+        if parsed_start is None or parsed_end is None:
+            return 1
+        start, end = parsed_start, parsed_end
 
     api_key = env_secret("KITE_API_KEY")
     access_token = env_secret("KITE_ACCESS_TOKEN")
@@ -298,6 +312,22 @@ def run_market_ingest(args: argparse.Namespace) -> int:
             completeness=checker,
             quality_repository=DuckDBDataQualityRepository(store),
         )
+        if provisional:
+            print(f"Fetching today's ({start}) PROVISIONAL Kite bar for {len(instruments)} "
+                  "instruments...")  # fmt: skip
+            statuses_p: Counter[str] = Counter()
+            written_p = 0
+            for instrument in instruments:
+                run = worker.ingest_instrument(instrument, start, end, provisional=True)
+                statuses_p[run.status] += 1
+                written_p += run.records_written
+            print("Provisional bars (superseded by `vcp ingest bhavcopy` tonight):")
+            print(f"  Rows written : {written_p}")
+            for status, count in sorted(statuses_p.items()):
+                print(f"  {status:<13}: {count}")
+            print("  Scans ignore them unless run with --allow-provisional.")
+            return 1 if statuses_p.get("FAILED") else 0
+
         print(f"Ingesting daily bars for {len(instruments)} instruments, {start} to {end}...")
         statuses: Counter[str] = Counter()
         written = 0
@@ -814,6 +844,7 @@ def run_verify_kite_adjustment(args: argparse.Namespace) -> int:
         DuckDBCorporateActionRepository,
     )
     from vcp_scanner.domain.corporate_actions import (
+        PRICE_SCALING_ACTIONS,
         CorporateActionResolution,
         CorporateActionStatus,
         explains_price_gap,
@@ -856,7 +887,14 @@ def run_verify_kite_adjustment(args: argparse.Namespace) -> int:
             ]
             repo = DuckDBCorporateActionRepository(store)
             stored = [r for iid in ids for r in repo.load_resolutions(iid)]
-        usable = [r for r in stored if explains_price_gap(r) and r.ex_date and r.ex_date < today]
+        usable = [
+            r
+            for r in stored
+            if r.action_type in PRICE_SCALING_ACTIONS
+            and explains_price_gap(r)
+            and r.ex_date
+            and r.ex_date < today
+        ]
         usable.sort(key=lambda r: r.ex_date or today, reverse=True)
         resolutions = usable[: args.limit]
         if not resolutions:
@@ -918,3 +956,91 @@ __all__ = [
     "run_quality_scan",
     "run_verify_kite_adjustment",
 ]
+
+
+# ---------------------------------------------------------------------------
+# verify kite-crosscheck (audit step 2.5)
+# ---------------------------------------------------------------------------
+
+
+def run_verify_kite_crosscheck(args: argparse.Namespace) -> int:
+    """Read-only: compare our LIVE adjusted closes with Kite's history, per instrument.
+
+    Exit codes: 0 no warnings (every difference is a known methodology difference), 2 at least
+    one WARNING finding, 1 error.
+    """
+    from datetime import timedelta
+
+    from vcp_scanner.data.quality.kite_crosscheck import crosscheck
+    from vcp_scanner.data.repositories.duckdb_corporate_action_repository import (
+        DuckDBCorporateActionRepository,
+    )
+    from vcp_scanner.data.repositories.duckdb_instrument_repository import (
+        DuckDBInstrumentRepository,
+    )
+    from vcp_scanner.data.repositories.duckdb_market_repository import (
+        DuckDBMarketDataRepository,
+    )
+
+    _load_env(args.env_file)
+    api_key, access_token = env_secret("KITE_API_KEY"), env_secret("KITE_ACCESS_TOKEN")
+    if not api_key or not access_token:
+        _err("Error: KITE_API_KEY and KITE_ACCESS_TOKEN are required (run `vcp auth kite`).")
+        return 1
+    today = datetime.now(UTC).date()
+    end = _parse_date(args.end) if args.end else today
+    start = _parse_date(args.start) if args.start else (end - timedelta(days=730) if end else None)
+    if start is None or end is None:
+        return 1
+
+    provider = _build_market_provider(api_key, access_token)
+    chunk = max(1, int(provider.get_capabilities().daily_history_max_request_days))
+    worst = 0
+    with _open_store(args.db) as store:
+        instruments = _select_instruments(
+            DuckDBInstrumentRepository(store).load_instruments(), args.instrument, None
+        )
+        if not instruments:
+            _err("Error: no matching active instruments.")
+            return 1
+        market = DuckDBMarketDataRepository(store)
+        ca_repo = DuckDBCorporateActionRepository(store)
+        for inst in instruments:
+            ours = [
+                (r.trade_date, float(r.close_adj))
+                for r in market.load_adjusted_daily(inst.instrument_id, start, end)
+            ]
+            kite: list[tuple[date, float]] = []
+            try:
+                lo = start
+                while lo <= end:
+                    hi = min(end, lo + timedelta(days=chunk - 1))
+                    kite += [
+                        (c.timestamp.date(), c.close)
+                        for c in provider.get_historical_daily(inst, lo, hi)
+                    ]
+                    lo = hi + timedelta(days=1)
+            except Exception as e:  # noqa: BLE001
+                _err(f"  {inst.instrument_id}: Kite fetch failed: {e}")
+                worst = max(worst, 1)
+                continue
+            report = crosscheck(
+                ours, kite, ca_repo.load_resolutions(inst.instrument_id), tolerance=args.tolerance
+            )
+            print(
+                f"{inst.symbol}: {report.common_days} common days "
+                f"(only ours {report.only_ours}, only Kite {report.only_kite}), "
+                f"{len(report.findings)} difference(s), {len(report.warnings)} warning(s)"
+            )
+            for f in report.findings:
+                window = f"{f.previous_date}..{f.trade_date}" if f.previous_date else f.trade_date
+                acts = ",".join(f.actions) or "-"
+                print(
+                    f"  {f.severity:<7} {f.kind.value:<16} {window}  "
+                    f"Kite/ours step {f.step:.5f}  actions: {acts}"
+                )
+            if report.common_days == 0:
+                worst = max(worst, 1)
+            elif report.warnings:
+                worst = 2
+    return worst

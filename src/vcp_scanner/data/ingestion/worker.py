@@ -120,6 +120,7 @@ class IngestionWorker:
         *,
         ingestion_time: datetime | None = None,
         force: bool = False,
+        provisional: bool = False,
     ) -> IngestionRunRow:
         """Ingest daily OHLCV for one instrument from ``start`` to ``end``.
 
@@ -139,6 +140,10 @@ class IngestionWorker:
                             Defaults to the injected clock (``clock``), which is the
                             ingestion timestamp, not a research timestamp.
             force: If True, re-fetch the full range even if local data exists.
+            provisional: Store the bars as ``PROVISIONAL`` (audit step 2.5): today's Kite bar
+                before the NSE bhavcopy is published. The range is always fetched (the bar
+                changes during the session), no completeness check runs, and scans ignore
+                these bars unless explicitly allowed. The bhavcopy bar supersedes them.
 
         Returns:
             The completed IngestionRunRow with final status and counts.
@@ -165,7 +170,11 @@ class IngestionWorker:
         error_count = 0
 
         try:
-            missing = self._missing_ranges(instrument, start, end, force, as_of_date=now_utc.date())
+            missing = (
+                [(start, end)]
+                if provisional
+                else self._missing_ranges(instrument, start, end, force, as_of_date=now_utc.date())
+            )
             if not missing:
                 # All dates in range already covered; nothing to do.
                 logger.info(
@@ -204,7 +213,12 @@ class IngestionWorker:
             min_interval = self._min_request_interval(caps.historical_requests_per_second)
 
             received, written, rejected, errors = self._ingest_ranges(
-                instrument, chunks, run_id, now_utc, min_interval
+                instrument,
+                chunks,
+                run_id,
+                now_utc,
+                min_interval,
+                data_status="PROVISIONAL" if provisional else "OK",
             )
             records_received += received
             records_written += written
@@ -250,6 +264,8 @@ class IngestionWorker:
             records_rejected,
             error_count,
         )
+        if provisional:
+            return completed_run
         return self._finalize_completeness(instrument, completed_run, start, end, now_utc)
 
     # ------------------------------------------------------------------
@@ -378,6 +394,8 @@ class IngestionWorker:
         run_id: str,
         now_utc: datetime,
         min_interval: float,
+        *,
+        data_status: str = "OK",
     ) -> tuple[int, int, int, int]:
         """Fetch, validate and store each chunk.
 
@@ -402,7 +420,7 @@ class IngestionWorker:
                 self._repo.save_raw_ohlcv(raw_rows)
 
                 # Upsert canonical (bitemporal)
-                written += self._repo.save_daily(valid_candles)
+                written += self._repo.save_daily(valid_candles, data_status=data_status)
 
             except Exception:  # noqa: BLE001
                 logger.exception(

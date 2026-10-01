@@ -643,3 +643,44 @@ files live in `data/spike/` (git-ignored, not committed).
 Plus 2 gap-detector tests in `test_quality_events.py`.
 
 **Verification.** Full suite: 702 passed, 0 failed (was 679). `ruff check`, `ruff format --check`, `mypy --strict src` clean.
+
+## Step 2.5 — Kite as today's provisional bar and as a cross-check (2026-10-01)
+
+**Change.**
+- **Provisional bar.**
+  - `vcp ingest market --today` → `IngestionWorker.ingest_instrument(provisional=True)` → `save_daily(data_status="PROVISIONAL")`. It always re-fetches today and skips the completeness check.
+  - The bhavcopy bar supersedes it (`save_final_daily`), and the existing guard stops any Kite bar from superseding a bhavcopy bar.
+- **Reads exclude PROVISIONAL by default.** `load_daily` / `load_daily_as_of` (`include_provisional=`), `load_universe_candidates` (`include_provisional=`), `AdjustedPriceBuilder(include_provisional=)` and `UniverseBuilder(include_provisional=)`.
+  - The CLI flag `--allow-provisional` is on `ingest adjusted-prices` and `ingest universe`.
+  - Full adjusted rebuilds use `save_adjusted_daily(prune_missing=True)`, so a provisional adjusted row disappears on the next build without the flag.
+- **Kite history behind a flag.** `vcp ingest market` now requires `--today` or `--kite-history`; with neither it exits 1 and points to `vcp ingest bhavcopy`. The e2e test and the CLI date test now pass `--kite-history`.
+- **Cross-check.** New `data/quality/kite_crosscheck.py` (pure) plus `vcp verify kite-crosscheck` (read-only, Kite fetched in provider-sized chunks). For each step in Kite/ours it finds the actions with ex-date in (t-1, t]:
+  - DIVIDEND → INFO `KITE_DIVIDEND`;
+  - DEMERGER → INFO `DEMERGER_METHOD`;
+  - SPLIT, BONUS or RIGHTS → WARNING `FACTOR_MISMATCH`;
+  - none → WARNING `UNEXPLAINED`;
+  - a step that reverses the next day → WARNING `BAR_MISMATCH`;
+  - a latest ratio ≠ 1 → WARNING `LEVEL_MISMATCH`.
+  The default tolerance 0.2 % covers Kite's 2-decimal rounding.
+- **Small fixes (owner rule).**
+  - `vcp verify kite-adjustment` sampled any action that "explains a gap", which since 2.4 includes rights and demergers (factor 1.0 under a ratio test). It now samples splits and bonuses only.
+  - The rights parser missed live variants `Rights Issue 4:17@ Premium Rs 390/-` and `Rights 7:10 @ Prm Rs 102/-`. After the fix, of all NSE rights records since 2021 only 6 remain unparsed: no premium in the text (4), CCPS/warrants (1) and `Rights 1:1` (1). Each is listed and blocked if raw prices show its ex-date.
+
+**Real-data check** (`data/fix25.duckdb`: Fix 5b DB + bhavcopy 2026-04-01..2026-09-30 + NSE corporate actions for all 2,592 instruments + adjusted prices for 7 stocks).
+- `vcp verify kite-crosscheck` over 2026-04-01..09-30, 125 common days each, exit 0:
+  - INFY: INFO `KITE_DIVIDEND` step 0.97882 on the 2026-06-10 dividend;
+  - ITC: INFO `KITE_DIVIDEND` step 0.97348 on the 2026-05-27 dividend;
+  - HDFCBANK, KOTAKBANK, RELIANCE, TATASTEEL, TCS: no difference (their dividends were too small for Kite to adjust).
+- `vcp ingest market --today` before the session opened (08:59 IST): 0 rows and SUCCESS. It fails safe.
+- The full corporate-action run took 4 m 44 s: 9,378 records, 9,169 resolutions, 537 factors.
+- The quality scan on this hybrid DB found 34 unexplained gaps and 27 blocks. They come from Kite-adjusted history before 2026-04-01 meeting raw bhavcopy after it, which 2.6 removes with a continuous backfill.
+
+**Found, not fixed (needs owner decision).** An expired Upstox token (HTTP 401) aborts the whole `ingest corporate-actions` run. The run above was made NSE-only by blanking the token for that command.
+
+**Tests.**
+- New `tests/unit/test_provisional_bars.py` (6): hidden by default; intraday update, then superseded by the bhavcopy and protected from late Kite fetches; adjusted rows included only when allowed and pruned after; universe; worker re-fetch; CLI mode required.
+- New `tests/unit/test_kite_crosscheck.py` (10).
+- +2 rights variants in `test_derived_factors.py`.
+- Interface dummy updated.
+
+**Verification.** Full suite: 720 passed, 0 failed (was 702). `ruff check`, `ruff format --check`, `mypy --strict src` clean.
