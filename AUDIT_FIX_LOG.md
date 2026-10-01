@@ -1176,3 +1176,7 @@ Features for all 3,365 instruments (3,123,370 rows written as `features-1.2.0` n
 - **Universe:** 1,257 eligible, the same set (none lost or gained). "Stale" exclusions 198 → 217: 19 names that missed 6 to 21 sessions are now stale, all of them already ineligible for another reason. New id `uv_20261001_e80803370f` (config content changed).
 - **RS:** 1,257 PASS, 0 rank differences.
 - **Trend Template:** 203 PASS / 1,048 FAIL / 6 INSUFFICIENT_DATA; results hash `7769987bb8868a73`, identical to the main DB's run.
+
+### Applied to the main DB (owner approved; 21:41–21:48 IST, code at 52953f1)
+
+`batch-a` fast-forwarded into `main` and pushed. Backup `data/vcp_scanner.pre_batcha.duckdb` (replaces `pre_c1`); the run held the daily-run lock. Features (all instruments, `features-1.2.0`), universe, RS and Trend Template for 2026-10-01. Same result as the copy: universe `uv_20261001_0385a05ca4`, 1,257 eligible, RS 1,257 PASS, Trend Template 203 PASS / 1,048 FAIL / 6 INSUFFICIENT_DATA, scan run `run-20261001-20261001T161603895333Z`, results hash `7769987bb8868a73` (unchanged).
