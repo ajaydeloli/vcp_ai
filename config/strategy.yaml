@@ -90,7 +90,6 @@ classification:
     max_contractions: 6
     max_final_contraction_pct: 12
     require_progressive_tightening: true
-    require_tight_pivot: true
 
   vcp_like:
     min_contractions: 2

@@ -214,3 +214,13 @@ def test_detection_is_deterministic_and_as_of_safe() -> None:
     again = det.detect("I", cut, as_of, trend_template_pass=True, weekly_stage2_pass=True)
     assert full == again
     assert full.pattern.status is VCPStatus.PIVOT_READY  # type: ignore[union-attr]
+
+
+def test_vcp_tier_does_not_need_a_tight_pivot() -> None:
+    """Owner decision 2026-10-02: tight pivot is an A+ requirement only."""
+    r = _detect(_series(), pivot={"max_right_side_range_pct": 1.0})  # right side 4.4 %: loose
+    p = r.pattern
+    assert p is not None and p.tight_pivot_pass is False
+    assert p.classification is VCPClassification.VCP
+    assert r.classification.unmet[VCPClassification.A_PLUS_VCP] == ("require_tight_pivot",)  # type: ignore[union-attr]
+    assert r.classification.unmet[VCPClassification.VCP] == ()  # type: ignore[union-attr]

@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed (owner decision 2026-10-02)
+- A VCP no longer needs a tight right side (last 10 days within 5 %); only A+ does. Before, no stock could be a VCP while its last contraction was deeper than 5 % and recent, although VCP allows up to 12 %. On 2026-10-01 this gives 37 VCPs among the 203 Trend Template passers (was 0).
+
 ### Added (Phase 6 step 6: classification and status)
 - **Classification.** Each stock's base is classified A+ VCP, VCP, VCP-like or none, with the rules it missed for each class.
 - **Status.** The status is one of:

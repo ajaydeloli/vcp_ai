@@ -1490,3 +1490,13 @@ Worktree `vcp_ai_p6s6`, branch `p6-step6-classifier`. Status and invalidation ru
 - **Calibration finding (left as specified, raised with the owner):** the VCP tier allows a 12 % final contraction but `tight_pivot` requires the last 10 bars within 5 %, so any final contraction deeper than 5 % that lies inside the last 10 bars cannot be VCP. Recorded in §61B for the golden dataset to settle.
 
 **Verification.** Full suite: 1,063 passed, 0 failed. `ruff check`, `ruff format --check`, `mypy --strict src` clean.
+
+## Decision T1 — tight pivot required for A+ only (owner, 2026-10-02 11:50 IST)
+
+**Context.** Step 6's real-data check found no VCP or A+ among 2026-10-01's 203 passers: every VCP_LIKE passer missed VCP on `require_tight_pivot` (last 10 bars within 5 %), which contradicts the VCP tier's 12 % final-contraction allowance. Options given: (1) keep and calibrate with the golden dataset, (2) require it for A+ only, (3) volatility-relative limit. **Owner chose option 2.**
+
+**Change.** `classification.vcp.require_tight_pivot` removed (default config, `strategy.yaml`, VCP_SPECIFICATION §30 and §60; §61B note resolved). A+ keeps it. The tier validator still holds (A+ may be stricter than VCP). `test_config.py`: the §60 contract and the "A+ cannot drop a VCP requirement" test now use `require_progressive_tightening`; `test_vcp_classifier.py`: a loose right side is VCP with the single unmet A+ rule.
+
+**Real-data check** (read-only on the 08:35 backup, 2026-10-01, scan `…e910a9987674` gates): passers VCP 37, VCP_LIKE 29, NONE 137, A+ 0. VCP statuses: PIVOT_READY 6 (AJANTPHARM 1.4 %, INOXINDIA 1.0 %, MARINE 2.4 %, MBAPL 1.6 %, …), FORMING 20, BREAKOUT 5 (ABDL, GALAXYSURF, GREAVESCOT, LLOYDSENT, …), FAILED 5, INVALIDATED 1. The 29 VCP_LIKE miss on tightening (25) or final depth (11).
+
+**Verification.** Full suite: 1,064 passed, 0 failed. `ruff check`, `ruff format --check`, `mypy --strict src` clean.

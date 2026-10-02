@@ -725,10 +725,11 @@ classification:
     max_contractions: 6
     max_final_contraction_pct: 12
     require_progressive_tightening: true
-    require_tight_pivot: true
 ```
 
 The standard class permits reasonable variations that do not satisfy A+ criteria.
+
+**Owner decision 2026-10-02:** `require_tight_pivot` was removed from the VCP tier and kept for A+. VCP means the structure qualifies; readiness is the PIVOT_READY distance test (§46), and §18A's `tight_pivot` measures compression only. With it, a final contraction deeper than 5 % inside the last 10 bars could never be VCP although the tier allows 12 % (§61B calibration note).
 
 ---
 
@@ -1412,7 +1413,6 @@ classification:
     max_contractions: 6
     max_final_contraction_pct: 12
     require_progressive_tightening: true
-    require_tight_pivot: true
 
   vcp_like:
     min_contractions: 2
@@ -1508,7 +1508,7 @@ Implemented in `patterns/vcp/classifier.py` and `patterns/vcp/detector.py`. Rule
 - ★ **Status precedence**: data state from the caller (DATA_NOT_READY, STALE_DATA, INSUFFICIENT_DATA) → INVALIDATED → BREAKOUT (close ≥ pivot) / FAILED (close back below) → PIVOT_READY (VCP or A_PLUS_VCP, primary pivot 0 – `pivot.max_distance_pct` above the close) → FORMING.
 - **No base**: `INSUFFICIENT_HISTORY` → INSUFFICIENT_DATA; `NO_PRIOR_ADVANCE` / `NO_CONFIRMED_SWING_HIGH` → no pattern, no status.
 - **Primary pattern** (§61A): one candidate base per date in V1, so it is primary; `select_primary` implements the §61A order for several.
-- **Calibration note (2026-10-02)**: the VCP tier allows a final contraction up to 12 % but `tight_pivot` caps the last 10 bars' range at 5 %, so a final contraction deeper than 5 % inside the last 10 bars cannot be VCP. With gates forced open, 5–16 stocks per date are VCP/A+ while 135–195 miss VCP on the tight pivot alone (2026-06-15 … 10-01). Left as specified for the golden dataset (§57) to calibrate.
+- **Calibration note (2026-10-02)**: the VCP tier allows a final contraction up to 12 % but `tight_pivot` caps the last 10 bars' range at 5 %, so a final contraction deeper than 5 % inside the last 10 bars cannot be VCP. With gates forced open, 5–16 stocks per date are VCP/A+ while 135–195 miss VCP on the tight pivot alone (2026-06-15 … 10-01). Resolved by the owner on 2026-10-02 (option 2 of 3: keep as specified / A+ only / volatility-relative): the tight pivot is required for A+ only (§30).
 
 ---
 

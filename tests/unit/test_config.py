@@ -148,7 +148,7 @@ SPEC_60_CLASSIFICATION = {
                "require_volatility_contraction": True, "require_tight_pivot": True},
     "vcp": {"min_contractions": 2, "max_contractions": 6, "max_final_contraction_pct": 12.0,
             "require_progressive_tightening": True, "require_volume_dryup": False,
-            "require_volatility_contraction": False, "require_tight_pivot": True},
+            "require_volatility_contraction": False, "require_tight_pivot": False},
     "vcp_like": {"min_contractions": 2, "max_contractions": None,
                  "max_final_contraction_pct": 15.0,
                  "require_progressive_tightening": False, "require_volume_dryup": False,
@@ -200,8 +200,8 @@ def test_invalid_vcp_blocks_are_rejected(bad: dict) -> None:
 
 def test_a_plus_cannot_drop_a_requirement_the_vcp_tier_has() -> None:
     tiers = {k: dict(v) for k, v in SPEC_60_CLASSIFICATION.items()}
-    tiers["a_plus"]["require_tight_pivot"] = False
-    with pytest.raises(ValidationError, match="require_tight_pivot"):
+    tiers["a_plus"]["require_progressive_tightening"] = False
+    with pytest.raises(ValidationError, match="require_progressive_tightening"):
         ClassificationConfig(**tiers)
 
 

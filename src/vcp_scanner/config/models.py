@@ -296,7 +296,8 @@ class ClassificationConfig(StrictBaseModel):
             max_contractions=6,
             max_final_contraction_pct=12.0,
             require_progressive_tightening=True,
-            require_tight_pivot=True,
+            # Owner decision 2026-10-02: the tight pivot is an A+ requirement only; readiness
+            # is PIVOT_READY's distance test (VCP_SPECIFICATION 30, 61B).
         )
     )
     vcp_like: TierClassificationConfig = Field(
