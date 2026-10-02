@@ -547,7 +547,7 @@ def run_corporate_actions(args: argparse.Namespace) -> int:
             return 1
         if worker.manual_count:
             print(f"Applied {worker.manual_count} manual corporate action(s) from {manual_path}.")
-        if worker.secondary_requested and worker.secondary_requested < len(instruments):
+        if upstox_token and 0 < worker.secondary_requested < len(instruments):
             print(
                 f"Upstox asked about {worker.secondary_requested} of {len(instruments)} "
                 "instruments this run (rotation under its rate limit)."

@@ -1341,3 +1341,10 @@ Order: C7, C9, C10, C6, C5, C8 (C8 last: the only one that changes scan results)
 **Tests** (`test_capital_reduction.py`, updated `test_unmodelled_actions.py`, `test_consolidation.py`, `test_manual_corporate_actions.py`): NSE capital-reduction records get the new type; manual entries take details but never a ratio and need `reduction_kind`; an unreviewed reduction warns once (old UNMODELLED reading folded in), PENDING, never adjusts; a reviewed one is MANUAL_OVERRIDE, still warns, marked DONE; the project file holds the three entries.
 
 **Verification.** Full suite: 872 passed, 0 failed. `ruff check`, `ruff format --check`, `mypy --strict src` clean.
+
+**Real-data check** (copy `data/cr.duckdb` of the main DB, 06:08–06:20 IST; corporate actions from 2021-01-01 with NSE only, then adjusted prices, features, universe/RS/Trend Template for 2026-10-01):
+- MAXIND 2022-07-26 and EASTSILK 2024-11-22: new CAPITAL_REDUCTION resolutions are MANUAL_OVERRIDE; each has one open, non-blocking warning "Capital reduction ... prices are not adjusted (it is not a split); reviewed by hand", `manual_review = DONE` (the old UNMODELLED readings stay stored and are folded in).
+- UEL 2024-05-22: DEMERGER MANUAL_OVERRIDE (factor 1.0); its blocking `factor_unknown` event is resolved. Unresolved corporate-action conflicts 6 → 5, blocking signals 633 → 632 (that event had already expired by the block lifetime).
+- Adjustment factors 834 → 834 (no price changes). Trend Template: 1,257 eligible, 203 PASS, results hash `8bdc231dc0f6fb4c` (unchanged).
+
+**Small fix found in the check.** `vcp ingest corporate-actions` printed "Upstox asked about 800 of 2,593 instruments" even when no Upstox token was set (the rotation selected instruments for the no-op provider). It now prints that line only when a token is used.
