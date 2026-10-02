@@ -14,8 +14,9 @@ evenings: every step catches up on its own.
    loaded in date order; today's file not being published yet just stops the load (PENDING).
 3. ``ingest corporate-actions`` over the 60 days before the first new session.
 4. ``ingest adjusted-prices`` and ``compute features`` (full history, cheap).
-5. ``ingest universe`` / ``compute rs`` / ``compute trend-template`` for every session after
-   the last scanned one (one session on the first run).
+5. ``ingest universe`` / ``compute rs`` / ``compute trend-template`` / ``compute vcp`` for every
+   session after the last scanned one (one session on the first run), in date order (VCP
+   breakout tracking reads the previous date, VCP_SPECIFICATION 61B).
 
 One line per run is appended to ``<db folder>/logs/daily_runs.log``.
 """
@@ -134,6 +135,8 @@ def run_daily(args: argparse.Namespace, cli_main: Callable[[list[str]], int]) ->
         step(f"RS {iso}", ["compute", "rs", "--as-of", iso, "--db", db, "--config-dir", cfg])
         step(f"Trend Template {iso}", ["compute", "trend-template", "--as-of", iso, "--db", db,
                                        "--config-dir", cfg])  # fmt: skip
+        step(f"VCP {iso}", ["compute", "vcp", "--as-of", iso, "--db", db,
+                            "--config-dir", cfg])  # fmt: skip
 
     collected = sorted(
         str(r[0])

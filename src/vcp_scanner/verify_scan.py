@@ -52,6 +52,12 @@ def run_verify_scan(args: argparse.Namespace, cli_main: Callable[[list[str]], in
         if run is None:
             print(f"Error: no scan run {args.scan_run_id}.")
             return 1
+        if run["scan_type"] != "TREND_TEMPLATE":
+            print(
+                f"Error: {args.scan_run_id} is a {run['scan_type']} run; `verify scan` rebuilds "
+                "Trend Template runs only."
+            )
+            return 1
         recorded = repo.load_results(args.scan_run_id)
 
     commit, dirty = code_state()
@@ -135,7 +141,7 @@ def _rebuild_and_compare(
 
     with DuckDBStore(copy) as store:
         repo = DuckDBScanRunRepository(store)
-        rebuilt_id = repo.list_runs(run["as_of_date"], limit=1)[0][0]
+        rebuilt_id = repo.list_runs(run["as_of_date"], limit=1, scan_type="TREND_TEMPLATE")[0][0]
         rebuilt = repo.load(rebuilt_id)
         rebuilt_rows = repo.load_results(rebuilt_id)
     assert rebuilt is not None

@@ -1500,3 +1500,29 @@ Worktree `vcp_ai_p6s6`, branch `p6-step6-classifier`. Status and invalidation ru
 **Real-data check** (read-only on the 08:35 backup, 2026-10-01, scan `…e910a9987674` gates): passers VCP 37, VCP_LIKE 29, NONE 137, A+ 0. VCP statuses: PIVOT_READY 6 (AJANTPHARM 1.4 %, INOXINDIA 1.0 %, MARINE 2.4 %, MBAPL 1.6 %, …), FORMING 20, BREAKOUT 5 (ABDL, GALAXYSURF, GREAVESCOT, LLOYDSENT, …), FAILED 5, INVALIDATED 1. The 29 VCP_LIKE miss on tightening (25) or final depth (11).
 
 **Verification.** Full suite: 1,064 passed, 0 failed. `ruff check`, `ruff format --check`, `mypy --strict src` clean.
+
+## Phase 6 step 7 — VCP persistence, `vcp compute vcp`, breakout events, daily-run step (2026-10-02)
+
+Worktree `vcp_ai_p6s7`, branch `p6-step7-persistence`. Plan sent to the owner at 12:00 IST.
+
+**Change.**
+- **Tables** (`duckdb_store.py`, DATABASE_SCHEMA new §34A): `vcp_patterns` (§31 + pivot source, TR ratio, invalidation reasons, unmet rules per class as JSON, breakout event id), `vcp_contractions` (§32 + TR%), `vcp_pivots` (§33 + `is_structural`), `vcp_status_history` (§34), `vcp_breakout_events` (§43/§47), `vcp_scan_run_results` (frozen verdicts of each VCP run). Additive migration.
+- **`patterns/vcp/monitor.py`** — breakouts across days (VCP_SPECIFICATION §61B): an existing event of the same base decides BREAKOUT/FAILED against its pivot; new events come from the detector's structural breakout or from a close above the **previous scan date's stored primary pivot** on ≥ 1.5× volume (catches right-side-pivot breakouts, the step-6 design point). Data states and INVALIDATED are not overridden.
+- **`data/repositories/duckdb_vcp_repository.py`**: bulk `load_series` (last N adjusted bars + `atr_pct_14`, missing volume as `None`), `prior_patterns`, `events` (detected **before** the date), `save_scan` (one transaction; replaces the scan id's rows, that date's history, and events detected on or after the date), status history (a row when class or status differs from the previous scan date), verdict rows and `vcp_results_hash`.
+- **`cli_vcp.py`** — `vcp compute vcp --as-of DATE [--instrument] [--data-snapshot-id]`: gates from `trend-<date>-<hash12>` of the same config; TT data statuses → VCP data states; no bar on the as-of date → STALE_DATA; scan id `vcp-<date>-<hash12>`; immutable `scan_runs` row (type `VCP`, counts by class/status, breakout events, results hash) + `vcp_scan_run_results`. Prints a note when later VCP scan dates exist (they need a rerun in order).
+- **Daily run**: a `VCP <date>` step after each Trend Template step.
+- **`vcp verify scan`** refuses non-Trend-Template runs (it would have compared a TT rebuild with a VCP hash); `list_runs` takes `scan_type`, and the rebuild picks the TREND_TEMPLATE run.
+- README command table, VCP_SPECIFICATION §61B (breakout events across days, STALE_DATA, data-state mapping).
+
+**Bugs found while testing (fixed before commit):**
+1. A rerun of a date read back its own breakout event as history, produced no new one, and then deleted it: events are now read only if detected *before* the date.
+2. **Copy check:** computing 2026-09-30 after 2026-10-01 failed with a duplicate breakout event id (1 Oct had already recorded the same base's event). Recomputing a date now deletes events detected on or after it (they were built on the old history) and the command lists the later dates to rerun in order. The failed run had rolled back completely (one transaction).
+
+**Tests:** `test_vcp_monitor.py` (7: no history; structural event; an existing event decides later days, BREAKOUT/FAILED; other base / future events ignored; prior-day-pivot breakout only with volume and same base; invalidated passes through; deterministic id), `test_vcp_repository.py` (5: series loading with missing volume; rows, relations, unmet JSON, first-day history; second-day breakout event, linked pattern, history transition, prior pattern, rerun replaces; recomputing an earlier date removes later events and a rerun in order restores them; verdict rows/hash), `test_pipeline_e2e.py` (compute vcp from an empty DB: run record, frozen verdicts match the hash, rerun replaces rows with an identical hash, verify refuses a VCP run), `test_daily_run.py` (VCP step after Trend Template).
+
+**Real-data check** on a copy (`data/p6s7.duckdb`, copied 12:06 IST under the daily-run lock), code at this branch:
+- Trend Template under the new config hash `7de9afd37f3a`: 2026-10-01 results hash **`8bdc231dc0f6fb4c`, identical to the main DB** (new keys change the scan id, not the verdicts). 2026-09-30 first came out DATA_NOT_READY (1,324) because that date's RS had only `rs-1.0.0` rows; after `compute rs` 267 PASS / 1,057 FAIL / 13 INSUFFICIENT_DATA.
+- VCP 2026-10-01 alone: 1,257 considered, 1,192 patterns, VCP 37 / VCP_LIKE 495 / NONE 660; BREAKOUT 32, FAILED 15, FORMING 148, PIVOT_READY 6, INVALIDATED 991; 47 new events; rerun → identical hash `c7aaf621f686543c` (~40 s per date).
+- In order, 09-30 then 10-01: 09-30 VCP 45, 62 events; 10-01 VCP 37, BREAKOUT 32, FAILED 16, FORMING 147, PIVOT_READY 6, **7 new events** (the rest read from 09-30), hash `4dc554690d22b1e0`. 10-01 history transitions include BREAKOUT→FAILED 9, FORMING→BREAKOUT 4, FORMING→PIVOT_READY 4. Spot checks: ABDL breakout 2026-09-16 over 643.90 (as in step 5); SONACOMS broke out over 813.15 on 09-29 and is FAILED on 10-01 against that event's pivot although a later swing high (837) now exists (§47).
+
+**Verification.** Full suite: 1,076 passed, 0 failed. `ruff check`, `ruff format --check`, `mypy --strict src` clean. Not yet applied to the main DB (owner to approve).

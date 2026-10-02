@@ -1249,6 +1249,18 @@ PIVOT_READY
 BREAKOUT
 ```
 
+
+## 34A. VCP tables as implemented (Phase 6 step 7, 2026-10-02)
+
+`data/storage/duckdb_store.py`, written by `vcp compute vcp` (`data/repositories/duckdb_vcp_repository.py`):
+
+- `vcp_patterns`: the §31 columns, plus `pivot_source`, `tr_contraction_ratio` (VCP_SPECIFICATION §18B), `invalidation_reasons` (comma-separated), `unmet_rules` (JSON: unmet rules per class), `breakout_event_id`. Id = hash of (scan id, instrument, base start). `scan_id` = `vcp-<date>-<config hash 12>` (+ `-<snapshot>` when frozen). Rerunning a scan id replaces its rows.
+- `vcp_contractions`: the §32 columns plus `tr_pct`.
+- `vcp_pivots`: the §33 columns plus `is_structural` (the pivot breakouts are measured against, VCP_SPECIFICATION §61B).
+- `vcp_status_history`: §34, one row per instrument and date when its primary class or status differs from the previous scan date of the same config (`previous_as_of_date`); a pattern that disappears is recorded with class NONE and the no-pattern reason. Keyed (instrument, date, config hash).
+- `vcp_breakout_events`: §43 as implemented: one immutable event per (instrument, base start, config hash) with `breakout_date`, `pivot_price/date/source`, `volume_ratio`, `detected_as_of`, `method` (`STRUCTURAL` or `PRIOR_DAY_PIVOT`). Events detected on a date are regenerated when that date is rerun; earlier events are read as history.
+- `vcp_scan_run_results`: frozen per-instrument verdicts of each `scan_runs` row of type `VCP` (class, status, confirmation, pivot price, no-pattern reason); `results_hash` is over these rows.
+
 ---
 
 # 35. Setup Scores
@@ -1557,6 +1569,8 @@ algorithm_version
 ```
 
 The breakout event is separate from the VCP pattern.
+
+Implemented as `vcp_breakout_events` (§34A, Phase 6 step 7).
 
 ---
 

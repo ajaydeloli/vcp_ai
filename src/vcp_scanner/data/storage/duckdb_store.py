@@ -613,6 +613,150 @@ CREATE TABLE IF NOT EXISTS scan_run_results (
 """
 
 
+# VCP results (DATABASE_SCHEMA 31-34, VCP_SPECIFICATION 42-48, 61B; Phase 6 step 7). One row per
+# detected pattern with every measurement; a rerun of the same scan id replaces its rows.
+_DDL_VCP_PATTERNS = """
+CREATE TABLE IF NOT EXISTS vcp_patterns (
+    vcp_pattern_id              VARCHAR     PRIMARY KEY,
+    scan_id                     VARCHAR     NOT NULL,
+    instrument_id               VARCHAR     NOT NULL,
+    as_of_date                  DATE        NOT NULL,
+    is_primary                  BOOLEAN     NOT NULL,
+    base_start_date             DATE        NOT NULL,
+    base_end_date               DATE,
+    base_high                   DOUBLE      NOT NULL,
+    base_low                    DOUBLE      NOT NULL,
+    base_depth_pct              DOUBLE      NOT NULL,
+    base_duration_days          INTEGER     NOT NULL,
+    prior_advance_return_pct    DOUBLE,
+    contraction_count           INTEGER     NOT NULL,
+    first_contraction_pct       DOUBLE,
+    final_contraction_pct       DOUBLE,
+    max_tightening_ratio        DOUBLE,
+    progressive_tightening      BOOLEAN,
+    final_volume_ratio          DOUBLE,
+    volume_dryup_pass           BOOLEAN,
+    atr_contraction_ratio       DOUBLE,
+    tr_contraction_ratio        DOUBLE,
+    volatility_contraction_pass BOOLEAN,
+    right_side_range_pct        DOUBLE,
+    tight_pivot_pass            BOOLEAN,
+    tightening_quality          DOUBLE,
+    volatility_quality          DOUBLE,
+    volume_quality              DOUBLE,
+    pivot_quality               DOUBLE,
+    base_quality                DOUBLE,
+    pivot_price                 DOUBLE,
+    pivot_date                  DATE,
+    pivot_source                VARCHAR,
+    pivot_distance_pct          DOUBLE,
+    classification              VARCHAR     NOT NULL,
+    status                      VARCHAR     NOT NULL,
+    confirmation_state          VARCHAR     NOT NULL,
+    invalidation_reasons        VARCHAR,     -- comma-separated, NULL when none
+    unmet_rules                 VARCHAR,     -- JSON {tier: [rule, ...]} (explainability)
+    breakout_event_id           VARCHAR,
+    trend_template_pass         BOOLEAN     NOT NULL,
+    weekly_stage2_pass          BOOLEAN,
+    algorithm_version           VARCHAR     NOT NULL,
+    config_hash                 VARCHAR     NOT NULL,
+    data_snapshot_id            VARCHAR     NOT NULL,
+    created_at                  TIMESTAMPTZ NOT NULL
+)
+"""
+
+_DDL_VCP_CONTRACTIONS = """
+CREATE TABLE IF NOT EXISTS vcp_contractions (
+    vcp_pattern_id            VARCHAR NOT NULL,
+    sequence_number           INTEGER NOT NULL,
+    peak_date                 DATE    NOT NULL,
+    peak_price                DOUBLE  NOT NULL,
+    trough_date               DATE    NOT NULL,
+    trough_price              DOUBLE  NOT NULL,
+    depth_pct                 DOUBLE  NOT NULL,
+    duration_days             INTEGER NOT NULL,
+    atr_pct                   DOUBLE,
+    tr_pct                    DOUBLE,
+    range_pct                 DOUBLE,
+    volume_ratio              DOUBLE,
+    tightening_ratio_to_prior DOUBLE,
+    confirmation_date         DATE,
+    is_confirmed              BOOLEAN NOT NULL,
+    PRIMARY KEY (vcp_pattern_id, sequence_number)
+)
+"""
+
+_DDL_VCP_PIVOTS = """
+CREATE TABLE IF NOT EXISTS vcp_pivots (
+    vcp_pattern_id           VARCHAR NOT NULL,
+    pivot_id                 INTEGER NOT NULL,
+    pivot_price              DOUBLE  NOT NULL,
+    pivot_date               DATE    NOT NULL,
+    source                   VARCHAR NOT NULL,
+    touches                  INTEGER NOT NULL,
+    rejection_count          INTEGER NOT NULL,
+    right_side_tightness_pct DOUBLE,
+    distance_to_close_pct    DOUBLE  NOT NULL,
+    is_primary               BOOLEAN NOT NULL,
+    is_structural            BOOLEAN NOT NULL,
+    PRIMARY KEY (vcp_pattern_id, pivot_id)
+)
+"""
+
+# Changes of an instrument's primary classification/status between consecutive scan dates
+# (DATABASE_SCHEMA 34). Append-only; a rerun of the same date and config replaces its rows.
+_DDL_VCP_STATUS_HISTORY = """
+CREATE TABLE IF NOT EXISTS vcp_status_history (
+    instrument_id           VARCHAR     NOT NULL,
+    as_of_date              DATE        NOT NULL,
+    config_hash             VARCHAR     NOT NULL,
+    vcp_pattern_id          VARCHAR,
+    previous_as_of_date     DATE,
+    previous_classification VARCHAR,
+    new_classification      VARCHAR     NOT NULL,
+    previous_status         VARCHAR,
+    new_status              VARCHAR,
+    reason                  VARCHAR,
+    algorithm_version       VARCHAR     NOT NULL,
+    PRIMARY KEY (instrument_id, as_of_date, config_hash)
+)
+"""
+
+# Breakouts are separate, immutable events (VCP_SPECIFICATION 47, 61B): the first breakout of a
+# base is never rewritten, and later days of that base are judged against its pivot.
+_DDL_VCP_BREAKOUT_EVENTS = """
+CREATE TABLE IF NOT EXISTS vcp_breakout_events (
+    breakout_event_id VARCHAR     PRIMARY KEY,
+    instrument_id     VARCHAR     NOT NULL,
+    base_start_date   DATE        NOT NULL,
+    config_hash       VARCHAR     NOT NULL,
+    breakout_date     DATE        NOT NULL,
+    pivot_price       DOUBLE      NOT NULL,
+    pivot_date        DATE        NOT NULL,
+    pivot_source      VARCHAR     NOT NULL,
+    volume_ratio      DOUBLE      NOT NULL,
+    detected_as_of    DATE        NOT NULL,
+    method            VARCHAR     NOT NULL,  -- STRUCTURAL | PRIOR_DAY_PIVOT
+    created_at        TIMESTAMPTZ NOT NULL,
+    UNIQUE (instrument_id, base_start_date, config_hash)
+)
+"""
+
+# Frozen copy of each VCP scan run's per-instrument verdicts (like scan_run_results).
+_DDL_VCP_SCAN_RUN_RESULTS = """
+CREATE TABLE IF NOT EXISTS vcp_scan_run_results (
+    scan_run_id        VARCHAR NOT NULL,
+    instrument_id      VARCHAR NOT NULL,
+    classification     VARCHAR,
+    status             VARCHAR,
+    confirmation_state VARCHAR,
+    pivot_price        DOUBLE,
+    no_pattern_reason  VARCHAR,
+    PRIMARY KEY (scan_run_id, instrument_id)
+)
+"""
+
+
 _ALL_DDL: list[tuple[str, str]] = [
     ("instruments", _DDL_INSTRUMENTS),
     ("provider_instruments", _DDL_PROVIDER_INSTRUMENTS),
@@ -644,6 +788,12 @@ _ALL_DDL: list[tuple[str, str]] = [
     ("scan_run_results", _DDL_SCAN_RUN_RESULTS),
     ("secondary_ca_checks", _DDL_SECONDARY_CA_CHECKS),
     ("data_quality_event_history", _DDL_DATA_QUALITY_EVENT_HISTORY),
+    ("vcp_patterns", _DDL_VCP_PATTERNS),
+    ("vcp_contractions", _DDL_VCP_CONTRACTIONS),
+    ("vcp_pivots", _DDL_VCP_PIVOTS),
+    ("vcp_status_history", _DDL_VCP_STATUS_HISTORY),
+    ("vcp_breakout_events", _DDL_VCP_BREAKOUT_EVENTS),
+    ("vcp_scan_run_results", _DDL_VCP_SCAN_RUN_RESULTS),
 ]
 
 

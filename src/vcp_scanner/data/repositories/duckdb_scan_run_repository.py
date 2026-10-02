@@ -136,9 +136,18 @@ class DuckDBScanRunRepository:
             [scan_run_id],
         ).fetchall()
 
-    def list_runs(self, as_of_date: date | None = None, limit: int = 20) -> list[tuple[Any, ...]]:
-        where = "WHERE as_of_date = ?" if as_of_date else ""
-        params: list[Any] = [as_of_date] if as_of_date else []
+    def list_runs(
+        self, as_of_date: date | None = None, limit: int = 20, scan_type: str | None = None
+    ) -> list[tuple[Any, ...]]:
+        clauses: list[str] = []
+        params: list[Any] = []
+        if as_of_date:
+            clauses.append("as_of_date = ?")
+            params.append(as_of_date)
+        if scan_type:
+            clauses.append("scan_type = ?")
+            params.append(scan_type)
+        where = f"WHERE {' AND '.join(clauses)}" if clauses else ""
         return self._store.conn.execute(
             "SELECT scan_run_id, as_of_date, data_snapshot_id, universe_snapshot_id, code_commit,"
             f" code_dirty, results_hash, started_at FROM scan_runs {where}"  # noqa: S608

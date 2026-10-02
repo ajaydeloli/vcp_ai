@@ -399,6 +399,24 @@ def build_parser() -> argparse.ArgumentParser:
     _add_config_dir_arg(tt_parser)
     _add_data_snapshot_arg(tt_parser)
 
+    vcp_parser = compute_subparsers.add_parser(
+        "vcp",
+        help=(
+            "Detect VCPs over the Trend Template scan of a date (same config); compute dates in "
+            "order, breakout tracking reads the previous date"
+        ),
+    )
+    vcp_parser.add_argument("--as-of", required=True, metavar="YYYY-MM-DD")
+    vcp_parser.add_argument(
+        "--instrument",
+        action="append",
+        metavar="INSTRUMENT_ID",
+        help="Restrict to an instrument (repeatable)",
+    )
+    _add_db_arg(vcp_parser)
+    _add_config_dir_arg(vcp_parser)
+    _add_data_snapshot_arg(vcp_parser)
+
     # verify subcommands (audit 2026-09-30 P0-1)
     verify_parser = subparsers.add_parser(
         "verify", help="Read-only checks of provider behavior against assumptions"
@@ -916,12 +934,13 @@ def main(argv: Sequence[str] | None = None) -> int:
             return 0
 
     if args.command == "compute":
-        from vcp_scanner import cli_pipeline
+        from vcp_scanner import cli_pipeline, cli_vcp
 
         compute_runners = {
             "features": cli_pipeline.run_compute_features,
             "rs": cli_pipeline.run_compute_rs,
             "trend-template": cli_pipeline.run_compute_trend_template,
+            "vcp": cli_vcp.run_compute_vcp,
         }
         runner = compute_runners.get(args.compute_command)
         if runner is None:

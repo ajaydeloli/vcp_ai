@@ -57,6 +57,7 @@ stored in DuckDB, so order matters.
 | 7 | `vcp ingest universe --as-of YYYY-MM-DD` | Builds the eligible-universe snapshot (liquidity, series, surveillance). | Steps 2–3 |
 | 8 | `vcp compute rs --as-of YYYY-MM-DD [--data-snapshot-id ID]` | Relative-strength ranks over that universe snapshot. | Steps 5–7 |
 | 9 | `vcp compute trend-template --as-of YYYY-MM-DD [--data-snapshot-id ID]` | Weekly stage plus the ten Trend Template conditions for eligible members. | Steps 6–8 |
+| 10 | `vcp compute vcp --as-of YYYY-MM-DD [--data-snapshot-id ID]` | VCP detection over that date's Trend Template scan (same config): base, contractions, measurements, pivots, class (A+ / VCP / VCP-like), status and breakouts, stored in the `vcp_*` tables with a `VCP` scan-run record. Compute dates in order: breakout tracking reads the previous date. | Step 9 |
 
 > Step 2 also fills the `instruments` table that steps 3 and 4 iterate over: every security in
 > NSE's current listing is upserted (ISIN first, so a renamed symbol keeps its id) and anything
@@ -76,6 +77,7 @@ vcp compute features
 vcp ingest universe --as-of 2026-09-29
 vcp compute rs --as-of 2026-09-29
 vcp compute trend-template --as-of 2026-09-29
+vcp compute vcp --as-of 2026-09-29
 ```
 
 ## Configuration

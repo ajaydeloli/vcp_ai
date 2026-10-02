@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (Phase 6 step 7: VCP results stored and in the daily run)
+- `vcp compute vcp --as-of DATE` stores each stock's base, contractions, pivots, class, status and breakouts. It records every change of class or status, and each breakout as a separate event that is never rewritten. Each scan also gets an immutable run record.
+- The daily run now runs VCP detection after each Trend Template scan. The summary line shows its step.
+- `vcp verify scan` refuses VCP runs with a clear message: it rebuilds Trend Template runs only.
+
 ### Changed (owner decision 2026-10-02)
 - A VCP no longer needs a tight right side (last 10 days within 5 %); only A+ does. Before, no stock could be a VCP while its last contraction was deeper than 5 % and recent, although VCP allows up to 12 %. On 2026-10-01 this gives 37 VCPs among the 203 Trend Template passers (was 0).
 

@@ -9,6 +9,7 @@ features -> universe -> rs -> trend-template.
 
 from __future__ import annotations
 
+import json
 from datetime import date, timedelta
 from pathlib import Path
 from typing import Any
@@ -183,3 +184,42 @@ def test_full_pipeline_from_an_empty_database(
     assert "MISMATCH: recorded deadbeef" in capsys.readouterr().out
     assert cli_main(["verify", "scan", "--db", db]) == 0
     assert first_id in capsys.readouterr().out
+
+    # Phase 6 step 7: VCP detection over the Trend Template scan, with its own run record.
+    vcp_argv = ["compute", "vcp", "--as-of", as_of, "--db", db, "--config-dir", CONFIG_DIR]
+    assert cli_main(vcp_argv) == 0, capsys.readouterr().out
+    out = capsys.readouterr().out
+    assert "VCP detection for 2024-06-28" in out and "Considered  : 6" in out
+    from vcp_scanner.data.repositories.duckdb_vcp_repository import vcp_results_hash
+
+    with DuckDBStore(db) as store:
+        q = store.conn.execute
+        vcp_run = q(
+            "SELECT scan_run_id, scan_id, results_hash, counts FROM scan_runs"
+            " WHERE scan_type = 'VCP'"
+        ).fetchall()
+        assert len(vcp_run) == 1
+        run_id, vcp_scan, vhash, counts = vcp_run[0]
+        assert vcp_scan.startswith("vcp-2024-06-28-")
+        rows = q(
+            "SELECT instrument_id, classification, status, confirmation_state, pivot_price,"
+            " no_pattern_reason FROM vcp_scan_run_results WHERE scan_run_id = ?",
+            [run_id],
+        ).fetchall()
+        assert len(rows) == 6 and vcp_results_hash(rows) == vhash
+        assert json.loads(counts)["considered"] == 6
+        patterns = q("SELECT count(*) FROM vcp_patterns WHERE scan_id = ?", [vcp_scan]).fetchone()
+    # A rerun replaces the scan's rows and adds a second run record with the same hash.
+    assert cli_main(vcp_argv) == 0
+    capsys.readouterr()
+    with DuckDBStore(db) as store:
+        q = store.conn.execute
+        assert (
+            q("SELECT count(*) FROM vcp_patterns WHERE scan_id = ?", [vcp_scan]).fetchone()
+            == patterns
+        )
+        hashes = q("SELECT results_hash FROM scan_runs WHERE scan_type = 'VCP'").fetchall()
+        assert hashes == [(vhash,), (vhash,)]
+    # `verify scan` rebuilds Trend Template runs only and says so for a VCP run.
+    assert cli_main(["verify", "scan", run_id, "--db", db, "--config-dir", CONFIG_DIR]) == 1
+    assert "is a VCP run" in capsys.readouterr().out
