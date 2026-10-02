@@ -1320,3 +1320,7 @@ Order: C7, C9, C10, C6, C5, C8 (C8 last: the only one that changes scan results)
 **Verification.** Full suite: 868 passed, 0 failed. `ruff check`, `ruff format --check`, `mypy --strict src` clean.
 
 **Real-data check** (copy `data/c8.duckdb` of the main DB, 05:13–05:16 IST, 2026-10-01): of 1,251 ranked stocks, 1,226 keep their rank, 13 move up 1 and 12 move down 1 (the old formula's self-count shifted ranks by up to half a step; the top rank is now 99, was 98). Trend Template: 203 PASS / 1,048 FAIL / 6 INSUFFICIENT_DATA, **no stock changes status**; results hash `8bdc231dc0f6fb4c` (was `7769987bb8868a73`; the hash includes `rs_rank`).
+
+### Clean-up batch 2 applied to the main DB (owner approved; 05:53–05:58 IST 2026-10-02, code at 3e5beac)
+
+`cleanup-2` fast-forwarded into `main` and pushed. Backup `data/backups/vcp_scanner_20261002_002345.duckdb` (B1's rolling backups, under the daily-run lock). `migrate()` seeded the event history; `vcp quality scan` (C10: 2 more blocking events, both expired; 633 blocking signals; history 859 intervals = 857 seeded + the 2 flips); universe `uv_20261001_0d8e467c70`, 1,257 eligible; RS `rs-1.1.0`, top rank 99; Trend Template 203 PASS / 1,048 FAIL / 6 INSUFFICIENT_DATA, scan run `run-20261001-20261002T002649655400Z`, results hash `8bdc231dc0f6fb4c` (identical to the copy). The merge removed the untracked-now `scratch/` files from the main checkout (C9 untracks them); they were copied back from the worktree and are ignored by git.
