@@ -10,6 +10,7 @@ from vcp_scanner.domain.enums import (
     ConfirmationState,
     CorporateActionType,
     ErrorCategory,
+    PivotSource,
     SurvivorshipStatus,
     Timeframe,
     TrendTemplateStatus,
@@ -204,39 +205,62 @@ def test_domain_models_creation() -> None:
     assert rs.rs_rank == 85
 
     c1 = Contraction(
-        index=1,
-        start_date=date(2025, 1, 1),
-        end_date=date(2025, 1, 15),
+        sequence_number=1,
+        peak_date=date(2025, 1, 1),
         peak_price=120.0,
+        trough_date=date(2025, 1, 10),
         trough_price=105.0,
         depth_pct=12.5,
-        duration_days=10,
+        duration_days=7,
         atr_pct=2.1,
+        range_pct=12.5,
         volume_ratio=0.8,
+        confirmation_date=date(2025, 1, 15),
     )
-    pivot = PivotCandidate(pivot_price=120.0, pivot_date=date(2025, 1, 15), kind="CONFIRMED")
+    pivot = PivotCandidate(
+        pivot_price=120.0,
+        pivot_date=date(2025, 1, 1),
+        source=PivotSource.BASE_HIGH,
+        distance_to_close_pct=1.2,
+        touches=1,
+        rejection_count=0,
+        right_side_tightness_pct=4.0,
+    )
     vcp = VCPPattern(
         instrument_id="inst_1",
         as_of_date=date(2025, 1, 15),
         base_start=date(2025, 1, 1),
-        base_end=date(2025, 1, 15),
+        base_end=None,
         base_high=120.0,
         base_low=105.0,
+        base_duration_days=11,
+        prior_advance_return_pct=35.0,
         contractions=(c1,),
-        progressive_tightening=True,
-        tightening_quality=0.8,
+        progressive_tightening=None,
+        final_volume_ratio=0.8,
+        volume_dryup_pass=None,
+        atr_contraction_ratio=None,
+        volatility_contraction_pass=None,
+        right_side_range_pct=4.0,
+        tight_pivot_pass=True,
+        tightening_quality=None,
         volatility_quality=0.7,
         volume_quality=0.9,
         pivot_quality=0.85,
+        base_quality=None,
         pivot=pivot,
-        final_contraction_pct=5.5,
-        pivot_distance_pct=1.2,
-        classification=VCPClassification.VCP,
-        status=VCPStatus.PIVOT_READY,
+        classification=VCPClassification.VCP_LIKE,
+        status=VCPStatus.FORMING,
         confirmation_state=ConfirmationState.CONFIRMED,
+        trend_template_pass=True,
+        weekly_stage2_pass=True,
         algorithm_version="vcp-1.0.0",
+        config_hash="abc",
+        pivot_candidates=(pivot,),
     )
-    assert vcp.classification == VCPClassification.VCP
+    assert vcp.classification == VCPClassification.VCP_LIKE
+    assert vcp.final_contraction_pct == 12.5
+    assert vcp.pivot_distance_pct == 1.2
 
 
 def test_error_categories() -> None:

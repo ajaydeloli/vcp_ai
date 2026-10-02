@@ -1348,3 +1348,28 @@ Order: C7, C9, C10, C6, C5, C8 (C8 last: the only one that changes scan results)
 - Adjustment factors 834 → 834 (no price changes). Trend Template: 1,257 eligible, 203 PASS, results hash `8bdc231dc0f6fb4c` (unchanged).
 
 **Small fix found in the check.** `vcp ingest corporate-actions` printed "Upstox asked about 800 of 2,593 instruments" even when no Upstox token was set (the rotation selected instruments for the no-op provider). It now prints that line only when a token is used.
+
+## Phase 6 step 1 — VCP configuration additions and domain model (2026-10-02)
+
+Build order step 1 of Phase 6 (owner decisions 2026-10-01, VCP_SPECIFICATION §8.1). Worktree `vcp_ai_p6s1`, branch `p6-step1-config-domain`.
+
+**Configuration** (`config.models`, `config/strategy.yaml`, VCP_SPECIFICATION §60):
+- `vcp.prior_advance` (`enabled: true`, `lookback_days: 120`, `min_return_pct: 20`), §7 and §8.1 item 1.
+- `vcp.base.max_duration_days: 130`, §8.1 items 1 and 4.
+- `vcp.invalidation` (`trend_template_failure: true`, `base_low_break_pct: 2.0`, `volatility_expansion_multiple: 2.0`), §25. Only the keys and defaults: the rules that read the last two are written with the status logic (step 6).
+- `VCPThresholdsConfig.lookback_bars()` = `base.max_duration_days + max(prior_advance.lookback_days − 1, volume.long_period, volatility.atr_period, swing.left_bars)`, as-of bar included: the base, then before its oldest bar (a candidate base-start high) the prior-advance window (sharing the high's bar), the 50-bar volume average and ATR at the base start (prior bars), and the swing's left bars. Defaults 130 + 119 = **249**. `ScannerConfig.longest_lookback_bars()` includes it, so the existing check `block_lifetime_bars >= longest lookback` (253) now refuses a 135-bar base or a 125-bar prior advance (§8.1 item 4). The longest lookback stays 253 (RS/universe history).
+- `base.max_duration_days >= contractions.min × swing.min_duration_days`.
+
+**Domain model** (`domain/vcp.py`, `domain/enums.py`), per §9, §9A, §10, §20, §42 and DATABASE_SCHEMA §31–33:
+- New `Swing` (kind, swing date, adjusted price, confirmation date; `known_on(as_of)` is the no-look-ahead test of §26). New enums `SwingKind`, `PivotSource` (§19's four sources), `InvalidationReason` (§25's five).
+- `Contraction` now has the schema's fields (sequence number, peak/trough dates and adjusted prices, depth, duration, ATR%, range%, volume ratio, confirmation date; `is_confirmed`). `PivotCandidate` has §20/§33's (price, date, source, distance to close, touches, rejections, right-side tightness).
+- `VCPPattern` has every §31 measurement: base duration, prior-advance return, final volume ratio and dry-up pass, ATR contraction ratio and pass, right-side range and tight-pivot pass, five quality fields, pivot candidates, Trend Template and weekly Stage 2 verdicts, invalidation reasons, `config_hash`, `is_primary`. Values derivable from other fields are properties, so they cannot disagree: contraction count, first and final contraction depth, tightening ratios D(n+1)/D(n) and their maximum, base depth, pivot distance. Scan id and data snapshot id are attached at persistence (step 7).
+- Constructors refuse structural contradictions: sequence numbers not 1..n, overlapping or out-of-base contractions, a provisional contraction that is not the last (§9A.2), a confirmation state that does not match the contractions (§9A.3), `VCP`/`A_PLUS_VCP` without Trend Template PASS and weekly Stage 2 (§3, §35; `VCP_LIKE` is allowed outside, as research), a data status with a classification (§5), `INVALIDATED` without a reason, a depth that does not match its prices, a pivot that is not among the candidates. Thresholds stay out of the domain.
+
+**Hash effect.** New strategy keys change `section_config_hashes()["strategy"]`, so Trend Template scans made with this code get a new scan config hash and scan id (as with C8); verdicts are unchanged. `vcp verify scan` of an older run prints its existing "current config differs" warning and still compares results.
+
+**Tests:** `test_vcp_config.py` (defaults, lookback 249, 134-bar base accepted and 135 refused at lifetime 253, longer lifetime or none accepts it, disabled prior advance, the longer pre-base input wins, base must hold the minimum contractions, invalid values refused, hash changes); `test_vcp_domain.py` (derived values, every invariant above, swing confirmation); `test_config.py` §60 contract and `test_domain.py` updated to the new shapes.
+
+**Verification.** Full suite: 901 passed, 0 failed. `ruff check`, `ruff format --check`, `mypy --strict src` clean.
+
+**Real-config check** (08:40 IST): the shipped `config/` loads; VCP lookback 249, longest lookback 253, block lifetime 253. Scan config hash `e910a99876740931` (main) → `f3fa1ec152b2c87d` (this step), as expected. This step reads and writes no database data, so no DB copy check applies; the first copy check comes with the swing detector (step 2).

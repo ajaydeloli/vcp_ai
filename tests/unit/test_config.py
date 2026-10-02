@@ -134,6 +134,10 @@ SPEC_60_VCP = {
               "max_right_side_range_pct": 5.0},
     "confirmation": {"allow_provisional_final_contraction": True,
                      "include_provisional_in_ranking": False},
+    "prior_advance": {"enabled": True, "lookback_days": 120, "min_return_pct": 20.0},
+    "base": {"max_duration_days": 130},
+    "invalidation": {"trend_template_failure": True, "base_low_break_pct": 2.0,
+                     "volatility_expansion_multiple": 2.0},
 }  # fmt: skip
 
 SPEC_60_CLASSIFICATION = {

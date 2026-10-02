@@ -56,6 +56,19 @@ vcp:
     allow_provisional_final_contraction: true
     include_provisional_in_ranking: false
 
+  prior_advance:
+    enabled: true
+    lookback_days: 120
+    min_return_pct: 20
+
+  base:
+    max_duration_days: 130
+
+  invalidation:
+    trend_template_failure: true
+    base_low_break_pct: 2.0
+    volatility_expansion_multiple: 2.0
+
 classification:
   a_plus:
     min_contractions: 3

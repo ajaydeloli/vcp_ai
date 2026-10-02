@@ -1344,6 +1344,19 @@ vcp:
     allow_provisional_final_contraction: true
     include_provisional_in_ranking: false
 
+  prior_advance:
+    enabled: true
+    lookback_days: 120
+    min_return_pct: 20
+
+  base:
+    max_duration_days: 130
+
+  invalidation:
+    trend_template_failure: true
+    base_low_break_pct: 2.0
+    volatility_expansion_multiple: 2.0
+
 classification:
   a_plus:
     min_contractions: 3
@@ -1369,6 +1382,8 @@ classification:
 All values are initial hypotheses and must be empirically validated.
 
 This block is the configuration contract: `config/strategy.yaml` and `config.models` (`VCPThresholdsConfig`, `ClassificationConfig`) adopt it verbatim, and a test parses the YAML above and requires it to validate (audit 2026-09-30 Fix 7). Validation also enforces `contractions.min <= max`, `short_period < medium_period < long_period`, ratios in `(0, 1]`, every tier's contraction counts inside `vcp.contractions`, and that a stricter tier never drops a `require_*` flag or loosens a limit of the tier below it. Omitted `require_*` flags mean "not required".
+
+The `prior_advance`, `base` and `invalidation` keys were added in Phase 6 step 1 (§8.1). Validation also requires `base.max_duration_days >= contractions.min × swing.min_duration_days`, and counts the detector's lookback in the configuration's longest lookback: `base.max_duration_days + max(prior_advance.lookback_days − 1 (when enabled), volume.long_period, volatility.atr_period, swing.left_bars)` bars, as-of bar included (defaults 130 + 119 = 249). `data.quality.block_lifetime_bars` (253) must be at least the longest lookback, so a base of 135 bars, or a 125-bar prior advance, is refused unless the lifetime is raised.
 
 ---
 

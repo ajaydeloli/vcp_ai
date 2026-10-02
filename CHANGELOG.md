@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (Phase 6 step 1: VCP configuration and domain model)
+- New strategy settings for the VCP detector, with the owner's 2026-10-01 defaults: `vcp.prior_advance` (≥ 20 % rise within 120 bars before the base), `vcp.base.max_duration_days` (130 bars) and `vcp.invalidation` (spec §25). Configuration loading refuses a base plus prior advance longer than the data-quality block lifetime (253 bars).
+- The VCP result objects now carry every measurement the database schema stores (swings with confirmation dates, contractions, pivot candidates, base and pass/fail measurements, gate verdicts) and refuse contradictory states, such as a production VCP outside the Trend Template or two provisional contractions.
+- Adding settings changes the strategy config hash, so Trend Template scans made after this change get new scan ids; results are unchanged.
+
 ### Added (capital reductions; owner decision 2026-10-02)
 - Capital reductions are their own corporate-action type, `CAPITAL_REDUCTION`. They never adjust prices and always show a warning for manual review; a reviewed entry in `config/manual_corporate_actions.yaml` (kind, share counts, cash per cancelled share) marks the warning as reviewed. Reviewed entries for MAXIND (2022 tender at Rs 85) and EASTSILK (2024 resolution plan), and UEL's 2024 demerger as reviewed with no price adjustment.
 

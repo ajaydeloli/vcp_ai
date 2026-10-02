@@ -138,6 +138,38 @@ class VCPConfirmationConfig(StrictBaseModel):
     include_provisional_in_ranking: bool = False
 
 
+class VCPPriorAdvanceConfig(StrictBaseModel):
+    """VCP_SPECIFICATION sections 7, 8.1 ``vcp.prior_advance``.
+
+    A base starts only at a swing high reached after a rise of at least ``min_return_pct``
+    within the ``lookback_days`` bars ending at that high (the high's bar included).
+    """
+
+    enabled: bool = True
+    lookback_days: Annotated[int, Field(ge=2)] = 120
+    min_return_pct: Annotated[float, Field(gt=0)] = 20.0
+
+
+class VCPBaseConfig(StrictBaseModel):
+    """VCP_SPECIFICATION section 8.1 ``vcp.base``: the base starts within this many bars
+    (as-of bar included) of the as-of date."""
+
+    max_duration_days: Annotated[int, Field(ge=2)] = 130
+
+
+class VCPInvalidationConfig(StrictBaseModel):
+    """VCP_SPECIFICATION sections 24-25 ``vcp.invalidation``.
+
+    Keys and defaults from section 25; the exact rules that read ``base_low_break_pct`` and
+    ``volatility_expansion_multiple`` are defined with the status logic (Phase 6 step 6).
+    All values are hypotheses.
+    """
+
+    trend_template_failure: bool = True
+    base_low_break_pct: Annotated[float, Field(ge=0, lt=100)] = 2.0
+    volatility_expansion_multiple: Annotated[float, Field(gt=1)] = 2.0
+
+
 class VCPThresholdsConfig(StrictBaseModel):
     """VCP_SPECIFICATION section 60 ``vcp`` block (shape adopted verbatim, audit Fix 7).
 
@@ -153,6 +185,34 @@ class VCPThresholdsConfig(StrictBaseModel):
     volume: VCPVolumeConfig = Field(default_factory=VCPVolumeConfig)
     pivot: VCPPivotConfig = Field(default_factory=VCPPivotConfig)
     confirmation: VCPConfirmationConfig = Field(default_factory=VCPConfirmationConfig)
+    prior_advance: VCPPriorAdvanceConfig = Field(default_factory=VCPPriorAdvanceConfig)
+    base: VCPBaseConfig = Field(default_factory=VCPBaseConfig)
+    invalidation: VCPInvalidationConfig = Field(default_factory=VCPInvalidationConfig)
+
+    @model_validator(mode="after")
+    def validate_base_fits_contractions(self) -> VCPThresholdsConfig:
+        """The longest base must be able to hold the minimum number of shortest contractions."""
+        needed = self.contractions.min * self.swing.min_duration_days
+        if self.base.max_duration_days < needed:
+            raise ValueError(
+                f"base.max_duration_days ({self.base.max_duration_days}) cannot hold "
+                f"contractions.min ({self.contractions.min}) contractions of "
+                f"swing.min_duration_days ({self.swing.min_duration_days}) bars"
+            )
+        return self
+
+    def lookback_bars(self) -> int:
+        """Bars the detector reads back, as-of bar included (VCP_SPECIFICATION 8.1 item 4).
+
+        The base reaches back ``base.max_duration_days`` bars. Before the oldest base bar
+        (a candidate base-start swing high) it reads the prior-advance window (the high's bar
+        is shared, hence ``- 1``), the long volume average and the ATR at the base start
+        (both from prior bars), and the swing's left bars. Defaults: 130 + 119 = 249.
+        """
+        before_base = max(self.volume.long_period, self.volatility.atr_period, self.swing.left_bars)
+        if self.prior_advance.enabled:
+            before_base = max(before_base, self.prior_advance.lookback_days - 1)
+        return self.base.max_duration_days + before_base
 
 
 class TierClassificationConfig(StrictBaseModel):
@@ -591,7 +651,8 @@ class ScannerConfig(StrictBaseModel):
         """Bars the longest price lookback reaches back, as-of bar included (audit P1-2).
 
         RS and universe history minimums, the 52-week extremes (252 bars), the SMA200 plus
-        its slope lookback, and the weekly stage SMA plus its slope (5 bars a week).
+        its slope lookback, the weekly stage SMA plus its slope (5 bars a week), and the VCP
+        detector's base plus prior advance (VCP_SPECIFICATION 8.1 item 4).
         """
         s = self.strategy
         return max(
@@ -601,6 +662,7 @@ class ScannerConfig(StrictBaseModel):
             252,
             200 + s.trend_template.sma200_slope_lookback_days,
             (s.stage.sma_weeks + s.stage.slope_lookback_weeks) * 5,
+            s.vcp.lookback_bars(),
         )
 
     @model_validator(mode="after")

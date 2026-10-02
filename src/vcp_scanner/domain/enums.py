@@ -63,6 +63,35 @@ class VCPStatus(StrEnum):
 
 
 @unique
+class SwingKind(StrEnum):
+    """Swing high or swing low (VCP_SPECIFICATION section 9)."""
+
+    HIGH = "HIGH"
+    LOW = "LOW"
+
+
+@unique
+class PivotSource(StrEnum):
+    """Where a pivot candidate came from (VCP_SPECIFICATION section 19)."""
+
+    BASE_HIGH = "BASE_HIGH"
+    SWING_HIGH = "SWING_HIGH"  # latest meaningful confirmed swing high
+    RIGHT_SIDE_HIGH = "RIGHT_SIDE_HIGH"  # top of the tight right-side consolidation
+    REPEATED_RESISTANCE = "REPEATED_RESISTANCE"
+
+
+@unique
+class InvalidationReason(StrEnum):
+    """Why a pattern was invalidated (VCP_SPECIFICATION section 25)."""
+
+    TREND_TEMPLATE_FAIL = "TREND_TEMPLATE_FAIL"
+    BASE_STRUCTURE_FAIL = "BASE_STRUCTURE_FAIL"
+    EXCESS_VOLATILITY = "EXCESS_VOLATILITY"
+    PIVOT_STRUCTURE_FAIL = "PIVOT_STRUCTURE_FAIL"
+    DATA_QUALITY_FAIL = "DATA_QUALITY_FAIL"
+
+
+@unique
 class ConfirmationState(StrEnum):
     """Swings need right-side bars to confirm, so the newest bars are provisional."""
 
