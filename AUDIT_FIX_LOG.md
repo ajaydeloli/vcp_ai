@@ -1545,3 +1545,13 @@ Worktree `vcp_ai_p6s8`, branch `p6-step8-golden`. Plan sent to the owner at 12:4
 **Tests** (`test_vcp_golden.py`, 6): holdout share ~30 % and fixed; JSON round trip, files, folder/label mismatch, unknown label; agreement, ambiguous exclusion, production and per-class precision/recall, confusion, report text; failed_vcp judged on status (a volume breakout then a close back below → FAILED); sampling balance, per-instrument limit and spacing, determinism; the sheet and candidates carry no detector output, the key does; CSV import with notes containing commas, blank labels skipped, unknown label refused. `test_pipeline_e2e.py`: sheet from the e2e scan, CSV import, `golden --record` report.
 
 **Verification.** Full suite: 1,082 passed, 2 skipped (golden regression, no fixtures yet). `ruff check`, `ruff format --check`, `mypy --strict src` clean.
+
+### Phase 6 step 8 follow-up — near-A+ stratum; the sheet generated (2026-10-02 13:46–14:00 IST)
+
+**Historical scans for the sheet** (on a copy, `data/golden_src.duckdb`; the main DB is untouched): universe / RS / Trend Template for the last session of each month 2024-10 .. 2026-09 (24 dates, 12:45–13:45 IST, ~2.5 min each), config `7de9afd37f3a`.
+
+**Finding: no A+ in two years.** Over 3,711 passer windows (weekly Stage 2) the detector gives VCP 539, VCP_LIKE 622, NONE 2,523, no pattern 27, **A_PLUS_VCP 0**. Of the 539 VCPs, 518 fail A+'s tight-pivot rule (last 10 bars within 5 %), 377 have fewer than 3 contractions, 279 fail volatility contraction, 244 a final contraction > 8 %, 235 volume dry-up; 51 miss exactly one A+ rule (42 the tight pivot). The tight pivot is the binding A+ constraint; the owner's labels will calibrate it.
+
+**Change.** New hidden stratum `NEAR_A_PLUS` (a VCP missing exactly one A+ rule) so candidate A+ charts reach the sheet even when the detector finds none. Test: `test_near_a_plus_stratum`. Full suite: 1,083 passed, 2 skipped; ruff, format, mypy clean.
+
+**Sheet**: `data/labelling/` (not in git): `labelling_sheet.html`, `candidates.json`, hidden `key.json`; seed 20261002, 25 per stratum.

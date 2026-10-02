@@ -151,3 +151,22 @@ def test_sheet_files_are_blind_and_import_makes_fixtures(tmp_path: Path) -> None
     csv.write_text(f"id,window,label,notes\n{chosen[0].id},1,great,\n")
     with pytest.raises(ValueError, match="unknown label"):
         import_labels(paths["candidates"], csv, tmp_path / "fx2")
+
+
+def test_near_a_plus_stratum() -> None:
+    """A VCP missing exactly one A+ rule is its own (hidden) stratum."""
+    from vcp_scanner.patterns.vcp.detector import VCPDetector
+    from vcp_scanner.research.labelling import _stratum
+
+    loose = VCPThresholdsConfig(
+        **{**VCP_CFG.model_dump(), "pivot": {"max_right_side_range_pct": 1.0}}
+    )
+    s = _series(CLASSIC)
+    det = VCPDetector(loose, CLS, config_hash="h")
+    r = det.detect("I", s, s.dates[-1], trend_template_pass=True, weekly_stage2_pass=True)
+    assert r.pattern is not None and r.pattern.classification.value == "VCP"
+    assert _stratum(r) == "NEAR_A_PLUS"
+    a_plus = VCPDetector(VCP_CFG, CLS, config_hash="h").detect(
+        "I", s, s.dates[-1], trend_template_pass=True, weekly_stage2_pass=True
+    )
+    assert _stratum(a_plus) == "A_PLUS_VCP"

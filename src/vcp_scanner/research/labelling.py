@@ -12,10 +12,12 @@ output), ``key.json`` (hidden: stratum and detector answer per candidate; open o
 labelling), ``labelling_sheet.html`` (charts, a label dropdown and notes per window, progress kept
 in the browser, "Download CSV"). ``vcp research import-labels`` turns the CSV into fixtures.
 
-Sampling: strata = A_PLUS_VCP, VCP, VCP_LIKE, NONE (base but no class), NO_PATTERN, and FAILED
-(status FAILED or INVALIDATED, whatever the class); up to ``per_stratum`` each, at most one
-window per instrument per stratum and two overall, windows of one instrument at least 60 bars
-apart; deterministic for a seed; the sheet order is shuffled.
+Sampling: strata = A_PLUS_VCP, NEAR_A_PLUS (a VCP missing exactly one A+ rule: on 2024-10 ..
+2026-09 the detector found no A+ at all, 518 of 539 VCPs failing the tight-pivot rule, so this
+stratum is where candidate A+ charts are), VCP, VCP_LIKE, NONE (base but no class), NO_PATTERN,
+and FAILED (status FAILED or INVALIDATED, whatever the class); up to ``per_stratum`` each, at
+most one window per instrument per stratum and two overall, windows of one instrument at least
+60 bars apart; deterministic for a seed; the sheet order is shuffled.
 """
 
 from __future__ import annotations
@@ -31,13 +33,13 @@ from typing import Any
 from vcp_scanner.config.models import ClassificationConfig, VCPThresholdsConfig
 from vcp_scanner.data.repositories.duckdb_vcp_repository import DuckDBVCPRepository
 from vcp_scanner.data.storage.duckdb_store import DuckDBStore
-from vcp_scanner.domain.enums import VCPStatus
+from vcp_scanner.domain.enums import VCPClassification, VCPStatus
 from vcp_scanner.patterns.vcp.detector import VCPDetector
 from vcp_scanner.patterns.vcp.measurements import PriceSeries
 from vcp_scanner.research.golden import fixture_id, series_to_json
 
 CHART_BARS = 260
-STRATA = ("A_PLUS_VCP", "VCP", "VCP_LIKE", "NONE", "NO_PATTERN", "FAILED")
+STRATA = ("A_PLUS_VCP", "NEAR_A_PLUS", "VCP", "VCP_LIKE", "NONE", "NO_PATTERN", "FAILED")
 MIN_GAP_BARS = 60
 
 
@@ -60,6 +62,12 @@ def _stratum(det: Any) -> str:
         return "NO_PATTERN"
     if p.status in (VCPStatus.FAILED, VCPStatus.INVALIDATED):
         return "FAILED"
+    if (
+        p.classification is VCPClassification.VCP
+        and det.classification is not None
+        and len(det.classification.unmet[VCPClassification.A_PLUS_VCP]) == 1
+    ):
+        return "NEAR_A_PLUS"
     return str(p.classification.value)
 
 
