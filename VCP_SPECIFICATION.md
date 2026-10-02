@@ -465,10 +465,24 @@ Every `require_*` flag needs a measurable rule. Initial definitions (hypotheses,
 |---|---|
 | `progressive_tightening` | for all n: D(n+1) ≤ D(n) × (1 + tolerance) AND D(last) < D(first) |
 | `volume_dryup` | `final_volume_ratio` ≤ `volume.dryup_ratio` AND `final_volume_ratio` < first contraction's `volume_ratio`. Here `final_volume_ratio` = mean volume over the final contraction ÷ 50-day average volume at that contraction's start |
-| `volatility_contraction` | `atr_contraction_ratio` = mean ATR14% over the final contraction ÷ mean ATR14% over the first contraction ≤ `volatility.contraction_ratio_max` |
+| `volatility_contraction` | with `volatility.measure: true_range` (default since Phase 6 step 4, §18B): `tr_contraction_ratio` = mean true range % of the final contraction's bars ÷ that of the first ≤ `volatility.contraction_ratio_max`. With `measure: atr` (the original rule): `atr_contraction_ratio` = mean ATR14% over the final contraction ÷ mean ATR14% over the first ≤ the same maximum. Both ratios are always stored |
 | `tight_pivot` | `right_side_range_pct` = (max high − min low) ÷ max high × 100 over the last `right_side_window_days` bars ≤ `pivot.max_right_side_range_pct` |
 
 Missing or suspect volume makes `volume_dryup` NULL/`INSUFFICIENT_DATA`, never a pass. `tight_pivot` measures compression only. Distance to pivot is a separate readiness test (§46).
+
+
+# 18B. Measurement Windows and the Volatility Rule (Phase 6 step 4, 2026-10-02)
+
+Gaps in §12–18A filled in `patterns/vcp/measurements.py` (owner allowed improvements with documentation, 2026-10-02):
+
+- **Contraction window** = its decline bars, from the bar after the peak through the low (length = `duration_days`); the peak bar belongs to the advance.
+- **Volume baseline** for a contraction = mean volume of the `volume.long_period` (50) bars before its peak (prior bars, like `volume_ratio_50`). Any missing volume in either window → NULL.
+- **Volatility rule changed to unlagged true range.** ATR14 averages the last 14 bars, so over a short final contraction (39 % of finals on 2026-10-01 are ≤ 6 bars) it mostly measures earlier bars. On 2026-10-01 ATR and the bars disagreed on 230 of 875 bases: 160 passed on ATR although the final contraction's own bars were not calmer (APOLLO: ATR ratio 0.68 while its last 4 bars ranged 1.56× T1's; VGUARD 1.31×), 70 failed on ATR although the bars had calmed. Default `volatility.measure: true_range` decides on the bars' own mean true range %; `atr` restores the §18A rule. Both ratios are stored for research.
+- **Right side**: the last `pivot.right_side_window_days` (10) bars; right-side volume ratio against the 50 bars before that window.
+- **Range compression (§16)**: `last_N_range_pct` = (max high − min low) ÷ max high over the last N bars (20/10/5); `last_N_atr_pct` = mean ATR14% over the last N (20/10). **Volume (§17)**: `volume_avg_N` = mean of the last N bars including the as-of bar (5/10/20/50), `volume_ratio_5_20` = avg5 ÷ avg20.
+- **Selling pressure (§18, supporting only)**: over the base, volume on up-close days ÷ volume on down-close days, and counts of up/down days with volume ≥ 1.5 × the mean of the 50 bars before them.
+- **`tightening_consistency` (§13)** = share of consecutive contraction pairs where the depth shrinks.
+- Criteria with fewer than two contractions (tightening, dry-up, volatility) are NULL, not FALSE.
 
 ---
 
@@ -1336,6 +1350,7 @@ vcp:
   volatility:
     atr_period: 14
     contraction_ratio_max: 0.80
+    measure: true_range
 
   volume:
     short_period: 5

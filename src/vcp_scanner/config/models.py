@@ -103,6 +103,10 @@ class VCPVolatilityConfig(StrictBaseModel):
 
     atr_period: Annotated[int, Field(ge=2)] = 14
     contraction_ratio_max: Annotated[float, Field(gt=0, le=1)] = 0.80
+    # Which ratio decides ``volatility_contraction`` (VCP_SPECIFICATION 18B): the mean true
+    # range % of each contraction's own bars (default, unlagged), or the mean ATR14 % over them
+    # (the original 18A rule; ATR14 lags 14 bars). Both ratios are always measured and stored.
+    measure: Literal["true_range", "atr"] = "true_range"
 
 
 class VCPVolumeConfig(StrictBaseModel):

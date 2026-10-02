@@ -128,7 +128,7 @@ SPEC_60_VCP = {
     "contractions": {"min": 2, "max": 6},
     "swing": {"left_bars": 5, "right_bars": 5, "min_depth_pct": 2.0, "min_duration_days": 3},
     "progressive_tolerance_pct": 10.0,
-    "volatility": {"atr_period": 14, "contraction_ratio_max": 0.80},
+    "volatility": {"atr_period": 14, "contraction_ratio_max": 0.80, "measure": "true_range"},
     "volume": {"short_period": 5, "medium_period": 20, "long_period": 50, "dryup_ratio": 0.70},
     "pivot": {"max_distance_pct": 3.0, "right_side_window_days": 10,
               "max_right_side_range_pct": 5.0},

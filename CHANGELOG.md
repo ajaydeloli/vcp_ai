@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (Phase 6 step 4: VCP measurements)
+- Every base now gets its measurements:
+  - how much each contraction shrinks compared with the one before;
+  - volatility per contraction;
+  - volume dry-up through the sequence;
+  - how tight the last 10 days are;
+  - supporting up/down-volume counts.
+- Volatility contraction is judged on each contraction's own daily ranges by default, not on the 14-day ATR, which lags and hid volatile final contractions (e.g. APOLLO). `vcp.volatility.measure: atr` restores the old rule; both numbers are always kept.
+
 ### Added (Phase 6 step 3: bases and contractions)
 - Each stock's base (from its highest swing high in the last 130 bars, after a rise of at least 20 %) is split into contractions T1, T2, ... Small wiggles under 2 % or under 3 bars, whether dips or bounces, are merged so they don't count as extra contractions. A contraction still in progress is marked provisional until 5 bars pass without a lower low.
 

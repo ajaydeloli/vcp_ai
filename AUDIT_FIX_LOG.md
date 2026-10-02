@@ -1417,3 +1417,32 @@ Worktree `vcp_ai_p6s3`, branch `p6-step3-segmentation`. Interpretations of §8.1
 - Rough preview only (classification is step 6): of 875 bases with ≥ 2 contractions, 606 end ≤ 15 % and 213 also tighten within 10 %; among passers 66, 58, 38.
 
 **Verification.** Full suite: 1,018 passed, 0 failed. `ruff check`, `ruff format --check`, `mypy --strict src` clean.
+
+## Phase 6 step 4 — VCP measurements (2026-10-02)
+
+Worktree `vcp_ai_p6s4`, branch `p6-step4-measurements`. Owner, 2026-10-02: gaps or better logic than the documents may be improved, with documentation. The improvements are in VCP_SPECIFICATION §18B (new) and marked **I1–I3** here.
+
+**Change.** `patterns/vcp/measurements.py`: `measure(series, base, config) -> VCPMeasurements` over a `PriceSeries` (adjusted high/low/close, volume with `None` for missing, the feature engine's `atr_pct_14`) and the step-3 `BaseSegmentation`.
+- Per contraction (`ContractionMeasures`, DATABASE_SCHEMA 32): `atr_pct`, `tr_pct`, `range_pct`, `volume_ratio`.
+- Tightening (§12–13): ratios D(n+1)/D(n), max ratio, `tightening_consistency` (share of shrinking pairs; §13 named it without a definition), `progressive_tightening` per §18A (relative tolerance and D(last) < D(first)).
+- Volatility (§15–16, 18A): `atr_contraction_ratio`, `tr_contraction_ratio`, `volatility_contraction_pass`; `last_N_range_pct` (20/10/5), `last_N_atr_pct` (20/10).
+- Volume (§17, 18A): `final_volume_ratio`, `volume_dryup_pass`, `volume_avg_N` (5/10/20/50), `volume_ratio_5_20`.
+- Right side (§18A, 22): range, ATR%, volume ratio over the last 10 bars; `tight_pivot_pass`.
+- Selling pressure (§18, supporting): up/down-volume ratio and high-volume (≥ 1.5× prior 50-bar mean) up/down day counts over the base.
+- Missing inputs give `None`, never a pass; criteria needing two contractions are `None` with one.
+
+**I1 — contraction window and baseline.** §18A says "over the final contraction" and "50-day average at that contraction's start" without saying which bars. Window = the decline bars (after the peak through the low, = `duration_days`); baseline = the 50 bars before the peak (prior bars, as `volume_ratio_50`).
+
+**I2 — volatility decided on the contraction's own bars.** §18A compares mean ATR14% over the final and first contractions. ATR14 averages 14 bars, and 39 % of final contractions on 2026-10-01 are ≤ 6 bars, so it mostly measures earlier bars. On 2026-10-01 the two disagree on 230 of 875 bases: 160 pass on ATR while the final contraction's own bars were not calmer (APOLLO: ATR ratio 0.68 but its last 4 bars ranged 1.56× T1's; VGUARD 1.31×, PRECAM 1.11×), 70 fail on ATR although the bars had calmed. New key `vcp.volatility.measure` (`true_range` default, `atr` = the §18A rule); both ratios are always stored. Owner decision 4 (ATR = the feature engine's simple `atr_14`) still holds for every ATR value.
+
+**I3 — tight pivot left as specified.** Only 14 of 1,198 bases had a 10-bar range ≤ 5 % on 2026-10-01 (mid-decline). On 2026-06-15 / 07-15 / 08-14 / 09-15: 21/941, 58/1,027, 69/1,113, 45/1,190 (median right-side range 9.5–10.5 %). Tight right sides are rare, which is the point of the criterion; the threshold is left for the golden dataset (step 8) to calibrate.
+
+**Tests** (`test_vcp_measurements.py`, 19): tightening ratios and consistency; the progressive rule at, above and below the relative tolerance, zero tolerance, and last ≥ first; volume dry-up through the sequence (pass, above 0.70, not below T1) with exact baselines; missing volume → `None`; ATR and TR per contraction against hand computation; the volatility switch at four caps; missing ATR → the ATR rule cannot pass, the TR rule still decides; right-side and range-compression windows; selling-pressure counts; one contraction → sequence criteria `None`; bars after as-of ignored; a series that does not match the segmentation is refused. `test_config.py` §60 contract and strategy.yaml include `measure`.
+
+**Real-data check** (read-only on the 08:35 backup, 2026-10-01, features-1.2.0, default config): 1,198 bases measured in 1.0 s.
+- All bases: progressive tightening 231 / 644 / 323 (True/False/None = fewer than 2 contractions); volume dry-up 400 / 475 / 323; volatility 352 / 523 / 323 (442 / 433 under the ATR rule); tight pivot 14 / 1,184. Medians: ATR ratio 0.80, TR ratio 0.85, final volume ratio 0.65, right-side range 10.5 %, up/down volume 0.98.
+- Trend Template passers (203): progressive 38 / 28 / 137; dry-up 38 / 28; volatility 22 / 44 (ATR rule 29 / 37); tight pivot 1.
+- No criterion was `None` for missing data on any base with ≥ 2 contractions.
+- Spot checks: ABDL depths 18.5 → 10.7 → 8.4 %, volume 1.09 → 0.75 → 0.61 (dry-up), bars' range 3.78 → 3.37 %; APOLLO loosens (8.4 → 15.6 %) and its last contraction is the most volatile (TR% 6.2 vs 3.98): now fails volatility.
+
+**Verification.** Full suite: 1,037 passed, 0 failed. `ruff check`, `ruff format --check`, `mypy --strict src` clean.
