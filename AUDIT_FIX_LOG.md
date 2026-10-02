@@ -1530,3 +1530,18 @@ Worktree `vcp_ai_p6s7`, branch `p6-step7-persistence`. Plan sent to the owner at
 ### Phase 6 steps 1–7 applied to the main DB (owner approved; 12:29–12:35 IST 2026-10-02, code at d39a1bd)
 
 Under the daily-run lock: backup `data/backups/vcp_scanner_20261002_065920.duckdb` (1.96 GB); `p6-step7-persistence` fast-forwarded into `main` and pushed; `compute rs` 2026-09-30 (`rs-1.1.0`, 1,337 rows; that date only had `rs-1.0.0`); Trend Template under config hash `7de9afd37f3a`: 2026-09-30 267 PASS / 1,057 FAIL / 13 INSUFFICIENT_DATA, hash `482d2509e9c17b21`; 2026-10-01 203 / 1,048 / 6, hash **`8bdc231dc0f6fb4c`** (unchanged verdicts); `compute vcp` 2026-09-30 (VCP 45, 62 breakout events, hash `e34dacce0e6632f4`) then 2026-10-01 (VCP 37: PIVOT_READY 6, BREAKOUT 32, FAILED 16, FORMING 147; 7 new events; hash `4dc554690d22b1e0`). All four hashes identical to the copy check. The copy `data/p6s7.duckdb` was deleted afterwards.
+
+## Phase 6 step 8 — golden-dataset harness and blind labelling sheet (2026-10-02)
+
+Worktree `vcp_ai_p6s8`, branch `p6-step8-golden`. Plan sent to the owner at 12:40 IST. Definitions are in VCP_SPECIFICATION §57 ("Implementation").
+
+**Change.**
+- `research/golden.py`: `GoldenFixture` and its JSON format (bars embedded, offline), `load_fixtures` (folder must match label), `split_for` (fixed 30 % holdout by hash), `run_fixture`, `agrees` (failed_vcp judged on FAILED/INVALIDATED status, ambiguous excluded), `evaluate` → agreement, per-class and production precision/recall, confusion; `format_report`.
+- `research/labelling.py` + `_sheet_template.py`: `collect_candidates` (Trend Template passers with weekly Stage 2 on the scan dates of the current config; detector run only to stratify), `sample` (six strata, per-stratum cap, instrument diversity, deterministic, shuffled), `write_outputs` (`candidates.json`, hidden `key.json`, `labelling_sheet.html`: canvas charts with 50/150-day averages and volume, label dropdown + notes, progress in localStorage, Download CSV; symbol and date hidden by default to avoid hindsight), `import_labels` (CSV → fixtures; unknown label or id refused).
+- `cli_research.py`: `vcp research golden [--split] [--record]`, `vcp research labelling-sheet --from --to [--per-stratum] [--seed] --out`, `vcp research import-labels --candidates --labels [--fixtures]`.
+- `tests/regression/test_vcp_golden.py`: per-fixture baseline check (fails on any changed answer) and the development/holdout report; skipped while no fixtures exist.
+- README "Golden dataset" commands; CHANGELOG.
+
+**Tests** (`test_vcp_golden.py`, 6): holdout share ~30 % and fixed; JSON round trip, files, folder/label mismatch, unknown label; agreement, ambiguous exclusion, production and per-class precision/recall, confusion, report text; failed_vcp judged on status (a volume breakout then a close back below → FAILED); sampling balance, per-instrument limit and spacing, determinism; the sheet and candidates carry no detector output, the key does; CSV import with notes containing commas, blank labels skipped, unknown label refused. `test_pipeline_e2e.py`: sheet from the e2e scan, CSV import, `golden --record` report.
+
+**Verification.** Full suite: 1,082 passed, 2 skipped (golden regression, no fixtures yet). `ruff check`, `ruff format --check`, `mypy --strict src` clean.

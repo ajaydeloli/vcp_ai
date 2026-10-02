@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (Phase 6 step 8: golden dataset)
+- **Blind labelling sheet:** `vcp research labelling-sheet` writes a sheet of chart windows (Trend Template passers) to label in a browser. It shows no detector output, and by default no symbol or date. `vcp research import-labels` turns the labels into test fixtures.
+- **Accuracy and regression:** `vcp research golden` reports the detector's accuracy on the labelled examples, with 30 % held out from tuning. A regression test fails when a detector change alters any labelled example's answer.
+
 ### Added (Phase 6 step 7: VCP results stored and in the daily run)
 - `vcp compute vcp --as-of DATE` stores each stock's base, contractions, pivots, class, status and breakouts. It records every change of class or status, and each breakout as a separate event that is never rewritten. Each scan also gets an immutable run record.
 - The daily run now runs VCP detection after each Trend Template scan. The summary line shows its step.

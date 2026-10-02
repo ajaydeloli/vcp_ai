@@ -1294,6 +1294,15 @@ Labeling protocol:
 - Hold out 30%, never used for threshold tuning.
 - Exclude `ambiguous` examples from precision/recall.
 
+**Implementation (Phase 6 step 8, 2026-10-02):** `research/golden.py`, `research/labelling.py`, `tests/regression/test_vcp_golden.py`.
+
+- **Fixture** = one JSON file `tests/fixtures/vcp/<label>/<id>.json` (`fixture_version` 1): id (hash of instrument + date), instrument, symbol, as-of date, label, review notes, split, the gate verdicts of that date, the bars up to the as-of date (adjusted high/low/close, volume, `atr_pct_14`; at least the detector lookback) and `detector_baseline`. The folder must match the label. Runs offline, no database.
+- **Labels → detector**: `confirmed_a_plus` → A_PLUS_VCP, `confirmed_vcp` → VCP, `vcp_like` → VCP_LIKE, `non_vcp` → NONE or no pattern, `failed_vcp` → status FAILED or INVALIDATED, `ambiguous` → excluded.
+- **Split**: `holdout` for a fixed 30 % of ids (SHA-256 of the id mod 100 < 30), `development` otherwise; `vcp research golden --split development` is the only view for threshold tuning.
+- **Metrics** (§63): agreement, per-class precision/recall, production (VCP + A+) precision/recall, confusion matrix label × detector class.
+- **Regression**: each fixture's detector answer (algorithm version, class, status, contraction count, no-pattern reason) must equal its recorded `detector_baseline`; a reviewed change is re-recorded with `vcp research golden --record`. Acceptance thresholds are set by the owner once the first labelled set exists.
+- **Blind sheet** (`vcp research labelling-sheet`): candidates are Trend Template passers with weekly Stage 2 on the scan dates in range. The detector is run only to balance the sample across strata (A_PLUS_VCP, VCP, VCP_LIKE, NONE, NO_PATTERN, FAILED); its answers go to a separate `key.json` and never onto the sheet. The sheet also hides symbol and date by default (hindsight). At most one window per instrument per stratum and two per instrument overall, ≥ 60 bars apart; deterministic for a seed; shuffled. `vcp research import-labels` turns the downloaded CSV into fixtures.
+
 ---
 
 # 58. Human Review

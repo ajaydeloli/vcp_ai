@@ -223,3 +223,24 @@ def test_full_pipeline_from_an_empty_database(
     # `verify scan` rebuilds Trend Template runs only and says so for a VCP run.
     assert cli_main(["verify", "scan", run_id, "--db", db, "--config-dir", CONFIG_DIR]) == 1
     assert "is a VCP run" in capsys.readouterr().out
+
+    # Phase 6 step 8: a blind labelling sheet from the scan, and its CSV back into fixtures.
+    sheet_dir = tmp_path / "sheet"
+    sheet_argv = ["research", "labelling-sheet", "--from", as_of, "--to", as_of, "--db", db,
+                  "--config-dir", CONFIG_DIR, "--out", str(sheet_dir)]  # fmt: skip
+    assert cli_main(sheet_argv) == 0, capsys.readouterr().err
+    assert "Scan dates  : 1" in capsys.readouterr().out
+    cands = json.loads((sheet_dir / "candidates.json").read_text())
+    assert cands and all(len(c["bars"]["dates"]) >= 249 for c in cands)  # S0 passes
+    assert (sheet_dir / "labelling_sheet.html").stat().st_size > 0
+    labels = tmp_path / "labels.csv"
+    labels.write_text("id,window,label,notes\n" + f"{cands[0]['id']},1,non_vcp,steady trend\n")
+    fx_dir = tmp_path / "fixtures"
+    assert cli_main(["research", "import-labels", "--candidates",
+                     str(sheet_dir / "candidates.json"), "--labels", str(labels),
+                     "--fixtures", str(fx_dir)]) == 0  # fmt: skip
+    capsys.readouterr()
+    assert cli_main(["research", "golden", "--fixtures", str(fx_dir), "--record",
+                     "--config-dir", CONFIG_DIR]) == 0  # fmt: skip
+    out = capsys.readouterr().out
+    assert "Re-recorded detector baselines for 1 fixtures." in out and "fixtures 1" in out

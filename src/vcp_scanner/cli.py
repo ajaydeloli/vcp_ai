@@ -521,6 +521,10 @@ def build_parser() -> argparse.ArgumentParser:
     )
 
     # quality subcommands (audit P0-2)
+    from vcp_scanner.cli_research import add_research_parser
+
+    add_research_parser(subparsers)
+
     quality_parser = subparsers.add_parser("quality", help="Data-quality events that block signals")
     quality_subparsers = quality_parser.add_subparsers(
         dest="quality_command", help="Quality operations"
@@ -947,6 +951,11 @@ def main(argv: Sequence[str] | None = None) -> int:
             parser.parse_args(["compute", "--help"])
             return 0
         return runner(args)
+
+    if args.command == "research":
+        from vcp_scanner.cli_research import run_research
+
+        return run_research(args)
 
     if args.command == "verify":
         if args.verify_command == "kite-adjustment":

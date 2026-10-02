@@ -80,6 +80,16 @@ vcp compute trend-template --as-of 2026-09-29
 vcp compute vcp --as-of 2026-09-29
 ```
 
+### Golden dataset (VCP labels)
+
+```bash
+vcp research labelling-sheet --from 2024-10-01 --to 2026-09-30 --out data/labelling   # needs Trend Template scans for those dates
+# open data/labelling/labelling_sheet.html, label, Download CSV
+vcp research import-labels --candidates data/labelling/candidates.json --labels vcp_labels.csv
+vcp research golden --record          # record detector baselines, then commit tests/fixtures/vcp
+vcp research golden --split development
+```
+
 ## Configuration
 
 Strategy and data behavior live in `config/*.yaml` (`strategy`, `scoring`, `universe`, `data`,
