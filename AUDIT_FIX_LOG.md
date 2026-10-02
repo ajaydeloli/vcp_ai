@@ -1394,3 +1394,26 @@ Worktree `vcp_ai_p6s2`, branch `p6-step2-swings`.
 - Spot checks (ABDL, ACE, ACMESOLAR, last 60 bars): highs and lows alternate as on the charts; confirmation dates are 5 sessions later, skipping the NSE holiday in mid-September as expected.
 
 **Verification.** Full suite: 991 passed, 0 failed. `ruff check`, `ruff format --check`, `mypy --strict src` clean.
+
+## Phase 6 step 3 — base and contraction segmentation (2026-10-02)
+
+Worktree `vcp_ai_p6s3`, branch `p6-step3-segmentation`. Interpretations of §8.1 sent to the owner at 10:00 IST before coding; two refinements found while testing are marked (R1, R2).
+
+**Change.** `patterns/vcp/segmentation.py`: `segment_base(dates, highs, lows, as_of, config)` returns a `BaseSegmentation` (base start/high/low, duration, prior-advance return and its low date, contractions as `ContractionSegment`, merged peak dates) or a `NoBaseReason` (`NO_CONFIRMED_SWING_HIGH`, `NO_PRIOR_ADVANCE`, `INSUFFICIENT_HISTORY`), plus the swings used. Rules (VCP_SPECIFICATION §8.1, details paragraph added):
+- Base start = highest confirmed swing high in the last 130 bars (earliest on a tie) with a prior advance ≥ 20 % = base high ÷ lowest low of the 120 bars ending at it − 1; otherwise no base (no fallback). A short history that passes counts; one that fails is `INSUFFICIENT_HISTORY`.
+- Peaks = base start + every later confirmed swing high. Closed contraction k = peak k → lowest low before peak k+1, confirmed on peak k+1's confirmation date.
+- Noise (§23), repeated until stable: a decline < 2 % or < 3 bars removes its peak (T1 keeps the base start and drops peak 2). **R1:** the rally out of a low is tested too: a bounce < 2 % or < 3 bars removes the next peak. Without it, a 1 % bounce in the middle of a decline split T1 into two deep contractions (e.g. 10 % then 12 %) and broke tightening. This follows §8.1's "swings shallower than…" (a swing is any leg between turning points).
+- Final contraction = last peak → lowest low since; none while that decline is noise. **R2:** it is confirmed once `right_bars` (5) bars follow the low without a lower low, not when the low is a formal swing low: in the real check 6 finals stayed provisional only because their low came 3 bars after the peak and the left-side window reached back into the previous rally's lower lows (NRAIL, EMIL, DOLLAR).
+- `confirmation.allow_provisional_final_contraction = false` drops a provisional final.
+
+**Tests** (`test_vcp_segmentation.py`, 27): classic three-contraction base (peaks, lows, depths, confirmation dates, prior advance and its window); provisional final and the config switch; R2 right-side confirmation; no final contraction while pressing the high; R1 bounce merged; shallow decline merged; equal highs (earliest is the base start, twin merged); no prior advance and the disabled switch; short history pass/fail; no swing high; an older higher high outside the window ignored; segments build valid domain `Contraction`s; 15 random series × many as-of dates: identical with bars after as-of removed, invariants (depth ≥ 2 %, ≥ 3 bars, ordered, only the final provisional, inside the base).
+
+**Real-data check** (read-only on the 08:35 backup copy, as of 2026-10-01, default config, last 249 bars):
+- 1,257 stocks in 0.7 s: 1,198 bases, 59 `NO_PRIOR_ADVANCE`. Contraction counts 0:19, 1:304, 2:211, 3:185, 4:157, 5:148, 6:110, 7+:64. Median base 56 bars, 22.5 % deep; median 1 merged peak per base.
+- Trend Template PASS (203): all have a base; counts 0:11, 1:126, 2:34, 3:14, 4:9, 5:7, 6:2; median base 17 bars, 15.1 % deep (passers sit near their highs).
+- Provisional finals: 943, all with the low in the last 5 bars (the late-September decline); after R2 none are provisional for any other reason (was 949).
+- As-of: 100 stocks × 29 dates, identical with later bars removed: 0 mismatches.
+- Spot checks (ABDL 18.5 → 10.7 → 8.4 %; APOLLO 19.8 → 8.4 → 15.6 %; ADFFOODS, ARFIN) match the swings and the price history.
+- Rough preview only (classification is step 6): of 875 bases with ≥ 2 contractions, 606 end ≤ 15 % and 213 also tighten within 10 %; among passers 66, 58, 38.
+
+**Verification.** Full suite: 1,018 passed, 0 failed. `ruff check`, `ruff format --check`, `mypy --strict src` clean.

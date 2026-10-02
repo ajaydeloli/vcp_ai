@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (Phase 6 step 3: bases and contractions)
+- Each stock's base (from its highest swing high in the last 130 bars, after a rise of at least 20 %) is split into contractions T1, T2, ... Small wiggles under 2 % or under 3 bars, whether dips or bounces, are merged so they don't count as extra contractions. A contraction still in progress is marked provisional until 5 bars pass without a lower low.
+
 ### Added (Phase 6 step 2: swing detector)
 - Swing highs and lows (5 bars each side by default) with the date each one became known. A historical run only sees swings that were confirmed by its date, so backtests cannot peek ahead; the newest unconfirmed turns are reported separately as pending.
 

@@ -187,6 +187,14 @@ The sections above define what a base and a contraction measure but not how to f
 
 The prior-advance (§7) and invalidation (§25) keys join the §60 configuration contract with these defaults.
 
+**Details fixed in the implementation (Phase 6 step 3, 2026-10-02; `patterns/vcp/segmentation.py`):**
+
+- *Prior advance* = base high ÷ lowest low of the `lookback_days` bars ending at the base high − 1. If the highest swing high fails it, there is no base (no fallback to a lower high). With a shorter history a pass counts, a fail is `INSUFFICIENT_HISTORY`. On equal highs the earliest is the base start.
+- *Closed contraction*: peak k to the lowest low before peak k+1, confirmed on peak k+1's confirmation date.
+- *Noise* (item 2, §23) applies to both swings of a contraction: the decline (peak k to its low) and the rally out of the low (to peak k+1), each measured as (high − low) ÷ high and in bars. A noise decline removes peak k (for T1, peak 2); a noise rally removes peak k+1. Repeated until stable.
+- *Final contraction* (item 3, §9A): last peak to the lowest low since; confirmed once `swing.right_bars` bars follow that low without a lower low, else provisional; absent while that decline is itself noise.
+- `duration_days` = bars from peak to low; base low and base duration run from the base start to the as-of bar.
+
 **Golden dataset (§57):** the owner labels a blind sheet of symbol/date windows with charts drawn from Trend Template passers, without detector output, starting with about 20 examples per class; Phase 6 acceptance runs against those labels.
 
 ---
