@@ -1373,3 +1373,24 @@ Build order step 1 of Phase 6 (owner decisions 2026-10-01, VCP_SPECIFICATION §8
 **Verification.** Full suite: 901 passed, 0 failed. `ruff check`, `ruff format --check`, `mypy --strict src` clean.
 
 **Real-config check** (08:40 IST): the shipped `config/` loads; VCP lookback 249, longest lookback 253, block lifetime 253. Scan config hash `e910a99876740931` (main) → `f3fa1ec152b2c87d` (this step), as expected. This step reads and writes no database data, so no DB copy check applies; the first copy check comes with the swing detector (step 2).
+
+## Phase 6 step 2 — swing detector with confirmation dates (2026-10-02)
+
+Worktree `vcp_ai_p6s2`, branch `p6-step2-swings`.
+
+**Change.** `patterns/vcp/swings.py`: `detect_swings(dates, highs, lows, as_of, left_bars, right_bars)` and `SwingDetector` (bound to `vcp.swing`), method `pivot_n_bar` (VCP_SPECIFICATION §9, §9A, §26).
+- A swing high is a bar whose adjusted high is ≥ each of the `left_bars` highs before and `right_bars` highs after it; a swing low likewise with lows. Bars are the instrument's own sessions; nothing is filled.
+- `confirmation_date` = the date of bar `i + right_bars`. A bar with fewer than `left_bars` bars before it is never a swing.
+- Only bars dated on or before `as_of` are read, or even validated. Confirmed swings as of D are therefore exactly the full-history swings with `confirmation_date <= D`.
+- *Pending* swings: in the newest `right_bars` bars, a bar that satisfies the rule against every bar seen so far is reported separately with `confirmation_date = None`; a later bar may cancel it. Never used as confirmed.
+- Ties follow §9 literally (`>=` both sides): a plateau of equal highs gives a swing on each plateau bar. Merging them belongs to noise filtering in segmentation (§23, step 3). An outside bar can be both a swing high and a swing low (HIGH listed first).
+
+**Tests** (`test_vcp_swings.py`): peak and trough with their confirmation dates; no swing without the left bars; confirmation waits for the right bars and the newest bars are pending; a pending swing cancelled by a higher bar; equal highs; outside bar; bars after `as_of` (even a malformed one) are never read; **as-of property**: 20 random series × 4 left/right settings, at every date the as-of result equals the full history filtered by confirmation date; config binding; input validation; empty/short series.
+
+**Real-data check** (09:50 IST, read-only on `data/backups/vcp_scanner_20261002_030518.duckdb`, the 08:35 copy of the main DB; the 1,257 instruments with a 2026-10-01 Trend Template verdict, their last ≤ 249 adjusted bars):
+- All 1,257 detected in 3.0 s, 0 errors. Per stock: confirmed highs 6–22 (median 15), confirmed lows 8–40 (median 15), pending 0–3 (median 1).
+- As-of property on real data: 100 random stocks × each of their last 60 dates: **0 mismatches**.
+- 256 pairs of equal swing highs within a week (plateaus) across the universe: step 3's noise merge must handle them.
+- Spot checks (ABDL, ACE, ACMESOLAR, last 60 bars): highs and lows alternate as on the charts; confirmation dates are 5 sessions later, skipping the NSE holiday in mid-September as expected.
+
+**Verification.** Full suite: 991 passed, 0 failed. `ruff check`, `ruff format --check`, `mypy --strict src` clean.

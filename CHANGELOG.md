@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (Phase 6 step 2: swing detector)
+- Swing highs and lows (5 bars each side by default) with the date each one became known. A historical run only sees swings that were confirmed by its date, so backtests cannot peek ahead; the newest unconfirmed turns are reported separately as pending.
+
 ### Added (Phase 6 step 1: VCP configuration and domain model)
 - New strategy settings for the VCP detector, with the owner's 2026-10-01 defaults: `vcp.prior_advance` (≥ 20 % rise within 120 bars before the base), `vcp.base.max_duration_days` (130 bars) and `vcp.invalidation` (spec §25). Configuration loading refuses a base plus prior advance longer than the data-quality block lifetime (253 bars).
 - The VCP result objects now carry every measurement the database schema stores (swings with confirmation dates, contractions, pivot candidates, base and pass/fail measurements, gate verdicts) and refuse contradictory states, such as a production VCP outside the Trend Template or two provisional contractions.
