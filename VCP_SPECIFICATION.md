@@ -499,6 +499,17 @@ Candidate sources:
 
 The detector generates candidates and selects a primary pivot deterministically.
 
+
+# 19A. Pivot Candidates and Selection Rule (Phase 6 step 5, 2026-10-02)
+
+§19 lists the sources but no selection rule, and §20 names `touches` and `rejection_count` without definitions. Implemented in `patterns/vcp/pivots.py` (owner allowed improvements with documentation, 2026-10-02):
+
+- **Candidates**: `BASE_HIGH` (the base start); `SWING_HIGH` (the final contraction's peak, i.e. the last kept swing high); `RIGHT_SIDE_HIGH` (highest high of the last `pivot.right_side_window_days` bars); `REPEATED_RESISTANCE` (≥ 2 confirmed swing highs in the base, merged noise peaks included, within `pivot.level_tolerance_pct` (1.5 %) of the cluster's highest; level = that highest price, dated at the cluster's latest swing). A candidate at the same date and price as another is kept once, labelled BASE_HIGH > SWING_HIGH > RIGHT_SIDE_HIGH > REPEATED_RESISTANCE.
+- **Touches** = visits to the zone `high ≥ P × (1 − level_tolerance)`: runs of consecutive bars from the base start to the as-of bar. **Rejections** = finished visits with no close above P (a visit still open at the as-of bar is not one).
+- **`distance_to_close_pct`** = (P − close) ÷ close × 100 (negative when the close is above the pivot). **`right_side_tightness_pct`** = range of the bars after the pivot within the right-side window (NULL if none).
+- **Primary** (first that applies): (1) right side tight (`tight_pivot_pass`) and its high ≥ close → the right-side high, the top of the tight area; (2) a contraction exists → the final contraction's peak; (3) the base high. Every candidate is stored (DATABASE_SCHEMA 33), so other rules can be tested later without re-detection.
+- A close already above the primary pivot (60 of 1,198 bases on 2026-10-01, e.g. ABDL, whose unconfirmed 753.80 high of 09-25 is above its base high) is a status question (breakout / failed breakout), handled with the statuses in Phase 6 step 6.
+
 ---
 
 # 20. Pivot Candidate
@@ -1364,6 +1375,7 @@ vcp:
     max_distance_pct: 3.0
     right_side_window_days: 10
     max_right_side_range_pct: 5.0
+    level_tolerance_pct: 1.5
 
   confirmation:
     allow_provisional_final_contraction: true

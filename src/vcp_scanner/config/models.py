@@ -146,6 +146,9 @@ class VCPPivotConfig(StrictBaseModel):
     max_distance_pct: Annotated[float, Field(gt=0)] = 3.0
     right_side_window_days: Annotated[int, Field(ge=1)] = 10
     max_right_side_range_pct: Annotated[float, Field(gt=0)] = 5.0
+    # Price band for a pivot level: swing highs within it form repeated resistance, and a
+    # bar whose high reaches it touches the level (VCP_SPECIFICATION 19A).
+    level_tolerance_pct: Annotated[float, Field(gt=0, lt=10)] = 1.5
 
 
 class VCPConfirmationConfig(StrictBaseModel):

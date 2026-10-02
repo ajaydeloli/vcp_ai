@@ -53,6 +53,7 @@ vcp:
     max_distance_pct: 3.0
     right_side_window_days: 10
     max_right_side_range_pct: 5.0
+    level_tolerance_pct: 1.5
 
   confirmation:
     allow_provisional_final_contraction: true

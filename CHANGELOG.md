@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (Phase 6 step 5: pivots)
+- Each base lists its possible pivots (base high, last swing high, top of the last 10 days, repeated resistance), each with its distance from the close and how often price touched and was turned back there. One is chosen as the main pivot by a fixed rule: the top of a tight right side if there is one, otherwise the last swing high.
+
 ### Fixed (Phase 6: sharp swings are not noise)
 - A sharp move of 4 % or more in one or two bars is no longer merged away as noise when finding contractions. Before, nearly all merges (921 of 966 on 2026-10-01) removed such moves, e.g. ABDL's 9 % two-day rally, which hid a real contraction. `vcp.swing.short_swing_max_depth_pct: 100` restores the old rule.
 

@@ -1458,3 +1458,15 @@ Worktree `vcp_ai_p6s4`, branch `p6-step4-measurements`. Owner, 2026-10-02: gaps 
 **Real-data check** (read-only on the 08:35 backup, 2026-10-01): 1,198 bases as before; median merged peaks per base 1 → 0; contraction counts shift up (1: 304 → 261; 7+: 64 → 210); bases with no contraction 19 → 0 (their final 1–2-bar drops of ≥ 4 % now count). Trend Template passers with ≥ 2 contractions 66 → 79; rough tightening preview 38 → 44. ABDL: T1 18.5 %, T2 10.7 %, T3 8.4 %, **T4 8.9 %** (was missing). As-of check 100 × 29: 0 mismatches.
 
 **Verification.** Full suite: 1,040 passed, 0 failed. `ruff check`, `ruff format --check`, `mypy --strict src` clean.
+
+## Phase 6 step 5 — pivot candidates and selection (2026-10-02)
+
+Worktree `vcp_ai_p6s5`, branch `p6-step5-pivots` (after Fix S1 above, found in this step's spot checks).
+
+**Change.** `patterns/vcp/pivots.py`: `select_pivots(series, segmentation, measurements, config) -> PivotSelection` (all candidates + the primary), producing domain `PivotCandidate`s. Definitions and the selection rule are new VCP_SPECIFICATION §19A (spec gaps filled: §19 had no selection rule, §20 no definition of touches/rejections). New key `vcp.pivot.level_tolerance_pct` (1.5) in the §60 contract and `strategy.yaml`.
+
+**Tests** (`test_vcp_pivots.py`, 10): classic base → final contraction's peak when the right side is loose (at a 3 % cap) and the right-side top when it is tight (5 %); a flat tight area → its top; repeated resistance at 150/149 with 2 touches and 2 rejections on the base high; no contraction → base high; duplicates keep the structural label; touch/rejection counting (finished vs open visit, close above, consecutive bars = one visit); no base, mismatched series, determinism.
+
+**Real-data check** (read-only on the 08:35 backup, 2026-10-01, with Fix S1): 1,198 bases in 1.1 s. Primary pivot: final contraction's peak 930, base high 259, right-side high 9 (tight right sides are rare, step 4 I3). Candidates per base 1–7 (median 3); 561 bases have repeated resistance. Primary distance: median 10.3 % (all), 6.1 % (passers); within 0–3 %: 60 (all), 25 (passers); close above the pivot: 60 (all), 35 (passers). Spot checks: AJANTPHARM pivot 3,630 (1.4 % away, 6 touches, 4 rejections); ALIVUS 1,446 (5.2 %); ASKAUTOLTD 678.75 with repeated resistance at the base high 687.70. **For step 6:** ABDL (pivot 643.90, close 679.45, unconfirmed new high 753.80 above the base high 711.70) and AJANTPHARM (traded to 3,758.90 above its 3,630 pivot on 09-30, closed back below) need breakout / failed-breakout statuses.
+
+**Verification.** Full suite: 1,050 passed, 0 failed. `ruff check`, `ruff format --check`, `mypy --strict src` clean.
