@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (capital reductions; owner decision 2026-10-02)
+- Capital reductions are their own corporate-action type, `CAPITAL_REDUCTION`. They never adjust prices and always show a warning for manual review; a reviewed entry in `config/manual_corporate_actions.yaml` (kind, share counts, cash per cancelled share) marks the warning as reviewed. Reviewed entries for MAXIND (2022 tender at Rs 85) and EASTSILK (2024 resolution plan), and UEL's 2024 demerger as reviewed with no price adjustment.
+
 ### Changed (RS rank 1–99, `rs-1.1.0`; owner decision 2026-10-02)
 - RS ranks now run 1–99: the strongest stock is 99, the weakest 1. The old formula counted each stock half against itself, so the top rank was 98. Ranks move up slightly, so a few stocks near the Trend Template's RS minimum (70) can change from FAIL to PASS. `strategy.rs.version: rs-1.0.0` keeps the old formula for re-running old scans.
 

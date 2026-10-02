@@ -1324,3 +1324,20 @@ Order: C7, C9, C10, C6, C5, C8 (C8 last: the only one that changes scan results)
 ### Clean-up batch 2 applied to the main DB (owner approved; 05:53–05:58 IST 2026-10-02, code at 3e5beac)
 
 `cleanup-2` fast-forwarded into `main` and pushed. Backup `data/backups/vcp_scanner_20261002_002345.duckdb` (B1's rolling backups, under the daily-run lock). `migrate()` seeded the event history; `vcp quality scan` (C10: 2 more blocking events, both expired; 633 blocking signals; history 859 intervals = 857 seeded + the 2 flips); universe `uv_20261001_0d8e467c70`, 1,257 eligible; RS `rs-1.1.0`, top rank 99; Trend Template 203 PASS / 1,048 FAIL / 6 INSUFFICIENT_DATA, scan run `run-20261001-20261002T002649655400Z`, results hash `8bdc231dc0f6fb4c` (identical to the copy). The merge removed the untracked-now `scratch/` files from the main checkout (C9 untracks them); they were copied back from the worktree and are ignored by git.
+
+## Fix C11 — capital reductions as their own class; reviewed MAXIND, EASTSILK, UEL (2026-10-02)
+
+**Owner research** (2026-10-02): MAXIND 2022 was a tender-based reduction, up to 20 % of the shares cancelled at Rs 85 each (5,37,86,261 → 4,30,29,009, the cap of 1,07,57,252 cancelled); EASTSILK 2024 an IBC resolution-plan reduction (old equity extinguished, 50,00,000 new Rs 2 shares to the resolution applicant); MELSTAR 2024 similar (public holding cancelled; 27,93,661 shares after); UEL 2024 a demerger under the resolution plan, record date 2024-05-22; DTIL's 2026-08-12 dividend reported only by Upstox stays a warning. Decision: capital reduction is its own corporate-action class, never a price adjustment, always a warning for manual review; UEL gets a reviewed demerger with factor 1.0.
+
+**Data check** (main DB, read-only): MAXIND and EASTSILK had UNMODELLED NSE records and open warnings; EASTSILK also has a blocking `TRADING_ABSENCE` on its 2025-08-18 return under a new ISIN (expired by the block lifetime). **MELSTAR has no NSE corporate-action record and its bars end 2024-09-02** (it left the universe as stale), so no entry was made: there is no ex-date to record it on. UEL's 2024-05-22 demerger had an open blocking `factor_unknown` event (expired): the price rose from 43.80 (2024-05-21) to 153.30 (2024-05-27, upper-circuit relisting), so no demerged value can be measured.
+
+**Change.**
+- `CorporateActionType.CAPITAL_REDUCTION`. The NSE parser stores "Capital Reduction" records under it (with the record text) instead of UNMODELLED. It is in no ratio or derived-factor set, so it never adjusts prices or explains a gap.
+- `unmodelled_action_events` raises one warning per capital reduction (same event id as before), `context.price_adjustment = NONE`, `manual_review = PENDING | DONE` (`MANUAL_OVERRIDE` = reviewed; the warning stays). An older UNMODELLED reading of the same NSE record is reported once. `corporate_action_events` treats both as superseding older ratio-less readings.
+- `ManualActionEntry`: `CAPITAL_REDUCTION` with required `reduction_kind`, optional `shares_before`, `shares_after`, `cash_amount` (consideration per cancelled share), no ratio; these fields are refused on other types. The stored record text starts with `[kind; price adjustment NONE; shares ...; Rs ... per cancelled share]`.
+- `config/manual_corporate_actions.yaml`: reviewed MAXIND and EASTSILK capital reductions; UEL demerger `price_factor: 1.0` with the reasoning.
+- DATA_SPECIFICATION §18A.
+
+**Tests** (`test_capital_reduction.py`, updated `test_unmodelled_actions.py`, `test_consolidation.py`, `test_manual_corporate_actions.py`): NSE capital-reduction records get the new type; manual entries take details but never a ratio and need `reduction_kind`; an unreviewed reduction warns once (old UNMODELLED reading folded in), PENDING, never adjusts; a reviewed one is MANUAL_OVERRIDE, still warns, marked DONE; the project file holds the three entries.
+
+**Verification.** Full suite: 872 passed, 0 failed. `ruff check`, `ruff format --check`, `mypy --strict src` clean.

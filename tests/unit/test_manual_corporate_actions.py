@@ -55,6 +55,9 @@ def test_repository_file_holds_the_verified_overrides() -> None:
         ("GICL", T.SPLIT, date(2025, 10, 15), (10.0, 5.0)),
         ("GICL", T.BONUS, date(2025, 10, 15), (1.0, 1.0)),
         ("JSLL", T.SPLIT, date(2025, 6, 12), (10.0, 2.0)),
+        ("MAXIND", T.CAPITAL_REDUCTION, date(2022, 7, 26), None),
+        ("EASTSILK", T.CAPITAL_REDUCTION, date(2024, 11, 22), None),
+        ("UEL", T.DEMERGER, date(2024, 5, 22), None),
     }
 
 

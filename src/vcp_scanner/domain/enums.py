@@ -173,6 +173,10 @@ class CorporateActionType(StrEnum):
     # Price-affecting but not modelled (capital reduction, merger, scheme, non-equity rights or
     # bonus): kept so it is visible as a warning (audit P1-10); never adjusts prices.
     UNMODELLED = "UNMODELLED"
+    # Cancelling shares or extinguishing equity (tender-based reduction, IBC/NCLT resolution
+    # plan). Never a price factor: the economics differ case by case (cash consideration,
+    # extinguished holders). Always a warning for manual review (owner decision 2026-10-02).
+    CAPITAL_REDUCTION = "CAPITAL_REDUCTION"
 
 
 @unique

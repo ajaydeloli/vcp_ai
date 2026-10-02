@@ -33,11 +33,22 @@ def unmodelled_action_events(
     with ``vcp quality resolve``.
     """
     handled = {r.ex_date for r in resolutions if r.status is CorporateActionStatus.MANUAL_OVERRIDE}
-    events: list[DataQualityEvent] = []
+    reductions = {
+        r.ex_date: r
+        for r in resolutions
+        if r.instrument_id == instrument_id
+        and r.action_type is CorporateActionType.CAPITAL_REDUCTION
+        and r.ex_date is not None
+    }
+    events: list[DataQualityEvent] = [
+        _capital_reduction_event(instrument_id, r, ex, detected_at) for ex, r in reductions.items()
+    ]
     for r in resolutions:
         if r.instrument_id != instrument_id or r.action_type is not CorporateActionType.UNMODELLED:
             continue
-        if r.ex_date is None or r.ex_date in handled:
+        # An older UNMODELLED reading of a record now stored as CAPITAL_REDUCTION is the same
+        # NSE record: reported once, as the capital reduction.
+        if r.ex_date is None or r.ex_date in handled or r.ex_date in reductions:
             continue
         ex = r.ex_date.isoformat()
         events.append(
@@ -62,6 +73,45 @@ def unmodelled_action_events(
             )
         )
     return events
+
+
+def _capital_reduction_event(
+    instrument_id: str, r: CorporateActionResolution, ex_date: date, detected_at: datetime
+) -> DataQualityEvent:
+    """A capital reduction stays a warning, reviewed or not (owner decision 2026-10-02).
+
+    Prices are never adjusted for it: a tender-based reduction pays cash for the cancelled
+    shares, and an IBC resolution plan extinguishes the old holders; neither is a split. A
+    hand-entered, reviewed record (``MANUAL_OVERRIDE``) is marked as reviewed in the warning.
+    """
+    ex = ex_date.isoformat()
+    reviewed = r.status is CorporateActionStatus.MANUAL_OVERRIDE
+    review = (
+        "reviewed by hand (config/manual_corporate_actions.yaml)"
+        if reviewed
+        else "not yet reviewed: check the scheme and enter it in "
+        "config/manual_corporate_actions.yaml"
+    )
+    return DataQualityEvent(
+        event_id=make_event_id(DataQualityFlag.CORPORATE_ACTION_UNMODELLED, instrument_id, ex),
+        instrument_id=instrument_id,
+        flag=DataQualityFlag.CORPORATE_ACTION_UNMODELLED,
+        severity=EventSeverity.WARNING,
+        detected_at=detected_at,
+        description=(
+            f"Capital reduction on {ex}: prices are not adjusted (it is not a split); {review}."
+        ),
+        context={
+            "ex_date": ex,
+            "resolution_id": r.resolution_id,
+            "action_type": CorporateActionType.CAPITAL_REDUCTION.value,
+            "price_adjustment": "NONE",
+            "manual_review": "DONE" if reviewed else "PENDING",
+        },
+        trade_date=ex_date,
+        blocks_signal=False,
+        dataset="corporate_actions",
+    )
 
 
 def corporate_action_events(
@@ -108,7 +158,8 @@ def corporate_action_events(
     unmodelled = {
         r.ex_date
         for r in resolutions
-        if r.action_type is CorporateActionType.UNMODELLED and r.ex_date is not None
+        if r.action_type in (CorporateActionType.UNMODELLED, CorporateActionType.CAPITAL_REDUCTION)
+        and r.ex_date is not None
     }
     for r in resolutions:
         if r.instrument_id != instrument_id:

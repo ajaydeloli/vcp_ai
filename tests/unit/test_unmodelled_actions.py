@@ -31,9 +31,10 @@ def _parse(record: dict[str, object]):  # noqa: ANN202
     return p._parse_nse_action(record), p
 
 
-def test_capital_reduction_is_kept_as_unmodelled_with_its_text() -> None:
+def test_capital_reduction_is_its_own_type_with_its_text() -> None:
+    """Owner decision 2026-10-02: CAPITAL_REDUCTION, not UNMODELLED (still never adjusts)."""
     action, p = _parse(EASTSILK)
-    assert action is not None and action.action_type is T.UNMODELLED
+    assert action is not None and action.action_type is T.CAPITAL_REDUCTION
     assert action.ex_date == date(2024, 11, 22)
     assert action.source_record_id == "CAPITAL REDUCTION"
     assert p.unhandled_records == ["EASTSILK: CAPITAL REDUCTION"]

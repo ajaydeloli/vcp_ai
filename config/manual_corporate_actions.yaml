@@ -7,6 +7,9 @@
 #   BONUS  [bonus shares, shares held]        1 bonus for every 2 held is [1, 2]
 #   RIGHTS [rights shares, shares held] with cash_amount = issue price (face value + premium)
 #   DEMERGER: no ratio; price_factor = the parent's price after / before (0 < f <= 1)
+#   CAPITAL_REDUCTION: no ratio, never adjusts prices; reduction_kind (VOLUNTARY_TENDER,
+#     IBC_RESOLUTION_PLAN, OTHER), optional shares_before/shares_after, cash_amount = cash per
+#     cancelled share. Keeps a warning marked "reviewed".
 # The ex-date is the first session the shares trade without the entitlement (with T+1
 # settlement, NSE's ex-date equals the record date). Check it against the bhavcopy: the price
 # jump, and for a split the ISIN change, fall on it.
@@ -59,3 +62,48 @@ actions:
       INE0J5801011 -> INE0J5801029 and close 2250.95 -> open 460.00 on 2025-06-12.
     approved_by: Ajay
     entered_on: 2026-10-01
+
+  # Capital reductions: reviewed records, never a price adjustment (owner decision 2026-10-02).
+  - symbol: MAXIND
+    action_type: CAPITAL_REDUCTION
+    ex_date: 2022-07-26
+    reduction_kind: VOLUNTARY_TENDER
+    shares_before: 53786261
+    shares_after: 43029009
+    cash_amount: 85
+    evidence: >-
+      NCLT-approved capital reduction (NSE record "Capital Reduction Pursuant To NCLT Order",
+      ex 2022-07-26). Up to 20 % of the shares could be cancelled against tender at Rs 85
+      each; the cap of 1,07,57,252 shares was cancelled (5,37,86,261 -> 4,30,29,009). Tender
+      with cash consideration, not a split: no price factor. Sources: NSE India archives,
+      Goodreturns (owner research 2026-10-02).
+    approved_by: Ajay
+    entered_on: 2026-10-02
+
+  - symbol: EASTSILK
+    action_type: CAPITAL_REDUCTION
+    ex_date: 2024-11-22
+    reduction_kind: IBC_RESOLUTION_PLAN
+    evidence: >-
+      Capital reduction under the NCLT-approved resolution plan (NSE record "Capital
+      Reduction", ex 2024-11-22): the existing equity was extinguished and 50,00,000 new Rs 2
+      shares were issued to the successful resolution applicant. Not representable as a split;
+      the stock returned on 2025-08-18 under ISIN INE962C01035 after 357 missed sessions
+      (TRADING_ABSENCE restarts its history). Source: NSE India archives (owner research
+      2026-10-02).
+    approved_by: Ajay
+    entered_on: 2026-10-02
+
+  # Demerger reviewed by hand: no price factor can be measured (owner decision 2026-10-02).
+  - symbol: UEL
+    action_type: DEMERGER
+    ex_date: 2024-05-22
+    price_factor: 1.0
+    evidence: >-
+      Demerger implemented under the IBC resolution plan, record date 2024-05-22 (Value
+      Research). The ex-date price rose (43.80 on 2024-05-21 -> 153.30 open on 2024-05-27,
+      upper-circuit relisting), so no demerged value can be measured from prices; factor 1.0
+      (no adjustment) until a scheme-derived factor is available. The +250 % gap stays a
+      warning.
+    approved_by: Ajay
+    entered_on: 2026-10-02

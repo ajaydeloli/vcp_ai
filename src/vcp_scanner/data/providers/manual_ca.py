@@ -10,7 +10,8 @@ File format::
     actions:
       - symbol: JSLL
         isin: INE0J5801029          # optional; resolves the instrument before the symbol
-        action_type: SPLIT          # SPLIT, BONUS, RIGHTS, DEMERGER or DIVIDEND
+        action_type: SPLIT          # SPLIT, BONUS, RIGHTS, DEMERGER, DIVIDEND or
+                                    # CAPITAL_REDUCTION (a reviewed record; never adjusts)
                                     # DEMERGER takes price_factor (0 < f <= 1), not ratio
         ex_date: 2025-06-12
         ratio: [10, 2]              # same conventions as the NSE parser
@@ -27,7 +28,7 @@ from __future__ import annotations
 
 from datetime import date
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Literal
 
 import yaml
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
@@ -59,6 +60,11 @@ class ManualActionEntry(BaseModel):
     #: DEMERGER only: the parent's price factor (0 < f <= 1), e.g. 0.9079 when 9.21 % of the
     #: value left with the demerged business. Stored as the ratio f:1.
     price_factor: Annotated[float | None, Field(gt=0, le=1)] = None
+    #: CAPITAL_REDUCTION only: what kind it was and the share counts, for the record and the
+    #: warning. ``cash_amount`` is the consideration paid per cancelled share, if any.
+    reduction_kind: Literal["VOLUNTARY_TENDER", "IBC_RESOLUTION_PLAN", "OTHER"] | None = None
+    shares_before: Annotated[int | None, Field(gt=0)] = None
+    shares_after: Annotated[int | None, Field(ge=0)] = None
     evidence: Annotated[str, Field(min_length=10)]
     approved_by: Annotated[str, Field(min_length=1)]
     entered_on: date
@@ -77,7 +83,28 @@ class ManualActionEntry(BaseModel):
             raise ValueError("a split's old and new face values must differ")
         if self.action_type is CorporateActionType.RIGHTS and self.cash_amount is None:
             raise ValueError("RIGHTS needs cash_amount (issue price)")
+        is_reduction = self.action_type is CorporateActionType.CAPITAL_REDUCTION
+        if is_reduction and self.ratio is not None:
+            raise ValueError("CAPITAL_REDUCTION never adjusts prices: no ratio")
+        if is_reduction and self.reduction_kind is None:
+            raise ValueError("CAPITAL_REDUCTION needs reduction_kind")
+        details = (self.reduction_kind, self.shares_before, self.shares_after)
+        if not is_reduction and any(v is not None for v in details):
+            raise ValueError("reduction_kind and share counts are only for CAPITAL_REDUCTION")
         return self
+
+    def record_text(self) -> str:
+        """What is stored as the raw action's ``source_record_id``."""
+        head = f"{self.approved_by} {self.entered_on.isoformat()}: "
+        if self.action_type is CorporateActionType.CAPITAL_REDUCTION:
+            shares = (
+                f" shares {self.shares_before:,} -> {self.shares_after:,};"
+                if self.shares_before is not None and self.shares_after is not None
+                else ""
+            )
+            paid = f" Rs {self.cash_amount:g} per cancelled share;" if self.cash_amount else ""
+            head += f"[{self.reduction_kind}; price adjustment NONE;{shares}{paid}] "
+        return head + self.evidence
 
 
 class _ManualFile(BaseModel):
@@ -149,7 +176,7 @@ class ManualCorporateActionProvider:
                     ratio_numerator=num,
                     ratio_denominator=den,
                     cash_amount=e.cash_amount,
-                    source_record_id=f"{e.approved_by} {e.entered_on.isoformat()}: {e.evidence}",
+                    source_record_id=e.record_text(),
                 )
             )
         return actions

@@ -231,6 +231,13 @@ class NSECorporateActionProvider:
                 action_type = CorporateActionType.DIVIDEND
             elif "RIGHTS" in text and not _NON_EQUITY_RE.search(text):
                 action_type = CorporateActionType.RIGHTS
+            elif "CAPITAL REDUCTION" in text or ("REDUCTION" in text and "CAPITAL" in text):
+                # Its own class (owner decision 2026-10-02): never a price factor, always a
+                # warning for manual review (MAXIND 2022, EASTSILK 2024).
+                action_type = CorporateActionType.CAPITAL_REDUCTION
+                described = f"{item.get('symbol', '?')}: {text.strip()}"
+                self.unhandled_records.append(described)
+                logger.warning("Capital reduction (manual review): %s", described)
             elif "RIGHTS" in text or any(marker in text for marker in _UNHANDLED_MARKERS):
                 # Price-affecting, but not modelled (capital reduction, merger, scheme, a bonus
                 # of debentures, rights in CCPS/warrants/NCDs). Audit P1-10: stored as an
@@ -307,7 +314,8 @@ class NSECorporateActionProvider:
                 # so the warning can say what NSE listed.
                 source_record_id=(
                     text.strip()[:300]
-                    if action_type is CorporateActionType.UNMODELLED
+                    if action_type
+                    in (CorporateActionType.UNMODELLED, CorporateActionType.CAPITAL_REDUCTION)
                     else item.get("ndStartDate")
                 ),
             )

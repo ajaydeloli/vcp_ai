@@ -61,10 +61,10 @@ def test_consolidation_without_two_face_values_is_reported_unparsed() -> None:
 
 
 @pytest.mark.parametrize("record", [MAXIND, EASTSILK], ids=["MAXIND", "EASTSILK"])
-def test_capital_reduction_stays_unhandled_and_reported(record: dict[str, Any]) -> None:
+def test_capital_reduction_is_reported_as_its_own_type(record: dict[str, Any]) -> None:
     p = _provider()
-    action = p._parse_nse_action(record)  # audit P1-10: kept as UNMODELLED, not dropped
-    assert action is not None and action.action_type is T.UNMODELLED
+    action = p._parse_nse_action(record)  # owner decision 2026-10-02: CAPITAL_REDUCTION
+    assert action is not None and action.action_type is T.CAPITAL_REDUCTION
     assert action.ratio_numerator is None and p.unparsed_ratios == []
     assert p.unhandled_records == [f"{record['symbol']}: {record['subject'].upper()}"]
 
