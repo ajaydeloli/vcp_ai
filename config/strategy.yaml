@@ -72,6 +72,9 @@ vcp:
     base_low_break_pct: 2.0
     volatility_expansion_multiple: 2.0
 
+  breakout:
+    min_volume_ratio: 1.5
+
 classification:
   a_plus:
     min_contractions: 3

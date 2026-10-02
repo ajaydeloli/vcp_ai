@@ -34,6 +34,11 @@ Primary pivot (first rule that applies):
 3. otherwise the base high.
 The primary is the candidate at that bar, whatever label it carries after de-duplication.
 
+The **structural pivot** (rules 2-3 alone) is reported too. Breakouts in a stateless as-of run
+are measured against it, because a right-side high moves with every new bar (the breakout bar
+itself joins the window); breakouts of a right-side pivot are recorded by the daily run against
+the pivot stored the day before (VCP_SPECIFICATION 47, 61B).
+
 These are hypotheses for the golden dataset and backtests; every candidate is kept (DATABASE_SCHEMA
 33) so other rules can be compared later without re-detection.
 """
@@ -58,10 +63,13 @@ _SOURCE_ORDER = (
 
 @dataclass(frozen=True, slots=True)
 class PivotSelection:
-    """All candidates (ordered by source priority, then date) and the primary one."""
+    """All candidates (ordered by source priority, then date), the primary one, and the
+    structural one (the final contraction's peak, else the base high; rules 2-3) that breakouts
+    are measured against in a stateless as-of run (VCP_SPECIFICATION 61B)."""
 
     candidates: tuple[PivotCandidate, ...]
     primary: PivotCandidate | None
+    structural: PivotCandidate | None = None
 
 
 def _visits(series: PriceSeries, start: int, n: int, price: float, tol: float) -> tuple[int, int]:
@@ -157,11 +165,10 @@ def select_pivots(
             )
     candidates = tuple(seen.values())
 
-    rs_tight = measures.tight_pivot_pass and series.high[rs_i] >= close
-    if rs_tight:
-        key = (rs_i, series.high[rs_i])  # rule 1
-    elif base.contractions:
-        key = (base.contractions[-1].peak_index, base.contractions[-1].peak_price)  # rule 2
+    if base.contractions:
+        structural = (base.contractions[-1].peak_index, base.contractions[-1].peak_price)
     else:
-        key = (b, base.base_high)  # rule 3
-    return PivotSelection(candidates, seen[key])
+        structural = (b, base.base_high)
+    rs_tight = measures.tight_pivot_pass and series.high[rs_i] >= close
+    key = (rs_i, series.high[rs_i]) if rs_tight else structural  # rule 1, else rules 2-3
+    return PivotSelection(candidates, seen[key], seen[structural])

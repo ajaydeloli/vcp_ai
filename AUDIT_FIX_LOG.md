@@ -1470,3 +1470,23 @@ Worktree `vcp_ai_p6s5`, branch `p6-step5-pivots` (after Fix S1 above, found in t
 **Real-data check** (read-only on the 08:35 backup, 2026-10-01, with Fix S1): 1,198 bases in 1.1 s. Primary pivot: final contraction's peak 930, base high 259, right-side high 9 (tight right sides are rare, step 4 I3). Candidates per base 1–7 (median 3); 561 bases have repeated resistance. Primary distance: median 10.3 % (all), 6.1 % (passers); within 0–3 %: 60 (all), 25 (passers); close above the pivot: 60 (all), 35 (passers). Spot checks: AJANTPHARM pivot 3,630 (1.4 % away, 6 touches, 4 rejections); ALIVUS 1,446 (5.2 %); ASKAUTOLTD 678.75 with repeated resistance at the base high 687.70. **For step 6:** ABDL (pivot 643.90, close 679.45, unconfirmed new high 753.80 above the base high 711.70) and AJANTPHARM (traded to 3,758.90 above its 3,630 pivot on 09-30, closed back below) need breakout / failed-breakout statuses.
 
 **Verification.** Full suite: 1,050 passed, 0 failed. `ruff check`, `ruff format --check`, `mypy --strict src` clean.
+
+## Phase 6 step 6 — classifier, invalidation, breakout, status, primary pattern (2026-10-02)
+
+Worktree `vcp_ai_p6s6`, branch `p6-step6-classifier`. Status and invalidation rules were sent to the owner with alternatives at 11:30 IST (★ recommendations built; owner may still change them). Rules are in new VCP_SPECIFICATION §61B.
+
+**Change.**
+- `patterns/vcp/classifier.py`: `classify` (tiers per §28–31 with per-tier unmet rules), `invalidation_reasons` (TREND_TEMPLATE_FAIL; BASE_STRUCTURE_FAIL = close > 2 % below the base low before the final contraction; EXCESS_VOLATILITY = last-10-bar true range ≥ 2 × T1's), `find_breakout` (first close above the structural pivot on ≥ 1.5 × prior 50-bar volume), `decide_status` (data state → INVALIDATED → BREAKOUT/FAILED → PIVOT_READY → FORMING).
+- `patterns/vcp/detector.py`: `VCPDetector.detect(instrument, series, as_of, trend_template_pass, weekly_stage2_pass, data_state)` → `VCPDetection` (domain `VCPPattern` with all measurements and pivot candidates, plus the segmentation, measurements, pivots, classification detail and breakout for explainability); `select_primary` (§61A order). Quality fields stay NULL (scoring phase).
+- `pivots.PivotSelection.structural`: the final contraction's peak (else base high). **Design point found while testing:** a right-side pivot is the highest high of the last 10 bars, so the breakout bar itself always joins it and a stateless as-of run can never see a close above it. Breakouts are therefore measured against the structural pivot; right-side-pivot breakouts are recorded by the daily run against the previous day's stored pivot (§47, step 7).
+- New key `vcp.breakout.min_volume_ratio` (1.5) in the §60 contract and `strategy.yaml`; `VCPInvalidationConfig` docstring points at §61B.
+
+**Tests** (`test_vcp_classifier.py`, 13): classic tight base → A_PLUS_VCP, PIVOT_READY, CONFIRMED, right-side pivot 0–3 % away; Trend Template fail → VCP_LIKE + INVALIDATED (and FORMING with the switch off); missing weekly Stage 2 → VCP_LIKE; no dry-up → VCP with the single unmet A+ rule; final 13 % → VCP_LIKE; breakout on 2× volume → BREAKOUT with `base_end`, then a close back below → FAILED; close above without volume → not a breakout; base-low break and the 2 % allowance; excess volatility and its multiple; data states, a non-data state refused, NO_PRIOR_ADVANCE and INSUFFICIENT_DATA; too many contractions; §61A ordering; determinism and as-of safety.
+
+**Real-data check** (read-only on the 08:35 backup; 2026-10-01; gates from scan `trend-2026-10-01-e910a9987674`): 1,257 detections in 3.4 s.
+- All: no pattern 65 (59 NO_PRIOR_ADVANCE, 6 INSUFFICIENT_DATA); classification VCP_LIKE 532, NONE 660; status INVALIDATED 991 (TREND_TEMPLATE_FAIL 989, BASE_STRUCTURE_FAIL 309, EXCESS_VOLATILITY 3), FORMING 154, BREAKOUT 32, FAILED 15.
+- Trend Template passers (203): VCP_LIKE 66, NONE 137; BREAKOUT 32, FAILED 15, FORMING 154, INVALIDATED 2 (base structure); **no VCP or A_PLUS_VCP**. All 66 VCP_LIKE passers miss VCP on `require_tight_pivot`; 25 also on tightening, 11 on final depth.
+- Gates forced open (structure only), 2026-06-15 / 07-15 / 08-14 / 09-15 / 10-01: VCP + A+ = 5 / 11 / 16 / 10 / 1; VCP_LIKE short of VCP on the tight pivot alone: 138 / 170 / 195 / 135 / 143.
+- **Calibration finding (left as specified, raised with the owner):** the VCP tier allows a 12 % final contraction but `tight_pivot` requires the last 10 bars within 5 %, so any final contraction deeper than 5 % that lies inside the last 10 bars cannot be VCP. Recorded in §61B for the golden dataset to settle.
+
+**Verification.** Full suite: 1,063 passed, 0 failed. `ruff check`, `ruff format --check`, `mypy --strict src` clean.

@@ -139,6 +139,7 @@ SPEC_60_VCP = {
     "base": {"max_duration_days": 130},
     "invalidation": {"trend_template_failure": True, "base_low_break_pct": 2.0,
                      "volatility_expansion_multiple": 2.0},
+    "breakout": {"min_volume_ratio": 1.5},
 }  # fmt: skip
 
 SPEC_60_CLASSIFICATION = {

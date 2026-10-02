@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (Phase 6 step 6: classification and status)
+- **Classification.** Each stock's base is classified A+ VCP, VCP, VCP-like or none, with the rules it missed for each class.
+- **Status.** The status is one of:
+  - forming;
+  - pivot-ready: within 3 % of the pivot;
+  - breakout: closed above the pivot on 1.5× volume;
+  - failed: back below the pivot after a breakout;
+  - invalidated: trend failure, the base low broken, or volatility doubling;
+  - a data status when the data isn't usable.
+- **Production classes.** VCP and A+ need the Trend Template and weekly Stage 2; otherwise a base is at most VCP-like, for research.
+
 ### Added (Phase 6 step 5: pivots)
 - Each base lists its possible pivots (base high, last swing high, top of the last 10 days, repeated resistance), each with its distance from the close and how often price touched and was turned back there. One is chosen as the main pivot by a fixed rule: the top of a tight right side if there is one, otherwise the last swing high.
 

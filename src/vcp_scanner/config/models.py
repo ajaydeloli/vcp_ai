@@ -158,6 +158,13 @@ class VCPConfirmationConfig(StrictBaseModel):
     include_provisional_in_ranking: bool = False
 
 
+class VCPBreakoutConfig(StrictBaseModel):
+    """VCP_SPECIFICATION 45, 61B ``vcp.breakout``: a close above the pivot is a breakout only on
+    volume of at least ``min_volume_ratio`` x the mean of the 50 bars before it."""
+
+    min_volume_ratio: Annotated[float, Field(gt=0)] = 1.5
+
+
 class VCPPriorAdvanceConfig(StrictBaseModel):
     """VCP_SPECIFICATION sections 7, 8.1 ``vcp.prior_advance``.
 
@@ -180,9 +187,8 @@ class VCPBaseConfig(StrictBaseModel):
 class VCPInvalidationConfig(StrictBaseModel):
     """VCP_SPECIFICATION sections 24-25 ``vcp.invalidation``.
 
-    Keys and defaults from section 25; the exact rules that read ``base_low_break_pct`` and
-    ``volatility_expansion_multiple`` are defined with the status logic (Phase 6 step 6).
-    All values are hypotheses.
+    Keys and defaults from section 25; the rules that read them are in VCP_SPECIFICATION 61B
+    (Phase 6 step 6). All values are hypotheses.
     """
 
     trend_template_failure: bool = True
@@ -208,6 +214,7 @@ class VCPThresholdsConfig(StrictBaseModel):
     prior_advance: VCPPriorAdvanceConfig = Field(default_factory=VCPPriorAdvanceConfig)
     base: VCPBaseConfig = Field(default_factory=VCPBaseConfig)
     invalidation: VCPInvalidationConfig = Field(default_factory=VCPInvalidationConfig)
+    breakout: VCPBreakoutConfig = Field(default_factory=VCPBreakoutConfig)
 
     @model_validator(mode="after")
     def validate_base_fits_contractions(self) -> VCPThresholdsConfig:

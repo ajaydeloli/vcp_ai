@@ -1394,6 +1394,9 @@ vcp:
     base_low_break_pct: 2.0
     volatility_expansion_multiple: 2.0
 
+  breakout:
+    min_volume_ratio: 1.5
+
 classification:
   a_plus:
     min_contractions: 3
@@ -1490,6 +1493,22 @@ Every qualifying candidate base is persisted (`is_primary = false`). The primary
 3. most recent `base_end`
 4. longer `base_duration_days`
 5. earlier `base_start`
+
+
+# 61B. Classification, Invalidation, Breakout and Status Rules (Phase 6 step 6, 2026-10-02)
+
+Implemented in `patterns/vcp/classifier.py` and `patterns/vcp/detector.py`. Rules marked ★ were proposed to the owner with alternatives on 2026-10-02 11:30 IST and built as recommended.
+
+- **Classification** (§28–31): the highest tier whose rules all hold (A_PLUS_VCP, VCP, VCP_LIKE, else NONE): contraction count in `[min_contractions, max_contractions or vcp.contractions.max]`, final depth ≤ `max_final_contraction_pct`, each required §18A criterion TRUE (NULL never satisfies), and for VCP/A_PLUS_VCP Trend Template PASS and weekly Stage 2. Unmet rules are reported per tier.
+- ★ **Trend failure**: `invalidation.trend_template_failure` and Trend Template not PASS → INVALIDATED (`TREND_TEMPLATE_FAIL`); classification is still measured, capped at VCP_LIKE.
+- ★ **Base structure**: with ≥ 2 contractions, close more than `base_low_break_pct` below the lowest low from the base start to the final contraction's peak → `BASE_STRUCTURE_FAIL`.
+- ★ **Excess volatility**: mean true range % of the last `pivot.right_side_window_days` bars ≥ `volatility_expansion_multiple` × T1's → `EXCESS_VOLATILITY`.
+- `PIVOT_STRUCTURE_FAIL` and `DATA_QUALITY_FAIL` are not raised in V1: data problems are data states, not invalidations.
+- ★ **Breakout** (§45): the first close above the **structural pivot** (the final contraction's peak, else the base high) after its date, on volume ≥ `breakout.min_volume_ratio` (1.5) × the mean of the 50 bars before it. A close above without that volume is not a breakout. The structural pivot is used because a right-side pivot moves with every new bar (the breakout bar joins the window); breakouts of a right-side pivot are recorded by the daily run against the previous day's stored pivot (§47, Phase 6 step 7). `base_end` = the breakout date.
+- ★ **Status precedence**: data state from the caller (DATA_NOT_READY, STALE_DATA, INSUFFICIENT_DATA) → INVALIDATED → BREAKOUT (close ≥ pivot) / FAILED (close back below) → PIVOT_READY (VCP or A_PLUS_VCP, primary pivot 0 – `pivot.max_distance_pct` above the close) → FORMING.
+- **No base**: `INSUFFICIENT_HISTORY` → INSUFFICIENT_DATA; `NO_PRIOR_ADVANCE` / `NO_CONFIRMED_SWING_HIGH` → no pattern, no status.
+- **Primary pattern** (§61A): one candidate base per date in V1, so it is primary; `select_primary` implements the §61A order for several.
+- **Calibration note (2026-10-02)**: the VCP tier allows a final contraction up to 12 % but `tight_pivot` caps the last 10 bars' range at 5 %, so a final contraction deeper than 5 % inside the last 10 bars cannot be VCP. With gates forced open, 5–16 stocks per date are VCP/A+ while 135–195 miss VCP on the tight pivot alone (2026-06-15 … 10-01). Left as specified for the golden dataset (§57) to calibrate.
 
 ---
 
