@@ -191,7 +191,7 @@ The prior-advance (§7) and invalidation (§25) keys join the §60 configuration
 
 - *Prior advance* = base high ÷ lowest low of the `lookback_days` bars ending at the base high − 1. If the highest swing high fails it, there is no base (no fallback to a lower high). With a shorter history a pass counts, a fail is `INSUFFICIENT_HISTORY`. On equal highs the earliest is the base start.
 - *Closed contraction*: peak k to the lowest low before peak k+1, confirmed on peak k+1's confirmation date.
-- *Noise* (item 2, §23) applies to both swings of a contraction: the decline (peak k to its low) and the rally out of the low (to peak k+1), each measured as (high − low) ÷ high and in bars. A noise decline removes peak k (for T1, peak 2); a noise rally removes peak k+1. Repeated until stable.
+- *Noise* (item 2, §23; narrowed by Fix S1): a swing is noise if shallower than `swing.min_depth_pct`, or shorter than `swing.min_duration_days` bars **and** shallower than `swing.short_swing_max_depth_pct` (4 %), because sharp one- or two-bar moves are real swings. It applies to both swings of a contraction: the decline (peak k to its low) and the rally out of the low (to peak k+1), each measured as (high − low) ÷ high and in bars. A noise decline removes peak k (for T1, peak 2); a noise rally removes peak k+1. Repeated until stable.
 - *Final contraction* (item 3, §9A): last peak to the lowest low since; confirmed once `swing.right_bars` bars follow that low without a lower low, else provisional; absent while that decline is itself noise.
 - `duration_days` = bars from peak to low; base low and base duration run from the base start to the as-of bar.
 
@@ -563,6 +563,7 @@ vcp:
   swing:
     min_depth_pct: 2.0
     min_duration_days: 3
+    short_swing_max_depth_pct: 4.0
 ```
 
 Where practical, movement significance should be normalized by ATR rather than relying only on fixed percentages.
@@ -1344,6 +1345,7 @@ vcp:
     right_bars: 5
     min_depth_pct: 2.0
     min_duration_days: 3
+    short_swing_max_depth_pct: 4.0
 
   progressive_tolerance_pct: 10
 

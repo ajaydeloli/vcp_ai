@@ -96,6 +96,19 @@ class VCPSwingConfig(StrictBaseModel):
     right_bars: Annotated[int, Field(ge=1)] = 5
     min_depth_pct: Annotated[float, Field(gt=0, lt=100)] = 2.0
     min_duration_days: Annotated[int, Field(ge=1)] = 3
+    # A swing shorter than ``min_duration_days`` is noise only if it is also shallower than
+    # this (VCP_SPECIFICATION 8.1, 23; 2026-10-02): sharp moves of several percent in one or
+    # two bars are real swings. 100 restores the plain "< 3 bars" rule.
+    short_swing_max_depth_pct: Annotated[float, Field(gt=0, le=100)] = 4.0
+
+    @model_validator(mode="after")
+    def validate_short_swing(self) -> VCPSwingConfig:
+        if self.short_swing_max_depth_pct < self.min_depth_pct:
+            raise ValueError(
+                f"short_swing_max_depth_pct ({self.short_swing_max_depth_pct}) must be >= "
+                f"min_depth_pct ({self.min_depth_pct})"
+            )
+        return self
 
 
 class VCPVolatilityConfig(StrictBaseModel):

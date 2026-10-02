@@ -205,8 +205,40 @@ def test_reads_nothing_after_as_of_and_keeps_invariants(seed: int) -> None:
         if full.base is None:
             continue
         cs = full.base.contractions
-        assert all(c.depth_pct >= 2.0 and c.duration_days >= 3 for c in cs)
+        assert all(c.depth_pct >= 2.0 for c in cs)
+        assert all(c.duration_days >= 3 or c.depth_pct >= 4.0 for c in cs)
         assert all(a.trough_index < b.peak_index for a, b in zip(cs, cs[1:], strict=False))
         assert all(c.is_confirmed for c in cs[:-1])
         assert all(c.peak_price <= full.base.base_high for c in cs)
         assert all(c.trough_price >= full.base.base_low for c in cs)
+
+
+def test_sharp_two_bar_rally_is_a_real_swing() -> None:
+    # T2's low is followed by a 9 % rally in 2 bars to a new peak, then T3: the peak is kept.
+    legs = [(20, 150), (10, 120), (10, 145), (6, 130.5), (2, 142.5), (5, 135), (5, 140)]
+    res, d = _run(_path(100, legs))
+    base = res.base
+    assert base is not None
+    assert [c.peak_date for c in base.contractions] == [d[20], d[40], d[48]]
+    assert base.merged_peak_dates == ()
+    # The plain "< 3 bars" rule (short_swing_max_depth_pct = 100) merges that peak away.
+    old, _ = _run(_path(100, legs), _cfg(swing={"short_swing_max_depth_pct": 100.0}))
+    assert d[48] in old.base.merged_peak_dates  # type: ignore[union-attr]
+
+
+def test_small_two_bar_dip_is_still_noise() -> None:
+    # After T1 a lower peak at 140 dips 3 % in 2 bars before rising to 145: merged.
+    legs = [(20, 150), (10, 120), (6, 140), (2, 135.8), (4, 145), (6, 130.5), (8, 142),
+            (5, 135), (5, 140)]  # fmt: skip
+    res, d = _run(_path(100, legs))
+    base = res.base
+    assert base is not None
+    assert d[36] in base.merged_peak_dates
+    assert [round(c.depth_pct) for c in base.contractions] == [20, 10, 5]
+
+
+def test_short_swing_threshold_validation() -> None:
+    from pydantic import ValidationError
+
+    with pytest.raises(ValidationError, match="short_swing_max_depth_pct"):
+        _cfg(swing={"short_swing_max_depth_pct": 1.0})

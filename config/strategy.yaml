@@ -34,6 +34,7 @@ vcp:
     right_bars: 5
     min_depth_pct: 2.0
     min_duration_days: 3
+    short_swing_max_depth_pct: 4.0
 
   progressive_tolerance_pct: 10
 

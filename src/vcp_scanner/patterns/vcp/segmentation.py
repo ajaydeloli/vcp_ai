@@ -12,8 +12,10 @@ Rules (owner decisions 2026-10-01, details as implemented 2026-10-02):
 3. **Closed contraction** k: from peak k to the lowest low strictly after it and before peak k+1
    (earliest bar on a tie). It is confirmed on peak k+1's confirmation date (its low can no
    longer change after that).
-4. **Noise** (section 23): a swing shallower than ``swing.min_depth_pct`` or shorter than
-   ``swing.min_duration_days`` bars is merged. Both swings of a closed contraction are tested,
+4. **Noise** (section 23): a swing shallower than ``swing.min_depth_pct``, or shorter than
+   ``swing.min_duration_days`` bars while also shallower than ``swing.short_swing_max_depth_pct``,
+   is merged (sharp moves of several percent in one or two bars are real swings). Both swings
+   of a closed contraction are tested,
    each as (high - low) / high x 100 and its bar count:
    - the decline from peak k to its low: if noise, peak k is removed, so the previous
      contraction runs on to the next peak (T1's peak is the base start and stays; its next peak
@@ -42,7 +44,7 @@ from dataclasses import dataclass
 from datetime import date
 from enum import StrEnum, unique
 
-from vcp_scanner.config.models import VCPThresholdsConfig
+from vcp_scanner.config.models import VCPSwingConfig, VCPThresholdsConfig
 from vcp_scanner.domain.vcp import Swing, depth_pct
 from vcp_scanner.patterns.vcp.swings import SwingSet, detect_swings
 
@@ -127,21 +129,29 @@ def _lowest(lows: Sequence[float], start: int, end: int) -> int | None:
     return best
 
 
+def _small(size_pct: float, bars: int, sw: VCPSwingConfig) -> bool:
+    """Rule 4: shallower than ``min_depth_pct``, or shorter than ``min_duration_days`` bars
+    while also shallower than ``short_swing_max_depth_pct``."""
+    return size_pct < sw.min_depth_pct or (
+        bars < sw.min_duration_days and size_pct < sw.short_swing_max_depth_pct
+    )
+
+
 def _is_noise(peak: int, trough: int | None, highs: Sequence[float], lows: Sequence[float],
-              min_depth: float, min_bars: int) -> bool:  # fmt: skip
+              sw: VCPSwingConfig) -> bool:  # fmt: skip
+    """The decline from a peak to its low."""
     if trough is None or lows[trough] >= highs[peak]:
         return True
-    return depth_pct(highs[peak], lows[trough]) < min_depth or trough - peak < min_bars
+    return _small(depth_pct(highs[peak], lows[trough]), trough - peak, sw)
 
 
 def _is_noise_rally(trough: int | None, next_peak: int, highs: Sequence[float],
-                    lows: Sequence[float], min_depth: float, min_bars: int) -> bool:  # fmt: skip
+                    lows: Sequence[float], sw: VCPSwingConfig) -> bool:  # fmt: skip
     """The rally from a contraction's low to the next peak, measured like a decline:
     (next peak high - low) / next peak high x 100, and bars from low to peak."""
     if trough is None:
         return True
-    rise = depth_pct(highs[next_peak], lows[trough])
-    return rise < min_depth or next_peak - trough < min_bars
+    return _small(depth_pct(highs[next_peak], lows[trough]), next_peak - trough, sw)
 
 
 def segment_base(
@@ -188,10 +198,7 @@ def segment_base(
             )
             return SegmentationResult(None, reason, swings)
 
-    peaks, merged = _merge_noise(
-        [b, *(i for i in sorted(high_swings) if i > b)], highs, lows, sw.min_depth_pct,
-        sw.min_duration_days,
-    )  # fmt: skip
+    peaks, merged = _merge_noise([b, *(i for i in sorted(high_swings) if i > b)], highs, lows, sw)
     contractions = _contractions(peaks, dates, highs, lows, n, high_swings, config)
     base_low_i = _lowest(lows, b, n)
     assert base_low_i is not None
@@ -215,8 +222,7 @@ def _merge_noise(
     peaks: list[int],
     highs: Sequence[float],
     lows: Sequence[float],
-    min_depth: float,
-    min_bars: int,
+    sw: VCPSwingConfig,
 ) -> tuple[list[int], list[int]]:
     """Remove peaks of noise swings (rule 4). Returns (kept, removed) indices.
 
@@ -230,9 +236,9 @@ def _merge_noise(
     while True:
         for k in range(len(kept) - 1):  # closed contractions only
             trough = _lowest(lows, kept[k] + 1, kept[k + 1])
-            if _is_noise(kept[k], trough, highs, lows, min_depth, min_bars):
+            if _is_noise(kept[k], trough, highs, lows, sw):
                 drop = k + 1 if k == 0 else k
-            elif _is_noise_rally(trough, kept[k + 1], highs, lows, min_depth, min_bars):
+            elif _is_noise_rally(trough, kept[k + 1], highs, lows, sw):
                 drop = k + 1
             else:
                 continue
@@ -259,7 +265,7 @@ def _contractions(
         trough = _lowest(lows, peak + 1, end)
         if last:
             sw = config.swing
-            if _is_noise(peak, trough, highs, lows, sw.min_depth_pct, sw.min_duration_days):
+            if _is_noise(peak, trough, highs, lows, sw):
                 break  # no final contraction yet
             assert trough is not None
             # The low is the lowest since the peak, so only its right side can still change:

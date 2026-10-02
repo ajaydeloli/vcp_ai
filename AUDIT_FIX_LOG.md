@@ -1446,3 +1446,15 @@ Worktree `vcp_ai_p6s4`, branch `p6-step4-measurements`. Owner, 2026-10-02: gaps 
 - Spot checks: ABDL depths 18.5 → 10.7 → 8.4 %, volume 1.09 → 0.75 → 0.61 (dry-up), bars' range 3.78 → 3.37 %; APOLLO loosens (8.4 → 15.6 %) and its last contraction is the most volatile (TR% 6.2 vs 3.98): now fails volatility.
 
 **Verification.** Full suite: 1,037 passed, 0 failed. `ruff check`, `ruff format --check`, `mypy --strict src` clean.
+
+## Fix S1 — sharp one- or two-bar swings are not noise (2026-10-02, found in Phase 6 step 5)
+
+**Found.** Spot-checking pivots, ABDL's 9.3 % rally from 584.30 (2026-08-21) to 643.90 (08-25) had been merged as noise, losing a real peak and its contraction (643.90 → 586.55, 8.9 %). §8.1 item 2 merges swings "< 2 % deep **or** < 3 days long". Traced on 2026-10-01 (1,257 stocks): of 966 noise merges, **921 were on duration alone** (522 two-bar, 399 one-bar swings) with a median size of 7–8 %, 403 of them ≥ 8 %; only 4 merges were shallow (< 2 %), because the 5-bar swing rule already removes small wiggles. The duration test was deleting sharp shakeouts and fast rallies, not noise.
+
+**Change** (owner allowed improvements with documentation, 2026-10-02). New key `vcp.swing.short_swing_max_depth_pct` (default 4.0, about one day's average range; must be ≥ `min_depth_pct`): a swing is noise if it is shallower than `min_depth_pct`, **or** shorter than `min_duration_days` bars **and** shallower than `short_swing_max_depth_pct`. 100 restores the plain rule. Applies to declines, rallies and the final-contraction check (`segmentation._small`). VCP_SPECIFICATION §23/§60 YAML, `strategy.yaml`, the §60 contract test updated; §8.1 rule text below.
+
+**Tests:** a 9 % two-bar rally keeps its peak (and the old rule, via 100, merges it); a 3 % two-bar dip is still merged; threshold below `min_depth_pct` refused; the random-series invariant is now "depth ≥ 2 %, and ≥ 3 bars or ≥ 4 %".
+
+**Real-data check** (read-only on the 08:35 backup, 2026-10-01): 1,198 bases as before; median merged peaks per base 1 → 0; contraction counts shift up (1: 304 → 261; 7+: 64 → 210); bases with no contraction 19 → 0 (their final 1–2-bar drops of ≥ 4 % now count). Trend Template passers with ≥ 2 contractions 66 → 79; rough tightening preview 38 → 44. ABDL: T1 18.5 %, T2 10.7 %, T3 8.4 %, **T4 8.9 %** (was missing). As-of check 100 × 29: 0 mismatches.
+
+**Verification.** Full suite: 1,040 passed, 0 failed. `ruff check`, `ruff format --check`, `mypy --strict src` clean.
