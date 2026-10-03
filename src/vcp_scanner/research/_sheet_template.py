@@ -53,26 +53,12 @@ input[type=text] { flex:1 1 260px; }
   <button class="primary" id="csv">Download CSV</button>
 </header>
 <main>
-<dl class="help">
-  <dt>How to label</dt>
-  <dd>Each chart ends at the window's date (right edge); judge the setup as it looked that day.
-      Price bars show each day's high-low range with a tick at the close; lines are the 50-day
-      (blue) and 150-day (amber) averages; grey bars are volume. Your labels are kept in this
-      browser; use Download CSV when done (or at any time) and send the file back.</dd>
-  <dt>A+ VCP</dt><dd>Textbook: three or more contractions, each clearly tighter, volume drying up, a tight right side just under the pivot.</dd>
-  <dt>VCP</dt><dd>A proper VCP that is not textbook (two contractions, or one criterion weaker).</dd>
-  <dt>VCP-like</dt><dd>Resembles a VCP but too loose, too deep or not tightening enough to act on.</dd>
-  <dt>Non-VCP</dt><dd>No volatility contraction pattern (extended run, V-shaped recovery, flat drift, wide and loose).</dd>
-  <dt>Failed VCP</dt><dd>A VCP that has already broken down or failed its breakout by the window's date.</dd>
-  <dt>Ambiguous</dt><dd>You cannot decide; excluded from the accuracy numbers.</dd>
-</dl>
+__HELP__
 <div id="list"></div>
 </main>
 <script>
 const DATA = __DATA__;
-const LABELS = [["", "-- label --"], ["confirmed_a_plus", "A+ VCP"], ["confirmed_vcp", "VCP"],
-  ["vcp_like", "VCP-like"], ["non_vcp", "Non-VCP"], ["failed_vcp", "Failed VCP"],
-  ["ambiguous", "Ambiguous"]];
+const LABELS = __OPTIONS__;
 const KEY = "vcp-labels:" + document.title;
 let store = {};
 try { store = JSON.parse(localStorage.getItem(KEY) || "{}"); } catch (e) { store = {}; }
@@ -112,6 +98,24 @@ function draw(cv, w) {
     g.strokeStyle = css(col); g.lineWidth = 1.4; g.beginPath(); let on = false;
     s.forEach((v, i) => { if (v == null) return; if (!on) { g.moveTo(x(i), y(v)); on = true; } else g.lineTo(x(i), y(v)); });
     g.stroke(); g.lineWidth = 1; }
+  if (w.m) {
+    const m = w.m; g.font = "11px system-ui";
+    if (m.bs >= 0) { g.strokeStyle = css("--muted"); g.setLineDash([4, 4]); g.beginPath();
+      g.moveTo(x(m.bs), top); g.lineTo(x(m.bs), top + priceH); g.stroke(); g.setLineDash([]);
+      g.fillStyle = css("--muted"); g.fillText("base start", x(m.bs) + 4, top + 12); }
+    m.t.forEach((c, k) => {
+      g.fillStyle = "#c2410c"; g.strokeStyle = "#c2410c";
+      if (c.p >= 0) { g.beginPath(); g.arc(x(c.p), y(c.ph), 4, 0, 7); g.fill();
+        g.fillText("T" + (k + 1), x(c.p) - 6, y(c.ph) - 8); }
+      if (c.q >= 0) { g.beginPath(); g.arc(x(c.q), y(c.ql), 4, 0, 7); g.stroke();
+        g.fillText(c.d.toFixed(1) + "%", x(c.q) - 12, y(c.ql) + 16); }
+      if (c.p >= 0 && c.q >= 0) { g.setLineDash([2, 3]); g.beginPath(); g.moveTo(x(c.p), y(c.ph));
+        g.lineTo(x(c.q), y(c.ql)); g.stroke(); g.setLineDash([]); }
+    });
+    if (m.pv) { g.strokeStyle = "#7c3aed"; g.setLineDash([6, 4]); g.beginPath();
+      g.moveTo(0, y(m.pv)); g.lineTo(W - padR, y(m.pv)); g.stroke(); g.setLineDash([]);
+      g.fillStyle = "#7c3aed"; g.fillText("pivot " + m.pv.toFixed(2), 6, y(m.pv) - 4); }
+  }
   const vols = w.v.map(v => v || 0), vmax = Math.max(...vols) || 1, vb = H - padB, bw = Math.max(1, (W - padR) / n - 1);
   g.fillStyle = css("--vol");
   vols.forEach((v, i) => { const hh = v / vmax * volH; g.fillRect(x(i) - bw / 2, vb - hh, bw, hh); });
@@ -120,7 +124,8 @@ const list = document.getElementById("list");
 for (const w of DATA) {
   const card = document.createElement("section"); card.className = "card"; card.id = "card-" + w.id;
   const opts = LABELS.map(([k, t]) => `<option value="${k}">${t}</option>`).join("");
-  card.innerHTML = `<h2>Window ${w.n}<span class="meta reveal hidden">${w.sym} · ${w.asof}</span></h2>
+  card.innerHTML = `<h2>Window ${w.n}<span class="meta reveal${w.m ? "" : " hidden"}">${w.sym} · ${w.asof}</span></h2>
+    ${w.m ? `<div class="legend">${w.m.txt}</div>` : ""}
     <canvas width="960" height="380"></canvas>
     <div class="legend">close tick · <b class="m50">50-day</b> · <b class="m150">150-day</b> · volume</div>
     <div class="row"><select>${opts}</select><input type="text" placeholder="notes (optional)"></div>`;
@@ -148,3 +153,24 @@ document.getElementById("csv").addEventListener("click", () => {
 counts();
 </script></body></html>
 """
+
+
+#: The labelling sheet's help block and options (``labelling.write_outputs``).
+LABEL_HELP = r"""<dl class="help">
+  <dt>How to label</dt>
+  <dd>Each chart ends at the window's date (right edge); judge the setup as it looked that day.
+      Price bars show each day's high-low range with a tick at the close; lines are the 50-day
+      (blue) and 150-day (amber) averages; grey bars are volume. Your labels are kept in this
+      browser; use Download CSV when done (or at any time) and send the file back.</dd>
+  <dt>A+ VCP</dt><dd>Textbook: three or more contractions, each clearly tighter, volume drying up, a tight right side just under the pivot.</dd>
+  <dt>VCP</dt><dd>A proper VCP that is not textbook (two contractions, or one criterion weaker).</dd>
+  <dt>VCP-like</dt><dd>Resembles a VCP but too loose, too deep or not tightening enough to act on.</dd>
+  <dt>Non-VCP</dt><dd>No volatility contraction pattern (extended run, V-shaped recovery, flat drift, wide and loose).</dd>
+  <dt>Failed VCP</dt><dd>A VCP that has already broken down or failed its breakout by the window's date.</dd>
+  <dt>Ambiguous</dt><dd>You cannot decide; excluded from the accuracy numbers.</dd>
+</dl>"""
+LABEL_OPTIONS = (
+    '[["", "-- label --"], ["confirmed_a_plus", "A+ VCP"], ["confirmed_vcp", "VCP"], '
+    '["vcp_like", "VCP-like"], ["non_vcp", "Non-VCP"], ["failed_vcp", "Failed VCP"], '
+    '["ambiguous", "Ambiguous"]]'
+)

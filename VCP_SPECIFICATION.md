@@ -1303,6 +1303,11 @@ Labeling protocol:
 - **Regression**: each fixture's detector answer (algorithm version, class, status, contraction count, no-pattern reason) must equal its recorded `detector_baseline`; a reviewed change is re-recorded with `vcp research golden --record`. Acceptance thresholds are set by the owner once the first labelled set exists.
 - **Blind sheet** (`vcp research labelling-sheet`): candidates are Trend Template passers with weekly Stage 2 on the scan dates in range. The detector is run only to balance the sample across strata (A_PLUS_VCP, VCP, VCP_LIKE, NONE, NO_PATTERN, FAILED); its answers go to a separate `key.json` and never onto the sheet. The sheet also hides symbol and date by default (hindsight). At most one window per instrument per stratum and two per instrument overall, ≥ 60 bars apart; deterministic for a seed; shuffled. `vcp research import-labels` turns the downloaded CSV into fixtures.
 
+**Acceptance basis changed (owner, 2026-10-03).** The owner found blind labelling hard and was concerned that wrong labels would bias the detector. Phase 6 is therefore accepted on two checks instead of a labelled golden set; the blind sheet and fixtures stay available and optional:
+
+- **A. Mark check** (`vcp research review-sheet`, `research/review.py`). The detector's own marks are drawn on each chart: base start, contraction peaks and lows with depths, pivot line, and a one-line verdict. The reviewer answers only "are the marks in sensible places?" (yes / partly / no / unsure, plus notes). This checks geometry, not class. The answers are not labels, and no threshold is fitted to them. Sample: `labelling.sample`, cut to quotas weighted towards VCP-class windows (A+ 4, near-A+ 8, VCP 12, VCP-like 10, failed/invalidated 5, none 5). Symbol and date are shown.
+- **B. Outcome study** (`vcp research outcomes`; §62).
+
 ---
 
 # 58. Human Review
@@ -1545,6 +1550,39 @@ walk-forward testing
 ```
 
 Do not choose thresholds solely because they maximize historical return.
+
+**Outcome study (implemented 2026-10-03, `research/outcomes.py`, `vcp research outcomes`).**
+
+Design:
+- Windows are Trend Template passers with weekly Stage 2 on the scan dates, grouped by detector class: NEAR_A_PLUS is a VCP missing exactly one A+ rule.
+- Scan-date outcome: from the scan-date close, WIN if +10 % is hit before −7 % within 60 sessions. A bar touching both counts as LOSS.
+- Breakout trade: entry at the first close above the pivot within 20 sessions, on at least 1.5× the 50-bar mean volume. Exit at +10 %, −7 %, or the close 60 sessions later. Windows with fewer than 60 sessions after entry are censored.
+- Excess win rate is measured against all passers on the same dates (market regime control). Confidence intervals are Wilson intervals.
+- Development period: as-of ≤ `--split`. Validation period: after it. `--variant` compares config changes on development only.
+
+First run (2026-10-03): month-end scans 2024-10 .. 2026-09, split 2025-09-30, 1,387 development and 1,400 validation windows.
+
+Scan-date win rate (excess over same-date passers):
+
+| Group | Development | Validation |
+|---|---|---|
+| VCP | 41 % (−3) | 33 % (−4) |
+| VCP-like | 48 % (+4) | 38 % (+1) |
+| Near-A+ | 56 % (+11, n 16) | 40 % (+7, n 25) |
+| None | 43 % | 41 % |
+
+Breakout-trade expectancy:
+
+| Group | Development | Validation |
+|---|---|---|
+| VCP | −2.4 % | −1.0 % |
+| VCP-like | +0.8 % | +0.8 % |
+| None | −1.1 % | +1.1 % |
+
+Findings:
+- The current VCP class shows no edge over looser setups in either period. No A+ occurred.
+- Variants did not justify loosening A+ (right-side range 7.5 % or 10 %: n 5 and 9, win rate 40 % and 33 %).
+- No threshold was changed. The sample is small (24 month-end dates), and the development period was weak (median 60-session return of passers −8.6 %).
 
 ---
 

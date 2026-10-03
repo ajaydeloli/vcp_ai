@@ -88,6 +88,9 @@ vcp research labelling-sheet --from 2024-10-01 --to 2026-09-30 --out data/labell
 vcp research import-labels --candidates data/labelling/candidates.json --labels vcp_labels.csv
 vcp research golden --record          # record detector baselines, then commit tests/fixtures/vcp
 vcp research golden --split development
+# Phase 6 validation (owner, 2026-10-03): mark check + outcome study
+vcp research review-sheet --from 2024-10-01 --to 2026-09-30 --out data/review   # detector marks drawn; answer yes/partly/no/unsure
+vcp research outcomes --from 2024-10-01 --to 2026-09-30 --split 2025-09-30 [--variant rs10:vcp.pivot.max_right_side_range_pct=10] [--csv out.csv]
 ```
 
 ## Configuration

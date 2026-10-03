@@ -1555,3 +1555,67 @@ Worktree `vcp_ai_p6s8`, branch `p6-step8-golden`. Plan sent to the owner at 12:4
 **Change.** New hidden stratum `NEAR_A_PLUS` (a VCP missing exactly one A+ rule) so candidate A+ charts reach the sheet even when the detector finds none. Test: `test_near_a_plus_stratum`. Full suite: 1,083 passed, 2 skipped; ruff, format, mypy clean.
 
 **Sheet**: `data/labelling/` (not in git): `labelling_sheet.html`, `candidates.json`, hidden `key.json`; seed 20261002, 25 per stratum.
+
+## Phase 6 validation — mark check (A) and outcome study (B) (2026-10-03)
+
+Worktree `vcp_ai_p6s9`, branch `p6-validation`.
+
+**Decision (owner, 2026-10-03).** Labelling charts blind was hard for the owner, and he was concerned that wrong labels would bias the detector. Phase 6 acceptance moves from a labelled golden set to:
+- **A**: a mark check of the detector's geometry;
+- **B**: an outcome study.
+
+The golden harness stays, and labelling is optional. Spec: VCP_SPECIFICATION §57 (acceptance basis) and §62 (outcome study).
+
+**Change.**
+- `research/outcomes.py` with `vcp research outcomes --from --to --split [--variant NAME:SECTION.KEY=VALUE,...] [--csv]`. It works out the scan-date outcome (+10 % before −7 % within 60 sessions; a bar touching both counts as LOSS) and a breakout trade (first close above the pivot within 20 sessions on ≥ 1.5× the 50-bar volume; exit at +10 %, −7 % or 60 sessions; censored without 60 sessions after entry). It reports Wilson CIs and excess over same-date passers by group: A+, near-A+, VCP, VCP-like, none. Development and validation are reported separately, and variants run on development only.
+- `research/review.py` with `vcp research review-sheet --from --to [--seed] --out`. It draws a quota sample (A+ 4, near-A+ 8, VCP 12, VCP-like 10, failed/invalidated 5, none 5), reruns the detector, and computes marks (base start, peaks and troughs with depth, primary pivot, a plain-words verdict). It writes `review_windows.json` and `review_sheet.html`, with answers yes / partly / no / unsure plus notes.
+- `_sheet_template.py` now takes `__HELP__` and `__OPTIONS__` and draws marks when a window has them; the labelling sheet is unchanged.
+- README, CHANGELOG.
+
+**Tests.**
+- `test_vcp_outcomes.py` (6):
+  - win, loss and none, including a bar that touches both;
+  - returns and excursions;
+  - censoring;
+  - Wilson interval;
+  - excess against same dates;
+  - breakout-trade volume rule;
+  - trade statistics.
+- `test_vcp_review.py` (3):
+  - quotas and determinism;
+  - marks sit on chart bars at the stated prices;
+  - files contain no leftover placeholders;
+  - no-pattern marks.
+
+**Verification.** Full suite: 1,092 passed, 2 skipped (golden regression, no fixtures). The first run caught one issue: the snapshot guard test flagged the outcome query's literal `'LIVE'` filter, so it was changed to a bound parameter. `ruff check`, `ruff format --check`, `mypy --strict src` clean.
+
+**Real-data run** on the copy `data/golden_src.duckdb`: 24 month-end scans, 2024-10 .. 2026-09, split 2025-09-30.
+
+Scan-date win rate (excess over same-date passers):
+
+| Group | Development | Validation |
+|---|---|---|
+| VCP | 41 % (−3), n 145 | 33 % (−4), n 199 |
+| VCP-like | 48 % (+4), n 254 | 38 % (+1), n 239 |
+| Near-A+ | 56 % (+11), n 16 | 40 % (+7), n 25 |
+| None | 43 % (−1), n 967 | 41 % (+1), n 915 |
+
+Breakout trades:
+
+| Group | Development (trades, win %, expectancy) | Validation (trades, win %, expectancy) |
+|---|---|---|
+| VCP | 91, 26 %, −2.4 % | 104, 36 %, −1.0 % |
+| VCP-like | 163, 47 %, +0.8 % | 130, 47 %, +0.8 % |
+| None | 412, 35 %, −1.1 % | 386, 47 %, +1.1 % |
+
+Variants (development only):
+- ATR volatility measure: neutral.
+- Old noise rule: near-A+ 33 % against 56 % (weak support for S1).
+- Tight pivot for VCP: n 3, too few to judge.
+- A+ right side 7.5 % / 10 %: A+ n 5 / 9, win rate 40 % / 33 % (no support for loosening).
+
+Checked and rejected: the idea that "descending bases cause the failures". Descending-base VCP breakouts won 37 %, other VCPs 25 %.
+
+**Result.** The VCP class shows no edge so far. **No threshold was changed**: this is a strategy decision for the owner, and the sample is small.
+
+**Mark-check sheet**: `data/review/` (not in git), 40 windows, seed 20261003.

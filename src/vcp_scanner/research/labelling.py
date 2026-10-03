@@ -183,8 +183,11 @@ def write_outputs(chosen: Sequence[Candidate], out_dir: Path, *, title: str) -> 
         }
         for c in candidates
     ]
-    html = _SHEET.replace("__TITLE__", title).replace(
-        "__DATA__", json.dumps(charts, separators=(",", ":"))
+    html = (
+        _SHEET.replace("__TITLE__", title)
+        .replace("__HELP__", _LABEL_HELP)
+        .replace("__OPTIONS__", _LABEL_OPTIONS)
+        .replace("__DATA__", json.dumps(charts, separators=(",", ":")))
     )
     paths["sheet"].write_text(html)
     return paths
@@ -228,4 +231,6 @@ def import_labels(candidates_path: Path, labels_csv: Path, fixtures_root: Path) 
     return [write_fixture(fx, fixtures_root) for fx in fixtures]
 
 
+from vcp_scanner.research._sheet_template import LABEL_HELP as _LABEL_HELP  # noqa: E402
+from vcp_scanner.research._sheet_template import LABEL_OPTIONS as _LABEL_OPTIONS  # noqa: E402
 from vcp_scanner.research._sheet_template import SHEET as _SHEET  # noqa: E402
