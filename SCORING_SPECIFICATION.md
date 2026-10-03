@@ -137,3 +137,28 @@ Known-answer fixtures per sub-component; boundary clipping; NULL-fundamentals re
 - **Inputs.** The Trend Template scan (PASS rows, `rs_rank`) and the VCP scan of the same date, config and data snapshot (primary pattern); features at the as-of bar and 21 sessions earlier (SMA200); the last 76 adjusted bars (volume measurements). Without an as-of bar, the trend and volume inputs are NULL.
 - **Eligible for ranking.** Classification VCP_LIKE, VCP or A+ **and** status FORMING, PIVOT_READY or BREAKOUT. A FAILED or INVALIDATED pattern, or a data state, is scored but not ranked: an invalid or broken pattern is not an actionable setup.
 - **Order.** The daily run computes scores after VCP detection for each new session.
+
+**Step 5: outcome check** (`research/score_study.py`, `vcp research score-outcomes`; a report only, nothing fitted).
+
+Method:
+- Scores are computed for every Trend Template passer window of the outcome study (VCP_SPECIFICATION §62), from the same inputs as production.
+- Each key (the final score or one component) is split into quintiles *within each scan date*, which controls for the market regime.
+- Per bucket the study reports: scan-date win rate, median 60-session return, and breakout trades with their average under the default exit rule.
+- The information coefficient (IC) is the per-date Spearman correlation with the 60-session return, averaged over dates, with a t-statistic (§63).
+
+First run (2026-10-03): month-end scans 2022-02 .. 2026-09 on the research copy. Development (≤ 2025-09-30): 8,409 passer windows, 44 dates with at least 10 windows.
+
+| Key | IC (t) | Q1 → Q5 median 60-session return |
+|---|---|---|
+| Final score, all passers | −0.003 (−0.2) | +1.4 → +1.9 % |
+| Final score, ranked setups only | −0.011 (−0.4) | |
+| Trend | −0.002 (−0.1) | |
+| VCP | +0.037 (+2.3) | Q1 −1.0 %, others +1.5 to +2.5 % |
+| Volume | −0.015 (−1.2) | |
+| RS | −0.033 (−1.8) | |
+
+Breakout trades rise with the final score (Q1 +1.7 %, Q5 +3.4 %). This is not monotonic.
+
+Validation (2025-10 .. 2026-09, final score only, looked at once): IC +0.010 for all passers and −0.059 for ranked setups (9 dates).
+
+**Reading.** The spec score (`scoring-1.0.0`) orders setups in an explainable, reproducible way, but it does **not** predict 60-session outcomes among Trend Template passers. The only component with a measurable signal is the VCP shape, and it comes mostly from its lowest quintile doing worse. No weight or bound was changed; any change is the owner's decision.

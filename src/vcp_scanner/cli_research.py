@@ -70,6 +70,18 @@ def add_research_parser(subparsers: argparse._SubParsersAction) -> None:  # type
     rv.add_argument("--db", default="data/vcp_scanner.duckdb")
     rv.add_argument("--config-dir", default="config")
 
+    so = sub.add_parser(
+        "score-outcomes", help="Do higher setup scores lead to better outcomes? (Phase 7 step 5)"
+    )
+    so.add_argument("--from", dest="date_from", required=True, metavar="YYYY-MM-DD")
+    so.add_argument("--to", dest="date_to", required=True, metavar="YYYY-MM-DD")
+    so.add_argument("--split", required=True, metavar="YYYY-MM-DD",
+                    help="Last as-of date of the development period")  # fmt: skip
+    so.add_argument("--scan-config-hash", metavar="HASH12",
+                    help="Use Trend Template scans made under this config hash")  # fmt: skip
+    so.add_argument("--db", default="data/vcp_scanner.duckdb")
+    so.add_argument("--config-dir", default="config")
+
     imp = sub.add_parser("import-labels", help="Turn the sheet's CSV into golden fixtures")
     imp.add_argument("--candidates", required=True, help="candidates.json from the sheet folder")
     imp.add_argument("--labels", required=True, help="The downloaded vcp_labels.csv")
@@ -88,7 +100,12 @@ def run_research(args: argparse.Namespace) -> int:
         return _outcomes(args)
     if cmd == "review-sheet":
         return _review(args)
-    _err("Usage: vcp research {golden,labelling-sheet,review-sheet,import-labels,outcomes} ...")
+    if cmd == "score-outcomes":
+        return _score_outcomes(args)
+    _err(
+        "Usage: vcp research {golden,labelling-sheet,review-sheet,import-labels,outcomes,"
+        "score-outcomes} ..."
+    )
     return 1
 
 
@@ -301,4 +318,52 @@ def _outcomes(args: argparse.Namespace) -> int:
                                   o.breakout_20)),
                                 *(round(trades[t.name], 2) if t.name in trades else ""
                                   for t in TRADE_RULES)])  # fmt: skip
+    return 0
+
+
+def _score_outcomes(args: argparse.Namespace) -> int:
+    from vcp_scanner.research.outcomes import collect_windows
+    from vcp_scanner.research.score_study import format_study, standard_keys
+
+    cfg = load_scanner_config(args.config_dir)
+    config_hash = args.scan_config_hash or scan_config_hash(cfg)
+    start, end = date.fromisoformat(args.date_from), date.fromisoformat(args.date_to)
+    split = date.fromisoformat(args.split)
+    with _open_store(args.db) as store:
+        dates = [r[0] for r in store.conn.execute(
+            "SELECT DISTINCT as_of_date FROM trend_template_results WHERE scan_id LIKE ?"
+            " AND as_of_date BETWEEN ? AND ? ORDER BY 1",
+            [f"trend-%-{config_hash[:12]}", start, end]).fetchall()]  # fmt: skip
+        if not dates:
+            _err(f"No Trend Template scans with config {config_hash[:12]} in range.")
+            return 1
+        rows = collect_windows(
+            store, dates, config_hash,
+            {"current": (cfg.strategy.vcp, cfg.strategy.classification)},
+            scoring=(cfg.strategy.scoring, float(cfg.strategy.trend_template.min_rs_rank)),
+        )["current"]  # fmt: skip
+    dev = [r for r in rows if r.as_of <= split]
+    val = [r for r in rows if r.as_of > split]
+    final: list[Any] = standard_keys()[:1]
+    print(f"Scan dates: {len(dates)} ({dates[0]} .. {dates[-1]}); development <= {split}")
+    print(f"Scores: {cfg.strategy.scoring.version}; quintiles within each date, Q5 = highest; "
+          "trades = breakout trades, default exit rule")  # fmt: skip
+    print("\n" + format_study(dev, standard_keys(), "[development] all Trend Template passers"))
+    print(
+        "\n"
+        + format_study(
+            [r for r in dev if r.eligible],
+            final,
+            "[development] ranked setups only (VCP_LIKE+, live status)",
+        )
+    )
+    print("\n" + format_study(val, final, "[VALIDATION] all passers, final score only"))
+    print(
+        "\n"
+        + format_study(
+            [r for r in val if r.eligible],
+            final,
+            "[VALIDATION] ranked setups only, final score only",
+        )
+    )
     return 0

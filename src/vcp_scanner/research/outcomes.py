@@ -49,9 +49,18 @@ from __future__ import annotations
 import math
 from collections import defaultdict
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import date
 from typing import Any
+
+from vcp_scanner.config.models import ScoringConfig
+from vcp_scanner.scoring.components import SMA200_SLOPE_LAG
+from vcp_scanner.scoring.engine import (
+    BARS_NEEDED,
+    SetupInputs,
+    pattern_inputs,
+    score_setup,
+)
 
 WIN_PCT = 10.0
 LOSS_PCT = 7.0
@@ -101,6 +110,9 @@ class WindowRow:
     group: str
     status: str | None
     outcome: Outcome | None  # None = censored (fewer than HORIZON forward sessions)
+    score: float | None = None  # final setup score (with ``scoring``; Phase 7 step 5)
+    eligible: bool = False  # would be ranked (SCORING_SPECIFICATION 11)
+    components: Mapping[str, float | None] = field(default_factory=dict)
 
 
 def _first_hit(
@@ -264,18 +276,22 @@ def collect_windows(
     dates: Sequence[date],
     config_hash: str,
     variants: dict[str, tuple[object, object]],
+    scoring: tuple[object, float] | None = None,
 ) -> dict[str, list[WindowRow]]:
-    """Every passer window on ``dates`` under each named (vcp, classification) config."""
+    """Every passer window on ``dates`` under each named (vcp, classification) config. With
+    ``scoring`` = (ScoringConfig, min_rs_rank) each window also gets its setup score, computed
+    from the same bars and features the production scorer reads (``scoring.engine``)."""
     from vcp_scanner.data.storage.duckdb_store import DuckDBStore
     from vcp_scanner.domain.features import FEATURES_CALCULATION_VERSION
     from vcp_scanner.patterns.vcp.detector import VCPDetector
     from vcp_scanner.patterns.vcp.measurements import PriceSeries
 
     assert isinstance(store, DuckDBStore)
-    passers: list[tuple[date, str, str, bool | None]] = []
+    passers: list[tuple[date, str, str, bool | None, float | None]] = []
     for d in sorted(dates):
         passers += [(d, *r) for r in store.conn.execute(
-            "SELECT t.instrument_id, i.symbol, t.weekly_stage2_pass FROM trend_template_results t"
+            "SELECT t.instrument_id, i.symbol, t.weekly_stage2_pass, t.rs_rank"
+            " FROM trend_template_results t"
             " JOIN instruments i USING (instrument_id) WHERE t.scan_id = ? AND t.status = 'PASS'"
             " AND t.weekly_stage2_pass ORDER BY t.instrument_id",
             [f"trend-{d.isoformat()}-{config_hash[:12]}"]).fetchall()]  # fmt: skip
@@ -284,7 +300,7 @@ def collect_windows(
     for r in store.conn.execute(
         """
         SELECT p.instrument_id, p.trade_date, p.high_adj, p.low_adj, p.close_adj, p.volume_adj,
-               f.atr_pct_14
+               f.atr_pct_14, f.sma_50, f.sma_200, f.high_252
         FROM daily_prices_adjusted_current p LEFT JOIN technical_features_daily f
           ON f.instrument_id = p.instrument_id AND f.trade_date = p.trade_date
          AND f.calculation_version = ? AND f.data_snapshot_id = ?
@@ -301,11 +317,12 @@ def collect_windows(
         for name, (v, c) in variants.items()
     }
     out: dict[str, list[WindowRow]] = {name: [] for name in variants}
-    for d, iid, symbol, stage2 in passers:
+    for d, iid, symbol, stage2, rs_rank in passers:
         b: list[Any] = bars.get(iid, [])
         k = next((j for j, x in enumerate(b) if x[0] == d), None)
         if k is None:
             continue  # no bar on the scan date
+        recent = b[max(0, k + 1 - BARS_NEEDED) : k + 1]
         fwd = b[k + 1 :]
         entry = float(b[k][3])
         f_high = [float(x[1]) for x in fwd]
@@ -324,8 +341,27 @@ def collect_windows(
             group, status, pivot = group_of(found)
             outcome = forward_outcome(f_high, f_low, f_close, entry, pivot, f_vol, p_vol,
                                       final_low_of(found))  # fmt: skip
-            out[name].append(WindowRow(d, iid, str(symbol), group, status, outcome))
+            row = WindowRow(d, iid, str(symbol), group, status, outcome)
+            if scoring is not None:
+                cfg, min_rs = scoring
+                assert isinstance(cfg, ScoringConfig)
+                lag = b[k - SMA200_SLOPE_LAG] if k >= SMA200_SLOPE_LAG else None
+                x = SetupInputs(
+                    iid, d, None if rs_rank is None else float(rs_rank), entry,
+                    _f(b[k][8]), _f(b[k][6]), _f(b[k][7]), _f(lag[7]) if lag else None,
+                    [float(r[3]) for r in recent],
+                    [None if r[4] is None else float(r[4]) for r in recent],
+                    pattern_inputs(found, v.volatility.measure),  # type: ignore[attr-defined]
+                )  # fmt: skip
+                sc = score_setup(x, cfg, min_rs)
+                row = replace(row, score=sc.final.final, eligible=sc.eligible,
+                              components={c.component: c.score for c in sc.components})  # fmt: skip
+            out[name].append(row)
     return out
+
+
+def _f(x: Any) -> float | None:
+    return None if x is None else float(x)
 
 
 @dataclass(frozen=True, slots=True)

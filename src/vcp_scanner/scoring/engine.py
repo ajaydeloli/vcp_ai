@@ -76,6 +76,25 @@ class ScoredSetup:
     ranking_percentile: float | None = None
 
 
+def pattern_inputs(det: object, volatility_measure: str) -> PatternInputs | None:
+    """``PatternInputs`` from an in-memory ``VCPDetection`` (research: the same fields
+    ``vcp_patterns`` stores)."""
+    from vcp_scanner.patterns.vcp.detector import VCPDetection
+
+    assert isinstance(det, VCPDetection)
+    p = det.pattern
+    if p is None:
+        return None
+    m = det.measurements
+    vol = p.atr_contraction_ratio if volatility_measure == "atr" else (
+        m.tr_contraction_ratio if m else None)  # fmt: skip
+    return PatternInputs(
+        p.classification.value, p.status.value, p.confirmation_state.value,
+        p.contraction_count, p.max_tightening_ratio, p.final_contraction_pct, vol,
+        p.right_side_range_pct, p.base_depth_pct, p.final_volume_ratio,
+    )  # fmt: skip
+
+
 def is_eligible(p: PatternInputs | None) -> bool:
     return p is not None and p.classification in RANKED_CLASSES and p.status in RANKED_STATUSES
 

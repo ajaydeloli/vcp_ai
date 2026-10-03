@@ -1836,3 +1836,25 @@ Worktree `vcp_ai_p7s4`, branch `p7-step4-explain` (on top of step 3; not merged 
 **Real-data look** (copy of the main DB, 1 Oct):
 - Top ranked setup: SIYSIL, score 75.1, VCP pivot-ready.
 - Its explanation adds up by hand: 19.9 + 25.9 + 13.2 + 16.1 = 75.1.
+
+## Phase 7 step 5 — score outcome check (2026-10-03 13:21 IST)
+
+Worktree `vcp_ai_p7s5`, branch `p7-step5-study` (on top of step 4).
+
+**Change.**
+- `research/outcomes.collect_windows(scoring=...)` attaches each window's final score, its eligibility and the component scores. The inputs are the same bars, features and RS rank the production scorer reads, plus `scoring.engine.pattern_inputs` from the in-memory detection.
+- `research/score_study.py`: per-date quintiles, Spearman IC with t-statistic, report.
+- `vcp research score-outcomes --from --to --split [--scan-config-hash]`: development for the final score and the four components; validation for the final score only.
+- Spec §11 (step 5 results), README, CHANGELOG.
+
+**Verification.** Full suite: 1,113 passed, 2 skipped. ruff, format and mypy clean.
+
+**Tests** (`test_score_study.py`, 3): Spearman (perfect, inverse, too few, no spread); quintiles are formed within each date, so the regime is balanced across buckets; trade averages; IC; missing keys and censored windows are left out; too few windows on a date.
+
+**Results** (research copy; scans `7de9afd37f3a`, detector vcp-1.1.0, `scoring-1.0.0`; full output in `data/review/score_study_2022_2026.txt`):
+- Development, all passers: final score IC −0.003 (t −0.2); trend −0.002; VCP **+0.037 (t 2.3)**; volume −0.015; RS −0.033 (t −1.8).
+- Ranked setups only: final score IC −0.011.
+- Validation (one look, final score only): all passers +0.010; ranked −0.059.
+- Breakout-trade averages rise from Q1 +1.7 % to Q5 +3.4 % (all passers, development), but not monotonically.
+
+**Conclusion.** Scores are reproducible and explainable (the Phase 7 acceptance), but the spec score has **no predictive value** for 60-session outcomes on 2022–2025 NSE data. Only the VCP-shape component carries a small signal. No weight was changed; this goes to the owner.

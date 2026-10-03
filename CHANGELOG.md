@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (Phase 7 step 5: does the score predict outcomes?)
+- `vcp research score-outcomes` checks whether higher scores did better, using score quintiles within each scan date and the information coefficient.
+- **First result (2022–2025):** the score orders setups consistently but does not predict 60-day results (IC about 0). Only the VCP-shape part shows a small signal. Nothing was tuned.
+
 ### Added (Phase 7 step 4: reading scores)
 - `vcp scores list` shows the ranked setups of a date: score, percentile, state, class, status and the four component scores.
 - `vcp scores explain SYMBOL` shows how a stock's score was built: each component's share, and each sub-score's raw value, its 0–100 value, its points and the bounds used.

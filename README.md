@@ -94,6 +94,7 @@ vcp research golden --record          # record detector baselines, then commit t
 vcp research golden --split development
 # Phase 6 validation (owner, 2026-10-03): mark check + outcome study
 vcp research review-sheet --from 2024-10-01 --to 2026-09-30 --out data/review   # detector marks drawn; answer yes/partly/no/unsure
+vcp research score-outcomes --from 2022-01-01 --to 2026-09-30 --split 2025-09-30   # do higher scores do better? (Phase 7)
 vcp research outcomes --from 2024-10-01 --to 2026-09-30 --split 2025-09-30 [--variant rs10:vcp.pivot.max_right_side_range_pct=10] [--validate-rule hold_s7] [--csv out.csv]
 ```
 
