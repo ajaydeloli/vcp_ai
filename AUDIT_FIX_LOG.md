@@ -1732,3 +1732,34 @@ Under the daily-run lock:
 - All four hashes are identical to the copy check. The copy was deleted.
 
 **Note.** The 2026-10-03 09:05 IST catch-up run (when the PC came back on) stopped during its backup step. It left `data/backups/vcp_scanner_20261003_033533.duckdb.partial` (318 MB) and no "end" line or summary. The main DB check passed afterwards. There were no new prices to miss (2 Oct was a holiday; 3 Oct is a Saturday).
+
+## Phase 7 step 1 — component scores (2026-10-03)
+
+Worktree `vcp_ai_p7s1`, branch `p7-step1-components`. Plan sent to the owner on 2026-10-03 around 12:40 IST.
+
+**Owner decisions:**
+- Scores apply to the ranked list per the spec; research also scores all Trend Template passers.
+- Weights and bounds stay as in the spec.
+
+**Change.**
+- `scoring/components.py`:
+  - `linear`;
+  - `score_component` (NULL sub-components dropped, component renormalized over the available ones);
+  - `trend_score`, `vcp_score` (volatility ratio of the configured measure; no volume input), `volume_score`, `rs_score`;
+  - bar measurements `measure_up_down_volume` and `measure_distribution`.
+- `config/models.py`: sub-component names are validated (`_expect_names`). The config hash is unchanged.
+- SCORING_SPECIFICATION §11 records the implementation details; CHANGELOG.
+
+**Gap found and fixed.** The scoring config accepted any sub-component name, so a typo would have silently dropped a sub-component. It is now refused at load.
+
+**Verification.** Full suite: 1,102 passed, 2 skipped. ruff, format and mypy clean.
+
+**Tests** (`test_scoring_components.py`, 7):
+- `linear` mapping, clipping and smaller-is-better bounds;
+- trend known answer (54.0), points and max points, NULL renormalization, all-missing and NaN cases;
+- VCP known answer (50), best-end clipping, no volume parameter;
+- volume and RS known answers, including `min_rs_rank` 99;
+- up/down volume (ratio, too few bars, zero volume, no-down cap);
+- distribution days (count, 1.5× threshold, day excluded from its own average, too few bars, missing volume);
+- misspelt name refused;
+- determinism.

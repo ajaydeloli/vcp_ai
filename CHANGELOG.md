@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (Phase 7 step 1: component scores)
+- Trend, VCP-shape, volume and RS scores from 0 to 100, each built from sub-scores with weights and bounds from `config/scoring.yaml`. A missing input is left out, never counted as zero.
+- A misspelt sub-score name in `scoring.yaml` is now refused when the config loads.
+
 ### Changed (owner decision, 2026-10-03; VCP algorithm vcp-1.1.0)
 - The equal-high merge is now on: a shallow dip followed by a deeper drop from the same price level counts as one contraction. The config hash changes, so new scans get new ids.
 

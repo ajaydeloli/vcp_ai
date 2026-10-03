@@ -108,3 +108,22 @@ scoring:
 # 10. Tests
 
 Known-answer fixtures per sub-component; boundary clipping; NULL-fundamentals renormalization; a check that VCP Score is unchanged when volume inputs change; determinism (same inputs give the same score); config rejection cases.
+
+---
+
+# 11. Implementation notes (Phase 7, 2026-10-03)
+
+**Owner decisions (2026-10-03).**
+- Weights and bounds start exactly as above (`scoring-1.0.0`). Any change is asked first.
+- **Scope:** the ranked list follows §1 (classification ≥ `VCP_LIKE`). Research additionally scores *every* Trend Template passer, to test whether the trend, volume and RS components rank outcomes on their own; the VCP class showed no edge (VCP_SPECIFICATION §62).
+
+**Details fixed in step 1** (`scoring/components.py`):
+- **NULL sub-components.** A missing or non-finite measurement makes its sub-component NULL. It is stored with `normalized = NULL` and 0 points, and never counts as 0 or as neutral.
+- **Component score.** Points over the max points of the *available* sub-components, × 100 (the §7 renormalization, applied to every component). A component with none available is NULL, and §1 renormalizes over the rest. Points = normalized × weight ÷ 100; max points = weight.
+- **Trend.** `high_proximity` = (52-week high − close) ÷ 52-week high × 100, with the 52-week high as `high_252` (includes the as-of bar). `sma200_slope` uses SMA200 21 sessions earlier.
+- **VCP volatility.** The ratio of the configured `vcp.volatility.measure`: true range by default, the same measure the detector's volatility test uses (VCP §18B). With `measure = atr` it is the spec's `atr_contraction_ratio`.
+- **Up/down volume.** Over the last 50 sessions; each session is up or down against the previous close, and unchanged sessions are ignored. A missing or zero volume in the window gives NULL. With no down volume the value is capped at 10.
+- **Distribution day.** Close below the previous close on volume above `high_volume_multiple` × the mean of the 50 sessions *before* that day (the day itself excluded). Counted over the last 25 sessions; needs 75 bars with valid volume, otherwise NULL.
+- **RS.** If `min_rs_rank` = 99, the worst bound becomes 98 so the bound stays valid.
+- **Config.** Sub-component names must be exactly those of §3–§7; a misspelt key is refused at load instead of silently dropping a sub-component (§9).
+

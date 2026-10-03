@@ -333,6 +333,15 @@ class ClassificationConfig(StrictBaseModel):
         return self
 
 
+def _expect_names(weights: dict[str, float], names: tuple[str, ...], label: str) -> None:
+    """Sub-component names must be exactly the specified ones (a typo would otherwise drop a
+    sub-component silently; SCORING_SPECIFICATION 9, found 2026-10-03)."""
+    if set(weights) != set(names):
+        raise ValueError(
+            f"{label} sub-components must be exactly {sorted(names)}, got {sorted(weights)}"
+        )
+
+
 class ScoringWeights(StrictBaseModel):
     """SCORING_SPECIFICATION section 1: trend, vcp, volume, rs, fundamentals."""
 
@@ -381,6 +390,7 @@ class TrendScoreComponents(StrictBaseModel):
             raise ValueError(f"Trend sub-component weights must sum to 100, got {total}")
         if set(self.weights.keys()) != set(self.bounds.keys()):
             raise ValueError("Trend sub-component weights keys must match bounds keys")
+        _expect_names(self.weights, ("high_proximity", "sma200_slope", "ma_stack_margin"), "Trend")
         return self
 
 
@@ -415,6 +425,18 @@ class VCPScoreComponents(StrictBaseModel):
             raise ValueError(f"VCP sub-component weights must sum to 100, got {total}")
         if set(self.weights.keys()) != set(self.bounds.keys()):
             raise ValueError("VCP sub-component weights keys must match bounds keys")
+        _expect_names(
+            self.weights,
+            (
+                "contraction_sequence",
+                "tightening",
+                "final_contraction",
+                "volatility",
+                "pivot",
+                "base_structure",
+            ),
+            "VCP",
+        )
         return self
 
 
@@ -443,6 +465,7 @@ class VolumeScoreComponents(StrictBaseModel):
             raise ValueError(f"Volume sub-component weights must sum to 100, got {total}")
         if set(self.weights.keys()) != set(self.bounds.keys()):
             raise ValueError("Volume sub-component weights keys must match bounds keys")
+        _expect_names(self.weights, ("dryup_quality", "up_down_volume", "distribution"), "Volume")
         return self
 
 
@@ -479,6 +502,19 @@ class FundamentalScoreComponents(StrictBaseModel):
             raise ValueError(f"Fundamental sub-component weights must sum to 100, got {total}")
         if set(self.weights.keys()) != set(self.bounds.keys()):
             raise ValueError("Fundamental sub-component weights keys must match bounds keys")
+        _expect_names(
+            self.weights,
+            (
+                "eps_yoy",
+                "eps_qoq",
+                "sales_yoy",
+                "eps_acceleration",
+                "margin_expansion",
+                "roe",
+                "debt",
+            ),
+            "Fundamental",
+        )
         return self
 
 
