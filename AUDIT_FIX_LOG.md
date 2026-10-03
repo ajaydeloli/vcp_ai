@@ -2024,3 +2024,17 @@ Exit rules on the VCP classes (per trade):
 - **Corporate actions** (`--variant corporate-actions`, 2023-06-23): later corporate actions deleted and adjusted prices rebuilt; result **identical**. A later split or bonus rescales price and volume together, so ratios and traded value are unchanged. 18.7 % of observations (2,300 of 12,183 ranked setups) have a later adjustment, with no effect seen on the checked date.
 - **Survivorship:** every scan date is PARTIAL, because ASM/GSM surveillance history only starts on 2026-10-01. Prices come from bhavcopies, which include delisted stocks.
 - **Period looks:** development 5; validation 0.
+
+### Phase 9 applied to the main DB (owner approved; 19:47–19:48 IST 2026-10-03, code at 81f3d20)
+
+Owner decisions:
+- apply steps 2–6;
+- keep the backtest history in the research copy `data/golden_src.duckdb` (main stays lean with live scans).
+
+Under the daily-run lock:
+- **Copy check:** `compute labels` gave 470 observations, all still open (the dates are 30 Sep and 1 Oct). Bias report: survivorship PARTIAL for 30 Sep and POINT_IN_TIME_COMPLETE for 1 Oct (ASM/GSM collection started on 1 Oct); no later corporate-action adjustments. The copy was deleted.
+- **Backup** (database check passed): `data/backups/vcp_scanner_20261003_141759.duckdb` (1.98 GB).
+- **Merge:** `p9-step3-engine` (steps 2–6) fast-forwarded into `main` and pushed.
+- **Main DB:** tables `forward_labels`, `backtest_runs` and `backtest_events` created; 470 labels written, all open.
+
+From the next trading day the daily run updates labels after scoring.
