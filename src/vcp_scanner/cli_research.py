@@ -48,6 +48,11 @@ def add_research_parser(subparsers: argparse._SubParsersAction) -> None:  # type
         help="Extra config to compare on the development period, e.g. "
         "rs10:vcp.pivot.max_right_side_range_pct=10 (repeatable)",
     )  # fmt: skip
+    oc.add_argument(
+        "--validate-rule",
+        metavar="RULE",
+        help="Also show validation for this exit rule (chosen on development first)",
+    )
     oc.add_argument("--csv", help="Write every window (all variants) to this CSV")
     oc.add_argument("--db", default="data/vcp_scanner.duckdb")
     oc.add_argument("--config-dir", default="config")
@@ -213,7 +218,14 @@ def _apply_variant(strategy: Any, spec: str) -> tuple[str, Any, Any]:
 def _outcomes(args: argparse.Namespace) -> int:
     import csv
 
-    from vcp_scanner.research.outcomes import collect_windows, format_stats, summarize
+    from vcp_scanner.research.outcomes import (
+        DEFAULT_RULE,
+        TRADE_RULES,
+        collect_windows,
+        format_rules,
+        format_stats,
+        summarize,
+    )
 
     cfg = load_scanner_config(args.config_dir)
     config_hash = scan_config_hash(cfg)
@@ -245,19 +257,43 @@ def _outcomes(args: argparse.Namespace) -> int:
         key="status",
     )
     print("\n" + format_stats(status_stats, "[current] development, VCP/A+/near-A+ by status"))
+    print("\n" + format_rules([r for r in cur if r.as_of <= split],
+                              "[current] development, breakout trade by exit rule"))  # fmt: skip
+    print(
+        f"  (validation shows only the default rule {DEFAULT_RULE}; choose a rule on "
+        "development first, then look at it once on validation)"
+    )
     val, cens = summarize([r for r in cur if r.as_of > split])
     print("\n" + format_stats(val, f"[current] VALIDATION ({cens} censored)"))
+    if args.validate_rule:
+        chosen = [r for r in TRADE_RULES if r.name == args.validate_rule]
+        if not chosen:
+            _err(f"Unknown rule {args.validate_rule}; rules: "
+                 + ", ".join(r.name for r in TRADE_RULES))  # fmt: skip
+            return 1
+        print(
+            "\n"
+            + format_rules(
+                [r for r in cur if r.as_of > split],
+                f"[current] VALIDATION, rule {chosen[0].name}",
+                chosen,
+            )
+        )
     if args.csv:
         with open(args.csv, "w", newline="", encoding="utf-8") as fh:
             w = csv.writer(fh)
             header = ["variant", "as_of", "instrument_id", "symbol", "group", "status", "result",
-                      "ret_20", "ret_60", "mfe_60", "mae_60", "breakout_20"]  # fmt: skip
+                      "ret_20", "ret_60", "mfe_60", "mae_60", "breakout_20",
+                      *(f"trade_{t.name}" for t in TRADE_RULES)]  # fmt: skip
             w.writerow(header)
             for name, rs in rows.items():
                 for r in rs:
                     o = r.outcome
+                    trades = {} if o is None else o.trades
                     w.writerow([name, r.as_of, r.instrument_id, r.symbol, r.group, r.status,
                                 *(("",) * 6 if o is None else (o.result, round(o.ret_20, 2),
                                   round(o.ret_60, 2), round(o.mfe_60, 2), round(o.mae_60, 2),
-                                  o.breakout_20))])  # fmt: skip
+                                  o.breakout_20)),
+                                *(round(trades[t.name], 2) if t.name in trades else ""
+                                  for t in TRADE_RULES)])  # fmt: skip
     return 0

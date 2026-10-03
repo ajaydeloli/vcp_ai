@@ -12,6 +12,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Outcome study:** `vcp research outcomes` measures what happened after each scan date, by detector class. It reports the win rate (+10 % before −7 %), excess over the same day's passers, and a breakout-trade result. The development and validation periods are reported separately, and config variants are compared on development only.
 - **First result:** on month-end scans from 2024-10 to 2026-09, the VCP class did no better than looser setups. No thresholds were changed.
 
+### Added (outcome study: exit rules, 2026-10-03)
+- The outcome study now compares four exit rules for the breakout trade, fixed in advance:
+  - +10 % target, −7 % stop (the current rule);
+  - +20 % target, −7 % stop;
+  - +20 % target, stop below the last contraction's low (never more than 8 %);
+  - no target, −7 % stop, sell after 60 days.
+- Validation is shown for one chosen rule only (`--validate-rule`). The CSV export has one column per rule.
+- On month-end scans from 2022 to 2025, a VCP did no better than other Trend Template passers under any rule. Letting winners run was the best exit in every group.
+
 ### Changed (owner, 2026-10-03)
 - Phase 6 is now accepted on the mark check and the outcome study, not a labelled golden set. The blind labelling sheet remains optional.
 

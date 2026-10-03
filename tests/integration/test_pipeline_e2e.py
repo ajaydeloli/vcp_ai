@@ -244,3 +244,17 @@ def test_full_pipeline_from_an_empty_database(
                      "--config-dir", CONFIG_DIR]) == 0  # fmt: skip
     out = capsys.readouterr().out
     assert "Re-recorded detector baselines for 1 fixtures." in out and "fixtures 1" in out
+
+    # Phase 6 validation: the mark-check sheet and the outcome study run end to end.
+    rv_dir = tmp_path / "review"
+    assert cli_main(["research", "review-sheet", "--from", as_of, "--to", as_of, "--db", db,
+                     "--config-dir", CONFIG_DIR, "--out", str(rv_dir)]) == 0  # fmt: skip
+    assert "Scan dates : 1" in capsys.readouterr().out
+    assert (rv_dir / "review_sheet.html").stat().st_size > 0
+    oc_csv = tmp_path / "windows.csv"
+    assert cli_main(["research", "outcomes", "--from", as_of, "--to", as_of, "--split", as_of,
+                     "--db", db, "--config-dir", CONFIG_DIR, "--csv", str(oc_csv),
+                     "--validate-rule", "t20_low8"]) == 0  # fmt: skip
+    out = capsys.readouterr().out
+    assert "breakout trade by exit rule" in out and "VALIDATION, rule t20_low8" in out
+    assert oc_csv.read_text().splitlines()[0].endswith("trade_hold_s7")

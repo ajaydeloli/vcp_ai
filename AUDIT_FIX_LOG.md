@@ -1619,3 +1619,48 @@ Checked and rejected: the idea that "descending bases cause the failures". Desce
 **Result.** The VCP class shows no edge so far. **No threshold was changed**: this is a strategy decision for the owner, and the sample is small.
 
 **Mark-check sheet**: `data/review/` (not in git), 40 windows, seed 20261003.
+
+### Phase 6 validation follow-up — mark-check answers, larger sample, exit rules (2026-10-03 10:40–12:00 IST)
+
+**Mark check (A)** (owner's answers in `data/review/review_answers.csv`): 32 yes, 6 partly, 2 unsure, 0 no out of 40. The detector's geometry is sound, so the weak outcome results do not come from bad marks.
+
+Owner's note on window 30 (M&M 2024-11-29, depths 7.4 → 17.1 → 9.1 %, peaks 3222.1 / 3220.3): "T1 and T2 highs are almost the same, so counting should start from T2." Checked against the other answers:
+- Merging *every* pair of equal highs would also change windows the owner marked "yes" (MAHABANK 67.74 / 67.70, SBIN, INDIANB, TORNTPHARM).
+- The narrower version is consistent with all the answers: merge only when the next high is within tolerance **and** the next pullback is deeper.
+- This is a detector rule change, so it is **pending an owner decision**; nothing has been changed.
+
+**Larger sample (B).** Month-end universe, RS and Trend Template scans for 2022-01 .. 2024-09 were added to the copy `data/golden_src.duckdb` (33 dates, 10:40–11:52 IST; main DB untouched; 2022-01 all INSUFFICIENT_DATA). The development period is now 2022-02 .. 2025-09 with 8,409 windows; validation is unchanged.
+
+**Exit rules** (code commit "Outcome study: fixed exit rules"): `TRADE_RULES` t10_s7 (default), t20_s7, t20_low8, hold_s7. Validation is shown only for the default rule or for one rule named with `--validate-rule`. The CSV has one trade column per rule. The e2e test now covers `review-sheet` and `outcomes`.
+
+**Results** (development; full output in `data/review/outcomes_2022_2026.txt`):
+
+Scan-date win rate (excess over same-date passers):
+
+| Group | Win rate |
+|---|---|
+| VCP | 45.6 % (−0.6), n 888 |
+| VCP-like | 47.5 % (+1.0), n 1,348 |
+| Near-A+ | 51.9 % (+1.7), n 81 |
+| None | 47.0 % (−0.2), n 6,084 |
+| A+ | n 2 |
+
+Breakout-trade average:
+
+| Group | Trades | t10_s7 | t20_s7 | t20_low8 | hold_s7 |
+|---|---|---|---|---|---|
+| VCP | 588 | +0.25 % | +0.94 % | +1.05 % | +2.43 % |
+| VCP-like | 873 | +0.98 % | +1.54 % | +1.63 % | +2.67 % |
+| None | 3,017 | +0.74 % | +1.56 % | +1.62 % | +2.98 % |
+
+The `noise_old` variant gives about the same results.
+
+By year, the regime dominates. With hold_s7, VCP and the other passers both made about +9 % in 2023, and both were negative in 2022, 2024 and 2025.
+
+**Disclosure.** That by-year table was computed from the CSV, so its 2025-Q4 and 2026 rows include validation windows under hold_s7: VCP +2.9 %, other passers +7.6 % for 2026. Strictly, the "look once" for hold_s7 on validation has therefore been used informally. It points the same way: no VCP edge.
+
+**Conclusion.**
+- On 2022–2025 NSE data the VCP class does not pick better setups than other Trend Template passers.
+- The exit rule and the market regime matter far more than the class.
+- No threshold or rule was changed.
+- Owner decisions are pending: (1) the equal-high merge rule; (2) how to use the VCP class from here on (descriptive or chart-review filter versus an edge); (3) which exit rule, if any, to adopt.

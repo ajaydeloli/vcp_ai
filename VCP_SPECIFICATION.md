@@ -1584,6 +1584,34 @@ Findings:
 - Variants did not justify loosening A+ (right-side range 7.5 % or 10 %: n 5 and 9, win rate 40 % and 33 %).
 - No threshold was changed. The sample is small (24 month-end dates), and the development period was weak (median 60-session return of passers −8.6 %).
 
+Extended run (2026-10-03): month-end scans 2022-02 .. 2026-09 (2022-01 had too little history). Development has 8,409 windows; validation is unchanged at 1,400.
+
+Scan-date win rate (excess over same-date passers):
+
+| Group | Development |
+|---|---|
+| VCP | 45.6 % (−0.6), n 888 |
+| VCP-like | 47.5 % (+1.0), n 1,348 |
+| Near-A+ | 51.9 % (+1.7), n 81 |
+| None | 47.0 % (−0.2), n 6,084 |
+| A+ | n 2 |
+
+Breakout-trade average (development, by exit rule):
+
+| Group | t10_s7 | t20_s7 | t20_low8 | hold_s7 |
+|---|---|---|---|---|
+| VCP | +0.3 % | +0.9 % | +1.1 % | +2.4 % |
+| None | +0.7 % | +1.6 % | +1.6 % | +3.0 % |
+| All | +0.7 % | +1.5 % | +1.6 % | +2.9 % |
+
+Findings:
+- The larger sample confirms that the VCP class adds no edge over other Trend Template passers.
+- The exit rule matters more than the class: letting winners run (hold_s7) is best in every group.
+- The year matters most. In 2023 every group made about +9 % (hold_s7); 2022, 2024 and 2025 were negative for every group.
+- A by-year table has already shown hold_s7 on validation informally (AUDIT_FIX_LOG); it agrees.
+
+**Mark check (option A) result, 2026-10-03.** Of 40 windows the owner marked 32 yes, 6 partly, 2 unsure and 0 no. The detector's geometry is sound. The one note (M&M) proposes merging a contraction whose high nearly equals the next one's when the next pullback is deeper. That is a detector rule change and is pending an owner decision.
+
 ---
 
 # 63. Evaluation Metrics

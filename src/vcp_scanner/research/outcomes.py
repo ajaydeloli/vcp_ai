@@ -24,6 +24,13 @@ Per window (a Trend Template passer with weekly Stage 2 on a scan date):
   above treats every passer as bought on the scan day, which is unfair to forming patterns
   that a VCP trader would only buy on a breakout (found 2026-10-03).
 
+* **exit rules** (``TRADE_RULES``, added 2026-10-03): the same breakout entry under several
+  fixed exits: ``t10_s7`` (the above, the default), ``t20_s7`` (+20 % target), ``t20_low8``
+  (+20 % target, stop 0.5 % below the final contraction's low but never wider than 8 %),
+  ``hold_s7`` (no target: -7 % stop or the close 60 sessions later). The rules are fixed in
+  advance and compared on development only; validation is shown for the default rule, or once
+  for a rule named with ``--validate-rule``.
+
 Windows without 60 forward sessions are left out (counted as ``censored``); a trade needs
 ``HORIZON`` sessions after its entry.
 
@@ -40,8 +47,8 @@ from __future__ import annotations
 
 import math
 from collections import defaultdict
-from collections.abc import Sequence
-from dataclasses import dataclass
+from collections.abc import Mapping, Sequence
+from dataclasses import dataclass, field
 from datetime import date
 from typing import Any
 
@@ -53,6 +60,27 @@ BREAKOUT_VOLUME = 1.5
 
 
 @dataclass(frozen=True, slots=True)
+class TradeRule:
+    """Exit rule for the breakout trade. ``target_pct`` None = no target (time exit only).
+    ``stop_at_final_low``: stop just below the final contraction's low, but never wider than
+    ``stop_pct`` (the tighter of the two); otherwise the stop is ``stop_pct`` below entry."""
+
+    name: str
+    target_pct: float | None
+    stop_pct: float
+    stop_at_final_low: bool = False
+
+
+DEFAULT_RULE = "t10_s7"
+TRADE_RULES = (
+    TradeRule("t10_s7", 10.0, 7.0),  # the original rule
+    TradeRule("t20_s7", 20.0, 7.0),
+    TradeRule("t20_low8", 20.0, 8.0, stop_at_final_low=True),
+    TradeRule("hold_s7", None, 7.0),
+)
+
+
+@dataclass(frozen=True, slots=True)
 class Outcome:
     ret_20: float
     ret_60: float
@@ -61,6 +89,7 @@ class Outcome:
     result: str  # WIN | LOSS | NONE
     breakout_20: bool | None
     trade_ret: float | None = None  # breakout trade exit return %; None = no trade
+    trades: Mapping[str, float] = field(default_factory=dict)  # rule name -> exit return %
 
 
 @dataclass(frozen=True, slots=True)
@@ -94,9 +123,18 @@ def breakout_trade(
     prior_volume: Sequence[float | None],
     pivot: float | None,
 ) -> float | None:
-    """Exit return % of the breakout trade (module docstring), or None for no trade."""
-    if pivot is None:
-        return None
+    """Exit return % of the breakout trade under the default rule, or None for no trade."""
+    return breakout_trades(high, low, close, volume, prior_volume, pivot).get(DEFAULT_RULE)
+
+
+def _breakout_entry(
+    close: Sequence[float],
+    volume: Sequence[float | None],
+    prior_volume: Sequence[float | None],
+    pivot: float,
+) -> int | None:
+    """Index of the first close above ``pivot`` within BREAKOUT_WINDOW bars on volume >=
+    BREAKOUT_VOLUME x the mean of the 50 bars before it; None if there is none."""
     vols = list(prior_volume) + list(volume)
     offset = len(prior_volume)
     for i in range(min(BREAKOUT_WINDOW, len(close))):
@@ -107,17 +145,49 @@ def breakout_trade(
         if len(window) < 50 or v is None or any(x is None for x in window):
             continue
         base = sum(x for x in window if x is not None) / 50
-        if base <= 0 or v < BREAKOUT_VOLUME * base:
-            continue
-        if i + HORIZON >= len(close):
-            return None  # not enough bars after entry: treated as censored, no trade
-        result, j = _first_hit(high, low, i + 1, close[i])
-        if result == "WIN":
-            return WIN_PCT
-        if result == "LOSS":
-            return -LOSS_PCT
-        return (close[j] / close[i] - 1) * 100
+        if base > 0 and v >= BREAKOUT_VOLUME * base:
+            return i
     return None
+
+
+def _exit(
+    high: Sequence[float], low: Sequence[float], close: Sequence[float], i: int,
+    rule: TradeRule, final_low: float | None,
+) -> float:  # fmt: skip
+    """Exit return % of a trade entered at ``close[i]`` (stop first if both hit on one bar)."""
+    entry = close[i]
+    stop_ret = -rule.stop_pct
+    if rule.stop_at_final_low and final_low is not None and final_low < entry:
+        # just below the final low, never wider than stop_pct
+        stop_ret = max(stop_ret, (final_low * 0.995 / entry - 1) * 100)
+    stop = entry * (1 + stop_ret / 100)
+    target = None if rule.target_pct is None else entry * (1 + rule.target_pct / 100)
+    for j in range(i + 1, i + 1 + HORIZON):
+        if low[j] <= stop:
+            return stop_ret
+        if target is not None and rule.target_pct is not None and high[j] >= target:
+            return rule.target_pct
+    return (close[i + HORIZON] / entry - 1) * 100
+
+
+def breakout_trades(
+    high: Sequence[float],
+    low: Sequence[float],
+    close: Sequence[float],
+    volume: Sequence[float | None],
+    prior_volume: Sequence[float | None],
+    pivot: float | None,
+    final_low: float | None = None,
+    rules: Sequence[TradeRule] = TRADE_RULES,
+) -> dict[str, float]:
+    """Exit return % per rule of the breakout trade (module docstring); empty for no trade or
+    fewer than HORIZON bars after the entry (censored)."""
+    if pivot is None:
+        return {}
+    i = _breakout_entry(close, volume, prior_volume, pivot)
+    if i is None or i + HORIZON >= len(close):
+        return {}
+    return {r.name: _exit(high, low, close, i, r, final_low) for r in rules}
 
 
 def forward_outcome(
@@ -128,12 +198,18 @@ def forward_outcome(
     pivot: float | None,
     volume: Sequence[float | None] | None = None,
     prior_volume: Sequence[float | None] | None = None,
+    final_low: float | None = None,
 ) -> Outcome | None:
     """Outcome from the bars *after* the as-of date (module docstring); None if too few."""
     if len(close) < HORIZON:
         return None
     result, _ = _first_hit(high, low, 0, entry)
     breakout = None if pivot is None else any(c > pivot for c in close[:BREAKOUT_WINDOW])
+    trades = (
+        breakout_trades(high, low, close, volume, prior_volume, pivot, final_low)
+        if volume is not None and prior_volume is not None
+        else {}
+    )
     return Outcome(
         ret_20=(close[BREAKOUT_WINDOW - 1] / entry - 1) * 100,
         ret_60=(close[HORIZON - 1] / entry - 1) * 100,
@@ -141,11 +217,8 @@ def forward_outcome(
         mae_60=(min(low[:HORIZON]) / entry - 1) * 100,
         result=result,
         breakout_20=breakout,
-        trade_ret=(
-            breakout_trade(high, low, close, volume, prior_volume, pivot)
-            if volume is not None and prior_volume is not None
-            else None
-        ),
+        trade_ret=trades.get(DEFAULT_RULE),
+        trades=trades,
     )
 
 
@@ -157,6 +230,12 @@ def wilson(k: int, n: int, z: float = 1.96) -> tuple[float, float]:
     centre = (p + z * z / (2 * n)) / (1 + z * z / n)
     half = z * math.sqrt(p * (1 - p) / n + z * z / (4 * n * n)) / (1 + z * z / n)
     return max(0.0, centre - half), min(1.0, centre + half)
+
+
+def final_low_of(det: object) -> float | None:
+    """Low of the detection's final contraction (the structural stop), None without one."""
+    p = getattr(det, "pattern", None)
+    return p.contractions[-1].trough_price if p is not None and p.contractions else None
 
 
 def group_of(det: object) -> tuple[str, str | None, float | None]:
@@ -241,7 +320,8 @@ def collect_windows(
             )  # fmt: skip
             found = det.detect(iid, s, d, trend_template_pass=True, weekly_stage2_pass=stage2)
             group, status, pivot = group_of(found)
-            outcome = forward_outcome(f_high, f_low, f_close, entry, pivot, f_vol, p_vol)
+            outcome = forward_outcome(f_high, f_low, f_close, entry, pivot, f_vol, p_vol,
+                                      final_low_of(found))  # fmt: skip
             out[name].append(WindowRow(d, iid, str(symbol), group, status, outcome))
     return out
 
@@ -328,4 +408,32 @@ def format_stats(stats: Sequence[GroupStats], title: str) -> str:
             f" {num(s.median_mae_60)} {pct(s.breakout_rate)} | {s.trades:6d}"
             f" {pct(s.trade_win_rate)} {num(s.expectancy)}"
         )
+    return "\n".join(lines)
+
+
+def format_rules(
+    rows: Sequence[WindowRow], title: str, rules: Sequence[TradeRule] = TRADE_RULES
+) -> str:
+    """Breakout-trade results per group and exit rule: trades, win %, average, average win and
+    loss (all exit returns in %)."""
+    groups: dict[str, list[Outcome]] = defaultdict(list)
+    for r in rows:
+        if r.outcome is not None and r.outcome.trades:
+            groups[r.group].append(r.outcome)
+            groups["ALL"].append(r.outcome)
+    order = {g: i for i, g in enumerate(GROUP_ORDER)}
+    lines = [title, f"  {'group':12} {'rule':9} {'trades':>6} {'win%':>5} {'avg%':>6} "
+             f"{'avgwin':>6} {'avgloss':>7}"]  # fmt: skip
+    for g in sorted(groups, key=lambda g: (order.get(g, 50), g)):
+        for rule in rules:
+            xs = [o.trades[rule.name] for o in groups[g] if rule.name in o.trades]
+            if not xs:
+                continue
+            wins, losses = [x for x in xs if x > 0], [x for x in xs if x <= 0]
+            lines.append(
+                f"  {g:12} {rule.name:9} {len(xs):6d} {len(wins) / len(xs) * 100:5.1f}"
+                f" {sum(xs) / len(xs):6.2f}"
+                f" {(sum(wins) / len(wins)) if wins else 0.0:6.2f}"
+                f" {(sum(losses) / len(losses)) if losses else 0.0:7.2f}"
+            )
     return "\n".join(lines)

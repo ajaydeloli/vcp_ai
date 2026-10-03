@@ -116,3 +116,28 @@ def test_trade_stats_in_summary() -> None:
     vcp = next(s for s in stats if s.group == "VCP")
     assert vcp.trades == 3 and vcp.trade_win_rate == pytest.approx(2 / 3)
     assert vcp.expectancy == pytest.approx((10 - 7 + 10) / 3)
+
+
+def test_exit_rules_target_stop_and_structural_stop() -> None:
+    from vcp_scanner.research.outcomes import TRADE_RULES, WindowRow, breakout_trades, format_rules
+
+    n = HORIZON + 30
+    h, lo, c = _flat(n)
+    vol: list[float | None] = [1000.0] * n
+    prior: list[float | None] = [1000.0] * 50
+    c[3], h[3], vol[3] = 105.0, 105.5, 2000.0  # entry at 105 on volume
+    h[10] = 116.0  # +10.5 %: hits a 10 % target, not a 20 % one
+    # daily lows of 99 (-5.7 %) stay above the -7 / -8 % stops but break a final low of 102
+    t = breakout_trades(h, lo, c, vol, prior, 104.0, final_low=102.0)
+    assert set(t) == {r.name for r in TRADE_RULES}
+    assert t["t10_s7"] == 10.0
+    assert t["t20_s7"] == pytest.approx((100 / 105 - 1) * 100)  # time exit at the close
+    assert t["t20_low8"] == pytest.approx((102 * 0.995 / 105 - 1) * 100)  # structural stop
+    assert t["hold_s7"] == t["t20_s7"]
+    far = breakout_trades(h, lo, c, vol, prior, 104.0, final_low=80.0)
+    assert far["t20_low8"] == pytest.approx((100 / 105 - 1) * 100)  # capped at -8 %: not hit
+    assert breakout_trades(h, lo, c[: 3 + HORIZON], vol, prior, 104.0) == {}  # censored
+    row = WindowRow(date(2025, 1, 1), "I", "S", "VCP", "FORMING",
+                    Outcome(1.0, 2.0, 3.0, -4.0, "WIN", True, t["t10_s7"], t))  # fmt: skip
+    text = format_rules([row], "rules")
+    assert "t20_low8" in text and "VCP" in text and "ALL" in text
