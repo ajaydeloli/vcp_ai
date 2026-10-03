@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (Phase 9 steps 3–5: backtests)
+- `vcp backtest run` replays stored scans day by day. It buys a breakout on volume and exits by the chosen rule, after costs. It reports every trade on its own and a 10-position portfolio (return, CAGR, drawdown, Sharpe), and stores every event.
+- `vcp backtest walk-forward` runs the periods in `config/backtest.yaml`. The validation period is shown only on request and each look is counted; live paper trading from Oct 2026 is the real test.
+- `vcp backtest lookahead-check` proves a stored scan used no later data by rebuilding it without that data. `vcp backtest bias-report` shows survivorship gaps and later split or bonus adjustments.
+
 ### Added (Phase 9 step 2: forward labels)
 - `vcp compute labels` records what happened after each scored setup: the return after 5, 10, 20, 40 and 60 sessions, the best and worst move, whether it broke out within 20 sessions, and whether that breakout failed.
 - Labels fill in as new days arrive. The daily run updates them once after scoring.

@@ -544,6 +544,10 @@ def build_parser() -> argparse.ArgumentParser:
 
     add_research_parser(subparsers)
 
+    from vcp_scanner.cli_backtest import add_backtest_parser
+
+    add_backtest_parser(subparsers)
+
     scores_cmd = subparsers.add_parser("scores", help="Read stored setup scores (Phase 7)")
     scores_sub = scores_cmd.add_subparsers(dest="scores_command")
     sl = scores_sub.add_parser("list", help="Ranked setups of a date (default: latest scored)")
@@ -986,6 +990,11 @@ def main(argv: Sequence[str] | None = None) -> int:
             parser.parse_args(["compute", "--help"])
             return 0
         return runner(args)
+
+    if args.command == "backtest":
+        from vcp_scanner.cli_backtest import run_backtest
+
+        return run_backtest(args)
 
     if args.command == "scores":
         from vcp_scanner import cli_scores_view

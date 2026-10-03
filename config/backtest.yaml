@@ -1,0 +1,19 @@
+# backtest.yaml - walk-forward periods (PROJECT_DESIGN 41; Phase 9 step 4)
+# Read on its own: not part of the scan config hash (periods decide how results are viewed,
+# not what a scan computes). Owner decision 2026-10-03: live paper tracking from 2026-10 is the
+# true out-of-sample test (2025-10 .. 2026-09 was already looked at in outcome checks).
+
+periods:
+  - name: development
+    role: development
+    start: 2022-02-01
+    end: 2024-06-30
+  - name: validation
+    role: validation          # needs --validation; every look is logged
+    start: 2024-07-01
+    end: 2026-09-30
+  - name: live_paper
+    role: test                # needs --test and at least min_test_months of data
+    start: 2026-10-01
+
+min_test_months: 6

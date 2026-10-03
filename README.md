@@ -80,6 +80,10 @@ vcp compute rs --as-of 2026-09-29
 vcp compute trend-template --as-of 2026-09-29
 vcp compute vcp --as-of 2026-09-29
 vcp compute scores --as-of 2026-09-29
+vcp backtest run --from 2022-02-01 --to 2024-06-30      # event-engine backtest over stored scans (Phase 9)
+vcp backtest walk-forward [--validation]             # each period of config/backtest.yaml
+vcp backtest lookahead-check --as-of 2023-06-23      # rebuild a stored scan without later data; must be IDENTICAL
+vcp backtest bias-report --from 2022-02-01 --to 2026-09-30
 vcp compute labels                    # forward labels (returns after 5-60 sessions, breakouts) of earlier observations
 vcp scores list                       # ranked setups of the latest scored date (--all adds unranked passers)
 vcp scores explain SIYSIL             # how one stock's score was built, sub-score by sub-score

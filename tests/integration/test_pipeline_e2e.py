@@ -255,6 +255,40 @@ def test_full_pipeline_from_an_empty_database(
             "SELECT count(*), count(*) FILTER (WHERE complete) FROM forward_labels").fetchone()  # type: ignore[misc]  # fmt: skip
     assert n_lab == passers[0] and n_done == 0
 
+    # Phase 9 step 3: a backtest over the stored scan (no later bars: no trades, but a run).
+    bt = ["backtest", "run", "--from", as_of, "--to", as_of, "--period", "e2e",
+          "--db", db, "--config-dir", CONFIG_DIR]  # fmt: skip
+    code = cli_main(bt)
+    out, err = capsys.readouterr()
+    if code == 0:  # eligible setups exist: a run with no trades (no later bars)
+        assert "Every trade : 0 trades" in out and "Portfolio" in out
+    else:
+        assert "No eligible scored setups" in err
+    with DuckDBStore(db) as store:
+        runs = store.conn.execute("SELECT count(*) FROM backtest_runs").fetchone()
+    assert runs == ((1,) if code == 0 else (0,))
+
+    # Phase 9 step 4: walk-forward; validation and test stay hidden without their flags.
+    wf = ["backtest", "walk-forward", "--db", db, "--config-dir", CONFIG_DIR]
+    assert cli_main(wf) == 0
+    out = capsys.readouterr().out
+    assert "[validation] hidden" in out and "[live_paper] hidden" in out
+
+    # Phase 9 step 5: the look-ahead check rebuilds the stored scan without later data.
+    la = ["backtest", "lookahead-check", "--as-of", as_of, "--work-dir", str(tmp_path / "la"),
+          "--db", db, "--config-dir", CONFIG_DIR]  # fmt: skip
+    assert cli_main(la) == 0, capsys.readouterr().out
+    out = capsys.readouterr().out
+    assert "Result      : IDENTICAL" in out
+    assert not list((tmp_path / "la").glob("*.duckdb"))  # the copy is removed
+
+    br = ["backtest", "bias-report", "--from", as_of, "--to", as_of, "--db", db,
+          "--config-dir", CONFIG_DIR]  # fmt: skip
+    assert cli_main(br) == 0
+    out = capsys.readouterr().out
+    assert "Survivorship : scan dates by universe status: BIASED 1" in out
+    assert "Corporate actions: 0 of" in out and "Period looks" in out
+
     # Phase 7 step 4: the ranked list and a per-stock explanation.
     assert cli_main(["scores", "list", "--all", "--db", db, "--config-dir", CONFIG_DIR]) == 0
     out = capsys.readouterr().out

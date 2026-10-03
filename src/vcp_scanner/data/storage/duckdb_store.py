@@ -852,6 +852,42 @@ CREATE TABLE IF NOT EXISTS forward_labels (
 )
 """
 
+# Backtests (DATABASE_SCHEMA 48-49; Phase 9 step 3).
+_DDL_BACKTEST_RUNS = """
+CREATE TABLE IF NOT EXISTS backtest_runs (
+    backtest_id         VARCHAR PRIMARY KEY,
+    started_at          TIMESTAMPTZ NOT NULL,
+    completed_at        TIMESTAMPTZ,
+    start_date          DATE NOT NULL,
+    end_date            DATE NOT NULL,
+    universe_definition VARCHAR NOT NULL,
+    strategy_version    VARCHAR NOT NULL,
+    config_hash         VARCHAR NOT NULL,
+    data_snapshot_id    VARCHAR NOT NULL,
+    execution_model     VARCHAR NOT NULL,
+    research_mode       BOOLEAN NOT NULL,
+    survivorship_status VARCHAR,
+    status              VARCHAR NOT NULL,
+    period_name         VARCHAR,
+    settings_json       VARCHAR NOT NULL,
+    metrics_json        VARCHAR,
+    code_commit         VARCHAR
+)
+"""
+
+_DDL_BACKTEST_EVENTS = """
+CREATE TABLE IF NOT EXISTS backtest_events (
+    backtest_id   VARCHAR NOT NULL,
+    instrument_id VARCHAR NOT NULL,
+    event_date    DATE NOT NULL,
+    event_type    VARCHAR NOT NULL,
+    price         DOUBLE,
+    quantity      DOUBLE,
+    signal_id     VARCHAR,
+    metadata_json VARCHAR
+)
+"""
+
 _ALL_DDL: list[tuple[str, str]] = [
     ("instruments", _DDL_INSTRUMENTS),
     ("provider_instruments", _DDL_PROVIDER_INSTRUMENTS),
@@ -892,6 +928,8 @@ _ALL_DDL: list[tuple[str, str]] = [
     ("setup_scores", _DDL_SETUP_SCORES),
     ("score_components", _DDL_SCORE_COMPONENTS),
     ("forward_labels", _DDL_FORWARD_LABELS),
+    ("backtest_runs", _DDL_BACKTEST_RUNS),
+    ("backtest_events", _DDL_BACKTEST_EVENTS),
 ]
 
 

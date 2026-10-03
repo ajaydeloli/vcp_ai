@@ -1463,6 +1463,15 @@ Forward 5/10/20/40/60 day outcomes
 
 ---
 
+**Implementation (Phase 9, 2026-10-03).** `backtest/engine.py`, `vcp backtest run`.
+- **Signals.** The eligible setups of stored weekly score scans: VCP_LIKE or better, and forming, pivot-ready or breakout.
+- **Entry.** A setup is watched for 20 sessions. The entry is the first close above its pivot on at least 1.5× the 50-session mean volume, filled at that close.
+- **Exit.** By the research exit rule (default `hold_s7`): stop, target, or the close 60 sessions later. A bar touching both stop and target counts as the stop.
+- **Trade limits.** One position per stock. A newer scan replaces an open watch.
+- **Costs.** 15 bps per side.
+- **Two views.** Every trade on its own; and a portfolio of at most 10 equal positions, where the higher score wins on a crowded day. Equity is marked to market daily.
+- **Storage.** `backtest_runs` holds the settings and metrics; `backtest_events` holds every event.
+
 # 39. Forward Labels
 
 Initial outcome labels:
@@ -1525,6 +1534,15 @@ Only apply actions according to their effective historical availability.
 
 Do not optimize thresholds on the same period used for final evaluation.
 
+**Implementation (Phase 9 step 5, 2026-10-03).**
+- **`vcp backtest lookahead-check --as-of D [--variant prices|corporate-actions]`** rebuilds the stored scan of D from a temporary copy of the database.
+  - `prices` deletes prices after D and recomputes all features. The rebuilt scan must equal the stored one; any difference is a look-ahead bug.
+  - `corporate-actions` also deletes corporate actions with an ex-date after D and rebuilds the adjusted prices. Its differences measure corporate-action leakage. The ex-date stands in for availability, because historical actions were collected in 2026.
+- **`vcp backtest bias-report --from --to`** shows:
+  - survivorship status by scan date;
+  - the share of observations whose stock had a price adjustment effective later;
+  - how often each walk-forward period has been looked at.
+
 ---
 
 # 41. Walk-Forward Validation
@@ -1552,6 +1570,13 @@ Example:
 ```
 
 Exact windows should remain configurable.
+
+**Implementation (Phase 9 step 4, 2026-10-03).** Periods are in `config/backtest.yaml` (`backtest/periods.py`), read on their own and outside the scan config hash. The owner chose:
+- **development:** 2022-02 .. 2024-06; shown by default;
+- **validation:** 2024-07 .. 2026-09; needs `--validation`, and each look is counted;
+- **live_paper:** from 2026-10, the true out-of-sample test; needs `--test` and at least 6 months of data.
+
+`vcp backtest walk-forward` runs each period it may show.
 
 The goal is not to maximize historical CAGR.
 

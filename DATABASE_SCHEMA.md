@@ -1759,6 +1759,8 @@ Rows are created by `vcp compute labels` and updated until `complete`. A NULL me
 
 ---
 
+**Implementation (Phase 9 step 3):** as above, plus `period_name`, `settings_json` (rule, classes, minimum score, watch days, horizon, volume ratio, costs, maximum positions), `metrics_json` (every-trade and portfolio statistics) and `code_commit`. `backtest_events` follows §49; event types also include `OPEN_AT_END` (a position still open when the data ends; it is not counted as a trade). `metadata_json` holds the pivot, stop, return and reasons.
+
 # 49. Backtest Trades / Simulated Events
 
 Even before real execution exists, create:

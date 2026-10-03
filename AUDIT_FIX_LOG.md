@@ -1956,3 +1956,32 @@ Worktree `vcp_ai_p9s2`, branch `p9-step2-labels`.
   - no breakout after 20 sessions; a missing volume cannot confirm a breakout.
 - `test_daily_run.py`: the steps end with `compute labels`.
 - e2e: one label per scored passer, none complete (no later bars).
+
+## Phase 9 steps 3–5 — event engine, walk-forward periods, bias checks (2026-10-03)
+
+Worktree `vcp_ai_p9s3`, branch `p9-step3-engine` (on top of step 2; not merged until the main-DB apply).
+
+**Change.**
+- **Step 3**
+  - `backtest/engine.py`: `run_signals` (watch, breakout on volume, exit rule, one position per stock, newer scan replaces a watch; events ENTRY_SIGNAL / BREAKOUT / STOP / EXIT_SIGNAL / TIME_EXIT / INVALIDATION / OPEN_AT_END) and `run_portfolio` (maximum positions, equal size, higher score first, daily mark-to-market).
+  - `backtest/metrics.py`: trade and equity statistics.
+  - Tables `backtest_runs` and `backtest_events`; `duckdb_backtest_repository.py` (signals from stored score scans and primary patterns; final contraction low from `vcp_contractions`; bars; save).
+  - `vcp backtest run`.
+- **Step 4:** `backtest/periods.py` and `config/backtest.yaml` (outside the scan hash) with the owner's periods and guards; `vcp backtest walk-forward [--validation] [--test]`.
+- **Step 5**
+  - `backtest/lookahead.py`: `vcp backtest lookahead-check --as-of D [--variant prices|corporate-actions]` (temporary copy, truncate, rebuild, compare Trend Template, VCP and scores; exit code 2 on differences).
+  - `backtest/bias.py`: `vcp backtest bias-report`.
+- PROJECT_DESIGN §38/§40/§41 implementation notes, DATABASE_SCHEMA §48, README, CHANGELOG.
+
+**Tests.**
+- `test_backtest_engine.py` (5):
+  - breakout entry needs volume, and the scan-date bar is not an entry; target exit;
+  - the stop wins when stop and target hit on the same bar; costs; no-breakout invalidation after 20 sessions;
+  - a newer scan replaces the watch, signals are skipped while in a position, time exit after 60 sessions;
+  - open at the end is not a trade;
+  - portfolio slots, score priority and equity.
+- `test_backtest_periods.py` (3): the shipped yaml equals the defaults (the owner's decision); overlap, order and unique names are checked; months.
+- `test_lookahead_compare.py` (1): differences counted per table; float noise below 6 decimals ignored.
+- e2e: `backtest run`, `walk-forward` (validation and test hidden), `lookahead-check` IDENTICAL with the copy removed afterwards, `bias-report`.
+
+**Verification.** Full suite: 1,129 passed, 2 skipped. ruff, format and mypy clean.
