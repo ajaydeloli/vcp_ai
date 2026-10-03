@@ -1985,3 +1985,6 @@ Worktree `vcp_ai_p9s3`, branch `p9-step3-engine` (on top of step 2; not merged u
 - e2e: `backtest run`, `walk-forward` (validation and test hidden), `lookahead-check` IDENTICAL with the copy removed afterwards, `bias-report`.
 
 **Verification.** Full suite: 1,129 passed, 2 skipped. ruff, format and mypy clean.
+
+**Addition:** `--baseline` (`backtest run` / `walk-forward`) trades every passer whose primary pattern has a pivot, whatever its class or status. It runs the same engine and rules, as the comparison for the VCP classes.
+

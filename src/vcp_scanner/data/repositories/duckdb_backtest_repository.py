@@ -20,9 +20,11 @@ class DuckDBBacktestRepository:
 
     def signals(
         self, start: date, end: date, config_hash: str, classes: Sequence[str],
-        min_score: float | None = None,
+        min_score: float | None = None, eligible_only: bool = True,
     ) -> list[Signal]:  # fmt: skip
-        """Eligible scored setups with a pivot, scanned between ``start`` and ``end``."""
+        """Scored setups with a pivot, scanned between ``start`` and ``end``: eligible ones only,
+        or (``eligible_only=False``, the baseline) every passer whose primary pattern has a
+        pivot, whatever its class and status."""
         rows = self._store.conn.execute(
             """
             SELECT s.instrument_id, s.as_of_date, p.pivot_price, s.final_setup_score,
@@ -34,13 +36,22 @@ class DuckDBBacktestRepository:
             JOIN vcp_patterns p
               ON p.scan_id = 'vcp-' || substr(s.scan_id, 7) AND p.instrument_id = s.instrument_id
              AND p.is_primary
-            WHERE s.config_hash = ? AND s.data_snapshot_id = ? AND s.eligible
+            WHERE s.config_hash = ? AND s.data_snapshot_id = ? AND (s.eligible OR NOT ?)
               AND s.as_of_date BETWEEN ? AND ? AND p.pivot_price IS NOT NULL
               AND s.classification IN (SELECT unnest(?))
               AND (? IS NULL OR s.final_setup_score >= ?)
             ORDER BY s.as_of_date, s.instrument_id
             """,
-            [config_hash, self._snapshot, start, end, list(classes), min_score, min_score],
+            [
+                config_hash,
+                self._snapshot,
+                eligible_only,
+                start,
+                end,
+                list(classes),
+                min_score,
+                min_score,
+            ],
         ).fetchall()
         return [Signal(r[0], r[1], float(r[2]), None if r[3] is None else float(r[3]),
                        None if r[4] is None else float(r[4]), str(r[5])) for r in rows]  # fmt: skip

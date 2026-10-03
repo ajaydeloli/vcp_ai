@@ -268,6 +268,10 @@ def test_full_pipeline_from_an_empty_database(
         runs = store.conn.execute("SELECT count(*) FROM backtest_runs").fetchone()
     assert runs == ((1,) if code == 0 else (0,))
 
+    base = cli_main([*bt, "--baseline"])  # every passer with a pivot
+    out, err = capsys.readouterr()
+    assert (base == 0 and "baseline: every passer" in out) or "No eligible scored" in err
+
     # Phase 9 step 4: walk-forward; validation and test stay hidden without their flags.
     wf = ["backtest", "walk-forward", "--db", db, "--config-dir", CONFIG_DIR]
     assert cli_main(wf) == 0

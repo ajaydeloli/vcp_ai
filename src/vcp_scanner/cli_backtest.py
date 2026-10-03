@@ -25,6 +25,9 @@ def _common(p: argparse.ArgumentParser) -> None:
     p.add_argument("--classes", default=",".join(CLASSES),
                    help="Classifications to trade (comma-separated)")  # fmt: skip
     p.add_argument("--min-score", type=float, default=None)
+    p.add_argument("--baseline", action="store_true",
+                   help="Trade every passer with a pivot (any class or status): the comparison "
+                   "baseline for the VCP classes")  # fmt: skip
     p.add_argument("--watch-days", type=int, default=20)
     p.add_argument("--max-positions", type=int, default=10)
     p.add_argument("--cost-bps", type=float, default=15.0, help="Cost per side, basis points")
@@ -87,7 +90,8 @@ def _settings(args: argparse.Namespace) -> dict[str, Any] | None:
         return None
     return {"rule": rule, "classes": [c.strip() for c in args.classes.split(",") if c.strip()],
             "min_score": args.min_score, "watch_days": args.watch_days,
-            "max_positions": args.max_positions, "cost_bps": args.cost_bps}  # fmt: skip
+            "max_positions": args.max_positions, "cost_bps": args.cost_bps,
+            "baseline": args.baseline}  # fmt: skip
 
 
 def _execute(
@@ -114,7 +118,11 @@ def _execute(
     if snapshot is None:
         return None
     repo = DuckDBBacktestRepository(store, snapshot)
-    signals = repo.signals(start, end, config_hash, settings["classes"], settings["min_score"])
+    classes = settings["classes"]
+    if settings["baseline"]:
+        classes = ["NONE", "VCP_LIKE", "VCP", "A_PLUS_VCP"]
+    signals = repo.signals(start, end, config_hash, classes, settings["min_score"],
+                           eligible_only=not settings["baseline"])  # fmt: skip
     if not signals:
         return None
     scan_dates = sorted({s.scan_date for s in signals})
@@ -157,7 +165,9 @@ def _f(x: Any, scale: float = 1.0, d: int = 2) -> str:
 def _print(o: dict[str, Any], settings: dict[str, Any]) -> None:
     name = f" ({o['period']})" if o["period"] else ""
     print(f"Backtest {o['backtest_id']}: {o['start']} .. {o['end']}{name}")
-    print(f"  Signals     : {o['signals']} eligible setups on {o['scan_dates']} scan dates; "
+    kind = "setups (baseline: every passer with a pivot)" if settings["baseline"] else (
+        "eligible setups")  # fmt: skip
+    print(f"  Signals     : {o['signals']} {kind} on {o['scan_dates']} scan dates; "
           f"rule {settings['rule']}; costs {settings['cost_bps']:g} bps per side")  # fmt: skip
     s = o["every_trade"]
     print(f"  Every trade : {s['trades']} trades, win {_f(s['win_rate'], 100, 1)}%, avg "
