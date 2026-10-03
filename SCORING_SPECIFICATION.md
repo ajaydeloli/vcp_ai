@@ -162,3 +162,6 @@ Breakout trades rise with the final score (Q1 +1.7 %, Q5 +3.4 %). This is not mo
 Validation (2025-10 .. 2026-09, final score only, looked at once): IC +0.010 for all passers and −0.059 for ranked setups (9 dates).
 
 **Reading.** The spec score (`scoring-1.0.0`) orders setups in an explainable, reproducible way, but it does **not** predict 60-session outcomes among Trend Template passers. The only component with a measurable signal is the VCP shape, and it comes mostly from its lowest quintile doing worse. No weight or bound was changed; any change is the owner's decision.
+
+**Fundamentals deferred (owner, 2026-10-03).** Phase 8 is skipped for now. `fundamental_score` stays NULL and is renormalized away as in §1. The data-source findings are in AUDIT_FIX_LOG ("Decision F1").
+

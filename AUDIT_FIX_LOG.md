@@ -1870,3 +1870,16 @@ Under the daily-run lock:
 From the next session on, the daily run scores every new date after VCP detection.
 
 **Owner decisions (2026-10-03).** Keep `scoring-1.0.0` as an explainable ordering, with no tuning on 44 month-end dates. Next is Phase 8 (fundamentals); re-check the score after that.
+
+## Decision F1 — fundamentals skipped for now (owner, 2026-10-03 ~13:45 IST)
+
+The owner was offered NSE filings (recommended), a paid vendor, or skipping, and chose **skip**. The history question ("from 2025 only") does not apply while fundamentals are skipped.
+
+**Effect.** No fundamentals are ingested. `fundamental_score` stays NULL, so every setup score is flagged `FUNDAMENTALS_UNAVAILABLE` and the 10 % weight is shared among the technical components (SCORING_SPECIFICATION §1). Nothing in code or config changes. Work moves to Phase 9 (backtesting).
+
+**Findings kept for when fundamentals are picked up** (read-only probes on 2026-10-03; scripts in `~/vcp_spike/p8_probe*.py`):
+- **Old feed:** `api/corporates-financial-results?index=equities&symbol=X&period=Quarterly|Annual` lists filings up to Jan 2025. Each has `broadCastDate` (the point-in-time timestamp), a consolidated / non-consolidated flag, revision fields and an XBRL link (`nsearchives.nseindia.com/corporate/xbrl/...xml`). Tags include RevenueFromOperations, ProfitLossForPeriod, ProfitOrLossAttributableToOwnersOfParent, Basic EPS, ProfitBeforeTax, FinanceCosts, DepreciationDepletionAndAmortisationExpense, and DebtEquityRatio (only some companies). Contexts `OneD` = quarter, `FourD` = year to date. History goes back to 2007.
+- **New feed:** `api/integrated-filing-results?index=equities&symbol=X` covers filings from Feb 2025 (SEBI integrated filing), with `broadcast_Date` and an inline-XBRL HTML link (`.../corporate/ixbrl/INTEGRATED_FILING_INDAS_..._iXBRL_WEB.html`). Latest for SIYSIL: the June 2026 quarter, broadcast 30-Jul-2026 22:41.
+- **Not usable as history:** `api/results-comparision?symbol=X` is a summary that includes the debt/equity ratio, but it is not point-in-time.
+- **Gaps:** ROE needs equity, which is filed only half-yearly (statement of assets and liabilities), so expect ROE and debt to be missing for many stocks.
+- **Cost:** about 26,000 files for 2021–2026, roughly 8 hours at 1 request per second.

@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Decided (owner, 2026-10-03)
+- Fundamentals (Phase 8) are skipped for now. Setup scores keep using only the technical components, and their weights are rescaled automatically. Notes on NSE's filing data are kept in the audit log for later.
+
 ### Added (Phase 7 step 5: does the score predict outcomes?)
 - `vcp research score-outcomes` checks whether higher scores did better, using score quintiles within each scan date and the information coefficient.
 - **First result (2022–2025):** the score orders setups consistently but does not predict 60-day results (IC about 0). Only the VCP-shape part shows a small signal. Nothing was tuned.
