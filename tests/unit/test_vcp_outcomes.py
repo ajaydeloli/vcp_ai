@@ -91,19 +91,27 @@ def test_breakout_trade_needs_a_close_above_the_pivot_on_volume() -> None:
     h, lo, c = _flat(n)
     vol: list[float | None] = [1000.0] * n
     prior: list[float | None] = [1000.0] * 50
-    assert breakout_trade(h, lo, c, vol, prior, 104.0) is None  # never above the pivot
+    assert (
+        breakout_trade(h, lo, c, vol, prior, 104.0, rule="t10_s7") is None
+    )  # never above the pivot
     c[3], h[3] = 105.0, 105.5  # close above the pivot ...
-    assert breakout_trade(h, lo, c, vol, prior, 104.0) is None  # ... but on normal volume
+    assert (
+        breakout_trade(h, lo, c, vol, prior, 104.0, rule="t10_s7") is None
+    )  # ... but on normal volume
     vol[3] = 2000.0
     h[10] = 116.0  # +10.5 % from the 105 entry
-    assert breakout_trade(h, lo, c, vol, prior, 104.0) == 10.0
+    assert breakout_trade(h, lo, c, vol, prior, 104.0, rule="t10_s7") == 10.0
     lo[6] = 97.0  # -7.6 % first: stopped out
-    assert breakout_trade(h, lo, c, vol, prior, 104.0) == -7.0
+    assert breakout_trade(h, lo, c, vol, prior, 104.0, rule="t10_s7") == -7.0
     lo[6], h[10] = 99.0, 101.0  # neither: exit at the close HORIZON bars after entry
-    assert breakout_trade(h, lo, c, vol, prior, 104.0) == pytest.approx((100 / 105 - 1) * 100)
-    assert breakout_trade(h, lo, c, vol, prior, None) is None
+    assert breakout_trade(h, lo, c, vol, prior, 104.0, rule="t10_s7") == pytest.approx(
+        (100 / 105 - 1) * 100
+    )
+    assert breakout_trade(h, lo, c, vol, prior, None, rule="t10_s7") is None
     missing: list[float | None] = [1000.0] * 49 + [None]
-    assert breakout_trade(h, lo, c, vol, missing, 104.0) is None  # baseline incomplete
+    assert (
+        breakout_trade(h, lo, c, vol, missing, 104.0, rule="t10_s7") is None
+    )  # baseline incomplete
 
 
 def test_trade_stats_in_summary() -> None:
@@ -134,6 +142,9 @@ def test_exit_rules_target_stop_and_structural_stop() -> None:
     assert t["t20_s7"] == pytest.approx((100 / 105 - 1) * 100)  # time exit at the close
     assert t["t20_low8"] == pytest.approx((102 * 0.995 / 105 - 1) * 100)  # structural stop
     assert t["hold_s7"] == t["t20_s7"]
+    from vcp_scanner.research.outcomes import breakout_trade
+
+    assert breakout_trade(h, lo, c, vol, prior, 104.0) == t["hold_s7"]  # default rule
     far = breakout_trades(h, lo, c, vol, prior, 104.0, final_low=80.0)
     assert far["t20_low8"] == pytest.approx((100 / 105 - 1) * 100)  # capped at -8 %: not hit
     assert breakout_trades(h, lo, c[: 3 + HORIZON], vol, prior, 104.0) == {}  # censored

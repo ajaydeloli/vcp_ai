@@ -1664,3 +1664,14 @@ By year, the regime dominates. With hold_s7, VCP and the other passers both made
 - The exit rule and the market regime matter far more than the class.
 - No threshold or rule was changed.
 - Owner decisions are pending: (1) the equal-high merge rule; (2) how to use the VCP class from here on (descriptive or chart-review filter versus an edge); (3) which exit rule, if any, to adopt.
+
+## Decision T2 — research default exit rule hold_s7; VCP class as shortlist (owner, 2026-10-03 ~12:00 IST)
+
+The owner chose three things:
+- **"Let winners run" is the default exit rule** of the research tools: `outcomes.DEFAULT_RULE = "hold_s7"`. This affects `trade_ret`, the `trades / twin% / exp%` columns and the validation view. `breakout_trade` gained a `rule` argument.
+- **The VCP class is a chart-review shortlist, not an edge.** Work moves on to Phase 7 scoring.
+- **The equal-high merge is tested first** as a setting that is off by default (next entry).
+
+The detector and the production config are unchanged.
+
+Tests: `test_vcp_outcomes.py` uses `rule="t10_s7"` for the original checks and asserts that the default is hold_s7.

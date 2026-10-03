@@ -25,9 +25,10 @@ Per window (a Trend Template passer with weekly Stage 2 on a scan date):
   that a VCP trader would only buy on a breakout (found 2026-10-03).
 
 * **exit rules** (``TRADE_RULES``, added 2026-10-03): the same breakout entry under several
-  fixed exits: ``t10_s7`` (the above, the default), ``t20_s7`` (+20 % target), ``t20_low8``
+  fixed exits: ``t10_s7`` (the above), ``t20_s7`` (+20 % target), ``t20_low8``
   (+20 % target, stop 0.5 % below the final contraction's low but never wider than 8 %),
-  ``hold_s7`` (no target: -7 % stop or the close 60 sessions later). The rules are fixed in
+  ``hold_s7`` (no target: -7 % stop or the close 60 sessions later; the default since
+  2026-10-03, owner decision: best in every group on 2022-2025). The rules are fixed in
   advance and compared on development only; validation is shown for the default rule, or once
   for a rule named with ``--validate-rule``.
 
@@ -71,7 +72,7 @@ class TradeRule:
     stop_at_final_low: bool = False
 
 
-DEFAULT_RULE = "t10_s7"
+DEFAULT_RULE = "hold_s7"  # owner decision 2026-10-03
 TRADE_RULES = (
     TradeRule("t10_s7", 10.0, 7.0),  # the original rule
     TradeRule("t20_s7", 20.0, 7.0),
@@ -122,9 +123,10 @@ def breakout_trade(
     volume: Sequence[float | None],
     prior_volume: Sequence[float | None],
     pivot: float | None,
+    rule: str = DEFAULT_RULE,
 ) -> float | None:
-    """Exit return % of the breakout trade under the default rule, or None for no trade."""
-    return breakout_trades(high, low, close, volume, prior_volume, pivot).get(DEFAULT_RULE)
+    """Exit return % of the breakout trade under ``rule``, or None for no trade."""
+    return breakout_trades(high, low, close, volume, prior_volume, pivot).get(rule)
 
 
 def _breakout_entry(

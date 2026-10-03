@@ -1609,6 +1609,10 @@ Findings:
 - The exit rule matters more than the class: letting winners run (hold_s7) is best in every group.
 - The year matters most. In 2023 every group made about +9 % (hold_s7); 2022, 2024 and 2025 were negative for every group.
 - A by-year table has already shown hold_s7 on validation informally (AUDIT_FIX_LOG); it agrees.
+- **Owner decisions, 2026-10-03:**
+  - The default exit rule is hold_s7.
+  - The VCP class is used as a chart-review shortlist, not as an edge; the next step is Phase 7 scoring.
+  - The equal-high merge is tested first as a setting that is off by default.
 
 **Mark check (option A) result, 2026-10-03.** Of 40 windows the owner marked 32 yes, 6 partly, 2 unsure and 0 no. The detector's geometry is sound. The one note (M&M) proposes merging a contraction whose high nearly equals the next one's when the next pullback is deeper. That is a detector rule change and is pending an owner decision.
 

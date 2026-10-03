@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed (owner decision, 2026-10-03)
+- The research tools now use "let winners run" as the default exit for breakout trades: a −7 % stop, no target, and a sale after 60 days. It did best in every group on 2022–2025.
+
 ### Added (Phase 6 validation, 2026-10-03)
 - **Mark-check sheet:** `vcp research review-sheet` draws the detector's marks on each chart: base start, contraction peaks and lows with depths, the pivot, and a one-line verdict. You answer only whether the marks sit in sensible places.
 - **Outcome study:** `vcp research outcomes` measures what happened after each scan date, by detector class. It reports the win rate (+10 % before −7 %), excess over the same day's passers, and a breakout-trade result. The development and validation periods are reported separately, and config variants are compared on development only.
