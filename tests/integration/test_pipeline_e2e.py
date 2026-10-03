@@ -247,6 +247,14 @@ def test_full_pipeline_from_an_empty_database(
         bad = q("SELECT count(*) FROM setup_scores WHERE ranking_percentile IS NOT NULL"
                 " AND NOT eligible").fetchone()  # fmt: skip
         assert bad == (0,)
+    # Phase 9 step 2: forward labels for the scored observations (no later bars: all open).
+    assert cli_main(["compute", "labels", "--db", db, "--config-dir", CONFIG_DIR]) == 0
+    assert "Forward labels" in capsys.readouterr().out
+    with DuckDBStore(db) as store:
+        n_lab, n_done = store.conn.execute(
+            "SELECT count(*), count(*) FILTER (WHERE complete) FROM forward_labels").fetchone()  # type: ignore[misc]  # fmt: skip
+    assert n_lab == passers[0] and n_done == 0
+
     # Phase 7 step 4: the ranked list and a per-stock explanation.
     assert cli_main(["scores", "list", "--all", "--db", db, "--config-dir", CONFIG_DIR]) == 0
     out = capsys.readouterr().out

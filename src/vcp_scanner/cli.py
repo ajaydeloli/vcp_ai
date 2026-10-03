@@ -427,6 +427,15 @@ def build_parser() -> argparse.ArgumentParser:
     _add_config_dir_arg(scores_parser)
     _add_data_snapshot_arg(scores_parser)
 
+    labels_parser = compute_subparsers.add_parser(
+        "labels",
+        help="Fill in forward labels (returns after 5-60 sessions, breakouts) for every scored "
+        "observation that is not complete yet",
+    )
+    _add_db_arg(labels_parser)
+    _add_config_dir_arg(labels_parser)
+    _add_data_snapshot_arg(labels_parser)
+
     # verify subcommands (audit 2026-09-30 P0-1)
     verify_parser = subparsers.add_parser(
         "verify", help="Read-only checks of provider behavior against assumptions"
@@ -962,7 +971,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             return 0
 
     if args.command == "compute":
-        from vcp_scanner import cli_pipeline, cli_scores, cli_vcp
+        from vcp_scanner import cli_labels, cli_pipeline, cli_scores, cli_vcp
 
         compute_runners = {
             "features": cli_pipeline.run_compute_features,
@@ -970,6 +979,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             "trend-template": cli_pipeline.run_compute_trend_template,
             "vcp": cli_vcp.run_compute_vcp,
             "scores": cli_scores.run_compute_scores,
+            "labels": cli_labels.run_compute_labels,
         }
         runner = compute_runners.get(args.compute_command)
         if runner is None:

@@ -1743,6 +1743,22 @@ status
 
 ---
 
+# 49A. Forward Labels (Phase 9 step 2)
+
+`forward_labels`: one row per scored observation and label version (PROJECT_DESIGN §39).
+
+```text
+instrument_id, as_of_date, config_hash, label_version, data_snapshot_id   -- key
+score_scan_id, entry_close, pivot_price
+ret_5, ret_10, ret_20, ret_40, ret_60, mfe_60, mae_60                     -- %
+breakout_within_20, breakout_day, failed_breakout
+bars_after, complete, computed_at
+```
+
+Rows are created by `vcp compute labels` and updated until `complete`. A NULL means "not known yet" (too few later bars) or "not applicable" (no pivot), never 0.
+
+---
+
 # 49. Backtest Trades / Simulated Events
 
 Even before real execution exists, create:

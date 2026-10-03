@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (Phase 9 step 2: forward labels)
+- `vcp compute labels` records what happened after each scored setup: the return after 5, 10, 20, 40 and 60 sessions, the best and worst move, whether it broke out within 20 sessions, and whether that breakout failed.
+- Labels fill in as new days arrive. The daily run updates them once after scoring.
+
 ### Changed (Phase 9 step 1: faster scans)
 - Scans are about 5× faster (33 s instead of 146 s for one historical date). The results are identical.
 - The database client no longer retries a missing optional library thousands of times, and the main tables are written in one batch instead of row by row.

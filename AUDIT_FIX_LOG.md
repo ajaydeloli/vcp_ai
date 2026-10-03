@@ -38,6 +38,8 @@ genuine −50 %/−90 % crash to SMAs, 52-week lows, RS and (later) VCP depths, 
 - `DATA_SPECIFICATION.md` §18A: rule wording updated ("applied" split/bonus; unknown-ratio event).
 - `CHANGELOG.md`: entry under Unreleased.
 
+**Verification.** Full suite: 1,120 passed, 2 skipped. ruff, format and mypy clean. Not merged until the main-DB apply (plan step 7): the daily run would start writing labels.
+
 **Tests.**
 - New: `test_quality_events.py` — non-adjusting actions (no/zero/NaN ratio, conflict, dividend,
   rights) do not explain a gap; applied split/bonus under CONFIRMED/SINGLE_SOURCE/MANUAL_OVERRIDE
@@ -91,6 +93,8 @@ ranking population (selection bias), and NSE-only splits lost their adjustment.
   are WARNING and non-blocking.
 - Docs: README (credential table, known limitations), DATA_SPECIFICATION §18A table + policy note,
   DATABASE_SCHEMA §17A, CHANGELOG.
+
+**Verification.** Full suite: 1,120 passed, 2 skipped. ruff, format and mypy clean. Not merged until the main-DB apply (plan step 7): the daily run would start writing labels.
 
 **Tests.**
 - New: engine — NSE-only past grace without coverage / with coverage outside the ex-date stays
@@ -303,6 +307,8 @@ break one of them. (P1-6) The only RS test asserted `len(rows) == 2`.
 - `config/strategy.yaml`: §60 block verbatim.
 - Docs: VCP_SPECIFICATION §60 note (contract + validation), PROJECT_DESIGN §46 (flat keys
   removed, points to §60), TREND_TEMPLATE_SPECIFICATION §3 (ranks 1–98 under rs-1.0.0), CHANGELOG.
+
+**Verification.** Full suite: 1,120 passed, 2 skipped. ruff, format and mypy clean. Not merged until the main-DB apply (plan step 7): the daily run would start writing labels.
 
 **Tests.**
 - `test_config.py`: shipped YAML and defaults equal §60 exactly; the YAML block *parsed out of
@@ -565,6 +571,8 @@ files live in `data/spike/` (git-ignored, not committed).
 - Results: 808 new inactive instruments (delisted names and SME stocks not in EQUITY_L), 269 ISIN changes, 148 symbol changes, 0 disambiguated IDs, 0 rejected rows.
 - Spot checks match known events: ADANIGAS→ATGL, MAGMA→POONAWALLA and JUBILANT→JUBLPHARMA renames (2021); AFFLE, CESC and KPRMILL split ISIN changes (2021); TATASTEEL and IRCTC linked across their splits.
 
+**Verification.** Full suite: 1,120 passed, 2 skipped. ruff, format and mypy clean. Not merged until the main-DB apply (plan step 7): the daily run would start writing labels.
+
 **Tests.**
 - New `tests/unit/test_bhavcopy_identity.py` (13): seed adopts the old ISIN and then records the split ISIN change (TATASTEEL, real ISINs); IRCTC ISIN change with no seed; a symbol reused by another issuer gets `#ISIN`; the old company is not merged into today's holder of its symbol; a delisted name becomes inactive (daily_series keeps BE); symbol rename; DVR shares stay separate; order and replay rules; real files for 2022-07-28 and 2026-09-29 link TATASTEEL across the split; ISIN change explained vs unexplained.
 - Plus 1 ETF-skip test in `test_nse_bhavcopy.py`.
@@ -597,6 +605,8 @@ files live in `data/spike/` (git-ignored, not committed).
 **D3 (throughput).**
 - Ingest: 1 file per session covers ~3,000 stocks, about 1.5 s per day including download, where Kite needed about 25 s per stock.
 - Adjust: 5 stocks took 0.69 s instead of about 40 s, and the rows are identical to the old code's (7,120 compared, 0 differences).
+
+**Verification.** Full suite: 1,120 passed, 2 skipped. ruff, format and mypy clean. Not merged until the main-DB apply (plan step 7): the daily run would start writing labels.
 
 **Tests.**
 - New `tests/unit/test_bhavcopy_worker.py` (6): order with a weekend as NO_SESSION and series priority; bhavcopy supersedes Kite and Kite never supersedes bhavcopy; re-run and refresh write nothing new; a recent missing weekday stops the run before later days (exit 0); a bad file is an ERROR and stops; future days are never requested.
@@ -679,6 +689,8 @@ Plus 2 gap-detector tests in `test_quality_events.py`.
 - The quality scan on this hybrid DB found 34 unexplained gaps and 27 blocks. They come from Kite-adjusted history before 2026-04-01 meeting raw bhavcopy after it, which 2.6 removes with a continuous backfill.
 
 **Found, not fixed (needs owner decision).** An expired Upstox token (HTTP 401) aborts the whole `ingest corporate-actions` run. The run above was made NSE-only by blanking the token for that command.
+
+**Verification.** Full suite: 1,120 passed, 2 skipped. ruff, format and mypy clean. Not merged until the main-DB apply (plan step 7): the daily run would start writing labels.
 
 **Tests.**
 - New `tests/unit/test_provisional_bars.py` (6): hidden by default; intraday update, then superseded by the bhavcopy and protected from late Kite fetches; adjusted rows included only when allowed and pruned after; universe; worker re-fetch; CLI mode required.
@@ -787,6 +799,8 @@ The 1,677 bars fewer than the trial build are exactly the rights-entitlement row
 | 2026-09-30 | 3,363 | 1,335 | 0 | 1 | 0 | PARTIAL, same reason (the lists were first collected 2026-10-01) |
 
 **Found, not fixed:** `sm_worker._accept_delisted` skips DHFL's delisting record (ISIN INE202B01012) because the bhavcopy instrument `NSE_EQ|DHFL` carries the same issuer's later ISIN (…038). Same-issuer ISINs should be treated as one security there. This is small, but the delisting date only feeds the survivorship count, and DHFL's prices are already present.
+
+**Verification.** Full suite: 1,120 passed, 2 skipped. ruff, format and mypy clean. Not merged until the main-DB apply (plan step 7): the daily run would start writing labels.
 
 **Tests.**
 - New `tests/unit/test_point_in_time_universe.py` (9):
@@ -1572,6 +1586,8 @@ The golden harness stays, and labelling is optional. Spec: VCP_SPECIFICATION §5
 - `_sheet_template.py` now takes `__HELP__` and `__OPTIONS__` and draws marks when a window has them; the labelling sheet is unchanged.
 - README, CHANGELOG.
 
+**Verification.** Full suite: 1,120 passed, 2 skipped. ruff, format and mypy clean. Not merged until the main-DB apply (plan step 7): the daily run would start writing labels.
+
 **Tests.**
 - `test_vcp_outcomes.py` (6):
   - win, loss and none, including a bar that touches both;
@@ -1686,6 +1702,8 @@ Tests: `test_vcp_outcomes.py` uses `rule="t10_s7"` for the original checks and a
 - Spec §8.1 details and the §60 YAML; `strategy.yaml`; the §60 contract test.
 - `vcp research outcomes --scan-config-hash` reuses Trend Template scans made under an earlier hash, because new keys change the scan config hash.
 
+**Verification.** Full suite: 1,120 passed, 2 skipped. ruff, format and mypy clean. Not merged until the main-DB apply (plan step 7): the daily run would start writing labels.
+
 **Tests.**
 - M&M-like path: 7 → 17 → 9 % becomes 17 → 9 %; the default is unchanged.
 - A tightening pair with equal highs (14 → 6 %) stays as two contractions.
@@ -1797,6 +1815,8 @@ Worktree `vcp_ai_p7s3`, branch `p7-step3-persist`.
 - **`cli_scores.py`**: `vcp compute scores --as-of`. It refuses to run without both the Trend Template and VCP scans, and records a `SCORE` scan run.
 - **`daily.py`** runs a "scores" step after VCP.
 - README, spec §11 and CHANGELOG updated.
+
+**Verification.** Full suite: 1,120 passed, 2 skipped. ruff, format and mypy clean. Not merged until the main-DB apply (plan step 7): the daily run would start writing labels.
 
 **Tests.**
 - `test_scoring_engine.py` (4):
@@ -1930,3 +1950,29 @@ Weekly 2022–2026 now takes about 2.3 hours.
 **Verification.** Full suite: 1,116 passed, 2 skipped, in 135 s (was 186 s). ruff, format and mypy clean.
 
 **Tests** (`test_store_upsert_rows.py`, 3): upsert inserts and updates exactly like `executemany`; other statement shapes are refused; pandas is marked absent.
+
+## Phase 9 step 2 — forward labels (2026-10-03)
+
+Worktree `vcp_ai_p9s2`, branch `p9-step2-labels`.
+
+**Change.**
+- `backtest/labels.py`: the `forward_labels` function, `LABEL_VERSION = labels-1.0.0`.
+- Table `forward_labels` (DATABASE_SCHEMA §49A).
+- `data/repositories/duckdb_label_repository.py`:
+  - `pending`: scored observations of the config without a complete label; the pivot comes from the primary pattern of the matching VCP scan;
+  - bulk bar load;
+  - set-based upsert.
+- `cli_labels.py` (`vcp compute labels`).
+- The daily run adds a "forward labels" step once after the per-date scans.
+- PROJECT_DESIGN §39 implementation note, README, CHANGELOG.
+
+**Verification.** Full suite: 1,120 passed, 2 skipped. ruff, format and mypy clean. Not merged until the main-DB apply (plan step 7): the daily run would start writing labels.
+
+**Tests.**
+- `test_forward_labels.py` (4):
+  - returns and excursions, completion, no pivot;
+  - partial labels while bars are missing;
+  - breakout needs the volume (1.4× is not enough, 2× is), failure versus holding, failure window still open;
+  - no breakout after 20 sessions; a missing volume cannot confirm a breakout.
+- `test_daily_run.py`: the steps end with `compute labels`.
+- e2e: one label per scored passer, none complete (no later bars).

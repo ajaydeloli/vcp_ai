@@ -80,6 +80,7 @@ vcp compute rs --as-of 2026-09-29
 vcp compute trend-template --as-of 2026-09-29
 vcp compute vcp --as-of 2026-09-29
 vcp compute scores --as-of 2026-09-29
+vcp compute labels                    # forward labels (returns after 5-60 sessions, breakouts) of earlier observations
 vcp scores list                       # ranked setups of the latest scored date (--all adds unranked passers)
 vcp scores explain SIYSIL             # how one stock's score was built, sub-score by sub-score
 ```

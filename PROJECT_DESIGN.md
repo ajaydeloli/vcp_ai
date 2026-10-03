@@ -1491,6 +1491,14 @@ Future labels may include:
 
 but these should be defined as research labels, not assumptions.
 
+**Implementation (Phase 9 step 2, 2026-10-03):** `backtest/labels.py`, table `forward_labels` (DATABASE_SCHEMA §49A), `vcp compute labels`.
+- **Observation:** one scored Trend Template passer on one as-of date (`setup_scores`). The entry is its as-of close; the pivot comes from its primary VCP pattern.
+- **Returns:** `ret_5` … `ret_60` (close N sessions later); `mfe_60` / `mae_60` (highest high and lowest low over 60 sessions).
+- **`breakout_within_20`:** a close above the pivot within 20 sessions on at least `vcp.breakout.min_volume_ratio` × the prior 50-bar mean volume, i.e. the detector's breakout rule. `breakout_day` records the session.
+- **`failed_breakout`:** a close back below the pivot within 10 sessions after that breakout.
+- **Filling in:** labels are partial until enough bars exist and are refreshed on every run; `complete` is set once 60 sessions (and the failure window) have passed. The daily run calls `compute labels` once after scoring.
+- **Only later bars are used.** The labels never change a scan.
+
 ---
 
 # 40. Backtest Bias Controls

@@ -823,6 +823,35 @@ CREATE TABLE IF NOT EXISTS score_components (
 )
 """
 
+# Forward labels (PROJECT_DESIGN 39; Phase 9 step 2): what happened after each scored
+# observation. Filled in as future bars arrive (``complete`` once final).
+_DDL_FORWARD_LABELS = """
+CREATE TABLE IF NOT EXISTS forward_labels (
+    instrument_id      VARCHAR NOT NULL,
+    as_of_date         DATE NOT NULL,
+    config_hash        VARCHAR NOT NULL,
+    label_version      VARCHAR NOT NULL,
+    data_snapshot_id   VARCHAR NOT NULL,
+    score_scan_id      VARCHAR NOT NULL,
+    entry_close        DOUBLE NOT NULL,
+    pivot_price        DOUBLE,
+    ret_5              DOUBLE,
+    ret_10             DOUBLE,
+    ret_20             DOUBLE,
+    ret_40             DOUBLE,
+    ret_60             DOUBLE,
+    mfe_60             DOUBLE,
+    mae_60             DOUBLE,
+    breakout_within_20 BOOLEAN,
+    breakout_day       INTEGER,
+    failed_breakout    BOOLEAN,
+    bars_after         INTEGER NOT NULL,
+    complete           BOOLEAN NOT NULL,
+    computed_at        TIMESTAMPTZ NOT NULL,
+    PRIMARY KEY (instrument_id, as_of_date, config_hash, label_version, data_snapshot_id)
+)
+"""
+
 _ALL_DDL: list[tuple[str, str]] = [
     ("instruments", _DDL_INSTRUMENTS),
     ("provider_instruments", _DDL_PROVIDER_INSTRUMENTS),
@@ -862,6 +891,7 @@ _ALL_DDL: list[tuple[str, str]] = [
     ("vcp_scan_run_results", _DDL_VCP_SCAN_RUN_RESULTS),
     ("setup_scores", _DDL_SETUP_SCORES),
     ("score_components", _DDL_SCORE_COMPONENTS),
+    ("forward_labels", _DDL_FORWARD_LABELS),
 ]
 
 

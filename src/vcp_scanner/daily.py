@@ -16,7 +16,8 @@ evenings: every step catches up on its own.
 4. ``ingest adjusted-prices`` and ``compute features`` (full history, cheap).
 5. ``ingest universe`` / ``compute rs`` / ``compute trend-template`` / ``compute vcp`` /
    ``compute scores`` for every session after the last scanned one (one session on the first
-   run), in date order (VCP breakout tracking reads the previous date, VCP_SPECIFICATION 61B).
+   run), in date order (VCP breakout tracking reads the previous date, VCP_SPECIFICATION 61B);
+   then ``compute labels`` once (forward labels of earlier observations, Phase 9).
 
 One line per run is appended to ``<db folder>/logs/daily_runs.log``.
 """
@@ -139,6 +140,8 @@ def run_daily(args: argparse.Namespace, cli_main: Callable[[list[str]], int]) ->
                             "--config-dir", cfg])  # fmt: skip
         step(f"scores {iso}", ["compute", "scores", "--as-of", iso, "--db", db,
                                "--config-dir", cfg])  # fmt: skip
+    if scan_dates:
+        step("forward labels", ["compute", "labels", "--db", db, "--config-dir", cfg])
 
     collected = sorted(
         str(r[0])
