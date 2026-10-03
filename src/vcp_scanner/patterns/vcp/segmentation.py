@@ -23,8 +23,8 @@ Rules (owner decisions 2026-10-01, details as implemented 2026-10-02):
    - the rally from that low to peak k+1 (a bounce inside a decline): if noise, peak k+1 is
      removed, so contraction k runs on to the following peak.
    Repeated until no closed contraction has a noise swing.
-   **Equal-high merge** (research setting ``swing.merge_equal_highs``, off by default, owner's
-   mark check 2026-10-03): then, while peak k+1 is within ``swing.equal_high_tolerance_pct`` of
+   **Equal-high merge** (``swing.merge_equal_highs``, on since 2026-10-03 / vcp-1.1.0, owner's
+   mark check): then, while peak k+1 is within ``swing.equal_high_tolerance_pct`` of
    peak k and its pullback is deeper than peak k's, peak k+1 is removed (a shallow dip and a
    deeper drop from the same level are one contraction).
 5. **Final contraction** (section 9A): from the last peak to the lowest low since. It is confirmed

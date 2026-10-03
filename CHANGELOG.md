@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed (owner decision, 2026-10-03; VCP algorithm vcp-1.1.0)
+- The equal-high merge is now on: a shallow dip followed by a deeper drop from the same price level counts as one contraction. The config hash changes, so new scans get new ids.
+
 ### Added (research setting, 2026-10-03)
 - `vcp.swing.merge_equal_highs` (off by default) treats a shallow dip and a deeper drop from the same price level as one contraction. On 2022–2025 data it changes the class of 4 % of charts and slightly improves VCP breakout results. `vcp research outcomes --scan-config-hash` reuses older scans when only research settings have changed.
 

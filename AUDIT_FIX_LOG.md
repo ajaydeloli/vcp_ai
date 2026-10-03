@@ -1684,7 +1684,7 @@ Tests: `test_vcp_outcomes.py` uses `rule="t10_s7"` for the original checks and a
 - New keys `vcp.swing.merge_equal_highs` (default **false**) and `vcp.swing.equal_high_tolerance_pct` (1.5).
 - `segmentation._merge_equal_highs` runs after the noise merge. While peak k+1 is within the tolerance of peak k **and** its pullback is deeper, peak k+1 is removed; removed peaks go to `merged_peak_dates`.
 - Spec §8.1 details and the §60 YAML; `strategy.yaml`; the §60 contract test.
-- `vcp research outcomes --scan-config-hash` reuses Trend Template scans made under an earlier hash, because the new keys change the config hash (`7de9afd37f3a` → `94224baaff82`).
+- `vcp research outcomes --scan-config-hash` reuses Trend Template scans made under an earlier hash, because new keys change the scan config hash.
 
 **Tests.**
 - M&M-like path: 7 → 17 → 9 % becomes 17 → 9 %; the default is unchanged.
@@ -1704,3 +1704,20 @@ Tests: `test_vcp_outcomes.py` uses `rule="t10_s7"` for the original checks and a
 **Result.** Neutral to slightly positive, and well within noise. It matches the owner's chart reading and harms nothing measurable.
 
 **Not merged.** Any merge changes the config hash and therefore the scan ids, so it needs an owner decision (switch on or keep off) and a main-DB rerun of the recent Trend Template and VCP scans under the daily-run lock.
+
+## Decision T3 — equal-high merge switched on, `vcp-1.1.0` (owner, 2026-10-03 ~12:20 IST)
+
+The owner chose "switch on + rerun".
+
+**Change.**
+- `vcp.swing.merge_equal_highs` default and `strategy.yaml` set to **true**; spec §60 and the contract test updated.
+- `VCP_ALGORITHM_VERSION` `vcp-1.0.0` → **`vcp-1.1.0`** (the default detection changed).
+- The scan config hash changes from `7de9afd37f3a` to **`64da9482a769`**, so scan ids change. Older scans stay under the old id.
+
+**Real-data check on a copy of the main DB** (12:16–12:22 IST):
+- Trend Template verdicts are unchanged. 30 Sep: 267 PASS, results hash `482d2509e9c17b21`. 1 Oct: 203 PASS, `8bdc231dc0f6fb4c`.
+- VCP 30 Sep: 47 VCP (was 45), hash `b84c05af39efb2ad`.
+- VCP 1 Oct: 40 VCP (was 37), hash `94ff3fc2dc695124`.
+- A rerun of 1 Oct gives an identical hash.
+
+**Tests.** The segmentation tests now run with the merge on by default; the "off" case is explicit. Full suite: 1,095 passed, 2 skipped. ruff, format and mypy clean.

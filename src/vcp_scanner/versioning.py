@@ -33,7 +33,7 @@ STAGE_ALGORITHM_VERSION: Final[str] = "stage-1.0.0"
 SCORING_VERSION: Final[str] = "scoring-1.0.0"
 
 # Owned by VCP_SPECIFICATION.md (detector arrives in Phase 6)
-VCP_ALGORITHM_VERSION: Final[str] = "vcp-1.0.0"
+VCP_ALGORITHM_VERSION: Final[str] = "vcp-1.1.0"  # 1.1.0: equal-high merge on (2026-10-03)
 
 # Owned by the fundamentals spec (Phase 8)
 FUNDAMENTAL_ALGORITHM_VERSION: Final[str] = "fund-1.0.0"

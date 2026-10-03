@@ -100,10 +100,10 @@ class VCPSwingConfig(StrictBaseModel):
     # this (VCP_SPECIFICATION 8.1, 23; 2026-10-02): sharp moves of several percent in one or
     # two bars are real swings. 100 restores the plain "< 3 bars" rule.
     short_swing_max_depth_pct: Annotated[float, Field(gt=0, le=100)] = 4.0
-    # Equal-high merge (VCP_SPECIFICATION 8.1; owner's mark check 2026-10-03, research, off by
-    # default): when a peak is within ``equal_high_tolerance_pct`` of the previous peak and its
+    # Equal-high merge (VCP_SPECIFICATION 8.1; owner's mark check, switched on 2026-10-03,
+    # vcp-1.1.0): when a peak is within ``equal_high_tolerance_pct`` of the previous peak and its
     # pullback is deeper, the previous shallow dip is part of one larger contraction.
-    merge_equal_highs: bool = False
+    merge_equal_highs: bool = True
     equal_high_tolerance_pct: Annotated[float, Field(gt=0, le=10)] = 1.5
 
     @model_validator(mode="after")

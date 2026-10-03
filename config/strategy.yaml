@@ -35,7 +35,7 @@ vcp:
     min_depth_pct: 2.0
     min_duration_days: 3
     short_swing_max_depth_pct: 4.0
-    merge_equal_highs: false
+    merge_equal_highs: true
     equal_high_tolerance_pct: 1.5
 
   progressive_tolerance_pct: 10
