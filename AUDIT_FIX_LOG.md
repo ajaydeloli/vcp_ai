@@ -1675,3 +1675,32 @@ The owner chose three things:
 The detector and the production config are unchanged.
 
 Tests: `test_vcp_outcomes.py` uses `rule="t10_s7"` for the original checks and asserts that the default is hold_s7.
+
+## Equal-high merge — research setting, tested on development (2026-10-03 12:00–12:10 IST)
+
+**Origin.** The owner's mark-check note on M&M 2024-11-29 (see the Phase 6 validation follow-up). Owner decision: "test first".
+
+**Change.**
+- New keys `vcp.swing.merge_equal_highs` (default **false**) and `vcp.swing.equal_high_tolerance_pct` (1.5).
+- `segmentation._merge_equal_highs` runs after the noise merge. While peak k+1 is within the tolerance of peak k **and** its pullback is deeper, peak k+1 is removed; removed peaks go to `merged_peak_dates`.
+- Spec §8.1 details and the §60 YAML; `strategy.yaml`; the §60 contract test.
+- `vcp research outcomes --scan-config-hash` reuses Trend Template scans made under an earlier hash, because the new keys change the config hash (`7de9afd37f3a` → `94224baaff82`).
+
+**Tests.**
+- M&M-like path: 7 → 17 → 9 % becomes 17 → 9 %; the default is unchanged.
+- A tightening pair with equal highs (14 → 6 %) stays as two contractions.
+- A high outside the tolerance is never merged.
+
+**Real-data run** (development 2022-02 .. 2025-09, copy DB, scans under `7de9afd37f3a`, exit rule hold_s7):
+- Variant `eqhigh` (1.5 %) changes the class of 468 of 10,546 windows (4.4 %): 171 VCP-like → VCP, 172 VCP-like → none, 87 none → VCP-like, 23 VCP-like → near-A+, 2 → A+.
+- M&M 2024-11-29 becomes VCP (it was VCP-like), as the owner expected.
+
+| Group | Current | eqhigh | eqhigh3 (3 %) |
+|---|---|---|---|
+| VCP | n 888, win 45.6 %, trade avg +2.4 % | n 1,024, 45.0 %, +2.8 % | n 1,122, 45.1 %, +3.0 % |
+| Near-A+ | n 81, 51.9 %, +2.2 % | n 96, 52.1 %, +4.2 % | n 118, 49.2 %, +4.3 % |
+| None | trade avg +3.0 % | +2.9 % | |
+
+**Result.** Neutral to slightly positive, and well within noise. It matches the owner's chart reading and harms nothing measurable.
+
+**Not merged.** Any merge changes the config hash and therefore the scan ids, so it needs an owner decision (switch on or keep off) and a main-DB rerun of the recent Trend Template and VCP scans under the daily-run lock.

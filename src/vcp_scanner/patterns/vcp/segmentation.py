@@ -23,6 +23,10 @@ Rules (owner decisions 2026-10-01, details as implemented 2026-10-02):
    - the rally from that low to peak k+1 (a bounce inside a decline): if noise, peak k+1 is
      removed, so contraction k runs on to the following peak.
    Repeated until no closed contraction has a noise swing.
+   **Equal-high merge** (research setting ``swing.merge_equal_highs``, off by default, owner's
+   mark check 2026-10-03): then, while peak k+1 is within ``swing.equal_high_tolerance_pct`` of
+   peak k and its pullback is deeper than peak k's, peak k+1 is removed (a shallow dip and a
+   deeper drop from the same level are one contraction).
 5. **Final contraction** (section 9A): from the last peak to the lowest low since. It is confirmed
    once ``swing.right_bars`` bars have followed that low without a lower low (on the date of the
    ``right_bars``-th bar), otherwise provisional. Only the right side is tested: the low is
@@ -199,6 +203,9 @@ def segment_base(
             return SegmentationResult(None, reason, swings)
 
     peaks, merged = _merge_noise([b, *(i for i in sorted(high_swings) if i > b)], highs, lows, sw)
+    if sw.merge_equal_highs:
+        peaks, more = _merge_equal_highs(peaks, highs, lows, n, sw.equal_high_tolerance_pct)
+        merged = sorted(merged + more)
     contractions = _contractions(peaks, dates, highs, lows, n, high_swings, config)
     base_low_i = _lowest(lows, b, n)
     assert base_low_i is not None
@@ -246,6 +253,36 @@ def _merge_noise(
             break
         else:
             return kept, sorted(removed)
+
+
+def _merge_equal_highs(
+    peaks: list[int],
+    highs: Sequence[float],
+    lows: Sequence[float],
+    n: int,
+    tolerance_pct: float,
+) -> tuple[list[int], list[int]]:
+    """Equal-high merge (``swing.merge_equal_highs``): remove peak k+1 when its high is within
+    ``tolerance_pct`` of peak k's and its pullback (to the lowest low before the next peak, or
+    up to the as-of bar) is deeper than peak k's. Returns (kept, removed) indices."""
+    kept = list(peaks)
+    removed: list[int] = []
+    changed = True
+    while changed:
+        changed = False
+        for k in range(len(kept) - 1):
+            a, b = kept[k], kept[k + 1]
+            if abs(highs[b] / highs[a] - 1.0) * 100.0 > tolerance_pct:
+                continue
+            end_b = kept[k + 2] if k + 2 < len(kept) else n
+            ta, tb = _lowest(lows, a + 1, b), _lowest(lows, b + 1, end_b)
+            if ta is None or tb is None:
+                continue
+            if depth_pct(highs[b], lows[tb]) > depth_pct(highs[a], lows[ta]):
+                removed.append(kept.pop(k + 1))
+                changed = True
+                break
+    return kept, removed
 
 
 def _contractions(

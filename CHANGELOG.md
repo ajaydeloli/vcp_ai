@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (research setting, 2026-10-03)
+- `vcp.swing.merge_equal_highs` (off by default) treats a shallow dip and a deeper drop from the same price level as one contraction. On 2022–2025 data it changes the class of 4 % of charts and slightly improves VCP breakout results. `vcp research outcomes --scan-config-hash` reuses older scans when only research settings have changed.
+
 ### Changed (owner decision, 2026-10-03)
 - The research tools now use "let winners run" as the default exit for breakout trades: a −7 % stop, no target, and a sale after 60 days. It did best in every group on 2022–2025.
 

@@ -192,6 +192,7 @@ The prior-advance (§7) and invalidation (§25) keys join the §60 configuration
 - *Prior advance* = base high ÷ lowest low of the `lookback_days` bars ending at the base high − 1. If the highest swing high fails it, there is no base (no fallback to a lower high). With a shorter history a pass counts, a fail is `INSUFFICIENT_HISTORY`. On equal highs the earliest is the base start.
 - *Closed contraction*: peak k to the lowest low before peak k+1, confirmed on peak k+1's confirmation date.
 - *Noise* (item 2, §23; narrowed by Fix S1): a swing is noise if shallower than `swing.min_depth_pct`, or shorter than `swing.min_duration_days` bars **and** shallower than `swing.short_swing_max_depth_pct` (4 %), because sharp one- or two-bar moves are real swings. It applies to both swings of a contraction: the decline (peak k to its low) and the rally out of the low (to peak k+1), each measured as (high − low) ÷ high and in bars. A noise decline removes peak k (for T1, peak 2); a noise rally removes peak k+1. Repeated until stable.
+- *Equal-high merge* (research setting `swing.merge_equal_highs`, off by default; proposed by the owner's mark check, 2026-10-03): after the noise merge, if peak k+1 is within `swing.equal_high_tolerance_pct` (1.5 %) of peak k **and** its pullback is deeper than peak k's, peak k+1 is removed. Contraction k then runs from peak k to the lower low, so a shallow dip followed by a deeper drop from the same level counts as one contraction. Pairs whose second pullback is shallower are kept as two. Repeated until stable; removed peaks are listed with the merged peaks.
 - *Final contraction* (item 3, §9A): last peak to the lowest low since; confirmed once `swing.right_bars` bars follow that low without a lower low, else provisional; absent while that decline is itself noise.
 - `duration_days` = bars from peak to low; base low and base duration run from the base start to the as-of bar.
 
@@ -1372,6 +1373,8 @@ vcp:
     min_depth_pct: 2.0
     min_duration_days: 3
     short_swing_max_depth_pct: 4.0
+    merge_equal_highs: false
+    equal_high_tolerance_pct: 1.5
 
   progressive_tolerance_pct: 10
 

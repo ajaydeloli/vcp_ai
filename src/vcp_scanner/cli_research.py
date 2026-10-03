@@ -49,6 +49,11 @@ def add_research_parser(subparsers: argparse._SubParsersAction) -> None:  # type
         "rs10:vcp.pivot.max_right_side_range_pct=10 (repeatable)",
     )  # fmt: skip
     oc.add_argument(
+        "--scan-config-hash", metavar="HASH12",
+        help="Use Trend Template scans made under this config hash (when only VCP research "
+        "settings changed since)",
+    )  # fmt: skip
+    oc.add_argument(
         "--validate-rule",
         metavar="RULE",
         help="Also show validation for this exit rule (chosen on development first)",
@@ -228,7 +233,7 @@ def _outcomes(args: argparse.Namespace) -> int:
     )
 
     cfg = load_scanner_config(args.config_dir)
-    config_hash = scan_config_hash(cfg)
+    config_hash = args.scan_config_hash or scan_config_hash(cfg)
     start, end = date.fromisoformat(args.date_from), date.fromisoformat(args.date_to)
     split = date.fromisoformat(args.split)
     variants: dict[str, tuple[Any, Any]] = {

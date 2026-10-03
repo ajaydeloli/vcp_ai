@@ -242,3 +242,30 @@ def test_short_swing_threshold_validation() -> None:
 
     with pytest.raises(ValidationError, match="short_swing_max_depth_pct"):
         _cfg(swing={"short_swing_max_depth_pct": 1.0})
+
+
+def test_equal_high_merge_joins_a_shallow_dip_to_a_deeper_drop() -> None:
+    # T1 dips 7 % from 150, the stock returns to 149.9 and then drops 17 %: one contraction.
+    legs = [(20, 150), (6, 139.5), (6, 149.9), (10, 124.5), (8, 140), (5, 127.4), (5, 135)]
+    off, d = _run(_path(100, legs))
+    assert off.base is not None
+    assert [round(c.depth_pct) for c in off.base.contractions] == [7, 17, 9]  # default: off
+    on, _ = _run(_path(100, legs), _cfg(swing={"merge_equal_highs": True}))
+    assert on.base is not None
+    assert [c.peak_date for c in on.base.contractions] == [d[20], d[50]]
+    assert [round(c.depth_pct) for c in on.base.contractions] == [17, 9]
+    assert on.base.contractions[0].trough_date == d[42]
+    assert d[32] in on.base.merged_peak_dates
+
+
+def test_equal_high_merge_keeps_a_tightening_pair() -> None:
+    # Equal highs but the second pullback is shallower (14 % then 6 %): two contractions.
+    legs = [(20, 150), (10, 130), (10, 149.8), (6, 142), (5, 146)]
+    on, _ = _run(_path(100, legs), _cfg(swing={"merge_equal_highs": True}))
+    assert on.base is not None
+    assert [round(c.depth_pct) for c in on.base.contractions] == [14, 6]
+    # A second high outside the tolerance is never merged, however deep its pullback.
+    legs2 = [(20, 150), (6, 139.5), (6, 146), (10, 124.5), (8, 140)]
+    far, _ = _run(_path(100, legs2), _cfg(swing={"merge_equal_highs": True}))
+    assert far.base is not None and far.base.merged_peak_dates == ()
+    assert len(far.base.contractions) == 2  # 150 -> 139.5 and 146 -> 124.5, kept apart
