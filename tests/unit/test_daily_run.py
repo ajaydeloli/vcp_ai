@@ -64,8 +64,9 @@ def test_run_daily_chains_the_steps_from_the_last_settled_day(tmp_path: Path) ->
         "compute features",
     ]
     assert calls[1][calls[1].index("--start") + 1] == "2026-09-26"  # day after last settled
-    # 2026-09-25 had prices but no scan: universe, RS, Trend Template and VCP for it.
-    assert names[5:] == ["ingest universe", "compute rs", "compute trend-template", "compute vcp"]
+    # 2026-09-25 had prices but no scan: universe, RS, Trend Template, VCP and scores for it.
+    assert names[5:] == ["ingest universe", "compute rs", "compute trend-template", "compute vcp",
+                         "compute scores"]  # fmt: skip
     assert all("2026-09-25" in a for a in calls[5:])
     # The fake security-master step collected nothing, so the summary says so; steps passed.
     assert code == 0

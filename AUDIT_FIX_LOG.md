@@ -1782,3 +1782,36 @@ Worktree `vcp_ai_p7s2`, branch `p7-step2-final`.
 - other NULL components;
 - nothing available gives a NULL final score;
 - percentile: top 100, bottom 0, ties shared, groups kept separate, NULL scores get no percentile.
+
+## Phase 7 step 3 — scores stored, `vcp compute scores`, daily-run step (2026-10-03)
+
+Worktree `vcp_ai_p7s3`, branch `p7-step3-persist`.
+
+**Change.**
+- **Tables** `setup_scores` and `score_components` (DATABASE_SCHEMA §35 implementation note), created by `migrate()`.
+- **`scoring/engine.py`**:
+  - `SetupInputs` and `PatternInputs`;
+  - `score_setup` (the four components plus the final score);
+  - `score_scan`, which ranks only eligible setups. Eligible means VCP_LIKE or better **and** FORMING, PIVOT_READY or BREAKOUT; invalid or failed patterns are scored but not ranked (decided 2026-10-03, see SCORING_SPECIFICATION §11).
+- **`data/repositories/duckdb_score_repository.py`**: `load_inputs` (Trend Template PASS rows, the primary VCP pattern, features now and 21 sessions earlier, 76 bars) and `save_scan` (replaces the scan; bulk insert), plus `score_results_hash`.
+- **`cli_scores.py`**: `vcp compute scores --as-of`. It refuses to run without both the Trend Template and VCP scans, and records a `SCORE` scan run.
+- **`daily.py`** runs a "scores" step after VCP.
+- README, spec §11 and CHANGELOG updated.
+
+**Tests.**
+- `test_scoring_engine.py` (4):
+  - full known answer, including the volume measurements;
+  - a passer without a pattern is scored but not ranked;
+  - eligibility and per-state ranking (INVALIDATED, NONE and no-pattern are not ranked);
+  - storage round trip, a rerun replaces the rows, NULL sub-component rows, order-independent hash.
+- `test_daily_run.py`: the step list now ends with `compute scores`.
+- e2e: scores for the scan date; a rerun gives the same hash; row count equals the passers; no percentile on ineligible rows; a missing scan is refused.
+
+**Verification.** Full suite: 1,110 passed, 2 skipped. ruff, format and mypy clean. **Not merged yet**: the daily run would start writing scores into the main DB, so this waits for the owner-approved apply (plan step 6).
+
+**Real-data check on a copy of the main DB** (13:07 IST; about 1 s per date):
+- 30 Sep: 267 passers scored, 78 ranked; top score 77.4.
+- 1 Oct: 203 scored, 54 ranked; top 75.1. A rerun gives an identical hash (`189ee38cce1dc6d1`).
+- Sub-component coverage on 1 Oct: tightening and volatility are present for 78 of 203 (they need two or more contractions); everything else for all 203.
+
+**Calibration note for step 5.** The spec bound for `pivot` (right-side range 8 % → 2 %) gives almost every setup about 0: the median right-side range is 11.8 %, and the average normalized value is 2.2. `contraction_sequence` averages 13.5 among all passers. These are spec values, left unchanged (owner decision); the step-5 outcome check will show whether they matter.

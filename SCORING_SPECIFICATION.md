@@ -132,3 +132,8 @@ Known-answer fixtures per sub-component; boundary clipping; NULL-fundamentals re
 - **NULL components.** Any NULL component (an absent one counts as NULL) is flagged `<COMPONENT>_UNAVAILABLE`; fundamentals are flagged `FUNDAMENTALS_UNAVAILABLE`. Its weight is dropped and `weights_renormalized = true`. A component scored 0 is a real 0, not a missing value.
 - **Stored weights.** The stored weights (`trend_weight` …) are the *effective* weights: the available components' configured weights rescaled to sum to 100, and 0 for an unavailable component. If nothing is available, the final score is NULL.
 - **Ranking percentile.** Within one scan and one confirmation state: 100 × (others strictly lower + 0.5 × others equal) ÷ (n − 1). The best gets 100 and the worst 0; ties share a value; a group of one gets 100. A setup without a final score gets no percentile.
+
+**Details fixed in step 3** (`scoring/engine.py`, `vcp compute scores`):
+- **Inputs.** The Trend Template scan (PASS rows, `rs_rank`) and the VCP scan of the same date, config and data snapshot (primary pattern); features at the as-of bar and 21 sessions earlier (SMA200); the last 76 adjusted bars (volume measurements). Without an as-of bar, the trend and volume inputs are NULL.
+- **Eligible for ranking.** Classification VCP_LIKE, VCP or A+ **and** status FORMING, PIVOT_READY or BREAKOUT. A FAILED or INVALIDATED pattern, or a data state, is scored but not ranked: an invalid or broken pattern is not an actionable setup.
+- **Order.** The daily run computes scores after VCP detection for each new session.

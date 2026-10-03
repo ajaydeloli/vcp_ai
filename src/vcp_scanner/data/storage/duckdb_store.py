@@ -757,6 +757,56 @@ CREATE TABLE IF NOT EXISTS vcp_scan_run_results (
 """
 
 
+# Setup scores (SCORING_SPECIFICATION; DATABASE_SCHEMA 35). Every Trend Template passer of a
+# scan is stored; only ``eligible`` rows are ranked (owner decision 2026-10-03).
+_DDL_SETUP_SCORES = """
+CREATE TABLE IF NOT EXISTS setup_scores (
+    scan_id               VARCHAR NOT NULL,
+    instrument_id         VARCHAR NOT NULL,
+    as_of_date            DATE NOT NULL,
+    classification        VARCHAR,
+    vcp_status            VARCHAR,
+    eligible              BOOLEAN NOT NULL,
+    trend_score           DOUBLE,
+    vcp_score             DOUBLE,
+    volume_score          DOUBLE,
+    rs_score              DOUBLE,
+    fundamental_score     DOUBLE,
+    final_setup_score     DOUBLE,
+    ranking_percentile    DOUBLE,
+    confirmation_state    VARCHAR,
+    fundamental_available BOOLEAN NOT NULL,
+    weights_renormalized  BOOLEAN NOT NULL,
+    flags                 VARCHAR,
+    trend_weight          DOUBLE NOT NULL,
+    vcp_weight            DOUBLE NOT NULL,
+    volume_weight         DOUBLE NOT NULL,
+    rs_weight             DOUBLE NOT NULL,
+    fundamental_weight    DOUBLE NOT NULL,
+    scoring_version       VARCHAR NOT NULL,
+    config_hash           VARCHAR NOT NULL,
+    data_snapshot_id      VARCHAR NOT NULL,
+    created_at            TIMESTAMPTZ NOT NULL,
+    PRIMARY KEY (scan_id, instrument_id)
+)
+"""
+
+_DDL_SCORE_COMPONENTS = """
+CREATE TABLE IF NOT EXISTS score_components (
+    scan_id                 VARCHAR NOT NULL,
+    instrument_id           VARCHAR NOT NULL,
+    component               VARCHAR NOT NULL,
+    sub_component           VARCHAR NOT NULL,
+    raw_measurement         DOUBLE,
+    normalized_0_100        DOUBLE,
+    weight_within_component DOUBLE NOT NULL,
+    points                  DOUBLE NOT NULL,
+    max_points              DOUBLE NOT NULL,
+    scoring_version         VARCHAR NOT NULL,
+    PRIMARY KEY (scan_id, instrument_id, component, sub_component)
+)
+"""
+
 _ALL_DDL: list[tuple[str, str]] = [
     ("instruments", _DDL_INSTRUMENTS),
     ("provider_instruments", _DDL_PROVIDER_INSTRUMENTS),
@@ -794,6 +844,8 @@ _ALL_DDL: list[tuple[str, str]] = [
     ("vcp_status_history", _DDL_VCP_STATUS_HISTORY),
     ("vcp_breakout_events", _DDL_VCP_BREAKOUT_EVENTS),
     ("vcp_scan_run_results", _DDL_VCP_SCAN_RUN_RESULTS),
+    ("setup_scores", _DDL_SETUP_SCORES),
+    ("score_components", _DDL_SCORE_COMPONENTS),
 ]
 
 

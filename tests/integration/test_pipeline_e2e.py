@@ -224,6 +224,34 @@ def test_full_pipeline_from_an_empty_database(
     assert cli_main(["verify", "scan", run_id, "--db", db, "--config-dir", CONFIG_DIR]) == 1
     assert "is a VCP run" in capsys.readouterr().out
 
+    # Phase 7 step 3: setup scores for every Trend Template passer, with a run record.
+    score_argv = ["compute", "scores", "--as-of", as_of, "--db", db, "--config-dir", CONFIG_DIR]
+    assert cli_main(score_argv) == 0, capsys.readouterr().err
+    assert "Setup scores for 2024-06-28" in capsys.readouterr().out
+    assert cli_main(score_argv) == 0  # a rerun replaces the scan's rows
+    capsys.readouterr()
+    with DuckDBStore(db) as store:
+        q = store.conn.execute
+        passers = q("SELECT count(*) FROM trend_template_results WHERE scan_id LIKE 'trend-%'"
+                    " AND status = 'PASS'").fetchone()  # fmt: skip
+        assert passers is not None and passers[0] > 0
+        score_scan_id, shash = q(
+            "SELECT scan_id, results_hash FROM scan_runs WHERE scan_type = 'SCORE'"
+            " ORDER BY started_at DESC LIMIT 1"
+        ).fetchone()  # type: ignore[misc]
+        assert score_scan_id.startswith("score-2024-06-28-")
+        assert q("SELECT count(*) FROM setup_scores WHERE scan_id = ?",
+                 [score_scan_id]).fetchone() == passers  # fmt: skip
+        hashes = q("SELECT DISTINCT results_hash FROM scan_runs WHERE scan_type = 'SCORE'")
+        assert hashes.fetchall() == [(shash,)]  # deterministic
+        bad = q("SELECT count(*) FROM setup_scores WHERE ranking_percentile IS NOT NULL"
+                " AND NOT eligible").fetchone()  # fmt: skip
+        assert bad == (0,)
+    missing = ["compute", "scores", "--as-of", "2024-06-27", "--db", db, "--config-dir",
+               CONFIG_DIR]  # fmt: skip
+    assert cli_main(missing) == 1
+    assert "scores need the Trend Template and VCP scans" in capsys.readouterr().err
+
     # Phase 6 step 8: a blind labelling sheet from the scan, and its CSV back into fixtures.
     sheet_dir = tmp_path / "sheet"
     sheet_argv = ["research", "labelling-sheet", "--from", as_of, "--to", as_of, "--db", db,

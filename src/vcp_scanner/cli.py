@@ -417,6 +417,16 @@ def build_parser() -> argparse.ArgumentParser:
     _add_config_dir_arg(vcp_parser)
     _add_data_snapshot_arg(vcp_parser)
 
+    scores_parser = compute_subparsers.add_parser(
+        "scores",
+        help="Score every Trend Template passer of a date and rank the eligible VCP setups "
+        "(needs the Trend Template and VCP scans of the same date and config)",
+    )
+    scores_parser.add_argument("--as-of", required=True, metavar="YYYY-MM-DD")
+    _add_db_arg(scores_parser)
+    _add_config_dir_arg(scores_parser)
+    _add_data_snapshot_arg(scores_parser)
+
     # verify subcommands (audit 2026-09-30 P0-1)
     verify_parser = subparsers.add_parser(
         "verify", help="Read-only checks of provider behavior against assumptions"
@@ -938,13 +948,14 @@ def main(argv: Sequence[str] | None = None) -> int:
             return 0
 
     if args.command == "compute":
-        from vcp_scanner import cli_pipeline, cli_vcp
+        from vcp_scanner import cli_pipeline, cli_scores, cli_vcp
 
         compute_runners = {
             "features": cli_pipeline.run_compute_features,
             "rs": cli_pipeline.run_compute_rs,
             "trend-template": cli_pipeline.run_compute_trend_template,
             "vcp": cli_vcp.run_compute_vcp,
+            "scores": cli_scores.run_compute_scores,
         }
         runner = compute_runners.get(args.compute_command)
         if runner is None:

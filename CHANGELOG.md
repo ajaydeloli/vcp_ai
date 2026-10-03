@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (Phase 7 step 3: scores stored and in the daily run)
+- `vcp compute scores --as-of DATE` scores every Trend Template passer and stores each score with all its sub-scores. VCP-like-or-better setups that are forming, pivot-ready or broken out get a ranking percentile.
+- The daily run now computes scores after VCP detection.
+
 ### Added (Phase 7 step 2: final score and ranking)
 - The final setup score is a weighted average of the available component scores. While fundamentals are missing (until Phase 8), their weight is shared out among the others and the score is flagged `FUNDAMENTALS_UNAVAILABLE`.
 - Each setup gets a ranking percentile within its scan, computed separately for confirmed and provisional patterns.

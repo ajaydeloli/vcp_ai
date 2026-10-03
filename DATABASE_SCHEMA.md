@@ -1311,6 +1311,16 @@ scoring_version
 
 Scores are rankings, not probabilities.
 
+**Implementation (Phase 7 step 3, 2026-10-03):** `data/storage/duckdb_store.py`, `data/repositories/duckdb_score_repository.py`.
+- **Scan id** `score-<date>-<hash12>`; a rerun replaces the scan's rows. Each run adds an immutable `scan_runs` row (scan type `SCORE`) whose results hash covers instrument, eligibility, final score and percentile.
+- **Rows.** `setup_scores` holds **every Trend Template passer** of the scan (owner decision 2026-10-03), with these extra columns:
+  - `classification` and `vcp_status` of the primary VCP pattern (NULL without one);
+  - `eligible`: VCP_LIKE or better, and status FORMING, PIVOT_READY or BREAKOUT. Only eligible rows get a `ranking_percentile`;
+  - `flags`: comma-separated, e.g. `FUNDAMENTALS_UNAVAILABLE`;
+  - `data_snapshot_id` and `created_at`.
+- **Key.** Primary key `(scan_id, instrument_id)`. Weights are the effective ones (they sum to 100; 0 for an unavailable component).
+- **Components.** `score_components` has one row per sub-component (14 technical ones, plus RS as `rs_rank`). A NULL sub-component keeps its raw value as NULL, `normalized_0_100` NULL and 0 points. Primary key `(scan_id, instrument_id, component, sub_component)`.
+
 ---
 
 # 36. Fundamental Snapshots
