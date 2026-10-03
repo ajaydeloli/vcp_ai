@@ -1858,3 +1858,15 @@ Worktree `vcp_ai_p7s5`, branch `p7-step5-study` (on top of step 4).
 - Breakout-trade averages rise from Q1 +1.7 % to Q5 +3.4 % (all passers, development), but not monotonically.
 
 **Conclusion.** Scores are reproducible and explainable (the Phase 7 acceptance), but the spec score has **no predictive value** for 60-session outcomes on 2022–2025 NSE data. Only the VCP-shape component carries a small signal. No weight was changed; this goes to the owner.
+
+### Phase 7 applied to the main DB (owner approved; 13:30–13:32 IST 2026-10-03, code at 6af5bc5)
+
+Under the daily-run lock:
+- **Copy check first:** 30 Sep 267 scored / 78 ranked, hash `0ca05805c3466143`; 1 Oct 203 / 54, `189ee38cce1dc6d1`. The copy was deleted.
+- **Backup** (database check passed): `data/backups/vcp_scanner_20261003_080104.duckdb` (1.98 GB).
+- **Merge:** `p7-step5-study` (steps 3–5) fast-forwarded into `main` and pushed.
+- **Main DB:** `compute scores` for 30 Sep and 1 Oct. Both hashes are identical to the copy check.
+
+From the next session on, the daily run scores every new date after VCP detection.
+
+**Owner decisions (2026-10-03).** Keep `scoring-1.0.0` as an explainable ordering, with no tuning on 44 month-end dates. Next is Phase 8 (fundamentals); re-check the score after that.
