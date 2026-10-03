@@ -1883,3 +1883,50 @@ The owner was offered NSE filings (recommended), a paid vendor, or skipping, and
 - **Not usable as history:** `api/results-comparision?symbol=X` is a summary that includes the debt/equity ratio, but it is not point-in-time.
 - **Gaps:** ROE needs equity, which is filed only half-yearly (statement of assets and liabilities), so expect ROE and debt to be missing for many stocks.
 - **Cost:** about 26,000 files for 2021–2026, roughly 8 hours at 1 request per second.
+
+## Phase 9 step 1 — scans about 5× faster (2026-10-03)
+
+Worktree `vcp_ai_p9s1`, branch `p9-step1-speed`. Owner decisions for Phase 9 (2026-10-03):
+- **Weekly** historical scans for the backtest.
+- **Walk-forward periods:** development 2022-02 .. 2024-06; validation 2024-07 .. 2026-09; the true out-of-sample test is **live paper tracking from Oct 2026**, because 2025-10 .. 2026-09 has already been looked at in outcome checks.
+
+**Found.** One historical date on the research copy took about 160 s:
+
+| Step | Time |
+|---|---|
+| Universe | 18 s |
+| RS | 7 s |
+| Trend Template | 93–105 s |
+| VCP | 29 s |
+| Scores | 1 s |
+
+Weekly 2022–2026 would have taken about 11 hours. Two causes:
+1. **pandas probing.** DuckDB's Python client tries `import pandas` for every bound parameter it converts. pandas is not installed, so each attempt was a failed import that searched the whole path: 327,690 failed imports in one Trend Template scan (cProfile; import-hook count).
+2. **Row-by-row writes.** `executemany` sends one statement per row. It accounted for 13 of 24 stack samples (about 40 s) in `save_trend_template_results`, which writes 1,080 results and 10,800 conditions.
+
+**Change.**
+- `duckdb_store._mark_pandas_absent()`: when pandas is not installed, `sys.modules["pandas"] = None`, so each probe fails at once. Nothing in the project uses pandas, and an installed pandas is left alone.
+- `DuckDBStore.upsert_rows(insert_sql, rows)` runs an existing `INSERT INTO t (cols) VALUES (?, …) [ON CONFLICT …]` statement as one set-based insert from an Arrow view. The conflict handling is unchanged. It refuses other shapes, and parameters after VALUES.
+- Used for: Trend Template results, conditions and weekly context; RS snapshots; universe memberships; `scan_run_results`; `vcp_scan_run_results` (now with an explicit column list).
+
+**Result** (2023-06-23, research copy):
+
+| Step | Before | After |
+|---|---|---|
+| Universe | 17.3 s | 1.0 s |
+| RS | 7.3 s | 0.9 s |
+| Trend Template | 93.5 s | 22.3 s |
+| VCP | 26.9 s | 7.8 s |
+| Scores | 1.0 s | 0.9 s |
+| **Total** | **146 s** | **33 s** |
+
+Weekly 2022–2026 now takes about 2.3 hours.
+
+**Equivalence.**
+- Identical results hashes old vs new: Trend Template `02841b3398789508`, VCP `a0a2bba794e2038b`, scores `f47dd4f182a1c759`; Trend Template 2023-06-16 `998b7019692f9d2b` in two runs each way.
+- RS rows are identical.
+- Universe memberships: the same eligibility for all 2,202. Seven rows differ only in the 16th significant digit of `avg_traded_value`. That comes from DuckDB's parallel summation order, which varies from run to run, not from the write path.
+
+**Verification.** Full suite: 1,116 passed, 2 skipped, in 135 s (was 186 s). ruff, format and mypy clean.
+
+**Tests** (`test_store_upsert_rows.py`, 3): upsert inserts and updates exactly like `executemany`; other statement shapes are refused; pandas is marked absent.

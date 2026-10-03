@@ -20,6 +20,22 @@ from vcp_scanner.domain.snapshot import LIVE_SNAPSHOT_ID
 
 logger = logging.getLogger(__name__)
 
+
+def _mark_pandas_absent() -> None:
+    """DuckDB's Python client tries ``import pandas`` for every bound parameter it converts.
+    pandas is not a dependency, so each try was a failed import searching the whole path:
+    327,690 failed imports and about 30 s in one Trend Template scan (found 2026-10-03, Phase 9
+    step 1). Recording it as absent in ``sys.modules`` makes each try fail at once. Nothing in
+    the project imports pandas; if it is installed, this does nothing."""
+    import importlib.util
+    import sys
+
+    if "pandas" not in sys.modules and importlib.util.find_spec("pandas") is None:
+        sys.modules["pandas"] = None  # type: ignore[assignment]
+
+
+_mark_pandas_absent()
+
 # ---------------------------------------------------------------------------
 # DDL statements — Phase 1 Phase tables only.
 # Additional tables (corporate_actions, universe_snapshots, …) are created
@@ -933,6 +949,33 @@ class DuckDBStore:
             cols = ", ".join(columns)
             verb = "INSERT OR IGNORE" if ignore_conflicts else "INSERT"
             self.conn.execute(f"{verb} INTO {table} ({cols}) SELECT {cols} FROM {view}")
+        return len(rows)
+
+    def upsert_rows(
+        self,
+        insert_sql: str,
+        rows: Sequence[Sequence[object]],
+    ) -> int:
+        """Run an ``INSERT INTO t (cols) VALUES (?, ...) ON CONFLICT ...`` statement for all
+        ``rows`` at once: the ``VALUES`` list is replaced by a select from an Arrow view, so the
+        conflict handling is unchanged but there is one statement instead of one per row
+        (``executemany`` took about 40 s for one Trend Template scan; Phase 9 step 1)."""
+        if not rows:
+            return 0
+        import re
+
+        m = re.search(r"INSERT INTO\s+(\w+)\s*\(([^)]*)\)\s*VALUES\s*\([?,\s]*\)", insert_sql)
+        if m is None:
+            raise ValueError("upsert_rows needs INSERT INTO t (cols) VALUES (?, ...) ...")
+        table = m.group(1)
+        columns = [c.strip() for c in m.group(2).split(",")]
+        if insert_sql[m.end() :].count("?"):
+            raise ValueError("upsert_rows: no parameters allowed after VALUES")
+        with self.registered(f"_upsert_{table}", columns, rows) as view:
+            cols = ", ".join(columns)
+            self.conn.execute(
+                f"INSERT INTO {table} ({cols}) SELECT {cols} FROM {view}{insert_sql[m.end() :]}"
+            )
         return len(rows)
 
     def migrate(self) -> None:

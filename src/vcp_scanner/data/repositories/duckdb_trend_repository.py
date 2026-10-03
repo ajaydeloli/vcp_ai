@@ -144,8 +144,8 @@ class DuckDBTrendRepository(TrendRepository):
         conn = self.store.conn
         conn.execute("BEGIN TRANSACTION")
         try:
-            conn.executemany(_UPSERT_RESULT, summary_rows)
-            conn.executemany(_UPSERT_CONDITION, condition_rows)
+            self.store.upsert_rows(_UPSERT_RESULT, summary_rows)
+            self.store.upsert_rows(_UPSERT_CONDITION, condition_rows)
         except Exception:
             conn.execute("ROLLBACK")
             raise
@@ -197,7 +197,7 @@ class DuckDBTrendRepository(TrendRepository):
             )
             for c in contexts
         ]
-        self.store.conn.executemany(_UPSERT_WEEKLY, rows)
+        self.store.upsert_rows(_UPSERT_WEEKLY, rows)
 
     def load_weekly_context(
         self,

@@ -330,7 +330,9 @@ class DuckDBVCPRepository:
 
     def record_run_results(self, scan_run_id: str, rows: Sequence[Sequence[Any]]) -> None:
         if rows:
-            self._store.conn.executemany(
-                "INSERT INTO vcp_scan_run_results VALUES (?, ?, ?, ?, ?, ?, ?)",
+            self._store.upsert_rows(
+                "INSERT INTO vcp_scan_run_results (scan_run_id, instrument_id, classification,"
+                " status, confirmation_state, pivot_price, no_pattern_reason)"
+                " VALUES (?, ?, ?, ?, ?, ?, ?)",
                 [(scan_run_id, *r) for r in rows],
             )

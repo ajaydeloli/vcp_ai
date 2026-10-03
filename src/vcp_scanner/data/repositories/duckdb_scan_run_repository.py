@@ -110,7 +110,7 @@ class DuckDBScanRunRepository:
             ],
         )  # fmt: skip
         if results:
-            conn.executemany(
+            self._store.upsert_rows(
                 "INSERT INTO scan_run_results (scan_run_id, instrument_id, status,"
                 " trend_template_pass, weekly_stage, rs_rank, blocked_by)"
                 " VALUES (?, ?, ?, ?, ?, ?, ?)",

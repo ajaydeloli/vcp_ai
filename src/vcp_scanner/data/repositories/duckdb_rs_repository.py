@@ -125,7 +125,7 @@ class DuckDBRelativeStrengthRepository:
         conn = self.store.conn
         conn.execute("BEGIN TRANSACTION")
         try:
-            conn.executemany(_UPSERT, params)
+            self.store.upsert_rows(_UPSERT, params)
         except Exception:
             conn.execute("ROLLBACK")
             raise

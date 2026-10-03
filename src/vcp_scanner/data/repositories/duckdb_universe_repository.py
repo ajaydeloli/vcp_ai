@@ -67,7 +67,7 @@ class DuckDBUniverseRepository:
 
         # Insert memberships
         if memberships:
-            # We use executemany for bulk insert
+            # One set-based insert (Phase 9 step 1; executemany went row by row).
             rows = [
                 (
                     m.universe_snapshot_id,
@@ -84,7 +84,7 @@ class DuckDBUniverseRepository:
                 )
                 for m in memberships
             ]
-            self._store.conn.executemany(
+            self._store.upsert_rows(
                 """
                 INSERT INTO universe_memberships (
                     universe_snapshot_id, instrument_id, eligible, exclusion_reason,

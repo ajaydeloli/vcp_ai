@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed (Phase 9 step 1: faster scans)
+- Scans are about 5× faster (33 s instead of 146 s for one historical date). The results are identical.
+- The database client no longer retries a missing optional library thousands of times, and the main tables are written in one batch instead of row by row.
+
 ### Decided (owner, 2026-10-03)
 - Fundamentals (Phase 8) are skipped for now. Setup scores keep using only the technical components, and their weights are rescaled automatically. Notes on NSE's filing data are kept in the audit log for later.
 
