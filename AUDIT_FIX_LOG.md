@@ -1721,3 +1721,14 @@ The owner chose "switch on + rerun".
 - A rerun of 1 Oct gives an identical hash.
 
 **Tests.** The segmentation tests now run with the merge on by default; the "off" case is explicit. Full suite: 1,095 passed, 2 skipped. ruff, format and mypy clean.
+
+### Equal-high merge applied to the main DB (owner approved; 12:22–12:28 IST 2026-10-03, code at 8fc9d86)
+
+Under the daily-run lock:
+- Database check passed; backup `data/backups/vcp_scanner_20261003_065217.duckdb` (1.97 GB).
+- `p6-equal-highs` fast-forwarded into `main` and pushed.
+- Trend Template under `64da9482a769`: 30 Sep 267 PASS, hash `482d2509e9c17b21`; 1 Oct 203 PASS, `8bdc231dc0f6fb4c`.
+- VCP: 30 Sep 47 VCP, `b84c05af39efb2ad`; 1 Oct 40 VCP, `94ff3fc2dc695124`.
+- All four hashes are identical to the copy check. The copy was deleted.
+
+**Note.** The 2026-10-03 09:05 IST catch-up run (when the PC came back on) stopped during its backup step. It left `data/backups/vcp_scanner_20261003_033533.duckdb.partial` (318 MB) and no "end" line or summary. The main DB check passed afterwards. There were no new prices to miss (2 Oct was a holiday; 3 Oct is a Saturday).
