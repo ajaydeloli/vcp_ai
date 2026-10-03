@@ -535,6 +535,20 @@ def build_parser() -> argparse.ArgumentParser:
 
     add_research_parser(subparsers)
 
+    scores_cmd = subparsers.add_parser("scores", help="Read stored setup scores (Phase 7)")
+    scores_sub = scores_cmd.add_subparsers(dest="scores_command")
+    sl = scores_sub.add_parser("list", help="Ranked setups of a date (default: latest scored)")
+    sl.add_argument("--as-of", metavar="YYYY-MM-DD")
+    sl.add_argument("--all", action="store_true", help="Also show unranked passers")
+    sl.add_argument("--limit", type=int, default=30)
+    _add_db_arg(sl)
+    _add_config_dir_arg(sl)
+    se = scores_sub.add_parser("explain", help="How one stock's score was built")
+    se.add_argument("symbol", help="NSE symbol or instrument id")
+    se.add_argument("--as-of", metavar="YYYY-MM-DD")
+    _add_db_arg(se)
+    _add_config_dir_arg(se)
+
     quality_parser = subparsers.add_parser("quality", help="Data-quality events that block signals")
     quality_subparsers = quality_parser.add_subparsers(
         dest="quality_command", help="Quality operations"
@@ -962,6 +976,16 @@ def main(argv: Sequence[str] | None = None) -> int:
             parser.parse_args(["compute", "--help"])
             return 0
         return runner(args)
+
+    if args.command == "scores":
+        from vcp_scanner import cli_scores_view
+
+        if args.scores_command == "list":
+            return cli_scores_view.run_scores_list(args)
+        if args.scores_command == "explain":
+            return cli_scores_view.run_scores_explain(args)
+        parser.parse_args(["scores", "--help"])
+        return 0
 
     if args.command == "research":
         from vcp_scanner.cli_research import run_research

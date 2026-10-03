@@ -1815,3 +1815,24 @@ Worktree `vcp_ai_p7s3`, branch `p7-step3-persist`.
 - Sub-component coverage on 1 Oct: tightening and volatility are present for 78 of 203 (they need two or more contractions); everything else for all 203.
 
 **Calibration note for step 5.** The spec bound for `pivot` (right-side range 8 % → 2 %) gives almost every setup about 0: the median right-side range is 11.8 %, and the average normalized value is 2.2. `contraction_sequence` averages 13.5 among all passers. These are spec values, left unchanged (owner decision); the step-5 outcome check will show whether they matter.
+
+## Phase 7 step 4 — `vcp scores list` / `vcp scores explain` (2026-10-03)
+
+Worktree `vcp_ai_p7s4`, branch `p7-step4-explain` (on top of step 3; not merged until the main-DB apply).
+
+**Change.**
+- `cli_scores_view.py` reads the current config's score scan for a date (the latest when no date is given).
+- `list` shows the ranked setups; `--all` adds unranked passers; `--limit` caps the rows.
+- `explain SYMBOL`:
+  - each component's score × effective weight = contribution;
+  - for every sub-component: raw value, 0–100 value, points of max, and the configured bounds;
+  - flags and ranking context.
+- Symbols are case-insensitive, and an instrument id also works. Registered in `cli.py` as `vcp scores`; README and CHANGELOG updated.
+
+**Verification.** Full suite: 1,110 passed, 2 skipped. ruff, format and mypy clean.
+
+**Tests (e2e).** `list --all` output; `explain` of a scored stock (lowercase symbol, sub-components, points, the FUNDAMENTALS_UNAVAILABLE flag); an unknown symbol is refused.
+
+**Real-data look** (copy of the main DB, 1 Oct):
+- Top ranked setup: SIYSIL, score 75.1, VCP pivot-ready.
+- Its explanation adds up by hand: 19.9 + 25.9 + 13.2 + 16.1 = 75.1.

@@ -247,6 +247,23 @@ def test_full_pipeline_from_an_empty_database(
         bad = q("SELECT count(*) FROM setup_scores WHERE ranking_percentile IS NOT NULL"
                 " AND NOT eligible").fetchone()  # fmt: skip
         assert bad == (0,)
+    # Phase 7 step 4: the ranked list and a per-stock explanation.
+    assert cli_main(["scores", "list", "--all", "--db", db, "--config-dir", CONFIG_DIR]) == 0
+    out = capsys.readouterr().out
+    assert "Setup scores 2024-06-28" in out and "not probabilities" in out
+    with DuckDBStore(db) as store:
+        sym = store.conn.execute(
+            "SELECT i.symbol FROM setup_scores s JOIN instruments i USING (instrument_id)"
+            " WHERE s.scan_id = ? AND s.final_setup_score IS NOT NULL LIMIT 1", [score_scan_id]
+        ).fetchone()[0]  # type: ignore[index]  # fmt: skip
+    assert cli_main(["scores", "explain", sym.lower(), "--as-of", as_of, "--db", db,
+                     "--config-dir", CONFIG_DIR]) == 0  # fmt: skip
+    out = capsys.readouterr().out
+    assert f"{sym.upper()} on 2024-06-28: final score" in out
+    assert "high_proximity" in out and "pts" in out and "FUNDAMENTALS_UNAVAILABLE" in out
+    assert cli_main(["scores", "explain", "NOSUCH", "--db", db, "--config-dir",
+                     CONFIG_DIR]) == 1  # fmt: skip
+    capsys.readouterr()
     missing = ["compute", "scores", "--as-of", "2024-06-27", "--db", db, "--config-dir",
                CONFIG_DIR]  # fmt: skip
     assert cli_main(missing) == 1

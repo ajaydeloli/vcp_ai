@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (Phase 7 step 4: reading scores)
+- `vcp scores list` shows the ranked setups of a date: score, percentile, state, class, status and the four component scores.
+- `vcp scores explain SYMBOL` shows how a stock's score was built: each component's share, and each sub-score's raw value, its 0–100 value, its points and the bounds used.
+
 ### Added (Phase 7 step 3: scores stored and in the daily run)
 - `vcp compute scores --as-of DATE` scores every Trend Template passer and stores each score with all its sub-scores. VCP-like-or-better setups that are forming, pivot-ready or broken out get a ranking percentile.
 - The daily run now computes scores after VCP detection.
