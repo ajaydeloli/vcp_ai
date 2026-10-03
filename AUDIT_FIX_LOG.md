@@ -1988,3 +1988,39 @@ Worktree `vcp_ai_p9s3`, branch `p9-step3-engine` (on top of step 2; not merged u
 
 **Addition:** `--baseline` (`backtest run` / `walk-forward`) trades every passer whose primary pattern has a pivot, whatever its class or status. It runs the same engine and rules, as the comparison for the VCP classes.
 
+
+## Phase 9 step 6 — first backtest report (2026-10-03 16:27–19:19 IST)
+
+**Weekly history scans** on the research copy `data/golden_src.duckdb` (main DB untouched):
+- 248 weekly dates (last session of each week, 2022-01 .. 2026-09), current config `64da9482a769`, run 16:27–19:01 IST without errors.
+- Then `compute labels`: 46,238 observations labelled, 43,043 complete.
+
+Full output: `data/review/backtest_report_2026-10-03.txt`.
+
+**Development period (2022-02 .. 2024-06)**, default exit rule hold_s7, 15 bps per side, watch 20 sessions, breakout on 1.5× volume:
+
+| Signals | Trades | Win % | Avg trade | Profit factor | Portfolio (10 slots) CAGR / max DD / Sharpe |
+|---|---|---|---|---|---|
+| VCP classes (VCP-like, VCP, A+) | 1,803 | 29.3 % | +3.77 % | 1.74 | 6.8 % / −40.6 % / 0.42 |
+| VCP + A+ only | 1,023 | 29.6 % | +4.24 % | 1.84 | 13.5 % / −25.5 % / 0.73 |
+| Baseline: every passer with a pivot | 3,422 | 29.4 % | +3.89 % | 1.77 | 28.0 % / −24.3 % / 1.28 |
+
+Exit rules on the VCP classes (per trade):
+
+| Rule | Avg trade | Profit factor |
+|---|---|---|
+| t10_s7 | +0.93 % | 1.25 |
+| t20_low8 | +2.18 % | 1.44 |
+| hold_s7 | +3.77 % | 1.74 |
+
+**Reading.**
+- Per trade, breakouts from Trend Template passers had a positive edge in this period under hold_s7 (profit factor about 1.75). The VCP classes add nothing over the baseline. VCP + A+ is slightly better (+4.2 % against +3.9 %), within noise.
+- The **portfolio numbers are fragile.** With 10 slots only about 240 of 1,800–3,400 trades are taken, and which ones depends on arrival order. The baseline's 28 % CAGR against the VCP classes' 6.8 %, from near-identical per-trade numbers, is luck of selection, not a property of the signals.
+- Letting winners run beats fixed targets (consistent with the outcome study).
+- Validation and live paper were not looked at.
+
+**Bias checks.**
+- **Look-ahead** (`lookahead-check --variant prices`): 2022-09-30, 2023-06-23 and 2024-06-28 were rebuilt from copies with all later prices deleted and all features recomputed. **Identical** Trend Template (1,030 / 1,077 / 1,275 rows), VCP (962 / 903 / 1,194) and scores (172 / 246 / 311). Phase 9 acceptance met: historical scans use only information available at the time.
+- **Corporate actions** (`--variant corporate-actions`, 2023-06-23): later corporate actions deleted and adjusted prices rebuilt; result **identical**. A later split or bonus rescales price and volume together, so ratios and traded value are unchanged. 18.7 % of observations (2,300 of 12,183 ranked setups) have a later adjustment, with no effect seen on the checked date.
+- **Survivorship:** every scan date is PARTIAL, because ASM/GSM surveillance history only starts on 2026-10-01. Prices come from bhavcopies, which include delisted stocks.
+- **Period looks:** development 5; validation 0.

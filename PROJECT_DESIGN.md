@@ -1578,6 +1578,13 @@ Exact windows should remain configurable.
 
 `vcp backtest walk-forward` runs each period it may show.
 
+**First result (2026-10-03).** Weekly scans 2022–2026; development period only; hold_s7; 15 bps per side.
+- **Per trade:** breakouts had a positive edge (profit factor about 1.75). The VCP classes matched the every-passer baseline (+3.8 % against +3.9 % per trade).
+- **Portfolio:** results with 10 slots depend heavily on which trades fit, so they are not evidence for or against a class.
+- **Look-ahead and corporate-action checks:** identical on every date tested.
+
+Details are in AUDIT_FIX_LOG ("Phase 9 step 6").
+
 The goal is not to maximize historical CAGR.
 
 The first objective is:
