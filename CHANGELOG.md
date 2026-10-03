@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (Phase 7 step 2: final score and ranking)
+- The final setup score is a weighted average of the available component scores. While fundamentals are missing (until Phase 8), their weight is shared out among the others and the score is flagged `FUNDAMENTALS_UNAVAILABLE`.
+- Each setup gets a ranking percentile within its scan, computed separately for confirmed and provisional patterns.
+
 ### Added (Phase 7 step 1: component scores)
 - Trend, VCP-shape, volume and RS scores from 0 to 100, each built from sub-scores with weights and bounds from `config/scoring.yaml`. A missing input is left out, never counted as zero.
 - A misspelt sub-score name in `scoring.yaml` is now refused when the config loads.

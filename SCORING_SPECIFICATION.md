@@ -127,3 +127,8 @@ Known-answer fixtures per sub-component; boundary clipping; NULL-fundamentals re
 - **RS.** If `min_rs_rank` = 99, the worst bound becomes 98 so the bound stays valid.
 - **Config.** Sub-component names must be exactly those of §3–§7; a misspelt key is refused at load instead of silently dropping a sub-component (§9).
 
+
+**Details fixed in step 2** (`scoring/final.py`):
+- **NULL components.** Any NULL component (an absent one counts as NULL) is flagged `<COMPONENT>_UNAVAILABLE`; fundamentals are flagged `FUNDAMENTALS_UNAVAILABLE`. Its weight is dropped and `weights_renormalized = true`. A component scored 0 is a real 0, not a missing value.
+- **Stored weights.** The stored weights (`trend_weight` …) are the *effective* weights: the available components' configured weights rescaled to sum to 100, and 0 for an unavailable component. If nothing is available, the final score is NULL.
+- **Ranking percentile.** Within one scan and one confirmation state: 100 × (others strictly lower + 0.5 × others equal) ÷ (n − 1). The best gets 100 and the worst 0; ties share a value; a group of one gets 100. A setup without a final score gets no percentile.

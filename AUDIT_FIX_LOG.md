@@ -1763,3 +1763,22 @@ Worktree `vcp_ai_p7s1`, branch `p7-step1-components`. Plan sent to the owner on 
 - distribution days (count, 1.5× threshold, day excluded from its own average, too few bars, missing volume);
 - misspelt name refused;
 - determinism.
+
+## Phase 7 step 2 — final score and ranking percentile (2026-10-03)
+
+Worktree `vcp_ai_p7s2`, branch `p7-step2-final`.
+
+**Change.**
+- `scoring/final.py`:
+  - `final_score`: weighted average over the non-NULL components; a NULL or absent component is flagged and its weight renormalized away; effective weights sum to 100.
+  - `ranking_percentiles`: per group (confirmation state); tie-aware; a group of one gets 100.
+- SCORING_SPECIFICATION §11 records the step-2 details; CHANGELOG.
+
+**Verification.** Full suite: 1,106 passed, 2 skipped. ruff, format and mypy clean.
+
+**Tests** (`test_scoring_final.py`, 4):
+- the full weighted average;
+- NULL fundamentals renormalized and flagged (an absent component equals NULL; a fundamental score of 0 stays 0);
+- other NULL components;
+- nothing available gives a NULL final score;
+- percentile: top 100, bottom 0, ties shared, groups kept separate, NULL scores get no percentile.
