@@ -31,7 +31,7 @@ from vcp_scanner.data.repositories.base import CorporateActionRepository
 from vcp_scanner.data.repositories.duckdb_identity_repository import DuckDBIdentityRepository
 from vcp_scanner.data.repositories.duckdb_market_repository import DuckDBMarketDataRepository
 from vcp_scanner.data.repositories.duckdb_quality_repository import DuckDBDataQualityRepository
-from vcp_scanner.domain.corporate_actions import PRICE_DERIVED_ACTIONS
+from vcp_scanner.domain.corporate_actions import PRICE_DERIVED_ACTIONS, PRICE_SCALING_ACTIONS
 from vcp_scanner.domain.enums import DataQualityFlag
 from vcp_scanner.domain.events import DataQualityEvent
 
@@ -107,10 +107,11 @@ class QualityScanner:
         # anyway. The gap stays recorded, as a warning (audit P1-2c).
         spans = absence_spans(absence_events)
         gap_events = [_after_absence(e, spans) for e in gap_events]
-        derived_dates = [
+        derived_dates = [  # rights/demerger factors and split/bonus confirmation (Fix C11)
             r.ex_date
             for r in resolutions
-            if r.action_type in PRICE_DERIVED_ACTIONS and r.ex_date is not None
+            if r.action_type in (PRICE_DERIVED_ACTIONS | PRICE_SCALING_ACTIONS)
+            and r.ex_date is not None
         ]
         conflict_events = corporate_action_events(
             instrument_id,

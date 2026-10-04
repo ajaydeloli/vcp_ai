@@ -21,10 +21,13 @@ from vcp_scanner.domain.corporate_actions import (
     PRICE_SCALING_ACTIONS,
     CorporateActionAdjustment,
     CorporateActionResolution,
+    CorporateActionStatus,
     ExDatePrices,
     derived_factor,
+    ratio_unconfirmed,
     rescale_prior_close,
     status_allows_adjustment,
+    superseded_by_unmodelled,
 )
 from vcp_scanner.domain.enums import CorporateActionType
 from vcp_scanner.domain.market import FINAL_PRICE_SOURCE, PROVIDER_ADJUSTED_SOURCES, Candle
@@ -78,7 +81,9 @@ class AdjustmentEngine:
             ex_prices: Raw prices around ex-dates (:func:`ex_date_prices`). Rights issues and
                 demergers get a factor only when their ex-date has raw prices here and the
                 factor can be derived; otherwise they are left out (an underivable factor on
-                raw prices is reported as a blocking quality event, not guessed).
+                raw prices is reported as a blocking quality event, not guessed). Splits and
+                bonuses with raw prices here are checked against the ex-date gap (Fix C11):
+                a factor the prices do not show is withheld.
 
         Returns:
             List of CorporateActionAdjustment rows ordered by effective_date.
@@ -98,6 +103,7 @@ class AdjustmentEngine:
             if r.ex_date is not None
             and self._is_price_affecting(r.action_type)
             and status_allows_adjustment(r.status)
+            and not superseded_by_unmodelled(r, resolutions)  # Fix C11: re-parsed record
         ]
         # Several actions can share one ex-date (BAJFINANCE 2025-06-16: 1:2 split and 4:1
         # bonus). They are combined into ONE factor for that date: storing two rows for the
@@ -124,6 +130,16 @@ class AdjustmentEngine:
                     single_pf, single_vf = self._compute_single_factor(r)
                     pf *= single_pf
                     vf *= single_vf
+            # Fix C11: a split/bonus factor large enough to show in the raw prices but not seen
+            # there is withheld (a blocking event names it, data.quality.events), unless a
+            # person entered it by hand (MANUAL_OVERRIDE).
+            manual = any(r.status is CorporateActionStatus.MANUAL_OVERRIDE for r in group)
+            if not manual and ratio_unconfirmed(pf, (ex_prices or {}).get(ex_date)):
+                logger.warning(
+                    "%s %s: split/bonus factor %.4f not seen in the raw prices; withheld",
+                    group[0].instrument_id, ex_date, pf,
+                )  # fmt: skip
+                pf, vf = 1.0, 1.0
             for r in group:
                 if r.action_type in PRICE_DERIVED_ACTIONS:
                     prices = (ex_prices or {}).get(ex_date)

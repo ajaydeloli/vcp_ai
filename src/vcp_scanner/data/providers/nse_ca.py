@@ -34,8 +34,14 @@ _PREMIUM_RE = re.compile(r"(?:PREMIUM|PRM)\.?\s*(?:(?:RS|RE|INR)\.?)?\s*(\d+(?:\
 # number and a check digit (e.g. INE920A01029).
 _ISIN_RE = re.compile(r"IN[A-Z0-9]{9}[0-9]")
 # Rights in something other than equity shares ("RIGHTS - 7 CCPS AND 7 WARRANTS:40", QUINT
-# 2026): not an equity rights issue, so no TERP factor applies.
-_NON_EQUITY_RE = re.compile(r"\b(?:CCPS|WARRANTS?|DEBENTURES?|NCDS?|PREFERENCE)\b")
+# 2026): not an equity rights issue, so no TERP factor applies. Also bonuses of non-equity
+# securities: "Scheme Of Arrangement - Bonus Ncrps 4:1" (SIYSIL 2026, TVSMOTOR 2025, TVSHLTD
+# 2026) issues non-convertible redeemable preference shares; read as a 4:1 *equity* bonus it
+# divided earlier prices by 5 (Fix C11, 2026-10-04). Preference-share abbreviations: CCPS,
+# NCRPS, CRPS, OCRPS, NCPS, RPS, OCPS, CPS.
+_NON_EQUITY_RE = re.compile(
+    r"\b(?:CCPS|NCRPS|CRPS|OCRPS|NCCRPS|NCPS|RPS|OCPS|CPS|WARRANTS?|DEBENTURES?|NCDS?|PREFERENCE)\b"
+)
 # Price-affecting events this provider does not model. Dropping them silently would leave the
 # price series unadjusted with no trace, so they are reported instead (audit P1-2).
 _UNHANDLED_MARKERS = (
@@ -45,6 +51,7 @@ _UNHANDLED_MARKERS = (
     "MERGER",
     "ARRANGEMENT",
     "DEBENTURE",  # a bonus of debentures pays value out without changing the share count
+    "BONUS",  # a bonus of preference shares (NCRPS) reaches here only when non-equity
 )
 
 
@@ -222,10 +229,11 @@ class NSECorporateActionProvider:
                 # shares become one and prices are multiplied by 10. A consolidation without
                 # two face values stays visible as an unparsed ratio.
                 action_type = CorporateActionType.SPLIT
-            elif "BONUS" in text and "DEBENTURE" not in text:
+            elif "BONUS" in text and not _NON_EQUITY_RE.search(text):
                 # "Scheme Of Arangement- Bonus - 1 Debenture For 1 Equity Share Held"
-                # (BRITANNIA 2021) issues debentures, not shares: no share-count change, so it
-                # is reported as unhandled below instead of becoming a ratio-less BONUS.
+                # (BRITANNIA 2021) issues debentures, not shares, and "Bonus Ncrps 4:1" (SIYSIL
+                # 2026) issues preference shares: no equity share-count change, so they are
+                # reported as unhandled below instead of becoming an equity BONUS (Fix C11).
                 action_type = CorporateActionType.BONUS
             elif "DIVIDEND" in text:
                 action_type = CorporateActionType.DIVIDEND

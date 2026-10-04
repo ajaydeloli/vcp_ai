@@ -636,6 +636,21 @@ The window (audit 2.7c, owner decision 2026-10-01): an illiquid stock (series BE
 - **Block lifetime (audit P1-2, owner decision 2026-10-01).** A dated blocking event applies from its `trade_date` until the instrument has `data.quality.block_lifetime_bars` (253) of its own bars in `[trade_date, as_of]`. Every price lookback ends at the as-of bar and is at most 253 bars long (RS and universe history minimums, 52-week extremes, SMA200 plus slope, weekly stage), so after that no window spans the bad jump and the prices it reads are internally consistent. Configuration refuses a lifetime shorter than the longest lookback. Earlier as-of dates still see the block, so backtests stay point-in-time; an undated event never expires. Phase 6 (VCP detection) must not look further back than this lifetime, or the lifetime must grow with it.
 - Implemented (audit P0-2): `vcp ingest corporate-actions` runs the detector after reconciliation for every priced instrument, and `vcp quality scan` re-runs it on demand. Events are persisted in `data_quality_events` and gate the universe, RS and Trend Template (DATABASE_SCHEMA 19.1). A human closes a gap with `vcp quality resolve`; a `PROVIDER_CONFLICT` cannot be closed by hand.
 
+## Phantom-action safety net (`ratio_unconfirmed`, Fix C11, owner decision 2026-10-04)
+
+The gap net above catches a **missed** action (a raw gap with no action). The reverse case is a **phantom** action: an action record whose ratio is applied although the stock never changed. NSE publishes bonuses of preference shares in the same feed as equity bonuses (for example "Scheme Of Arrangement - Bonus Ncrps 4:1" for SIYSIL, ex 2026-08-21; "Bonus Ncrps 46:1" for TVSHLTD). Before C11 these were read as equity bonuses, every earlier price was divided by 5 or 47, and the 50-day average fell far below the real price, so the Trend Template passed when the chart showed the price under its 50-day average.
+
+Two guards:
+
+1. **Parser.** A bonus or split subject that names a non-equity instrument (NCRPS, CCPS, CRPS, OCRPS, NCCRPS, NCPS, RPS, OCPS, CPS, preference shares, warrants, debentures, NCDs) is stored as `UNMODELLED`, not as a bonus. It never rescales prices. When the same instrument and ex-date also has an equity-looking BONUS/SPLIT reading from an older parse, the `UNMODELLED` reading supersedes it.
+2. **Ratio confirmation.** A split or bonus whose price factor `F` is outside `(1 − gap_pct, 1 / (1 − gap_pct))` (30 % by default, so `F ≤ 0.7` or `F ≥ 1.43`) must be confirmed by the raw prices around the ex-date:
+
+```text
+unconfirmed  <=>  abs(raw_open(ex) / (raw_close(prev) * F) - 1) >= gap_pct
+```
+
+An unconfirmed factor is **withheld** (prices are not rescaled) and the instrument gets a `CORPORATE_ACTION_UNRESOLVED` event, severity CRITICAL, cause `ratio_unconfirmed`, blocking signals from the ex-date until a human resolves it (`vcp quality resolve`, or a `MANUAL_OVERRIDE` resolution, which is always applied). Duplicate records on the same ex-date raise one event. A factor with no raw prices around the ex-date (stock not yet listed in our data) is applied as before. Small factors inside the band are not checked: an ordinary daily move can hide them (the same limit as P1-10b above).
+
 ## Configuration
 
 ```yaml

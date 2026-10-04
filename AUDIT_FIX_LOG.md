@@ -2038,3 +2038,25 @@ Under the daily-run lock:
 - **Main DB:** tables `forward_labels`, `backtest_runs` and `backtest_events` created; 470 labels written, all open.
 
 From the next trading day the daily run updates labels after scoring.
+
+## Fix C11 — phantom bonus adjustments from preference-share bonuses (2026-10-04)
+
+**Reported by the owner:** SIYSIL ranked #1 on 1 Oct, but on the chart its price was below the 50-day average, so it should not have passed the Trend Template.
+
+**Cause.** NSE publishes bonuses of preference shares in the same corporate-action feed as equity bonuses. "Scheme Of Arrangement - Bonus Ncrps 4:1" (SIYSIL, ex 2026-08-21, plus a duplicate 3:1 record), "Bonus Ncrps 4:1" (TVSMOTOR, ex 2025-08-25) and "Bonus Ncrps 46:1" (TVSHLTD, ex 2026-09-08) were parsed as equity bonuses. Factors 0.2, 0.2 and 0.0213 divided every earlier price, although the stock price never changed. On 1 Oct SIYSIL's stored SMA50 was 370.26 against a close of 531.55 (real SMA50 580.55), so all Trend Template rules passed. Nothing checked that a large split/bonus factor actually appears in the raw prices; the gap net only covered the opposite case (a raw gap with no action).
+
+**Scope (main DB before the fix).** 746 price adjustments with |factor − 1| > 5 %; 713 confirmed by the raw gap, 32 not. The severe unconfirmed ones (factor ≤ 0.7): SIYSIL, TVSMOTOR, TVSHLTD, DVL 2021-08-05 (NSE "Bonus 1:2", 0.667) and TPHQ 2023-04-18 (0.471). Main DB: SIYSIL passed on 30 Sep and 1 Oct (score 75.1, rank 1); TVSHLTD passed on both dates (64.5, not ranked). Research copy: SIYSIL 27 passes (6 ranked), TVSMOTOR 105 (25), TVSHLTD 70 (27).
+
+**Fix (owner choice: parser fix + safety net).**
+- `nse_ca.py`: a bonus subject that names a non-equity instrument (NCRPS, CCPS, CRPS, OCRPS, NCCRPS, NCPS, RPS, OCPS, CPS, preference shares, warrants, debentures, NCDs) is stored as UNMODELLED (warning), never as BONUS.
+- `domain/corporate_actions.py`: `ratio_unconfirmed()` (a factor outside (0.7, 1/0.7) must show in raw_open(ex) / raw_close(prev)) and `superseded_by_unmodelled()` (an UNMODELLED reading on the same instrument and ex-date replaces an older BONUS/SPLIT reading).
+- `adjustment/engine.py`: superseded readings are skipped; an unconfirmed factor is withheld (1.0) unless a MANUAL_OVERRIDE exists. `ca_worker.py` and `quality/scanner.py` now load ex-date prices for split/bonus dates too.
+- `quality/events.py`: one CRITICAL `CORPORATE_ACTION_UNRESOLVED` event per ex-date with cause `ratio_unconfirmed`, blocking signals from the ex-date until resolved.
+- Spec: DATA_SPECIFICATION §18A "Phantom-action safety net".
+
+**Tests.** `tests/unit/test_fix_c11_phantom_actions.py` (5 tests: parser, ratio check, engine withholding/applying, supersede, one event for duplicate records). Full suite 1,134 passed, 2 skipped; ruff, format, mypy clean.
+
+**Verification (copy of the main DB, 20:25–21:02 IST).** CA re-ingest from 2021, adjusted prices, features, scans for 30 Sep and 1 Oct, labels.
+- SIYSIL 1 Oct: close 531.55, SMA50 580.55, SMA200 578.40 → Trend Template FAIL on both dates; no longer scored as eligible. TVSHLTD: close 11,886 vs SMA50 13,648.52 → FAIL. TVSMOTOR stays FAIL (SMA50 4,222.01 vs close 4,021).
+- DVL's 0.667 factor withheld; one blocking `ratio_unconfirmed` event (2021-08-05) for review. TPHQ's factors stay applied (no usable raw bars around its ex-date; a 0.50-rupee stock outside the universe).
+- Large adjustments: 746 → 741. Trend Template passes 30 Sep 267 → 265, 1 Oct 203 → 204. New 1 Oct top: MWL 72.1, GLAND 70.0, UFLEX 66.0, TFCILTD 65.7, MBAPL 64.8.

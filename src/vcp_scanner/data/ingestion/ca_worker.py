@@ -17,6 +17,7 @@ from vcp_scanner.data.repositories.base import CorporateActionRepository
 from vcp_scanner.data.repositories.duckdb_quality_repository import DuckDBDataQualityRepository
 from vcp_scanner.domain.corporate_actions import (
     PRICE_DERIVED_ACTIONS,
+    PRICE_SCALING_ACTIONS,
     CorporateAction,
     CorporateActionAdjustment,
     CorporateActionResolution,
@@ -280,11 +281,13 @@ class CorporateActionIngestionWorker:
     def _ex_prices(
         self, instrument_id: str, resolutions: list[CorporateActionResolution]
     ) -> dict[date, ExDatePrices]:
-        """Raw prices around the ex-dates of this instrument's rights issues and demergers."""
+        """Raw prices around the ex-dates of this instrument's rights issues and demergers
+        (factor derivation) and splits/bonuses (price confirmation, Fix C11)."""
         ex_dates = [
             r.ex_date
             for r in resolutions
-            if r.action_type in PRICE_DERIVED_ACTIONS and r.ex_date is not None
+            if r.action_type in (PRICE_DERIVED_ACTIONS | PRICE_SCALING_ACTIONS)
+            and r.ex_date is not None
         ]
         if self._market is None or not ex_dates:
             return {}

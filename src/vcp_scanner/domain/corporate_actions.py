@@ -248,3 +248,49 @@ def factor_unknown(resolution: CorporateActionResolution, prices: ExDatePrices |
         and prices.raw
         and derived_factor(resolution, prices) is None
     )
+
+
+# -- Fix C11 (2026-10-04): split/bonus factors must be visible in the raw prices ---------------
+
+#: A split/bonus factor this far from 1 must show up as a raw gap on its ex-date; it equals
+#: the gap detector's default ``gap_pct`` (30 %), so the two checks agree on what "visible" is.
+RATIO_CONFIRM_GAP = 0.30
+
+
+def ratio_unconfirmed(
+    price_factor: float, prices: ExDatePrices | None, gap: float = RATIO_CONFIRM_GAP
+) -> bool:
+    """True when a split/bonus price factor large enough to be seen (<= 1 - gap, or >= 1 /
+    (1 - gap)) is *not* seen in the raw prices: the ex-date open is not within ``gap`` of the
+    prior close times the factor. Then the action is probably wrong (a non-equity bonus read
+    as an equity one, a wrong ratio or a wrong ex-date) and must not rescale history.
+
+    Not checkable (False): no raw prices for the ex-date, the stock did not trade on it, or
+    the factor is too small to separate from an ordinary day's move.
+    """
+    if prices is None or not prices.raw or prices.prior_close is None or prices.ex_open is None:
+        return False
+    if prices.prior_close <= 0 or prices.ex_open <= 0 or price_factor <= 0:
+        return False
+    if (1 - gap) < price_factor < 1 / (1 - gap):
+        return False
+    return abs(prices.ex_open / (prices.prior_close * price_factor) - 1.0) >= gap
+
+
+def superseded_by_unmodelled(
+    resolution: CorporateActionResolution, resolutions: list[CorporateActionResolution]
+) -> bool:
+    """A split/bonus whose ex-date also carries an UNMODELLED or CAPITAL_REDUCTION reading for
+    the same instrument. Raw provider rows are immutable, so after a parser fix the *same*
+    NSE record exists twice: its old reading (here, an equity BONUS with a ratio) and its new
+    one (UNMODELLED, e.g. a bonus of preference shares). The newer reading wins: the old one
+    must no longer rescale prices (Fix C11; the event layer already reports such a record
+    once, as the UNMODELLED warning)."""
+    if resolution.action_type not in PRICE_SCALING_ACTIONS or resolution.ex_date is None:
+        return False
+    return any(
+        r.instrument_id == resolution.instrument_id
+        and r.ex_date == resolution.ex_date
+        and r.action_type in (CorporateActionType.UNMODELLED, CorporateActionType.CAPITAL_REDUCTION)
+        for r in resolutions
+    )

@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed (Fix C11: phantom bonus adjustments)
+- NSE bonuses of preference shares ("Bonus Ncrps 4:1" and similar) were read as equity bonuses, so all earlier prices were divided by up to 47. SIYSIL then passed the Trend Template (and ranked #1) while its real price was below its 50-day average; TVSMOTOR and TVSHLTD were also affected. These records are now stored as unmodelled actions and never rescale prices.
+- Safety net: a split or bonus that would move prices by 30 % or more is applied only when the raw prices around the ex-date show that jump. Otherwise the factor is withheld and the stock is blocked with a `ratio_unconfirmed` data-quality event until someone checks it.
+
 ### Added (Phase 9 steps 3–5: backtests)
 - `vcp backtest run` replays stored scans day by day. It buys a breakout on volume and exits by the chosen rule, after costs. It reports every trade on its own and a 10-position portfolio (return, CAGR, drawdown, Sharpe), and stores every event.
 - `vcp backtest walk-forward` runs the periods in `config/backtest.yaml`. The validation period is shown only on request and each look is counted; live paper trading from Oct 2026 is the real test.

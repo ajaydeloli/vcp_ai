@@ -11,7 +11,10 @@ from vcp_scanner.domain.corporate_actions import (
     CorporateActionStatus,
     ExDatePrices,
     factor_unknown,
+    has_usable_ratio,
+    ratio_unconfirmed,
     ratio_unknown,
+    status_allows_adjustment,
 )
 from vcp_scanner.domain.enums import CorporateActionType, DataQualityFlag
 from vcp_scanner.domain.events import DataQualityEvent, EventSeverity, make_event_id
@@ -161,6 +164,7 @@ def corporate_action_events(
         if r.action_type in (CorporateActionType.UNMODELLED, CorporateActionType.CAPITAL_REDUCTION)
         and r.ex_date is not None
     }
+    unconfirmed_dates: set[date | None] = set()
     for r in resolutions:
         if r.instrument_id != instrument_id:
             continue
@@ -172,6 +176,11 @@ def corporate_action_events(
         if r.ex_date is not None and factor_unknown(r, (ex_prices or {}).get(r.ex_date)):
             if not superseded:
                 events.append(_factor_unknown_event(instrument_id, r, detected_at))
+            continue
+        if not superseded and _ratio_unconfirmed(r, resolutions, ex_prices):
+            if r.ex_date not in unconfirmed_dates:  # one event per ex-date
+                unconfirmed_dates.add(r.ex_date)
+                events.append(_ratio_unconfirmed_event(instrument_id, r, detected_at))
             continue
         if r.status is not CorporateActionStatus.PROVIDER_CONFLICT:
             continue
@@ -211,6 +220,76 @@ def corporate_action_events(
             )
         )
     return events
+
+
+def _ratio_unconfirmed(
+    r: CorporateActionResolution,
+    resolutions: Sequence[CorporateActionResolution],
+    ex_prices: Mapping[date, ExDatePrices] | None,
+) -> bool:
+    """Fix C11: the split/bonus factor of ``r``'s ex-date (all ratio actions on it combined, as
+    the adjustment engine does) is large enough to show in the raw prices but does not, and no
+    person entered it by hand. The engine withholds such a factor; this event blocks."""
+    if (
+        r.action_type not in PRICE_SCALING_ACTIONS
+        or r.ex_date is None
+        or not status_allows_adjustment(r.status)
+        or not has_usable_ratio(r.ratio_numerator, r.ratio_denominator)
+    ):
+        return False
+    from vcp_scanner.data.adjustment.engine import AdjustmentEngine  # noqa: PLC0415
+
+    group = [
+        x for x in resolutions
+        if x.instrument_id == r.instrument_id and x.ex_date == r.ex_date
+        and x.action_type in PRICE_SCALING_ACTIONS and status_allows_adjustment(x.status)
+        and has_usable_ratio(x.ratio_numerator, x.ratio_denominator)
+    ]  # fmt: skip
+    if any(x.status is CorporateActionStatus.MANUAL_OVERRIDE for x in group):
+        return False
+    engine = AdjustmentEngine()
+    pf = 1.0
+    for x in group:
+        pf *= engine.single_factor(x)[0]
+    return ratio_unconfirmed(pf, (ex_prices or {}).get(r.ex_date))
+
+
+def _ratio_unconfirmed_event(
+    instrument_id: str, r: CorporateActionResolution, detected_at: datetime
+) -> DataQualityEvent:
+    """Blocking event for a split/bonus the raw prices do not show (Fix C11)."""
+    ex = r.ex_date.isoformat() if r.ex_date else "unknown"
+    return DataQualityEvent(
+        event_id=make_event_id(
+            DataQualityFlag.CORPORATE_ACTION_UNRESOLVED,
+            instrument_id,
+            r.action_type.value,
+            ex,
+            "ratio_unconfirmed",
+        ),
+        instrument_id=instrument_id,
+        flag=DataQualityFlag.CORPORATE_ACTION_UNRESOLVED,
+        severity=EventSeverity.CRITICAL,
+        detected_at=detected_at,
+        description=(
+            f"{r.action_type.value} {r.ratio_numerator}:{r.ratio_denominator} ex-date {ex} "
+            f"({r.status.value}) is not seen in the raw prices (no matching gap); the factor is "
+            "withheld. Check the action (non-equity bonus? wrong ratio or date?) and enter it "
+            "by hand if it is real"
+        ),
+        context={
+            "resolution_id": r.resolution_id,
+            "action_type": r.action_type.value,
+            "status": r.status.value,
+            "cause": "ratio_unconfirmed",
+            "ratio_numerator": r.ratio_numerator,
+            "ratio_denominator": r.ratio_denominator,
+            "nse_action_id": r.nse_action_id,
+        },
+        trade_date=r.ex_date,
+        blocks_signal=True,
+        dataset="corporate_actions",
+    )
 
 
 def _ratio_unknown_event(
