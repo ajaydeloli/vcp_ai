@@ -2060,3 +2060,10 @@ From the next trading day the daily run updates labels after scoring.
 - SIYSIL 1 Oct: close 531.55, SMA50 580.55, SMA200 578.40 → Trend Template FAIL on both dates; no longer scored as eligible. TVSHLTD: close 11,886 vs SMA50 13,648.52 → FAIL. TVSMOTOR stays FAIL (SMA50 4,222.01 vs close 4,021).
 - DVL's 0.667 factor withheld; one blocking `ratio_unconfirmed` event (2021-08-05) for review. TPHQ's factors stay applied (no usable raw bars around its ex-date; a 0.50-rupee stock outside the universe).
 - Large adjustments: 746 → 741. Trend Template passes 30 Sep 267 → 265, 1 Oct 203 → 204. New 1 Oct top: MWL 72.1, GLAND 70.0, UFLEX 66.0, TFCILTD 65.7, MBAPL 64.8.
+
+### Fix C11 applied (2026-10-04/05, code 355be64)
+
+- **Main DB** (21:03–21:40 IST, under the daily-run lock; backup `data/backups/vcp_scanner_20261004_153355.duckdb`): CA re-ingest from 2021, adjusted prices, features, scans for 30 Sep and 1 Oct, labels. Result identical to the copy check: SIYSIL and TVSHLTD FAIL on both dates, DVL has one blocking `ratio_unconfirmed` event, Trend Template passes 265 (30 Sep) and 204 (1 Oct), 1 Oct top: MWL, GLAND, UFLEX, TFCILTD, MBAPL.
+- **Research copy** `data/golden_src.duckdb` (21:43–00:51 IST; backup `data/backups/golden_src_pre_c11.duckdb`): same rebuild, then all 248 weekly scans (config 64da9482a769) rerun in date order, then labels. No errors.
+  - Scans are point-in-time, so a phantom factor only distorted scans after its ex-date. SIYSIL passes 27 → 22 (the 5 from Aug–Sep 2026 removed; last pass now 2025-01-24). TVSHLTD 70 → 66 (Sep 2026 removed; last pass now 2026-04-17). TVSMOTOR 105 → 105: its passes were genuine, so the earlier "105 affected" count overstated the impact.
+  - Total Trend Template passes 46,238 → 46,234 out of 284,738 rows. Stored backtest results from Phase 9 step 6 are stale only for those few setups; rerun the report when convenient.
