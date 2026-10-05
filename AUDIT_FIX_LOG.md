@@ -2156,3 +2156,10 @@ STRATEGY_SPECIFICATION §12B (scan path for new strategies), §13 Flat / tight b
 
 **Not changed:** the main DB and the research DB (the rescan is on a copy; whether it replaces the research DB is the owner's call); VCP code and results.
 
+### Step 4 rescan made the research DB (2026-10-05 15:01 IST, owner choice A)
+
+Under the daily-run lock (`~/vcp_spike/ms4_apply.sh`):
+- **Check before replacing:** `compare_results.py` research DB vs the rescan copy: every VCP and Trend Template table identical (256,053 patterns, 900,900 contractions, 795,517 pivots, 71,350 status rows, 8,166 breakout events, 360,566 Trend Template rows); the copy only adds 30,616 score and label rows (`flat_base` 16,876, `three_weeks_tight` 13,740), 30,616 strategy setups, their scan runs, and 6 development backtest runs (the step-4 comparison: 2 VCP, 2 per new strategy). The research DB was last written at 12:04 IST (step-2 migration), before the copy was made (13:47), so nothing was lost.
+- **Backup** (health-checked): `data/backups/golden_src_20261005_093106.duckdb`; the copy passed its health check; then it replaced `data/golden_src.duckdb`. `golden_src_pre_c11.duckdb` kept.
+- The rescan was made with the step-4 branch code before the final squash (13d437e for flat_base, ad1a359 for three_weeks_tight); their `src` and `config` equal 4596549.
+
