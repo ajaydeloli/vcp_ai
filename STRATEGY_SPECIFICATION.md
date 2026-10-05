@@ -82,7 +82,8 @@ scoring:
 ```
 
 - Unknown keys are refused at load (as for all config today).
-- `strategy_id` must equal the file name.
+- `strategy_id` must equal the file name; a file for a strategy the code does not register is refused.
+- If `vcp.yaml` is missing (test configs, older checkouts), VCP gets the default pointer below. Any other registered strategy without a file is simply not configured.
 - **VCP is the exception for now (§12.2):** `config/strategies/vcp.yaml` holds only `strategy_id`, `algorithm_version`, `enabled`, `stage`, `trend_gate` and `config_source: legacy`. Its thresholds stay in `strategy.yaml` (`vcp`, `classification`) and `scoring.yaml` (`components.vcp`), exactly as today.
 
 ## 3.3 Lifecycle
@@ -114,9 +115,12 @@ other strategy: strategy_config_hash = sha256(canonical_json({
                     "scan":    scan_config_hash,
                     "strategy_id": <id>,
                     "algorithm_version": <tag>,
-                    "config":  <resolved values of config/strategies/<id>.yaml>
+                    "config":  <resolved values of config/strategies/<id>.yaml,
+                                without enabled and stage>
                 }))
 ```
+
+`enabled` and `stage` are left out of the hash: they decide what runs and which lists are shown, never a result.
 
 - `scan_config_hash` itself does not change: the new strategy files are **not** part of `ScannerConfig.strategy`. So adding, editing or disabling a new strategy never forks Trend Template, RS or VCP scan ids.
 - A new strategy's hash includes `scan_config_hash` because its results depend on the Trend Template scan, which is named by that hash.
@@ -242,7 +246,7 @@ class StrategyDetector(Protocol):
 - `StrategyResult`: the candidate setups (§6.1 fields, `details_json`), or a no-setup reason (`NO_BASE`, `INSUFFICIENT_HISTORY`, …), or a data state.
 - Pure and deterministic: same inputs → same output. No database, provider, clock or network access (AGENTS.md rule 3; the architecture test covers `patterns/<id>/`).
 - `lookback_bars()` per strategy feeds `ScannerConfig.longest_lookback_bars` (data-quality block lifetime).
-- VCP's existing `VCPDetector` is wrapped by an adapter; its logic is not touched.
+- VCP keeps its own scan path (`vcp compute vcp`, = `vcp compute setups --strategy vcp`); its logic is not touched. The generic scan runner that calls `StrategyDetector`, and the protocol itself in `patterns/base.py`, are built in step 4 with the first new strategy, so they are designed against a real second detector rather than guessed now (decided in step 2, 2026-10-05).
 
 ---
 
@@ -349,6 +353,8 @@ Step 2 (framework, VCP only) merges only if a regression run shows **no differen
 4. **Compared, row by row, floats exactly equal:** `vcp_patterns`, `vcp_contractions`, `vcp_pivots`, `vcp_status_history`, `vcp_breakout_events`, `vcp_scan_run_results`, `setup_scores`, `score_components`, `forward_labels`, and `scan_runs.results_hash`. Ignored: timestamps (`created_at`, `computed_at`, `started_at`, `completed_at`), `scan_run_id`, `code_commit`, `code_dirty`, and the new `strategy_id` column (checked separately to be `vcp`).
 5. **Backtests:** `walk-forward` development period on the research copy, default rule and `--baseline`, old vs new code: `metrics_json` identical, and the event lists identical.
 6. A pytest regression test pins the same comparison on a small synthetic fixture so it runs in the normal suite.
+
+**Result (2026-10-05 11:28–11:37 IST, `scripts/compare_results.py`): IDENTICAL.** Main-DB copies (30 Sep, 1 Oct): every compared table equal (e.g. 4,928 patterns, 469 scores, 474 labels). Research copies (10 weekly dates 2022-02-11 … 2026-09-30): 256,053 patterns, 900,900 contractions, 46,234 scores, 601,042 components, 46,241 labels, all scan-run hashes equal; development walk-forward default rule (12,523 events) and `--baseline` (42,155 events): metrics and events equal. Every migrated row has `strategy_id = 'vcp'`.
 
 ---
 

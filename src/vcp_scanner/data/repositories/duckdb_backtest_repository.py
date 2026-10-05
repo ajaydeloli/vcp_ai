@@ -11,6 +11,7 @@ from typing import Any
 from vcp_scanner.backtest.engine import Bar, Event, Signal
 from vcp_scanner.data.storage.duckdb_store import DuckDBStore
 from vcp_scanner.domain.snapshot import LIVE_SNAPSHOT_ID
+from vcp_scanner.domain.strategy import VCP_STRATEGY_ID
 
 
 class DuckDBBacktestRepository:
@@ -21,28 +22,30 @@ class DuckDBBacktestRepository:
     def signals(
         self, start: date, end: date, config_hash: str, classes: Sequence[str],
         min_score: float | None = None, eligible_only: bool = True,
+        strategy_id: str = VCP_STRATEGY_ID,
     ) -> list[Signal]:  # fmt: skip
-        """Scored setups with a pivot, scanned between ``start`` and ``end``: eligible ones only,
-        or (``eligible_only=False``, the baseline) every passer whose primary pattern has a
-        pivot, whatever its class and status."""
+        """Scored setups of one strategy with a pivot, scanned between ``start`` and ``end``:
+        eligible ones only, or (``eligible_only=False``, the baseline) every scored row whose
+        primary setup has a pivot, whatever its class and status. The stop level is the
+        setup's ``stop_reference_price`` (VCP: the last contraction's trough)."""
         rows = self._store.conn.execute(
             """
             SELECT s.instrument_id, s.as_of_date, p.pivot_price, s.final_setup_score,
-                   (SELECT c.trough_price FROM vcp_contractions c
-                     WHERE c.vcp_pattern_id = p.vcp_pattern_id
-                     ORDER BY c.sequence_number DESC LIMIT 1),
-                   s.classification
+                   p.stop_reference_price, s.classification
             FROM setup_scores s
-            JOIN vcp_patterns p
-              ON p.scan_id = 'vcp-' || substr(s.scan_id, 7) AND p.instrument_id = s.instrument_id
-             AND p.is_primary
-            WHERE s.config_hash = ? AND s.data_snapshot_id = ? AND (s.eligible OR NOT ?)
+            JOIN setups p
+              ON p.strategy_id = s.strategy_id AND p.instrument_id = s.instrument_id
+             AND p.as_of_date = s.as_of_date AND p.config_hash = s.config_hash
+             AND p.data_snapshot_id = s.data_snapshot_id AND p.is_primary
+            WHERE s.strategy_id = ? AND s.config_hash = ? AND s.data_snapshot_id = ?
+              AND (s.eligible OR NOT ?)
               AND s.as_of_date BETWEEN ? AND ? AND p.pivot_price IS NOT NULL
               AND s.classification IN (SELECT unnest(?))
               AND (? IS NULL OR s.final_setup_score >= ?)
             ORDER BY s.as_of_date, s.instrument_id
             """,
             [
+                strategy_id,
                 config_hash,
                 self._snapshot,
                 eligible_only,

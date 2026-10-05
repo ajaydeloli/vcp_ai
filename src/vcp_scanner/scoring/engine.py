@@ -13,11 +13,13 @@ pattern is not an actionable setup; fixed 2026-10-03). Fundamentals are NULL unt
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from datetime import date
+from typing import Protocol
 
 from vcp_scanner.config.models import ScoringConfig
+from vcp_scanner.domain.strategy import RANKED_STATUSES, VCP_GRADES
 from vcp_scanner.scoring.components import (
     ComponentScore,
     measure_distribution,
@@ -29,8 +31,7 @@ from vcp_scanner.scoring.components import (
 )
 from vcp_scanner.scoring.final import FinalScore, final_score, ranking_percentiles
 
-RANKED_CLASSES = frozenset({"VCP_LIKE", "VCP", "A_PLUS_VCP"})
-RANKED_STATUSES = frozenset({"FORMING", "PIVOT_READY", "BREAKOUT"})
+RANKED_CLASSES = frozenset(c for c, g in VCP_GRADES.items() if g >= 1)
 BARS_NEEDED = 76  # 25 distribution days + their 50-session averages + one previous close
 
 
@@ -95,43 +96,92 @@ def pattern_inputs(det: object, volatility_measure: str) -> PatternInputs | None
     )  # fmt: skip
 
 
-def is_eligible(p: PatternInputs | None) -> bool:
-    return p is not None and p.classification in RANKED_CLASSES and p.status in RANKED_STATUSES
+def is_eligible(
+    p: PatternInputs | None, grades: Mapping[str, int] = VCP_GRADES, min_grade: int = 1
+) -> bool:
+    """Grade >= ``min_grade`` and a ranked status (STRATEGY_SPECIFICATION 6.3). For VCP
+    (grades ``VCP_GRADES``, ``min_grade`` 1) this is VCP_LIKE or better, as before."""
+    return (p is not None and grades.get(p.classification, 0) >= min_grade
+            and p.status in RANKED_STATUSES)  # fmt: skip
 
 
-def score_setup(x: SetupInputs, cfg: ScoringConfig, min_rs_rank: float) -> ScoredSetup:
+class PatternScoring(Protocol):
+    """The strategy-owned part of the score (STRATEGY_SPECIFICATION 9.2): the pattern
+    component and the dry-up measurement that feeds the shared volume component."""
+
+    component: str
+
+    def pattern_score(self, p: PatternInputs | None, cfg: ScoringConfig) -> ComponentScore: ...
+
+    def dryup_ratio(self, p: PatternInputs | None) -> float | None: ...
+
+    def eligible(self, p: PatternInputs | None) -> bool: ...
+
+
+class VCPPatternScoring:
+    """VCP's pattern part: the six VCP sub-components (SCORING_SPECIFICATION 4) and the final
+    volume ratio as the dry-up measure."""
+
+    component = "VCP"
+
+    def pattern_score(self, p: PatternInputs | None, cfg: ScoringConfig) -> ComponentScore:
+        c = cfg.components.vcp
+        return vcp_score(
+            p.contraction_count if p else None, p.max_tightening_ratio if p else None,
+            p.final_contraction_pct if p else None, p.volatility_ratio if p else None,
+            p.right_side_range_pct if p else None, p.base_depth_pct if p else None,
+            c.weights, c.bounds,
+        )  # fmt: skip
+
+    def dryup_ratio(self, p: PatternInputs | None) -> float | None:
+        return p.final_volume_ratio if p else None
+
+    def eligible(self, p: PatternInputs | None) -> bool:
+        return is_eligible(p)
+
+
+VCP_PATTERN_SCORING = VCPPatternScoring()
+
+
+def shared_components(
+    x: SetupInputs, cfg: ScoringConfig, min_rs_rank: float, dryup_ratio: float | None
+) -> tuple[ComponentScore, ComponentScore, ComponentScore]:
+    """Trend, volume and RS (STRATEGY_SPECIFICATION 9.1): the same for every strategy, except
+    the dry-up measurement the strategy hands in."""
     c = cfg.components
-    p = x.pattern
     trend = trend_score(x.close, x.high_252, x.sma50, x.sma200, x.sma200_lagged,
                         c.trend.weights, c.trend.bounds)  # fmt: skip
-    vcp = vcp_score(
-        p.contraction_count if p else None, p.max_tightening_ratio if p else None,
-        p.final_contraction_pct if p else None, p.volatility_ratio if p else None,
-        p.right_side_range_pct if p else None, p.base_depth_pct if p else None,
-        c.vcp.weights, c.vcp.bounds,
-    )  # fmt: skip
     volume = volume_score(
-        p.final_volume_ratio if p else None,
+        dryup_ratio,
         measure_up_down_volume(x.closes, x.volumes),
         measure_distribution(x.closes, x.volumes, cfg.high_volume_multiple),
         c.volume.weights, c.volume.bounds,
     )  # fmt: skip
-    rs = rs_score(x.rs_rank, min_rs_rank)
-    comps = (trend, vcp, volume, rs)
+    return trend, volume, rs_score(x.rs_rank, min_rs_rank)
+
+
+def score_setup(
+    x: SetupInputs, cfg: ScoringConfig, min_rs_rank: float,
+    scoring: PatternScoring = VCP_PATTERN_SCORING,
+) -> ScoredSetup:  # fmt: skip
+    p = x.pattern
+    trend, volume, rs = shared_components(x, cfg, min_rs_rank, scoring.dryup_ratio(p))
+    comps = (trend, scoring.pattern_score(p, cfg), volume, rs)
     return ScoredSetup(
         x.instrument_id, x.as_of, p.classification if p else None, p.status if p else None,
-        p.confirmation_state if p else None, is_eligible(p), comps,
-        final_score(comps, cfg.weights),
+        p.confirmation_state if p else None, scoring.eligible(p), comps,
+        final_score(comps, cfg.weights, scoring.component),
     )  # fmt: skip
 
 
 def score_scan(
-    inputs: Sequence[SetupInputs], cfg: ScoringConfig, min_rs_rank: float
-) -> list[ScoredSetup]:
+    inputs: Sequence[SetupInputs], cfg: ScoringConfig, min_rs_rank: float,
+    scoring: PatternScoring = VCP_PATTERN_SCORING,
+) -> list[ScoredSetup]:  # fmt: skip
     """Score every setup, then rank the eligible ones per confirmation state."""
     from dataclasses import replace
 
-    scored = [score_setup(x, cfg, min_rs_rank) for x in inputs]
+    scored = [score_setup(x, cfg, min_rs_rank, scoring) for x in inputs]
     pct = ranking_percentiles(
         [(s.instrument_id, s.confirmation_state or "", s.final.final)
          for s in scored if s.eligible]

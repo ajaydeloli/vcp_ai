@@ -34,31 +34,37 @@ class FinalScore:
     flags: tuple[str, ...]
 
 
-def _configured(weights: ScoringWeights) -> dict[str, float]:
+def _configured(weights: ScoringWeights, pattern: str = "VCP") -> dict[str, float]:
     return {
         "TREND": weights.trend,
-        "VCP": weights.vcp,
+        pattern: weights.vcp,  # the pattern weight (STRATEGY_SPECIFICATION 9)
         "VOLUME": weights.volume,
         "RS": weights.rs,
         "FUNDAMENTAL": weights.fundamentals,
     }
 
 
-def final_score(components: Sequence[ComponentScore | None], weights: ScoringWeights) -> FinalScore:
-    """Combine component scores (any order; a missing component counts as NULL)."""
+def final_score(
+    components: Sequence[ComponentScore | None], weights: ScoringWeights, pattern: str = "VCP"
+) -> FinalScore:
+    """Combine component scores (any order; a missing component counts as NULL).
+
+    ``pattern`` names the strategy's pattern component (``VCP`` for VCP, ``PATTERN`` for the
+    others); it takes the configured pattern weight (``weights.vcp``)."""
     by = {c.component: c.score for c in components if c is not None}
     scores = {k: v for k, v in by.items() if v is not None}
-    configured = _configured(weights)
+    configured = _configured(weights, pattern)
+    names = tuple(configured)  # TREND, <pattern>, VOLUME, RS, FUNDAMENTAL
     available = {k: w for k, w in configured.items() if k in scores and w > 0}
     total = sum(available.values())
     flags = tuple(f"{k}S_UNAVAILABLE" if k == "FUNDAMENTAL" else f"{k}_UNAVAILABLE"
-                  for k in COMPONENTS if by.get(k) is None)  # fmt: skip
-    renormalized = any(configured[k] > 0 and by.get(k) is None for k in COMPONENTS)
+                  for k in names if by.get(k) is None)  # fmt: skip
+    renormalized = any(configured[k] > 0 and by.get(k) is None for k in names)
     if total <= 0:
-        return FinalScore(None, dict.fromkeys(COMPONENTS, 0.0), by.get("FUNDAMENTAL") is not None,
+        return FinalScore(None, dict.fromkeys(names, 0.0), by.get("FUNDAMENTAL") is not None,
                           renormalized, flags)  # fmt: skip
     final = sum(w * scores[k] for k, w in available.items()) / total
-    effective = {k: (available[k] / total * 100.0 if k in available else 0.0) for k in COMPONENTS}
+    effective = {k: (available[k] / total * 100.0 if k in available else 0.0) for k in names}
     return FinalScore(final, effective, by.get("FUNDAMENTAL") is not None, renormalized, flags)
 
 

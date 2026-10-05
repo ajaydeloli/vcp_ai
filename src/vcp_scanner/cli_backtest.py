@@ -1,6 +1,7 @@
 """``vcp backtest run`` / ``vcp backtest walk-forward`` (Phase 9 steps 3-4).
 
-Signals are the eligible setups of the stored score scans (current config) in a date range; the
+One strategy per run (``--strategy``, default ``vcp``; STRATEGY_SPECIFICATION 10.3). Signals are
+the eligible setups of that strategy's stored score scans (current config) in a date range; the
 engine and its rules are described in ``backtest/engine.py``, the periods in
 ``backtest/periods.py``. Every run, its settings, summary numbers and events are stored
 (``backtest_runs`` / ``backtest_events``).
@@ -21,9 +22,12 @@ CLASSES = ("VCP_LIKE", "VCP", "A_PLUS_VCP")
 
 
 def _common(p: argparse.ArgumentParser) -> None:
+    p.add_argument("--strategy", default="vcp", help="Strategy to replay (default: vcp)")
     p.add_argument("--rule", default=None, help="Exit rule (default: the research default)")
-    p.add_argument("--classes", default=",".join(CLASSES),
-                   help="Classifications to trade (comma-separated)")  # fmt: skip
+    p.add_argument("--classes", default=None,
+                   help="Classifications to trade, the strategy's own tier names "
+                   "(comma-separated; default: its ranked tiers, for VCP "
+                   f"{','.join(CLASSES)})")  # fmt: skip
     p.add_argument("--min-score", type=float, default=None)
     p.add_argument("--baseline", action="store_true",
                    help="Trade every passer with a pivot (any class or status): the comparison "
@@ -81,6 +85,7 @@ def run_backtest(args: argparse.Namespace) -> int:
 
 
 def _settings(args: argparse.Namespace) -> dict[str, Any] | None:
+    from vcp_scanner.patterns.registry import get_strategy
     from vcp_scanner.research.outcomes import DEFAULT_RULE, TRADE_RULES
 
     rules = {r.name for r in TRADE_RULES}
@@ -88,14 +93,36 @@ def _settings(args: argparse.Namespace) -> dict[str, Any] | None:
     if rule not in rules:
         _err(f"Unknown rule {rule}; rules: {', '.join(sorted(rules))}")
         return None
-    return {"rule": rule, "classes": [c.strip() for c in args.classes.split(",") if c.strip()],
+    try:
+        entry = get_strategy(args.strategy)
+    except Exception as e:
+        _err(f"Strategy error: {e}")
+        return None
+    if args.classes is None:
+        classes = [t for t in entry.tiers if entry.grade(t) >= entry.min_grade]
+    else:
+        classes = [c.strip() for c in args.classes.split(",") if c.strip()]
+        unknown = [c for c in classes if c not in entry.grades]
+        if unknown:
+            _err(f"Unknown classes for {entry.strategy_id}: {', '.join(unknown)}; "
+                 f"tiers: {', '.join(entry.tiers)}")  # fmt: skip
+            return None
+    return {"strategy": entry.strategy_id, "rule": rule, "classes": classes,
             "min_score": args.min_score, "watch_days": args.watch_days,
             "max_positions": args.max_positions, "cost_bps": args.cost_bps,
             "baseline": args.baseline}  # fmt: skip
 
 
+def _strategy_hash(cfg: Any, strategy_id: str, config_dir: str) -> str:
+    from vcp_scanner.config.strategies import strategy_config_hash
+    from vcp_scanner.patterns.registry import load_strategies
+
+    return strategy_config_hash(cfg, load_strategies(config_dir)[strategy_id])
+
+
 def _execute(
     store: Any, cfg: Any, start: date, end: date, settings: dict[str, Any], period: str | None,
+    config_hash: str,
 ) -> dict[str, Any] | None:  # fmt: skip
     """One backtest over [start, end]; stores it and returns its summary (None: no signals)."""
     from vcp_scanner.backtest.engine import EngineConfig, run_portfolio, run_signals
@@ -103,11 +130,12 @@ def _execute(
     from vcp_scanner.data.repositories.duckdb_backtest_repository import (
         DuckDBBacktestRepository,
     )
+    from vcp_scanner.patterns.registry import get_strategy
     from vcp_scanner.research.outcomes import TRADE_RULES
     from vcp_scanner.versioning import STRATEGY_VERSION, code_state
 
     started = datetime.now(UTC)
-    config_hash = scan_config_hash(cfg)
+    entry = get_strategy(settings["strategy"])
     rule = next(r for r in TRADE_RULES if r.name == settings["rule"])
     ecfg = EngineConfig(
         rule, watch_days=settings["watch_days"],
@@ -120,9 +148,10 @@ def _execute(
     repo = DuckDBBacktestRepository(store, snapshot)
     classes = settings["classes"]
     if settings["baseline"]:
-        classes = ["NONE", "VCP_LIKE", "VCP", "A_PLUS_VCP"]
+        classes = list(entry.tiers)  # every tier (VCP: NONE, VCP_LIKE, VCP, A_PLUS_VCP)
     signals = repo.signals(start, end, config_hash, classes, settings["min_score"],
-                           eligible_only=not settings["baseline"])  # fmt: skip
+                           eligible_only=not settings["baseline"],
+                           strategy_id=entry.strategy_id)  # fmt: skip
     if not signals:
         return None
     scan_dates = sorted({s.scan_date for s in signals})
@@ -141,10 +170,11 @@ def _execute(
            "every_trade": trade_stats(trades), "portfolio": port_stats,
            "survivorship": surv[0] if surv else None}  # fmt: skip
     repo.save({
-        "backtest_id": out["backtest_id"], "started_at": started,
+        "backtest_id": out["backtest_id"], "strategy_id": entry.strategy_id,
+        "algorithm_version": entry.algorithm_version, "started_at": started,
         "completed_at": datetime.now(UTC), "start_date": start, "end_date": end,
-        "universe_definition": f"stored score scans {config_hash[:12]}; {len(scan_dates)} scan "
-                               "dates",
+        "universe_definition": f"stored {entry.strategy_id} score scans {config_hash[:12]}; "
+                               f"{len(scan_dates)} scan dates",
         "strategy_version": STRATEGY_VERSION, "config_hash": config_hash,
         "data_snapshot_id": snapshot, "execution_model": "close-of-breakout-day",
         "research_mode": True, "survivorship_status": out["survivorship"],
@@ -164,7 +194,8 @@ def _f(x: Any, scale: float = 1.0, d: int = 2) -> str:
 
 def _print(o: dict[str, Any], settings: dict[str, Any]) -> None:
     name = f" ({o['period']})" if o["period"] else ""
-    print(f"Backtest {o['backtest_id']}: {o['start']} .. {o['end']}{name}")
+    print(f"Backtest {o['backtest_id']} [{settings['strategy']}]: {o['start']} .. {o['end']}"
+          f"{name}")  # fmt: skip
     kind = "setups (baseline: every passer with a pivot)" if settings["baseline"] else (
         "eligible setups")  # fmt: skip
     print(f"  Signals     : {o['signals']} {kind} on {o['scan_dates']} scan dates; "
@@ -186,9 +217,10 @@ def _run(args: argparse.Namespace) -> int:
     if settings is None:
         return 1
     cfg = load_scanner_config(args.config_dir)
+    config_hash = _strategy_hash(cfg, settings["strategy"], args.config_dir)
     start, end = date.fromisoformat(args.date_from), date.fromisoformat(args.date_to)
     with _open_store(args.db) as store:
-        o = _execute(store, cfg, start, end, settings, args.period)
+        o = _execute(store, cfg, start, end, settings, args.period, config_hash)
     if o is None:
         _err(f"No eligible scored setups between {start} and {end} for the current config. Run "
              "the scans (`vcp compute scores`) for those dates first.")  # fmt: skip
@@ -205,10 +237,12 @@ def _walk_forward(args: argparse.Namespace) -> int:
         return 1
     cfg = load_scanner_config(args.config_dir)
     bcfg = load_backtest_config(args.config_dir)
+    strategy_id = settings["strategy"]
+    config_hash = _strategy_hash(cfg, strategy_id, args.config_dir)
     with _open_store(args.db) as store:
         latest = store.conn.execute(
-            "SELECT max(as_of_date) FROM setup_scores WHERE config_hash = ?",
-            [scan_config_hash(cfg)],
+            "SELECT max(as_of_date) FROM setup_scores WHERE config_hash = ? AND strategy_id = ?",
+            [config_hash, strategy_id],
         ).fetchone()[0]  # type: ignore[index]
         if latest is None:
             _err("No stored score scans for the current config.")
@@ -225,11 +259,13 @@ def _walk_forward(args: argparse.Namespace) -> int:
                           "months of data; needs --test)")  # fmt: skip
                     continue
             if p.role == "validation":
+                # Looks are counted per strategy (STRATEGY_SPECIFICATION 10.4).
                 looks = store.conn.execute(
-                    "SELECT count(*) FROM backtest_runs WHERE period_name = ?", [p.name]
+                    "SELECT count(*) FROM backtest_runs WHERE period_name = ? AND strategy_id = ?",
+                    [p.name, strategy_id],
                 ).fetchone()[0]  # type: ignore[index]
-                print(f"[{p.name}] validation look number {looks + 1}")
-            o = _execute(store, cfg, p.start, end, settings, p.name)
+                print(f"[{p.name}] {strategy_id} validation look number {looks + 1}")
+            o = _execute(store, cfg, p.start, end, settings, p.name, config_hash)
             if o is None:
                 print(f"[{p.name}] no eligible scored setups between {p.start} and {end}")
                 continue

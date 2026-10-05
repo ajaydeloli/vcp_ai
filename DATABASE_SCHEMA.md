@@ -1398,9 +1398,7 @@ SELECT p.vcp_pattern_id AS setup_id, 'vcp' AS strategy_id, p.scan_id, p.instrume
        p.as_of_date, p.is_primary, p.base_start_date, p.base_end_date, p.base_high,
        p.base_low, p.base_depth_pct, p.base_duration_days,
        p.prior_advance_return_pct AS prior_advance_pct, p.pivot_price, p.pivot_date,
-       p.pivot_source, p.pivot_distance_pct,
-       (SELECT c.trough_price FROM vcp_contractions c WHERE c.vcp_pattern_id = p.vcp_pattern_id
-         ORDER BY c.sequence_number DESC LIMIT 1) AS stop_reference_price,
+       p.pivot_source, p.pivot_distance_pct, c.stop_reference_price,
        p.final_volume_ratio AS dryup_volume_ratio, p.classification,
        CASE p.classification WHEN 'A_PLUS_VCP' THEN 3 WHEN 'VCP' THEN 2
                              WHEN 'VCP_LIKE' THEN 1 ELSE 0 END AS grade,
@@ -1409,8 +1407,12 @@ SELECT p.vcp_pattern_id AS setup_id, 'vcp' AS strategy_id, p.scan_id, p.instrume
        p.weekly_stage2_pass, p.invalidation_reasons, p.unmet_rules, p.breakout_event_id,
        '{}' AS details_json, p.algorithm_version, p.config_hash, p.data_snapshot_id, p.created_at
 FROM vcp_patterns p
-UNION ALL
-SELECT * FROM strategy_setups;    -- columns listed explicitly in the DDL, same order
+LEFT JOIN (   -- the last contraction's trough (sequence numbers are unique per pattern)
+    SELECT vcp_pattern_id, arg_max(trough_price, sequence_number) AS stop_reference_price
+    FROM vcp_contractions GROUP BY vcp_pattern_id
+) c ON c.vcp_pattern_id = p.vcp_pattern_id
+UNION ALL BY NAME
+SELECT * FROM strategy_setups;
 ```
 
 - `breakout_events`: `vcp_breakout_events` (with `'vcp'`) union `strategy_breakout_events`.
@@ -1419,10 +1421,10 @@ SELECT * FROM strategy_setups;    -- columns listed explicitly in the DDL, same 
 
 ## 35A.4 Migration
 
-- In `DuckDBStore.migrate()`, idempotent, like the earlier lineage migrations: add the columns, fill existing rows as in §35A.2, rebuild `forward_labels` with the new key (copy, swap, row count checked), create the new tables and views.
+- In `DuckDBStore.migrate()` (`_migrate_strategy_dimension`), idempotent, after the table DDL pass: `setup_scores`, `score_components`, `forward_labels` and `backtest_runs` are rebuilt from their new DDL in one transaction each (`_rebuild_table`, row counts checked), with `strategy_id = 'vcp'` and, for backtest runs, `algorithm_version` = the VCP algorithm version stored with their config hash; `scan_runs.strategy_id` is added and filled for VCP and SCORE runs. Then the views are (re)created.
 - One-time, logged in AUDIT_FIX_LOG; applied to the main DB only after the owner's go, under the daily-run lock and after `backup_database` (keep 3).
 - `DATA_SCHEMA_VERSION` 1 → 2 (`versioning.py`). It was never bumped by earlier migrations; from now on each schema change bumps it.
-- Indexes: `strategy_setups (strategy_id, as_of_date, instrument_id)`, `setup_scores (strategy_id, as_of_date)`, `forward_labels (strategy_id, as_of_date)`.
+- No extra indexes: DuckDB's zone maps and the keys are enough at this size (an index is added later only if a query needs it).
 
 ---
 

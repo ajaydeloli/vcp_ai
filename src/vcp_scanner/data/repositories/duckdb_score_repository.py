@@ -12,18 +12,20 @@ from vcp_scanner.data.repositories.duckdb_vcp_repository import DuckDBVCPReposit
 from vcp_scanner.data.storage.duckdb_store import DuckDBStore
 from vcp_scanner.domain.features import FEATURES_CALCULATION_VERSION
 from vcp_scanner.domain.snapshot import LIVE_SNAPSHOT_ID
+from vcp_scanner.domain.strategy import VCP_STRATEGY_ID
 from vcp_scanner.scoring.components import SMA200_SLOPE_LAG
 from vcp_scanner.scoring.engine import BARS_NEEDED, PatternInputs, ScoredSetup, SetupInputs
 
 SCORE_COLUMNS = (
-    "scan_id", "instrument_id", "as_of_date", "classification", "vcp_status", "eligible",
+    "scan_id", "strategy_id", "instrument_id", "as_of_date", "classification", "vcp_status",
+    "eligible",
     "trend_score", "vcp_score", "volume_score", "rs_score", "fundamental_score",
     "final_setup_score", "ranking_percentile", "confirmation_state", "fundamental_available",
     "weights_renormalized", "flags", "trend_weight", "vcp_weight", "volume_weight", "rs_weight",
     "fundamental_weight", "scoring_version", "config_hash", "data_snapshot_id", "created_at",
 )  # fmt: skip
 COMPONENT_COLUMNS = (
-    "scan_id", "instrument_id", "component", "sub_component", "raw_measurement",
+    "scan_id", "strategy_id", "instrument_id", "component", "sub_component", "raw_measurement",
     "normalized_0_100", "weight_within_component", "points", "max_points", "scoring_version",
 )  # fmt: skip
 
@@ -116,7 +118,7 @@ class DuckDBScoreRepository:
 
     def save_scan(
         self, scan_id: str, rows: Sequence[ScoredSetup], scoring_version: str,
-        config_hash: str, created_at: datetime,
+        config_hash: str, created_at: datetime, strategy_id: str = VCP_STRATEGY_ID,
     ) -> None:  # fmt: skip
         """Replace the scan's rows (a rerun of a date overwrites it)."""
         conn = self._store.conn
@@ -128,10 +130,15 @@ class DuckDBScoreRepository:
             comp_rows = []
             for s in rows:
                 by = {c.component: c.score for c in s.components}
-                w = s.final.effective_weights
+                w = dict(s.final.effective_weights)
+                # The pattern component is VCP for VCP and PATTERN for the others; both are
+                # stored in vcp_score / vcp_weight (decision O5, STRATEGY_SPECIFICATION 9.3).
+                pattern = "VCP" if "VCP" in w else "PATTERN"
+                w["VCP"] = w.get(pattern, 0.0)
                 score_rows.append((
-                    scan_id, s.instrument_id, s.as_of, s.classification, s.status, s.eligible,
-                    by.get("TREND"), by.get("VCP"), by.get("VOLUME"), by.get("RS"), None,
+                    scan_id, strategy_id, s.instrument_id, s.as_of, s.classification, s.status,
+                    s.eligible, by.get("TREND"), by.get(pattern), by.get("VOLUME"), by.get("RS"),
+                    None,
                     s.final.final, s.ranking_percentile, s.confirmation_state,
                     s.final.fundamental_available, s.final.weights_renormalized,
                     ",".join(s.final.flags) or None,
@@ -141,7 +148,7 @@ class DuckDBScoreRepository:
                 for c in s.components:
                     for sub in c.subs:
                         comp_rows.append((
-                            scan_id, s.instrument_id, c.component, sub.name, sub.raw,
+                            scan_id, strategy_id, s.instrument_id, c.component, sub.name, sub.raw,
                             sub.normalized, sub.weight, sub.points, sub.max_points,
                             scoring_version,
                         ))  # fmt: skip

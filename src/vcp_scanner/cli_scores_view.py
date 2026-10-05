@@ -1,7 +1,8 @@
 """``vcp scores list`` and ``vcp scores explain`` (Phase 7 step 4): read stored setup scores.
 
-Both read the score scan of a date (``score-<date>-<hash12>`` of the current config; the latest
-date with one when ``--as-of`` is omitted). ``list`` shows the ranked setups (``--all`` adds the
+Both read the score scan of a date for one strategy (``--strategy``, default ``vcp``: scan id
+``score-<date>-<hash12>`` of the current config; the latest date with one when ``--as-of`` is
+omitted). ``list`` shows the ranked setups (``--all`` adds the
 unranked passers); ``explain`` shows how one stock's score was built, sub-component by
 sub-component, so every number can be checked by hand (PROJECT_DESIGN Phase 7: "scores are
 reproducible and explainable").
@@ -15,7 +16,8 @@ from typing import Any
 
 from vcp_scanner.cli_pipeline import _err, _open_store, _parse_date
 from vcp_scanner.config import load_scanner_config
-from vcp_scanner.config.loader import scan_config_hash
+from vcp_scanner.domain.snapshot import LIVE_SNAPSHOT_ID
+from vcp_scanner.domain.strategy import score_scan_id
 
 _PLAIN = {
     "high_proximity": "% below 52-week high",
@@ -39,23 +41,28 @@ def _fmt(x: float | None, digits: int = 1) -> str:
     return "-" if x is None else f"{x:.{digits}f}"
 
 
-def _scan(store: Any, as_of: date | None, config_hash: str) -> tuple[str, date] | None:
-    """(scan id, date) of the requested or latest score scan of this config."""
-    like = f"score-%-{config_hash[:12]}"
+def _scan(
+    store: Any, as_of: date | None, config_hash: str, strategy_id: str = "vcp"
+) -> tuple[str, date] | None:
+    """(scan id, date) of the requested or latest live score scan of this strategy and config."""
     if as_of is None:
         row = store.conn.execute(
-            "SELECT scan_id, as_of_date FROM setup_scores WHERE scan_id LIKE ?"
-            " ORDER BY as_of_date DESC LIMIT 1", [like],
+            "SELECT scan_id, as_of_date FROM setup_scores WHERE strategy_id = ?"
+            " AND config_hash = ? AND data_snapshot_id = ? ORDER BY as_of_date DESC LIMIT 1",
+            [strategy_id, config_hash, LIVE_SNAPSHOT_ID],
         ).fetchone()  # fmt: skip
     else:
         row = store.conn.execute(
             "SELECT scan_id, as_of_date FROM setup_scores WHERE scan_id = ? LIMIT 1",
-            [f"score-{as_of.isoformat()}-{config_hash[:12]}"],
+            [score_scan_id(strategy_id, as_of.isoformat(), config_hash, LIVE_SNAPSHOT_ID)],
         ).fetchone()
     return (str(row[0]), row[1]) if row else None
 
 
-def _open(args: argparse.Namespace) -> tuple[Any, str] | None:
+def _open(args: argparse.Namespace) -> tuple[Any, str, str] | None:
+    """(config, strategy config hash, strategy id), or None after printing why not."""
+    from vcp_scanner.cli_scores import resolve_strategy
+
     as_of = None
     if args.as_of:
         as_of = _parse_date(args.as_of)
@@ -66,16 +73,20 @@ def _open(args: argparse.Namespace) -> tuple[Any, str] | None:
     except Exception as e:
         _err(f"Configuration error: {e}")
         return None
-    return cfg, scan_config_hash(cfg)
+    resolved = resolve_strategy(args, cfg)
+    if resolved is None:
+        return None
+    return cfg, resolved[1], resolved[0]
 
 
 def run_scores_list(args: argparse.Namespace) -> int:
     opened = _open(args)
     if opened is None:
         return 1
-    _, config_hash = opened
+    _, config_hash, strategy_id = opened
     with _open_store(args.db) as store:
-        found = _scan(store, _parse_date(args.as_of) if args.as_of else None, config_hash)
+        found = _scan(store, _parse_date(args.as_of) if args.as_of else None, config_hash,
+                      strategy_id)  # fmt: skip
         if found is None:
             _err("No setup scores for that date and config. Run `vcp compute scores` first.")
             return 1
@@ -110,9 +121,10 @@ def run_scores_explain(args: argparse.Namespace) -> int:
     opened = _open(args)
     if opened is None:
         return 1
-    cfg, config_hash = opened
+    cfg, config_hash, strategy_id = opened
     with _open_store(args.db) as store:
-        found = _scan(store, _parse_date(args.as_of) if args.as_of else None, config_hash)
+        found = _scan(store, _parse_date(args.as_of) if args.as_of else None, config_hash,
+                      strategy_id)  # fmt: skip
         if found is None:
             _err("No setup scores for that date and config. Run `vcp compute scores` first.")
             return 1

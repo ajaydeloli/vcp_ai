@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed (Multi-Strategy phase step 2: strategy framework, VCP only)
+- Every stored score, label and backtest now names its strategy (`strategy_id`). Existing results all belong to VCP and their values are unchanged: a rebuild of 30 Sep, 1 Oct and 10 research dates with the old and the new code gave identical patterns, scores, labels and backtests.
+- New `config/strategies/vcp.yaml` registers VCP as strategy #1. Its thresholds stay in `strategy.yaml` and `scoring.yaml`.
+- `--strategy` (default `vcp`) on `compute scores`, `compute labels`, `backtest run`, `backtest walk-forward`, `scores list` and `scores explain`. New `vcp compute setups --strategy vcp` (same as `compute vcp`) and `vcp config hash --strategy ID`. Validation looks are counted per strategy.
+- The setup score is split into shared parts (trend, RS, volume) and a per-strategy pattern part, ready for the next strategies.
+- Database: the first open of a database with the new code adds the strategy column to four tables (rebuilt in place, rows kept) and to `scan_runs`, and creates the empty tables and views for the next strategies. Schema version 2.
+
 ### Added (Multi-Strategy phase step 1: spec)
 - `STRATEGY_SPECIFICATION.md`: how several base patterns (VCP first, then Flat base and Three Weeks Tight) will share the same data, gates, scores, labels and backtests. Each pattern match is its own setup, each strategy has its own ranked list, and VCP results stay exactly as they are.
 - `DATABASE_SCHEMA.md` §35A: the planned tables, columns and views that add a strategy to every stored result. Nothing is built yet; that is step 2.

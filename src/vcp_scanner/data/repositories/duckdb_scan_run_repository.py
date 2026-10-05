@@ -81,6 +81,7 @@ class ScanRun:
     started_at: datetime
     completed_at: datetime
     status: str = "COMPLETED"
+    strategy_id: str | None = None  # VCP / SCORE / SETUP runs (STRATEGY_SPECIFICATION 4.3)
 
 
 class DuckDBScanRunRepository:
@@ -96,8 +97,8 @@ class DuckDBScanRunRepository:
                 scan_run_id, scan_type, as_of_date, scan_id, data_snapshot_id, data_cutoff,
                 universe_snapshot_id, universe_cutoff, scan_config_hash, section_hashes,
                 code_commit, code_dirty, versions, survivorship_status, survivorship_detail,
-                counts, results_hash, started_at, completed_at, status
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                counts, results_hash, started_at, completed_at, status, strategy_id
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             [
                 run.scan_run_id, run.scan_type, run.as_of_date, run.scan_id,
@@ -106,7 +107,7 @@ class DuckDBScanRunRepository:
                 json.dumps(run.section_hashes, sort_keys=True), run.code_commit, run.code_dirty,
                 json.dumps(run.versions, sort_keys=True), run.survivorship_status,
                 run.survivorship_detail, json.dumps(run.counts, sort_keys=True),
-                run.results_hash, run.started_at, run.completed_at, run.status,
+                run.results_hash, run.started_at, run.completed_at, run.status, run.strategy_id,
             ],
         )  # fmt: skip
         if results:

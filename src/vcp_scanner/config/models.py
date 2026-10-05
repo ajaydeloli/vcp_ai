@@ -744,3 +744,74 @@ class ScannerConfig(StrictBaseModel):
                 "while the bad bar is still inside a window"
             )
         return self
+
+
+# -- Strategy files (STRATEGY_SPECIFICATION 3.2, 5, 17) ------------------------------------------
+
+#: The only strategy allowed a relaxed Trend Template, and the only condition it may waive
+#: (owner decision D3, 2026-10-05).
+RELAXABLE_TREND_GATE: dict[str, frozenset[str]] = {
+    "high_tight_flag": frozenset({"above_52w_low"}),
+}
+
+
+class TrendGateConfig(StrictBaseModel):
+    """How a strategy uses the Trend Template (STRATEGY_SPECIFICATION 5)."""
+
+    mode: Literal["required", "relaxed"] = "required"
+    waive: tuple[str, ...] = ()
+
+    @model_validator(mode="after")
+    def validate_waive(self) -> TrendGateConfig:
+        if self.mode == "required" and self.waive:
+            raise ValueError("trend_gate.waive is only allowed with mode: relaxed")
+        if self.mode == "relaxed" and not self.waive:
+            raise ValueError("trend_gate mode: relaxed needs the conditions it waives")
+        return self
+
+
+class StrategyFileConfig(StrictBaseModel):
+    """One ``config/strategies/<strategy_id>.yaml`` (STRATEGY_SPECIFICATION 3.2).
+
+    ``config_source: legacy`` (VCP only, decision O3) means the thresholds stay in
+    ``strategy.yaml`` / ``scoring.yaml``; the file then holds no detector, classification,
+    ranking or scoring section. ``enabled`` and ``stage`` never change a result and are not
+    part of the strategy config hash.
+    """
+
+    strategy_id: Annotated[str, Field(pattern=r"^[a-z][a-z0-9_]*$")]
+    algorithm_version: Annotated[str, Field(min_length=1)]
+    enabled: bool = True
+    stage: Literal["research", "paper", "live"] = "research"
+    trend_gate: TrendGateConfig = Field(default_factory=TrendGateConfig)
+    config_source: Literal["legacy", "file"] = "file"
+    detector: dict[str, object] | None = None
+    classification: dict[str, object] | None = None
+    ranking: dict[str, object] | None = None
+    scoring: dict[str, object] | None = None
+
+    @model_validator(mode="after")
+    def validate_sections(self) -> StrategyFileConfig:
+        own = ("detector", "classification", "ranking", "scoring")
+        if self.config_source == "legacy" and any(getattr(self, k) is not None for k in own):
+            raise ValueError(
+                f"{self.strategy_id}: config_source legacy keeps its thresholds in "
+                "strategy.yaml / scoring.yaml; remove detector/classification/ranking/scoring"
+            )
+        if self.trend_gate.mode == "relaxed":
+            allowed = RELAXABLE_TREND_GATE.get(self.strategy_id)
+            if allowed is None:
+                raise ValueError(
+                    f"{self.strategy_id}: only {sorted(RELAXABLE_TREND_GATE)} may relax the "
+                    "Trend Template (decision D3)"
+                )
+            extra = set(self.trend_gate.waive) - allowed
+            if extra:
+                raise ValueError(
+                    f"{self.strategy_id}: may waive only {sorted(allowed)}, not {sorted(extra)}"
+                )
+        return self
+
+    def result_relevant(self) -> dict[str, object]:
+        """The values that can change a result (everything but ``enabled`` and ``stage``)."""
+        return self.model_dump(exclude={"enabled", "stage"})

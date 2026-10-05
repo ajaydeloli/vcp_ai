@@ -2083,3 +2083,27 @@ From the next trading day the daily run updates labels after scoring.
 
 **Noted for later.** The research DB has 46,243 `forward_labels` rows against 46,234 `setup_scores` rows; the 9 extra are probably left from the Fix C11 rescans. To be checked when the Phase 9 report is rerun.
 
+## Multi-Strategy phase step 2 — strategy framework, VCP only (2026-10-05)
+
+**Owner go:** 2026-10-05 ("start step 2"). Built as specified in STRATEGY_SPECIFICATION (decisions O1–O5).
+
+**Code.**
+- `domain/strategy.py` (new): strategy id rule, `VCP_GRADES`, `RANKED_STATUSES`, `detector_scan_id` / `score_scan_id` (VCP forms unchanged).
+- `config/models.py`: `StrategyFileConfig`, `TrendGateConfig` (relaxed gate only for `high_tight_flag`, waiving only `above_52w_low`). `config/strategies.py` (new): loads `config/strategies/*.yaml` against the registry; `strategy_config_hash` (VCP = `scan_config_hash`; others chained on it, without `enabled`/`stage`).
+- `patterns/registry.py` (new): `REGISTRY` with `vcp` (version, tiers → grades, `min_grade` 1, pattern scoring). `config/strategies/vcp.yaml` (new): legacy pointer.
+- `scoring/engine.py`: `PatternScoring` protocol, `VCPPatternScoring`, `shared_components`; `score_setup` / `score_scan` take the strategy's scoring (default VCP). `scoring/final.py`: the pattern component may be named `VCP` or `PATTERN`.
+- `data/storage/duckdb_store.py`: §35A DDL (`strategy_id` columns, four `strategy_*` tables, views `setups`, `breakout_events`, `setup_scores_v`); `_migrate_strategy_dimension`; `_rebuild_table` can fill columns that are new. `versioning.DATA_SCHEMA_VERSION` 2.
+- Repositories: scores, labels, backtests and scan runs write `strategy_id`; labels and backtest signals read the pivot and stop through `setups` joined on strategy, date, config hash, snapshot and primary flag (no more scan-id slicing).
+- CLI: `--strategy` on compute scores/labels, backtest run/walk-forward, scores list/explain; `compute setups`; `config hash --strategy`; validation looks counted per strategy.
+- `scripts/compare_results.py` (new): row-by-row comparison of two databases.
+
+**Deviation from the spec, decided while building (spec §8 updated):** the generic `StrategyDetector` protocol and scan runner are built in step 4 with the first new detector; VCP keeps its own scan path. The spec's planned extra indexes are not created (DuckDB zone maps and keys suffice; DATABASE_SCHEMA §35A.4 updated).
+
+**Tests.** `tests/unit/test_strategy_framework.py` (registry, files, hashes incl. the pinned `64da9482a769`, scan ids, scoring split, CLI refusals) and `tests/unit/test_strategy_schema.py` (migration from the old layout, fresh schema, `setups` view, labels and signals equal to the old slicing joins, no leaks between strategies on the same stock, date and config hash); `tests/unit/_legacy_ddl.py` holds the old layouts. Full suite 1,169 passed, 2 skipped; ruff, format, mypy clean.
+
+**Exit test (STRATEGY_SPECIFICATION §11.3), 11:28–11:37 IST, on copies only.** Old code (main 5251638) and new code each rebuilt Trend Template, VCP and scores for 30 Sep and 1 Oct on a copy of the main DB and for 10 weekly dates (2022-02-11, 2022-08-19, 2023-02-24, 2023-09-01, 2024-03-07, 2024-09-06, 2025-03-13, 2025-09-19, 2026-03-27, 2026-09-30) on a copy of the research DB, recomputed the labels of those dates, and ran the development walk-forward (default rule and `--baseline`). `compare_results.py`: **IDENTICAL** for every table (research: 256,053 patterns, 900,900 contractions, 795,517 pivots, 46,234 scores, 601,042 components, 46,241 labels, 360,566 Trend Template rows), all scan-run hashes, both backtests (metrics and 12,523 / 42,155 events). All migrated rows carry `strategy_id = 'vcp'`. A control run (main copy vs research copy) reports differences, so the comparison is not vacuous.
+
+**Note.** Research labels went 46,243 → 46,241 in both copies: recomputing the 10 dates dropped 2 labels whose score rows no longer exist (left from the Fix C11 rescans). The other 7 such orphans remain; harmless, to be cleaned when the Phase 9 report is rerun.
+
+**Not yet applied** to the main or research DB: the schema migration runs on the first open with the new code, so the merge waits for the owner's go (backup, daily-run lock).
+

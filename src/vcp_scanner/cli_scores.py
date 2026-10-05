@@ -1,4 +1,5 @@
-"""``vcp compute scores --as-of DATE``: setup scores over a scan date (Phase 7 step 3).
+"""``vcp compute scores --as-of DATE [--strategy ID]``: setup scores over a scan date (Phase 7
+step 3; per strategy since Multi-Strategy step 2, STRATEGY_SPECIFICATION 9).
 
 Reads the Trend Template scan (``trend-<date>-<hash12>``) and the VCP scan (``vcp-<date>-
 <hash12>``) of the same date, config and data snapshot, scores every Trend Template passer and
@@ -17,11 +18,33 @@ from vcp_scanner.cli_pipeline import _err, _open_store, _parse_date, _resolve_da
 from vcp_scanner.config import load_scanner_config
 from vcp_scanner.config.loader import scan_config_hash, section_config_hashes
 from vcp_scanner.domain.snapshot import LIVE_SNAPSHOT_ID
+from vcp_scanner.domain.strategy import VCP_STRATEGY_ID, detector_scan_id, score_scan_id
 
 
 def _scan_id(kind: str, as_of_iso: str, config_hash: str, snapshot: str) -> str:
     sid = f"{kind}-{as_of_iso}-{config_hash[:12]}"
     return sid if snapshot == LIVE_SNAPSHOT_ID else f"{sid}-{snapshot}"
+
+
+def resolve_strategy(args: argparse.Namespace, cfg: object) -> tuple[str, str] | None:
+    """(strategy id, strategy config hash) for ``--strategy`` (default ``vcp``), or None after
+    printing why it cannot be used."""
+    from vcp_scanner.config.models import ScannerConfig
+    from vcp_scanner.config.strategies import strategy_config_hash
+    from vcp_scanner.patterns.registry import get_strategy, load_strategies
+
+    assert isinstance(cfg, ScannerConfig)
+    strategy_id = getattr(args, "strategy", None) or VCP_STRATEGY_ID
+    try:
+        get_strategy(strategy_id)
+        files = load_strategies(args.config_dir)
+    except Exception as e:
+        _err(f"Strategy error: {e}")
+        return None
+    if strategy_id not in files:
+        _err(f"Strategy {strategy_id} has no file config/strategies/{strategy_id}.yaml")
+        return None
+    return strategy_id, strategy_config_hash(cfg, files[strategy_id])
 
 
 def run_compute_scores(args: argparse.Namespace) -> int:
@@ -48,7 +71,14 @@ def run_compute_scores(args: argparse.Namespace) -> int:
     except Exception as e:
         _err(f"Configuration error: {e}")
         return 1
-    config_hash = scan_config_hash(cfg)
+    resolved = resolve_strategy(args, cfg)
+    if resolved is None:
+        return 1
+    strategy_id, config_hash = resolved
+    if strategy_id != VCP_STRATEGY_ID:  # pragma: no cover - only VCP is registered (step 2)
+        _err(f"Scoring for strategy {strategy_id} arrives with its detector (steps 4-6).")
+        return 1
+    scan_hash = scan_config_hash(cfg)
     scoring = cfg.strategy.scoring
 
     with _open_store(args.db) as store:
@@ -56,8 +86,8 @@ def run_compute_scores(args: argparse.Namespace) -> int:
         if snapshot is None:
             return 1
         iso = as_of.isoformat()
-        trend_scan = _scan_id("trend", iso, config_hash, snapshot)
-        vcp_scan = _scan_id("vcp", iso, config_hash, snapshot)
+        trend_scan = _scan_id("trend", iso, scan_hash, snapshot)
+        vcp_scan = detector_scan_id(strategy_id, iso, config_hash, snapshot)
         have = {r[0] for r in store.conn.execute(
             "SELECT scan_type FROM scan_runs WHERE scan_id IN (?, ?)", [trend_scan, vcp_scan]
         ).fetchall()}  # fmt: skip
@@ -75,8 +105,8 @@ def run_compute_scores(args: argparse.Namespace) -> int:
         repo = DuckDBScoreRepository(store, snapshot)
         inputs = repo.load_inputs(as_of, trend_scan, vcp_scan, cfg.strategy.vcp.volatility.measure)
         scored = score_scan(inputs, scoring, float(cfg.strategy.trend_template.min_rs_rank))
-        scan_id = _scan_id("score", iso, config_hash, snapshot)
-        repo.save_scan(scan_id, scored, scoring.version, config_hash, started_at)
+        scan_id = score_scan_id(strategy_id, iso, config_hash, snapshot)
+        repo.save_scan(scan_id, scored, scoring.version, config_hash, started_at, strategy_id)
 
         if snapshot == LIVE_SNAPSHOT_ID:
             data_cutoff = started_at
@@ -95,7 +125,7 @@ def run_compute_scores(args: argparse.Namespace) -> int:
             data_cutoff=data_cutoff,
             universe_snapshot_id=trend_run[0] if trend_run else trend_scan,
             universe_cutoff=trend_run[1] if trend_run else None,
-            scan_config_hash=config_hash,
+            scan_config_hash=scan_hash,
             section_hashes=section_config_hashes(cfg),
             code_commit=commit,
             code_dirty=dirty,
@@ -107,6 +137,7 @@ def run_compute_scores(args: argparse.Namespace) -> int:
             results_hash=score_results_hash(scored),
             started_at=started_at,
             completed_at=datetime.now(UTC),
+            strategy_id=strategy_id,
         )  # fmt: skip
         DuckDBScanRunRepository(store).record(run, [])
 

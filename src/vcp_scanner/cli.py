@@ -62,6 +62,15 @@ def _add_range_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--end", metavar="YYYY-MM-DD", help="End date (default: today)")
 
 
+def _add_strategy_arg(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "--strategy",
+        default="vcp",
+        metavar="ID",
+        help="Strategy id (STRATEGY_SPECIFICATION; default: vcp)",
+    )
+
+
 def _add_instrument_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--instrument",
@@ -148,6 +157,12 @@ def build_parser() -> argparse.ArgumentParser:
         "--config-dir",
         default="config",
         help="Path to directory containing configuration YAML files (default: config)",
+    )
+    hash_parser.add_argument(
+        "--strategy",
+        default=None,
+        metavar="ID",
+        help="Print this strategy's config hash (the hash its stored results carry) instead",
     )
 
     # auth subcommands
@@ -417,12 +432,29 @@ def build_parser() -> argparse.ArgumentParser:
     _add_config_dir_arg(vcp_parser)
     _add_data_snapshot_arg(vcp_parser)
 
+    setups_parser = compute_subparsers.add_parser(
+        "setups",
+        help="Run one strategy's detector over a date (`--strategy vcp` = `compute vcp`)",
+    )
+    setups_parser.add_argument("--as-of", required=True, metavar="YYYY-MM-DD")
+    setups_parser.add_argument(
+        "--instrument",
+        action="append",
+        metavar="INSTRUMENT_ID",
+        help="Restrict to an instrument (repeatable)",
+    )
+    _add_strategy_arg(setups_parser)
+    _add_db_arg(setups_parser)
+    _add_config_dir_arg(setups_parser)
+    _add_data_snapshot_arg(setups_parser)
+
     scores_parser = compute_subparsers.add_parser(
         "scores",
         help="Score every Trend Template passer of a date and rank the eligible VCP setups "
         "(needs the Trend Template and VCP scans of the same date and config)",
     )
     scores_parser.add_argument("--as-of", required=True, metavar="YYYY-MM-DD")
+    _add_strategy_arg(scores_parser)
     _add_db_arg(scores_parser)
     _add_config_dir_arg(scores_parser)
     _add_data_snapshot_arg(scores_parser)
@@ -432,6 +464,7 @@ def build_parser() -> argparse.ArgumentParser:
         help="Fill in forward labels (returns after 5-60 sessions, breakouts) for every scored "
         "observation that is not complete yet",
     )
+    _add_strategy_arg(labels_parser)
     _add_db_arg(labels_parser)
     _add_config_dir_arg(labels_parser)
     _add_data_snapshot_arg(labels_parser)
@@ -554,11 +587,13 @@ def build_parser() -> argparse.ArgumentParser:
     sl.add_argument("--as-of", metavar="YYYY-MM-DD")
     sl.add_argument("--all", action="store_true", help="Also show unranked passers")
     sl.add_argument("--limit", type=int, default=30)
+    _add_strategy_arg(sl)
     _add_db_arg(sl)
     _add_config_dir_arg(sl)
     se = scores_sub.add_parser("explain", help="How one stock's score was built")
     se.add_argument("symbol", help="NSE symbol or instrument id")
     se.add_argument("--as-of", metavar="YYYY-MM-DD")
+    _add_strategy_arg(se)
     _add_db_arg(se)
     _add_config_dir_arg(se)
 
@@ -673,7 +708,17 @@ def main(argv: Sequence[str] | None = None) -> int:
         elif args.config_command == "hash":
             try:
                 cfg = load_scanner_config(args.config_dir)
-                print(compute_config_hash(cfg))
+                if args.strategy is None:
+                    print(compute_config_hash(cfg))
+                    return 0
+                from vcp_scanner.config.strategies import strategy_config_hash
+                from vcp_scanner.patterns.registry import get_strategy, load_strategies
+
+                get_strategy(args.strategy)
+                files = load_strategies(args.config_dir)
+                if args.strategy not in files:
+                    raise ConfigError(f"no config/strategies/{args.strategy}.yaml")
+                print(strategy_config_hash(cfg, files[args.strategy]))
                 return 0
             except ConfigError as err:
                 print(f"Configuration error: {err}", file=sys.stderr)
@@ -982,6 +1027,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             "rs": cli_pipeline.run_compute_rs,
             "trend-template": cli_pipeline.run_compute_trend_template,
             "vcp": cli_vcp.run_compute_vcp,
+            "setups": cli_vcp.run_compute_setups,
             "scores": cli_scores.run_compute_scores,
             "labels": cli_labels.run_compute_labels,
         }

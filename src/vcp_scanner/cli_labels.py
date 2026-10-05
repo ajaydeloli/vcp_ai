@@ -1,4 +1,5 @@
-"""``vcp compute labels``: fill in forward labels (PROJECT_DESIGN 39; Phase 9 step 2).
+"""``vcp compute labels [--strategy ID]``: fill in forward labels (PROJECT_DESIGN 39; Phase 9
+step 2; keyed by strategy since Multi-Strategy step 2, STRATEGY_SPECIFICATION 10.2).
 
 Every scored observation of the current config without a complete label gets its labels
 (re)computed from the adjusted bars after its as-of date. Labels become complete after 60
@@ -14,7 +15,6 @@ from datetime import UTC, datetime
 
 from vcp_scanner.cli_pipeline import _err, _open_store, _resolve_data_snapshot
 from vcp_scanner.config import load_scanner_config
-from vcp_scanner.config.loader import scan_config_hash
 
 
 def run_compute_labels(args: argparse.Namespace) -> int:
@@ -27,16 +27,21 @@ def run_compute_labels(args: argparse.Namespace) -> int:
     except Exception as e:
         _err(f"Configuration error: {e}")
         return 1
-    config_hash = scan_config_hash(cfg)
+    from vcp_scanner.cli_scores import resolve_strategy
+
+    resolved = resolve_strategy(args, cfg)
+    if resolved is None:
+        return 1
+    strategy_id, config_hash = resolved
     ratio = cfg.strategy.vcp.breakout.min_volume_ratio
     with _open_store(args.db) as store:
         snapshot = _resolve_data_snapshot(store, getattr(args, "data_snapshot_id", None))
         if snapshot is None:
             return 1
         repo = DuckDBLabelRepository(store, snapshot)
-        pending = repo.pending(config_hash)
+        pending = repo.pending(config_hash, strategy_id)
         if not pending:
-            print(f"Forward labels ({LABEL_VERSION}): nothing pending for config "
+            print(f"Forward labels ({LABEL_VERSION}): nothing pending for {strategy_id} config "
                   f"{config_hash[:12]}")  # fmt: skip
             return 0
         bars = repo.bars(sorted({o.instrument_id for o in pending}), repo.bars_start(pending))
@@ -58,9 +63,9 @@ def run_compute_labels(args: argparse.Namespace) -> int:
                 o.pivot, ratio,
             )  # fmt: skip
             items.append((o, float(bs[k][3]), lab))
-        repo.save(config_hash, items, started)
+        repo.save(config_hash, items, started, strategy_id)
     done = Counter("complete" if lab.complete else "open" for _, _, lab in items)
-    print(f"Forward labels ({LABEL_VERSION}, config {config_hash[:12]})")
+    print(f"Forward labels ({LABEL_VERSION}, {strategy_id} config {config_hash[:12]})")
     print(f"  Updated     : {len(items)} ({done['complete']} complete, {done['open']} still open)")
     if missing:
         print(f"  Skipped     : {missing} without a bar on their as-of date")

@@ -600,7 +600,8 @@ CREATE TABLE IF NOT EXISTS scan_runs (
     results_hash         VARCHAR     NOT NULL,
     started_at           TIMESTAMPTZ NOT NULL,
     completed_at         TIMESTAMPTZ NOT NULL,
-    status               VARCHAR     NOT NULL
+    status               VARCHAR     NOT NULL,
+    strategy_id          VARCHAR                 -- VCP / SCORE / SETUP runs; NULL for trend
 )
 """
 
@@ -778,6 +779,7 @@ CREATE TABLE IF NOT EXISTS vcp_scan_run_results (
 _DDL_SETUP_SCORES = """
 CREATE TABLE IF NOT EXISTS setup_scores (
     scan_id               VARCHAR NOT NULL,
+    strategy_id           VARCHAR NOT NULL,
     instrument_id         VARCHAR NOT NULL,
     as_of_date            DATE NOT NULL,
     classification        VARCHAR,
@@ -810,6 +812,7 @@ CREATE TABLE IF NOT EXISTS setup_scores (
 _DDL_SCORE_COMPONENTS = """
 CREATE TABLE IF NOT EXISTS score_components (
     scan_id                 VARCHAR NOT NULL,
+    strategy_id             VARCHAR NOT NULL,
     instrument_id           VARCHAR NOT NULL,
     component               VARCHAR NOT NULL,
     sub_component           VARCHAR NOT NULL,
@@ -827,6 +830,7 @@ CREATE TABLE IF NOT EXISTS score_components (
 # observation. Filled in as future bars arrive (``complete`` once final).
 _DDL_FORWARD_LABELS = """
 CREATE TABLE IF NOT EXISTS forward_labels (
+    strategy_id        VARCHAR NOT NULL,
     instrument_id      VARCHAR NOT NULL,
     as_of_date         DATE NOT NULL,
     config_hash        VARCHAR NOT NULL,
@@ -848,7 +852,8 @@ CREATE TABLE IF NOT EXISTS forward_labels (
     bars_after         INTEGER NOT NULL,
     complete           BOOLEAN NOT NULL,
     computed_at        TIMESTAMPTZ NOT NULL,
-    PRIMARY KEY (instrument_id, as_of_date, config_hash, label_version, data_snapshot_id)
+    PRIMARY KEY (strategy_id, instrument_id, as_of_date, config_hash, label_version,
+                 data_snapshot_id)
 )
 """
 
@@ -856,12 +861,14 @@ CREATE TABLE IF NOT EXISTS forward_labels (
 _DDL_BACKTEST_RUNS = """
 CREATE TABLE IF NOT EXISTS backtest_runs (
     backtest_id         VARCHAR PRIMARY KEY,
+    strategy_id         VARCHAR NOT NULL,
     started_at          TIMESTAMPTZ NOT NULL,
     completed_at        TIMESTAMPTZ,
     start_date          DATE NOT NULL,
     end_date            DATE NOT NULL,
     universe_definition VARCHAR NOT NULL,
     strategy_version    VARCHAR NOT NULL,
+    algorithm_version   VARCHAR,                 -- the strategy's detector version
     config_hash         VARCHAR NOT NULL,
     data_snapshot_id    VARCHAR NOT NULL,
     execution_model     VARCHAR NOT NULL,
@@ -887,6 +894,132 @@ CREATE TABLE IF NOT EXISTS backtest_events (
     metadata_json VARCHAR
 )
 """
+
+# Strategy dimension (STRATEGY_SPECIFICATION; DATABASE_SCHEMA 35A; Multi-Strategy step 2).
+# Setups of strategies other than VCP (VCP keeps vcp_patterns; the ``setups`` view unions both).
+_DDL_STRATEGY_SETUPS = """
+CREATE TABLE IF NOT EXISTS strategy_setups (
+    setup_id             VARCHAR     PRIMARY KEY,
+    strategy_id          VARCHAR     NOT NULL,
+    scan_id              VARCHAR     NOT NULL,
+    instrument_id        VARCHAR     NOT NULL,
+    as_of_date           DATE        NOT NULL,
+    is_primary           BOOLEAN     NOT NULL,
+    base_start_date      DATE        NOT NULL,
+    base_end_date        DATE,
+    base_high            DOUBLE      NOT NULL,
+    base_low             DOUBLE      NOT NULL,
+    base_depth_pct       DOUBLE      NOT NULL,
+    base_duration_days   INTEGER     NOT NULL,
+    prior_advance_pct    DOUBLE,
+    pivot_price          DOUBLE,
+    pivot_date           DATE,
+    pivot_source         VARCHAR,
+    pivot_distance_pct   DOUBLE,
+    stop_reference_price DOUBLE,
+    dryup_volume_ratio   DOUBLE,
+    classification       VARCHAR     NOT NULL,
+    grade                INTEGER     NOT NULL,
+    status               VARCHAR     NOT NULL,
+    confirmation_state   VARCHAR     NOT NULL,
+    trend_gate           VARCHAR     NOT NULL,   -- PASS | RELAXED
+    weekly_stage2_pass   BOOLEAN,
+    invalidation_reasons VARCHAR,
+    unmet_rules          VARCHAR,                -- JSON
+    breakout_event_id    VARCHAR,
+    details_json         VARCHAR     NOT NULL,   -- JSON, '{}' when none
+    algorithm_version    VARCHAR     NOT NULL,
+    config_hash          VARCHAR     NOT NULL,   -- strategy config hash
+    data_snapshot_id     VARCHAR     NOT NULL,
+    created_at           TIMESTAMPTZ NOT NULL
+)
+"""
+_DDL_STRATEGY_SETUP_STATUS_HISTORY = """
+CREATE TABLE IF NOT EXISTS strategy_setup_status_history (
+    strategy_id             VARCHAR NOT NULL,
+    instrument_id           VARCHAR NOT NULL,
+    as_of_date              DATE    NOT NULL,
+    config_hash             VARCHAR NOT NULL,
+    setup_id                VARCHAR,
+    previous_as_of_date     DATE,
+    previous_classification VARCHAR,
+    new_classification      VARCHAR NOT NULL,
+    previous_status         VARCHAR,
+    new_status              VARCHAR,
+    reason                  VARCHAR,
+    algorithm_version       VARCHAR NOT NULL,
+    PRIMARY KEY (strategy_id, instrument_id, as_of_date, config_hash)
+)
+"""
+_DDL_STRATEGY_BREAKOUT_EVENTS = """
+CREATE TABLE IF NOT EXISTS strategy_breakout_events (
+    breakout_event_id VARCHAR     PRIMARY KEY,
+    strategy_id       VARCHAR     NOT NULL,
+    instrument_id     VARCHAR     NOT NULL,
+    base_start_date   DATE        NOT NULL,
+    config_hash       VARCHAR     NOT NULL,
+    breakout_date     DATE        NOT NULL,
+    pivot_price       DOUBLE      NOT NULL,
+    pivot_date        DATE        NOT NULL,
+    pivot_source      VARCHAR     NOT NULL,
+    volume_ratio      DOUBLE      NOT NULL,
+    detected_as_of    DATE        NOT NULL,
+    method            VARCHAR     NOT NULL,
+    created_at        TIMESTAMPTZ NOT NULL,
+    UNIQUE (strategy_id, instrument_id, base_start_date, config_hash)
+)
+"""
+_DDL_STRATEGY_SCAN_RUN_RESULTS = """
+CREATE TABLE IF NOT EXISTS strategy_scan_run_results (
+    scan_run_id        VARCHAR NOT NULL,
+    instrument_id      VARCHAR NOT NULL,
+    classification     VARCHAR,
+    grade              INTEGER,
+    status             VARCHAR,
+    confirmation_state VARCHAR,
+    pivot_price        DOUBLE,
+    no_pattern_reason  VARCHAR,
+    PRIMARY KEY (scan_run_id, instrument_id)
+)
+"""
+# One reading surface for every strategy (DATABASE_SCHEMA 35A.3). VCP rows are read in place
+# from vcp_patterns (decision O2); the stop level is the last contraction's trough.
+_VIEW_SETUPS = """
+CREATE OR REPLACE VIEW setups AS
+SELECT p.vcp_pattern_id AS setup_id, 'vcp' AS strategy_id, p.scan_id, p.instrument_id,
+       p.as_of_date, p.is_primary, p.base_start_date, p.base_end_date, p.base_high, p.base_low,
+       p.base_depth_pct, p.base_duration_days, p.prior_advance_return_pct AS prior_advance_pct,
+       p.pivot_price, p.pivot_date, p.pivot_source, p.pivot_distance_pct,
+       c.stop_reference_price, p.final_volume_ratio AS dryup_volume_ratio, p.classification,
+       CASE p.classification WHEN 'A_PLUS_VCP' THEN 3 WHEN 'VCP' THEN 2
+                             WHEN 'VCP_LIKE' THEN 1 ELSE 0 END AS grade,
+       p.status, p.confirmation_state,
+       CASE WHEN p.trend_template_pass THEN 'PASS' ELSE 'FAIL' END AS trend_gate,
+       p.weekly_stage2_pass, p.invalidation_reasons, p.unmet_rules, p.breakout_event_id,
+       '{}' AS details_json, p.algorithm_version, p.config_hash, p.data_snapshot_id, p.created_at
+FROM vcp_patterns p
+LEFT JOIN (
+    SELECT vcp_pattern_id, arg_max(trough_price, sequence_number) AS stop_reference_price
+    FROM vcp_contractions GROUP BY vcp_pattern_id
+) c ON c.vcp_pattern_id = p.vcp_pattern_id
+UNION ALL BY NAME
+SELECT * FROM strategy_setups
+"""
+_VIEW_BREAKOUT_EVENTS = """
+CREATE OR REPLACE VIEW breakout_events AS
+SELECT 'vcp' AS strategy_id, * FROM vcp_breakout_events
+UNION ALL BY NAME
+SELECT * FROM strategy_breakout_events
+"""
+_VIEW_SETUP_SCORES_V = """
+CREATE OR REPLACE VIEW setup_scores_v AS
+SELECT *, vcp_score AS pattern_score, vcp_weight AS pattern_weight FROM setup_scores
+"""
+_ALL_VIEWS: list[tuple[str, str]] = [
+    ("setups", _VIEW_SETUPS),
+    ("breakout_events", _VIEW_BREAKOUT_EVENTS),
+    ("setup_scores_v", _VIEW_SETUP_SCORES_V),
+]
 
 _ALL_DDL: list[tuple[str, str]] = [
     ("instruments", _DDL_INSTRUMENTS),
@@ -930,6 +1063,10 @@ _ALL_DDL: list[tuple[str, str]] = [
     ("forward_labels", _DDL_FORWARD_LABELS),
     ("backtest_runs", _DDL_BACKTEST_RUNS),
     ("backtest_events", _DDL_BACKTEST_EVENTS),
+    ("strategy_setups", _DDL_STRATEGY_SETUPS),
+    ("strategy_setup_status_history", _DDL_STRATEGY_SETUP_STATUS_HISTORY),
+    ("strategy_breakout_events", _DDL_STRATEGY_BREAKOUT_EVENTS),
+    ("strategy_scan_run_results", _DDL_STRATEGY_SCAN_RUN_RESULTS),
 ]
 
 
@@ -1072,6 +1209,11 @@ class DuckDBStore:
                 FROM surveillance_flags_history GROUP BY 1, 2
                 """
             )
+        # After the DDL pass: the backtest backfill reads vcp_patterns.
+        self._migrate_strategy_dimension()
+        for view_name, view_ddl in _ALL_VIEWS:
+            self.conn.execute(view_ddl)
+            logger.debug("Ensured view: %s", view_name)
         self._seed_event_history()
         logger.info("DuckDBStore migration complete (%d tables)", len(_ALL_DDL))
 
@@ -1166,10 +1308,11 @@ class DuckDBStore:
         """Rebuild ``table`` from ``ddl`` (DuckDB cannot alter a primary key), keeping rows.
 
         Columns present in both the old and new table are copied. ``fill`` maps a column to
-        the SQL expression used to populate it (e.g. ``COALESCE(col, 'LIVE')``); columns
-        that exist only in the new table take their DDL default. Runs in one transaction,
-        so a failure leaves the original table untouched. ``drop_views`` are views that
-        depend on the table; the caller's later DDL pass recreates them.
+        the SQL expression used to populate it (e.g. ``COALESCE(col, 'LIVE')``), also for a
+        column that exists only in the new table; other new columns take their DDL default.
+        Runs in one transaction, so a failure leaves the original table untouched.
+        ``drop_views`` are views that depend on the table; the caller's later DDL pass
+        recreates them.
         """
         fill = fill or {}
         old_cols = list(self._column_nullability(table))
@@ -1180,8 +1323,9 @@ class DuckDBStore:
                 self.conn.execute(f"DROP VIEW IF EXISTS {view}")
             self.conn.execute(f"ALTER TABLE {table} RENAME TO {legacy}")
             self.conn.execute(ddl)
-            new_cols = set(self._column_nullability(table))
+            new_cols = list(self._column_nullability(table))
             shared = [c for c in old_cols if c in new_cols]
+            shared += [c for c in new_cols if c not in old_cols and c in fill]
             select = ", ".join(fill.get(c, c) for c in shared)
             self.conn.execute(
                 f"INSERT INTO {table} ({', '.join(shared)}) SELECT {select} FROM {legacy}"  # noqa: S608
@@ -1191,6 +1335,46 @@ class DuckDBStore:
             self.conn.execute("ROLLBACK")
             raise
         self.conn.execute("COMMIT")
+
+    def _migrate_strategy_dimension(self) -> None:
+        """Add ``strategy_id`` to score, label and backtest tables (DATABASE_SCHEMA 35A.4).
+
+        Every existing row is VCP's (the only strategy before the Multi-Strategy phase), so it
+        gets ``'vcp'``; ``forward_labels`` gains it in its key. Backtest runs get the VCP
+        algorithm version of their config. ``scan_runs`` rows of type VCP and SCORE get
+        ``'vcp'``, Trend Template rows stay NULL. Tables that already have the column, or do
+        not exist yet, are left alone, so this is safe to run on every start.
+        """
+        vcp = "'vcp'"
+        for table, ddl, fill, views in (
+            ("setup_scores", _DDL_SETUP_SCORES, {"strategy_id": vcp}, ("setup_scores_v",)),
+            ("score_components", _DDL_SCORE_COMPONENTS, {"strategy_id": vcp}, ()),
+            ("forward_labels", _DDL_FORWARD_LABELS, {"strategy_id": vcp}, ()),
+            ("backtest_runs", _DDL_BACKTEST_RUNS, {
+                "strategy_id": vcp,
+                "algorithm_version": "(SELECT max(v.algorithm_version) FROM vcp_patterns v"
+                                     " WHERE v.config_hash = backtest_runs__legacy.config_hash)",
+            }, ()),
+        ):  # fmt: skip
+            cols = self._column_nullability(table)
+            if cols and "strategy_id" not in cols:
+                before = self._count(table)
+                self._rebuild_table(table, ddl, fill=fill, drop_views=views)
+                after = self._count(table)
+                if after != before:  # pragma: no cover - the rebuild is one transaction
+                    raise RuntimeError(f"{table}: {before} rows before the rebuild, {after} after")
+                logger.info("Rebuilt %s with strategy_id ('vcp' for %d rows)", table, after)
+        cols = self._column_nullability("scan_runs")
+        if cols and "strategy_id" not in cols:
+            self.conn.execute("ALTER TABLE scan_runs ADD COLUMN strategy_id VARCHAR")
+            self.conn.execute(
+                "UPDATE scan_runs SET strategy_id = 'vcp' WHERE scan_type IN ('VCP', 'SCORE')"
+            )
+            logger.info("Added scan_runs.strategy_id ('vcp' for VCP and SCORE runs)")
+
+    def _count(self, table: str) -> int:
+        row = self.conn.execute(f"SELECT count(*) FROM {table}").fetchone()  # noqa: S608
+        return int(row[0]) if row else 0
 
     def _add_column_if_missing(self, table: str, column: str, declaration: str) -> None:
         """Add a nullable column to an existing table (no-op if the table or column exists)."""

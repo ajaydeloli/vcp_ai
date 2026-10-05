@@ -1,0 +1,10 @@
+# vcp.yaml - strategy #1, Minervini VCP (STRATEGY_SPECIFICATION 3.2, 11)
+# Pointer file (decision O3, 2026-10-05): VCP's thresholds stay in strategy.yaml (vcp,
+# classification) and scoring.yaml (components.vcp). Its config hash is scan_config_hash.
+strategy_id: vcp
+algorithm_version: vcp-1.1.0
+enabled: true
+stage: paper            # live paper tracking from 2026-10-01 (config/backtest.yaml)
+trend_gate:
+  mode: required
+config_source: legacy

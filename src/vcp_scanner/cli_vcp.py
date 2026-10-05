@@ -26,6 +26,7 @@ from vcp_scanner.config import load_scanner_config
 from vcp_scanner.config.loader import scan_config_hash, section_config_hashes
 from vcp_scanner.domain.enums import VCPStatus
 from vcp_scanner.domain.snapshot import LIVE_SNAPSHOT_ID
+from vcp_scanner.domain.strategy import VCP_STRATEGY_ID, detector_scan_id
 
 _DATA_STATES = {
     "INSUFFICIENT_DATA": VCPStatus.INSUFFICIENT_DATA,
@@ -35,8 +36,24 @@ _DATA_STATES = {
 
 
 def vcp_scan_id(as_of_iso: str, config_hash: str, data_snapshot_id: str) -> str:
-    scan_id = f"vcp-{as_of_iso}-{config_hash[:12]}"
-    return scan_id if data_snapshot_id == LIVE_SNAPSHOT_ID else f"{scan_id}-{data_snapshot_id}"
+    return detector_scan_id(VCP_STRATEGY_ID, as_of_iso, config_hash, data_snapshot_id)
+
+
+def run_compute_setups(args: argparse.Namespace) -> int:
+    """``vcp compute setups --strategy ID``: one strategy's detector (STRATEGY_SPECIFICATION
+    11.2). VCP keeps its own scan path; other strategies arrive in steps 4-6."""
+    from vcp_scanner.patterns.registry import get_strategy
+
+    strategy_id = getattr(args, "strategy", None) or VCP_STRATEGY_ID
+    try:
+        get_strategy(strategy_id)
+    except Exception as e:
+        _err(f"Strategy error: {e}")
+        return 1
+    if strategy_id == VCP_STRATEGY_ID:
+        return run_compute_vcp(args)
+    _err(f"No detector for strategy {strategy_id} yet.")  # pragma: no cover - VCP only (step 2)
+    return 1  # pragma: no cover
 
 
 def run_compute_vcp(args: argparse.Namespace) -> int:
@@ -166,6 +183,7 @@ def run_compute_vcp(args: argparse.Namespace) -> int:
             results_hash=vcp_results_hash(verdicts),
             started_at=started_at,
             completed_at=datetime.now(UTC),
+            strategy_id=VCP_STRATEGY_ID,
         )  # fmt: skip
         DuckDBScanRunRepository(store).record(run, [])
         repo.record_run_results(run.scan_run_id, verdicts)

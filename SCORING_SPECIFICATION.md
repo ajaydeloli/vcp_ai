@@ -165,3 +165,11 @@ Validation (2025-10 .. 2026-09, final score only, looked at once): IC +0.010 for
 
 **Fundamentals deferred (owner, 2026-10-03).** Phase 8 is skipped for now. `fundamental_score` stays NULL and is renormalized away as in §1. The data-source findings are in AUDIT_FIX_LOG ("Decision F1").
 
+
+# 12. Per-strategy scoring (Multi-Strategy step 2, 2026-10-05)
+
+The score is split as STRATEGY_SPECIFICATION §9 says; for VCP nothing changes (same values, percentiles and results hashes, checked on real data).
+- **Shared** (`scoring/engine.py` `shared_components`): trend, RS, and the volume component's `up_down_volume` and `distribution`.
+- **Per strategy** (`PatternScoring`): the pattern component, the dry-up measurement fed to the volume component's `dryup_quality`, and the eligibility rule (grade ≥ the strategy's minimum and a ranked status). VCP: `VCPPatternScoring`, i.e. the six §4 sub-components, `final_volume_ratio`, and VCP_LIKE or better.
+- The pattern component takes the configured `weights.vcp` (35) under any name: `VCP` for VCP, `PATTERN` for other strategies. Both are stored in `setup_scores.vcp_score` / `vcp_weight` (decision O5; the view `setup_scores_v` calls them `pattern_score` / `pattern_weight`).
+- Ranking percentiles stay within one score scan, which is now one strategy's scan (decision D4).
