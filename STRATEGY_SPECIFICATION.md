@@ -779,6 +779,32 @@ Not read as an edge (§10.4): the chart review comes first, several strategies a
 
 **Decision (owner, 2026-10-05, option a): `cup_handle-1.1.0`.** The right lip may be at most `max_right_lip_above_pct` (3 %, the rim tolerance) above the left lip; otherwise there is no cup (`NO_CUP`). Rejected: (b) a −5 % gap floor for grades 2–3 only; (c) no rule, left to the chart review. The 1.0.0 rows stay in the research DB under config `a7f96c6ec87e` as a version tried. Results of 1.1.0: §15.7.
 
+## 15.7 Cup and handle 1.1.0 results (research DB, 2026-10-05; development period only)
+
+Rescan of `data/golden_src.duckdb` (code bd595ab, 22:35–22:46 IST, under the daily-run lock after the 22:00 daily run finished; backup `golden_src_20261005_170507.duckdb`): cup_handle 1.1.0 over all 248 weekly dates, scores, labels (2,268 observations, config `e36477f23b36`). No errors.
+
+| | Cup and handle 1.1.0 | (1.0.0) |
+|---|---|---|
+| Grade 1 / 2 / 3 rows (2022–2026) | 1,597 / 530 / 141 | 12,140 / 2,583 / 453 |
+| Grade 2+ rows / distinct bases, development period | 325 / 201 | 1,677 / 796 |
+| Eligible (ranked) score rows | 649 | 2,943 |
+| Grade 2+ right-lip gap (10/50/90 %) | −2.5 / +0.5 / +4.9 % | −27.6 / −9.4 / +1.0 % |
+| Grade 2+ median depth; length | 23.9 %; 74 sessions | 21.2 %; 75 sessions |
+| Grade 2+ stop below the pivot (10/50/90 %) | 5.2 / 7.8 / 10.7 % | 6.0 / 9.2 / 11.6 % |
+| Most common no-setup reasons | NO_CUP 34,828, NO_HANDLE 4,724, TOO_DEEP 4,171 | |
+| Why grade 1 is not grade 2 (top) | cup deeper than 33 % 1,099, not rounded 576, handle too deep 362 | |
+
+Same-day overlap of eligible setups: cup → VCP 44 %, → flat base 11 %, → 3WT 18 %, → double bottom 5 %.
+
+| Rule | Signals | Trades | Win | Avg | PF | Portfolio CAGR / max DD |
+|---|---|---|---|---|---|---|
+| hold_s7 | 317 | 136 | 32.4 % | +4.63 % | 1.96 | 14.5 % / −14.9 % |
+| hold_low8 | 317 | 135 | 35.6 % | +5.45 % | 2.07 | 15.5 % / −16.4 % |
+| hold_low5 | 317 | 136 | 26.5 % | +3.85 % | 2.01 | 12.4 % / −12.2 % |
+| baseline, hold_s7 | 1,032 | 401 | 29.9 % | +3.89 % | 1.78 | 14.6 % / −20.6 % |
+
+Graded cups now do better per trade than the baseline (PF 1.96 vs 1.78), on 136 trades. Not read as an edge (§10.4): chart review first, several strategies compared, validation unopened. The review sheet was rebuilt from 1.1.0 (text sketches of the windows now show the right lip near the left lip).
+
 ---
 
 

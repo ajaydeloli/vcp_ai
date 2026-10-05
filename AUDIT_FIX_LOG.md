@@ -2224,3 +2224,9 @@ STRATEGY_SPECIFICATION §15: `cup_handle-1.0.0` (left lip, rounded cup 7–65 we
 **Code:** `CupHandleDetectorConfig.max_right_lip_above_pct`, the check in `patterns/cup_handle/detector.py`, `config/strategies/cup_handle.yaml`. **Test:** right lip 2 % above the left is still a cup, 5 % above is `NO_CUP`. Full suite 1,245 passed, 2 skipped; ruff, format, mypy clean.
 
 **Real-data check** (copy `data/tmp/ms5b/res.duckdb`, 3 dates): setups per date 14 / 15 / 8 (1.0.0: 39 / 129 / 83); grade 2: 6 / 4 / 1.
+
+### Cup and handle 1.1.0 applied to the research DB (2026-10-05 22:35–22:46 IST)
+
+- A 22:00 IST daily run (late slot; "all steps OK", ended 22:34) held the lock; the watcher `~/vcp_spike/ms5b_cup11_chain.sh` waited, then ff-merged bd595ab and, under the lock, backed up (`data/backups/golden_src_20261005_170507.duckdb`; keep=3 rotated out `golden_src_20261005_093106`), rescanned cup_handle 1.1.0 over all 248 dates (setups, scores), labels (2,268), and ran 4 development walk-forwards (3 rules + baseline). No errors. Results: STRATEGY_SPECIFICATION §15.7.
+- Review sheet rebuilt from 1.1.0: `reports/chart_review/cup_handle/review_sheet.html` (30 windows, the C4 mix); marks checked (`ms5b_marks.py`: 4 points in order, pivot = R × 1.001, stop = H; charts 260–369 bars). Shapes eyeballed as text sketches: L at the prior peak, R back near it.
+- The 1.0.0 rows (a7f96c6ec87e) and their 4 backtest runs stay as a version tried.
