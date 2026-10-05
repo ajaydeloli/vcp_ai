@@ -113,3 +113,11 @@ def test_tight_weeks_uses_the_grade_2_rule() -> None:
     # Changes of 1.2 % and 1.4 %: grade 2 (<= 1.5), not grade 3 (<= 1.0): still 3 tight weeks.
     s = DET.detect(_ctx(_bars([120.0, 121.44, 119.74], [120.0]))).setup
     assert s is not None and s.grade == 2 and s.details["tight_weeks"] == 3
+
+
+def test_a_deep_pattern_is_at_most_grade_1() -> None:
+    """1.1.0 (chart review R1): grade 2 needs pattern depth <= 15 %."""
+    deep = DET.detect(_ctx(_bars([120.0, 121.0, 120.5], [121.0], spread=10.0))).setup
+    assert deep is not None and deep.base_depth_pct > 15
+    assert deep.grade == 1 and "max_depth_pct" in deep.unmet_rules["THREE_WEEKS_TIGHT"]
+    assert DET.algorithm_version == "three_weeks_tight-1.1.0"

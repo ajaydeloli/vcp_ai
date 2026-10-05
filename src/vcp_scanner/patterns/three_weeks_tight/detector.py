@@ -1,4 +1,4 @@
-"""Three Weeks Tight detector, ``three_weeks_tight-1.0.0`` (STRATEGY_SPECIFICATION 14).
+"""Three Weeks Tight detector, ``three_weeks_tight-1.1.0`` (STRATEGY_SPECIFICATION 14).
 
 Three weekly closes in a row, each within about 1-1.5 % of the week before, after an advance.
 Steps (section 14.1), on adjusted daily bars ending at the as-of bar ``t``:
@@ -31,7 +31,7 @@ from vcp_scanner.features.base_measures import (
 )
 from vcp_scanner.patterns.strategy_base import StrategyContext, find_breakout, setup_status
 
-ALGORITHM_VERSION = "three_weeks_tight-1.0.0"
+ALGORITHM_VERSION = "three_weeks_tight-1.1.0"  # 1.1.0: grade 2 depth <= 15 % (R1)
 STRATEGY_ID = "three_weeks_tight"
 SCORE_SUBS = ("tightness", "pattern_depth", "prior_advance", "tight_weeks", "near_high")
 HIGH_52W_BARS = 252

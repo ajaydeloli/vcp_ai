@@ -1,7 +1,7 @@
 # three_weeks_tight.yaml - Three Weeks Tight (STRATEGY_SPECIFICATION 14; signed off 2026-10-05)
 # Every number is a starting hypothesis, tuned on the development period only.
 strategy_id: three_weeks_tight
-algorithm_version: three_weeks_tight-1.0.0
+algorithm_version: three_weeks_tight-1.1.0   # 1.1.0: grade 2 depth <= 15 % (chart review R1, 2026-10-05)
 enabled: false
 stage: research
 trend_gate:
@@ -20,6 +20,7 @@ classification:
   three_weeks_tight:
     grade: 2
     max_close_change_pct: 1.5
+    max_depth_pct: 15             # 1.1.0: a pattern that includes the sharp move into it is too deep
   three_weeks_tight_a:
     grade: 3
     max_close_change_pct: 1.0

@@ -86,6 +86,10 @@ TRADE_RULES = (
     TradeRule("t10_s7", 10.0, 7.0),  # the original rule
     TradeRule("t20_s7", 20.0, 7.0),
     TradeRule("t20_low8", 20.0, 8.0, stop_at_final_low=True),
+    # Owner's stop from the chart review (2026-10-05, R2): the setup's low or 8 % / 5 %,
+    # whichever is tighter; no target. Research variants, compared on development only.
+    TradeRule("hold_low8", None, 8.0, stop_at_final_low=True),
+    TradeRule("hold_low5", None, 5.0, stop_at_final_low=True),
     TradeRule("hold_s7", None, 7.0),
 )
 

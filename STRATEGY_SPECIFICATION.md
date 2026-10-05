@@ -493,7 +493,7 @@ As built: `config/strategies/flat_base.yaml` (enabled false, stage research).
 
 ---
 
-# 14. Three Weeks Tight (`three_weeks_tight`, `three_weeks_tight-1.0.0`) — signed off 2026-10-05
+# 14. Three Weeks Tight (`three_weeks_tight`, `three_weeks_tight-1.1.0`) — signed off 2026-10-05; 1.1.0 after the chart review (§14.11)
 
 Three weekly closes in a row within about 1–1.5 % of each other, after an advance: a continuation pattern that often forms after a breakout or in a strong uptrend (O'Neil). Weekly, so it uses `weekly_bars` (§12A).
 
@@ -514,7 +514,7 @@ No setup: `INSUFFICIENT_HISTORY`, `NOT_TIGHT` (no candidate meets grade 1), `NO_
 | Tier | Grade | Rules |
 |---|---|---|
 | `THREE_WEEKS_TIGHT_LIKE` | 1 | tightness ≤ 2.5 % |
-| `THREE_WEEKS_TIGHT` | 2 | tightness ≤ 1.5 %; Trend Template PASS and weekly Stage 2 |
+| `THREE_WEEKS_TIGHT` | 2 | tightness ≤ 1.5 %; pattern depth ≤ 15 % (1.1.0); Trend Template PASS and weekly Stage 2 |
 | `THREE_WEEKS_TIGHT_A` | 3 | tightness ≤ 1.0 %; pattern depth ≤ 6 %; dry-up ≤ 0.8 |
 
 ## 14.3 Status
@@ -546,7 +546,7 @@ Changes: 1.20 % and 0.59 % → tightness 1.20 % ≤ 1.5 → **THREE_WEEKS_TIGHT*
 
 ```yaml
 strategy_id: three_weeks_tight
-algorithm_version: three_weeks_tight-1.0.0
+algorithm_version: three_weeks_tight-1.1.0
 enabled: false
 stage: research
 trend_gate: {mode: required}
@@ -559,7 +559,7 @@ detector:
   dryup_base_days: 50
 classification:
   three_weeks_tight_like: {grade: 1, max_close_change_pct: 2.5}
-  three_weeks_tight:      {grade: 2, max_close_change_pct: 1.5}
+  three_weeks_tight:      {grade: 2, max_close_change_pct: 1.5, max_depth_pct: 15}   # 1.1.0
   three_weeks_tight_a:    {grade: 3, max_close_change_pct: 1.0, max_depth_pct: 6, max_dryup_ratio: 0.8}
 ranking: {min_grade: 2, pivot_ready_max_distance_pct: 3}
 scoring: {weights: {...}, bounds: {...}}   # §14.4
@@ -591,6 +591,15 @@ Development walk-forward (2022-02-01 … 2024-06-30, rule `hold_s7`, 15 bps a si
 Not yet read as an edge (§10.4): chart review (D6) comes first; several strategies are being compared (multiple testing); validation is unopened.
 
 **For the chart review:** 49 % of grade-2+ Three Weeks Tight patterns are three closes drifting the same way (a steady trend of about 1 % a week also meets the close-change rule), and their median pattern depth is 10.5 % (25 %/75 %: 7.9 %/13.8 %): weekly closes are tight but the weeks' ranges often are not. A depth or close-range limit for grade 2 is a candidate change after the review.
+
+## 14.11 Chart review (D6) and decisions (owner, 2026-10-05)
+
+Answers: `reports/chart_review/<strategy>/review_answers_2026-10-05.csv` (30 windows each, development period).
+
+- **Flat base: 27 yes, 3 partly, 0 no.** Geometry accepted; `flat_base-1.0.0` unchanged (R3). The two "earlier entry" notes (RVNL, UJJIVANSFB: a tight range breaking out inside the base) were found by Three Weeks Tight and VCP on those dates: multi-label covers them.
+- **Three Weeks Tight: 23 yes, 4 partly, 1 unsure, 2 no.** Every negative answer with a note is a pattern that includes the sharp move into it, 16–32 % deep with a wide stop (NEULANDLAB 31.9, BLS 29.1, PGIL 28.2, AGARIND 24.7, FOODSIN 22.5, AUTOAXLES 16.4); the grade-2/3 charts marked yes are ≤ 13.9 % deep except ASHAPURMIN (15.6). **R1 (1.1.0): grade 2 needs pattern depth ≤ 15 %** (16 % would separate this sample perfectly but would be fitted to one chart). It removes 19 % of grade-2 rows (2022–2026; 2,678 distinct bases remain). The steady-drift concern of §14.10 was not borne out: 11 of the 15 same-direction charts were marked yes, and the others were rejected for depth.
+- **R2: the owner's stop** ("the previous low or 8 % / 5 %, whichever is tighter") is tested as two exit rules, `hold_low8` and `hold_low5` (no target; stop = tighter of the setup's `stop_reference_price` × 0.995 and −8 % / −5 %; 60-session time exit), against `hold_s7` on the development period. Two more rule variants tried (§10.4).
+- HAL note (avoid until it comes back to the pivot after a failed move): a trading rule, kept for the live-paper phase.
 
 ## 14.8 Overlap expected
 

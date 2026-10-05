@@ -105,3 +105,27 @@ def test_portfolio_slots_score_priority_and_equity() -> None:
     assert st["total_ret"] == pytest.approx(10.0) and st["max_drawdown"] <= 0  # type: ignore[operator]
     ts = trade_stats(trades)
     assert ts["trades"] == 3 and ts["win_rate"] == 1.0 and ts["profit_factor"] is None
+
+
+@pytest.mark.parametrize(
+    ("final_low", "low", "stopped"),
+    [(103.0, 102.0, True),    # setup low 103 x 0.995 = 102.5 (2.4 %) is tighter than 8 %
+     (90.0, 97.0, False),     # setup low far away: the 8 % cap (96.6) applies, 97 holds
+     (90.0, 96.0, True)],     # ... and 96 breaks it
+)  # fmt: skip
+def test_hold_low8_uses_the_tighter_of_setup_low_and_8_pct(
+    final_low: float, low: float, stopped: bool
+) -> None:
+    from vcp_scanner.research.outcomes import TRADE_RULES
+
+    rule = next(r for r in TRADE_RULES if r.name == "hold_low8")
+    cfg = EngineConfig(rule, watch_days=20, horizon=60, cost_bps=0.0, max_positions=2)
+    bs = _bars()
+    sig = Signal("A", bs[60].day, 104.0, 70.0, final_low, "FLAT_BASE")
+    _set(bs, 65, close=105.0, high=105.5, volume=2000.0)
+    _set(bs, 70, low=low)
+    (t,) = run_signals([sig], {"A": bs}, cfg)[0]
+    assert (t.exit_kind == "STOP") == stopped
+    if stopped:
+        expected = max(-8.0, (final_low * 0.995 / 105.0 - 1) * 100)
+        assert t.ret_pct == pytest.approx(expected)
