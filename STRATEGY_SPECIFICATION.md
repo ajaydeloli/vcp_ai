@@ -390,6 +390,196 @@ Owner decision 2026-10-05 (option A of three): pure functions in `features/base_
 
 ---
 
+## 12B. Scan path for new strategies (built in step 4)
+
+`vcp compute setups --strategy <id> --as-of DATE` (dates in order, like VCP):
+
+1. Read the Trend Template scan of the date (`trend-<date>-<scan hash12>`). Gate population: status PASS (§5). Instruments in a data state get a data-state result, as VCP does; nothing else is detected for them.
+2. Load the adjusted daily bars up to the as-of bar (the strategy's `lookback_bars()`), in one query, from the scan's data snapshot. No bar on the as-of date → `STALE_DATA`.
+3. Run the detector (`StrategyDetector`, §8, pure): candidate setups or a no-setup reason.
+4. Breakouts (§10.1): read this strategy's events for the instrument; a base with an event is `BREAKOUT` while the close is ≥ its pivot and `FAILED` below; otherwise a new event is recorded on the first close above the pivot with volume ≥ 1.5 × the mean of the 50 bars before it. The pivots of §13–14 do not move once set, so the `PRIOR_DAY_PIVOT` path is not needed.
+5. Write `strategy_setups`, `strategy_setup_status_history`, `strategy_breakout_events`, an immutable `scan_runs` row (type `SETUP`, `strategy_id`) and `strategy_scan_run_results`. A rerun of the scan id replaces its rows.
+
+`vcp compute scores --strategy <id>` then scores the gate passers that have a primary setup (decision O4), and labels and backtests work unchanged (§10).
+
+---
+
+# 13. Flat / tight base (`flat_base`, `flat_base-1.0.0`) — signed off 2026-10-05
+
+A stock in Stage 2 that, after an advance, moves sideways for at least five weeks within a shallow range (O'Neil's flat base; Minervini's tight base). Every number below is a config value under `detector:` and a starting hypothesis, tuned only on the development period.
+
+## 13.1 Base
+
+All on adjusted daily bars up to the as-of bar (index `t`).
+
+1. **Base start `s`**: the bar with the highest high among bars `t − max_duration_days + 1` … `t − min_duration_days + 1` (earliest on a tie). So a base is at least `min_duration_days` (25 = 5 weeks) and at most `max_duration_days` (65 = 13 weeks) old.
+2. **Base high** = `high[s]`; **pivot** = base high × (1 + `pivot_buffer_pct` / 100), buffer 0.1 %. The pivot is fixed for this base (it does not move with new bars).
+3. **Base low** = lowest low of bars `s` … `t` (`base_extremes`, §12A). **Depth** = (base high − base low) / base high × 100.
+4. **Prior advance** = `prior_advance(high, low, s, lookback = 120)` (§12A) ≥ `min_prior_advance_pct` (20). With fewer bars than the lookback a pass counts and a fail is `INSUFFICIENT_HISTORY`, as VCP.
+5. **Not already gone**: if a close in `s+1` … `t` is above the pivot × (1 + `max_overshoot_pct` / 100) (3 %) and this base has no breakout event, there is no base (`MOVED_ABOVE_BASE`): the stock has left the range without a valid breakout. A close above the pivot by less than that, without breakout volume, leaves the base intact (as VCP: no volume, no breakout).
+6. **Weekly closes**: `weekly_bars` (§12A) from bar `s` to `t`; **weekly close range** = `weekly_close_range_pct` over all of them (the as-of week partial if mid-week).
+7. **Right side**: the last `right_side_days` (10) bars: range % = (max high − min low) / max high × 100, and their lowest low.
+
+No base (no setup, the reason stored in `strategy_scan_run_results`): `INSUFFICIENT_HISTORY` (fewer than `lookback_bars()` bars), `NO_PRIOR_ADVANCE`, `MOVED_ABOVE_BASE`, `TOO_DEEP` (depth > the grade-1 limit).
+
+## 13.2 Tiers and grades
+
+| Tier | Grade | Rules (all must hold) |
+|---|---|---|
+| `FLAT_BASE_LIKE` | 1 | depth ≤ 20 %; length ≥ 20 sessions (4 weeks) |
+| `FLAT_BASE` | 2 | depth ≤ 15 %; length ≥ 25 sessions; weekly close range ≤ 10 %; Trend Template PASS and weekly Stage 2 |
+| `TIGHT_FLAT_BASE` | 3 | as grade 2, and depth ≤ 10 %, weekly close range ≤ 6 %, right-side range ≤ 5 %, volume dry-up ≤ 0.8 |
+
+(The grade-1 length uses the same start search with `min_duration_days` = 20.) Unmet rules per tier are stored in `unmet_rules`, as VCP.
+
+## 13.3 Status, pivot, stop
+
+- Status (§6.2): data state → BREAKOUT / FAILED (events, §12B) → `PIVOT_READY` (grade ≥ 2 and the close 0 – 3 % below the pivot) → `FORMING`. Nothing is `INVALIDATED`: a deeper drop makes the base `TOO_DEEP` (no setup) or a lower tier.
+- `stop_reference_price` = the right-side low (lowest low of the last 10 bars). (Decision F1, §14.9.)
+- `base_end_date` = the breakout date after a breakout, else NULL. `confirmation_state` = `CONFIRMED` (no swing confirmation lag: the start is at least 25 bars old).
+
+## 13.4 Score part (§9.2)
+
+Pattern component `PATTERN`, sub-components (weights sum to 100; `linear(worst → best)` as SCORING_SPECIFICATION §2):
+
+| Sub-component | Weight | Measurement | worst → best |
+|---|---|---|---|
+| `depth` | 30 | base depth % | 15 → 5 |
+| `weekly_tightness` | 25 | weekly close range % | 10 → 3 |
+| `right_side` | 20 | right-side range % | 8 → 2 |
+| `length` | 15 | base length, weeks | 5 → 10 |
+| `prior_advance` | 10 | prior advance % | 20 → 60 |
+
+Dry-up measure: `volume_dryup_ratio(volume, recent = 10, base = 50)` at the as-of bar (§12A).
+
+## 13.5 Stored details (`details_json`)
+
+`weekly_close_range_pct`, `weeks`, `right_side_range_pct`, `right_side_low`, `prior_advance_low_date`, `closes_above_pivot` (count of closes above the pivot without a breakout), `pivot_buffer_pct`.
+
+## 13.6 Worked example (synthetic)
+
+A stock rises from 80 to a high of 120.00 (bar `s`), then trades 30 sessions between 104.00 and 119.50; weekly closes 117, 112, 116, 110, 114, 117, 118 (the last week partial); last 10 bars between 113.20 and 119.50; prior advance 50 %; volume of the last 10 bars 0.75 × the 50 before.
+Depth (120 − 104) / 120 = 13.3 % → grade 2 limits pass; weekly close range (118 − 110) / 110 = 7.3 %; length 31 sessions (≥ 25), 7 weeks. Not grade 3 (depth > 10 %). **FLAT_BASE**, pivot 120.12, stop 113.20; a close of 118.00 is 1.8 % below the pivot → **PIVOT_READY**.
+
+## 13.7 Config
+
+```yaml
+strategy_id: flat_base
+algorithm_version: flat_base-1.0.0
+enabled: false
+stage: research
+trend_gate: {mode: required}
+detector:
+  min_duration_days: 25
+  max_duration_days: 65
+  min_prior_advance_pct: 20
+  prior_advance_lookback_days: 120
+  pivot_buffer_pct: 0.1
+  max_overshoot_pct: 3
+  right_side_days: 10
+classification:
+  flat_base_like:   {grade: 1, max_depth_pct: 20, min_duration_days: 20}
+  flat_base:        {grade: 2, max_depth_pct: 15, min_duration_days: 25, max_weekly_close_range_pct: 10}
+  tight_flat_base:  {grade: 3, max_depth_pct: 10, max_weekly_close_range_pct: 6,
+                     max_right_side_range_pct: 5, max_dryup_ratio: 0.8}
+ranking: {min_grade: 2, pivot_ready_max_distance_pct: 3}
+scoring:
+  pattern: {weights: {...}, bounds: {...}}   # §13.4
+  dryup_measure: {recent: 10, base: 50}
+```
+
+---
+
+# 14. Three Weeks Tight (`three_weeks_tight`, `three_weeks_tight-1.0.0`) — signed off 2026-10-05
+
+Three weekly closes in a row within about 1–1.5 % of each other, after an advance: a continuation pattern that often forms after a breakout or in a strong uptrend (O'Neil). Weekly, so it uses `weekly_bars` (§12A).
+
+## 14.1 Pattern
+
+1. **Weeks used**: completed weeks only. Mid-week (as-of Monday–Thursday) the as-of week is left out; on a Friday it counts. (Decision T1, §14.9.)
+2. **Candidate**: the 3 consecutive completed weeks ending `k` weeks ago, for k = 0 … `max_age_weeks` (2), most recent first; the first that meets grade 1 is the setup. So a 3WT stays a setup for 2 more weeks after it completes, while the stock waits to break out. (Decision T2, §14.9.)
+3. **Tightness** = `max_weekly_close_change_pct(closes, 2)` over the 3 closes (each against the week before it, §12A); also stored: `weekly_close_range_pct(closes, 3)`.
+4. **Tight weeks**: how many consecutive weeks up to the pattern's last week meet the grade-2 change rule (3 = classic, 4+ = "four weeks tight" and longer).
+5. **Pattern high / low** = highest high and lowest low of the 3 weeks' daily bars (`base_extremes`); depth % as §6.1. `base_start_date` = first day of week 1; duration = its sessions.
+6. **Prior advance** = `prior_advance(high, low, end, lookback = 120)` where `end` is the bar with the highest high from 20 sessions before week 1 to the end of week 3; ≥ `min_prior_advance_pct` (20).
+7. **Pivot** = pattern high × (1 + 0.1 %); **stop_reference_price** = pattern low.
+
+No setup: `INSUFFICIENT_HISTORY`, `NOT_TIGHT` (no candidate meets grade 1), `NO_PRIOR_ADVANCE`, `BELOW_PATTERN` (a close below the pattern low since week 3 ended: the pattern is broken, and an older candidate is not tried).
+
+## 14.2 Tiers and grades
+
+| Tier | Grade | Rules |
+|---|---|---|
+| `THREE_WEEKS_TIGHT_LIKE` | 1 | tightness ≤ 2.5 % |
+| `THREE_WEEKS_TIGHT` | 2 | tightness ≤ 1.5 %; Trend Template PASS and weekly Stage 2 |
+| `THREE_WEEKS_TIGHT_A` | 3 | tightness ≤ 1.0 %; pattern depth ≤ 6 %; dry-up ≤ 0.8 |
+
+## 14.3 Status
+
+Data state → BREAKOUT / FAILED (events) → `PIVOT_READY` (grade ≥ 2, close 0 – 3 % below the pivot) → `FORMING`. `confirmation_state` = `CONFIRMED` (completed weeks only).
+
+## 14.4 Score part
+
+| Sub-component | Weight | Measurement | worst → best |
+|---|---|---|---|
+| `tightness` | 35 | largest weekly close change % | 1.5 → 0.3 |
+| `pattern_depth` | 25 | (pattern high − low) / high % | 10 → 3 |
+| `prior_advance` | 20 | prior advance % | 20 → 60 |
+| `tight_weeks` | 10 | consecutive tight weeks | 3 → 5 |
+| `near_high` | 10 | % the pivot is below the 52-week high | 10 → 0 |
+
+Dry-up measure: `volume_dryup_ratio(volume, recent = sessions of the 3 weeks, base = 50, end = last bar of week 3)`.
+
+## 14.5 Stored details
+
+`weekly_closes` (the 3), `max_close_change_pct`, `close_range_pct`, `tight_weeks`, `age_weeks` (k), `week_ends`.
+
+## 14.6 Worked example (synthetic)
+
+Weekly closes 100.00, 101.20, 100.60 (weeks ending Fri 11, 18, 25 Sep); daily highs/lows in them 97.80 … 102.30; prior advance 35 %; as-of Wednesday 30 Sep.
+Changes: 1.20 % and 0.59 % → tightness 1.20 % ≤ 1.5 → **THREE_WEEKS_TIGHT** (not grade 3: > 1.0 %). Pivot 102.30 × 1.001 = 102.40; stop 97.80; depth 4.4 %. Close on 30 Sep 101.00 → 1.4 % below the pivot → **PIVOT_READY**. It stays a setup through the next two weeks (k = 1, 2) unless a close below 97.80, or until it breaks out.
+
+## 14.7 Config
+
+```yaml
+strategy_id: three_weeks_tight
+algorithm_version: three_weeks_tight-1.0.0
+enabled: false
+stage: research
+trend_gate: {mode: required}
+detector:
+  max_age_weeks: 2
+  min_prior_advance_pct: 20
+  prior_advance_lookback_days: 120
+  prior_high_window_days: 20
+  pivot_buffer_pct: 0.1
+classification:
+  three_weeks_tight_like: {grade: 1, max_close_change_pct: 2.5}
+  three_weeks_tight:      {grade: 2, max_close_change_pct: 1.5}
+  three_weeks_tight_a:    {grade: 3, max_close_change_pct: 1.0, max_depth_pct: 6, max_dryup_ratio: 0.8}
+ranking: {min_grade: 2, pivot_ready_max_distance_pct: 3}
+scoring:
+  pattern: {weights: {...}, bounds: {...}}   # §14.4
+  dryup_measure: {recent: pattern, base: 50}
+```
+
+## 14.8 Overlap expected
+
+A 3WT often sits inside a flat base or a VCP's final contraction. All are recorded (§7); the step-7 report measures how often they coincide.
+
+## 14.9 Decisions for step 4 (owner, 2026-10-05: all as recommended)
+
+| # | Question | Options | Decided |
+|---|---|---|---|
+| G1 | Lowest ranked grade for the new strategies | (a) 2: only full patterns are ranked and traded; grade 1 is stored for research and the `--baseline` · (b) 1, as VCP (VCP_LIKE is ranked) | (a): grade 1 here is loose by design; VCP stays as it is |
+| F1 | Flat-base stop level | (a) right-side low (last 10 bars) · (b) base low | (a): the base low can be 15 % away; the engine's default rule (`hold_s7`) uses −7 % anyway, this only matters for `t20_low8` |
+| F2 | Leaving the range without a breakout | (a) a close > 3 % above the pivot without breakout volume ends the base · (b) any close above the pivot ends it · (c) never | (a) |
+| T1 | 3WT and the unfinished week | (a) completed weeks only · (b) the as-of week counts, setup `PROVISIONAL` mid-week | (a): a weekly pattern is judged on weekly closes |
+| T2 | How long a 3WT stays a setup | (a) 2 weeks after it completes · (b) only the week after · (c) until broken | (a) |
+| C1 | Chart review (D6) sample | ~30 per strategy from the development period: 12 grade 2, 8 grade 3 (or all if fewer), 6 grade 1, 4 near-misses (failed one rule by a small margin), stratified by year | as listed |
+
+---
+
 # 17. Configuration validation (blocks a scan)
 
 - Each file under `config/strategies/` loads into its strategy's model; unknown keys and a missing file for a registered strategy are refused.

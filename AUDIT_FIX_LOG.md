@@ -2128,3 +2128,7 @@ Owner go 2026-10-05. Under the daily-run lock (`~/vcp_spike/ms2_apply.sh`):
 
 **Not changed:** the database (nothing written; the check ran read-only on a copy), VCP results, stored features.
 
+## Multi-Strategy phase step 4a — Flat base and Three Weeks Tight spec (2026-10-05)
+
+STRATEGY_SPECIFICATION §12B (scan path for new strategies), §13 Flat / tight base (`flat_base-1.0.0`), §14 Three Weeks Tight (`three_weeks_tight-1.0.0`): rules, tiers and grades, status, pivot and stop, score parts, stored details, worked examples, config. Owner signed off 2026-10-05 with every recommendation: G1 only grade 2+ ranked for the new strategies; F1 flat-base stop = right-side low (10 bars); F2 a close > 3 % above the pivot without breakout volume ends a flat base; T1 Three Weeks Tight on completed weeks only; T2 a 3WT stays a setup for 2 weeks after it completes; C1 chart-review sample of ~30 per strategy (12 grade 2, 8 grade 3, 6 grade 1, 4 near-misses, spread over the years). Docs only.
+
