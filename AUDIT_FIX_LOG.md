@@ -2163,3 +2163,27 @@ Under the daily-run lock (`~/vcp_spike/ms4_apply.sh`):
 - **Backup** (health-checked): `data/backups/golden_src_20261005_093106.duckdb`; the copy passed its health check; then it replaced `data/golden_src.duckdb`. `golden_src_pre_c11.duckdb` kept.
 - The rescan was made with the step-4 branch code before the final squash (13d437e for flat_base, ad1a359 for three_weeks_tight); their `src` and `config` equal 4596549.
 
+## Multi-Strategy phase step 4c — chart review and its changes (2026-10-05)
+
+**Chart review (D6)** of the step-4 sheets by the owner (answers in `reports/chart_review/*/review_answers_2026-10-05.csv`; summary in STRATEGY_SPECIFICATION §14.11): Flat base 27 yes / 3 partly / 0 no; Three Weeks Tight 23 yes / 4 partly / 1 unsure / 2 no, every negative with a note being a pattern that includes the sharp move into it (16–32 % deep). The steady-drift concern raised in §14.10 was checked against the answers and dropped (11 of 15 same-direction patterns marked yes).
+
+**Owner decisions (2026-10-05):** R1 Three Weeks Tight 1.1.0, grade 2 needs pattern depth ≤ 15 %; R2 exit rules `hold_low8` / `hold_low5` for a development comparison; R3 Flat base unchanged. Code 60a6622 (tests: deep 3WT pattern capped at grade 1; `hold_low8` stop is the tighter of the setup low × 0.995 and −8 %). Full suite 1,217 passed, 2 skipped; ruff, format, mypy clean.
+
+**Correction to the step-4 apply entry:** the Flat base rescan ran with 13d437e, whose `src` differs from 4596549 only in the Three Weeks Tight detector (the tight-weeks fix), so Flat base results are the same as with 4596549; the Three Weeks Tight rescan ran with ad1a359, identical in `src` and `config` to 4596549.
+
+**Research DB** (`data/golden_src.duckdb`, 19:58–20:09 IST, under the daily-run lock, after tonight's daily run had finished at 19:51; backup `data/backups/golden_src_20261005_142803.duckdb`): Three Weeks Tight 1.1.0 over all 248 weekly dates (new strategy config hash 9ed3b8e7c31a; the 1.0.0 rows stay under df6cc5b0202a as a variant tried), scores and labels (13,740 observations), then development walk-forwards for 3 exit rules x 3 strategies (9 runs):
+
+| Strategy | Rule | Trades | Win | Avg | PF | Portfolio CAGR / max DD |
+|---|---|---|---|---|---|---|
+| VCP | hold_s7 | 1,803 | 29.3 % | +3.77 % | 1.74 | 6.8 % / −40.6 % |
+| VCP | hold_low8 | 1,767 | 32.6 % | +4.10 % | 1.76 | 9.3 % / −36.5 % |
+| VCP | hold_low5 | 1,954 | 22.1 % | +3.02 % | 1.74 | 12.4 % / −37.7 % |
+| Flat base | hold_s7 | 449 | 38.3 % | +5.58 % | 2.28 | 25.0 % / −16.5 % |
+| Flat base | hold_low8 | 438 | 42.7 % | +6.48 % | 2.43 | 21.1 % / −16.5 % |
+| Flat base | hold_low5 | 476 | 30.7 % | +4.86 % | 2.34 | 24.4 % / −15.9 % |
+| Three Weeks Tight 1.1.0 | hold_s7 | 647 | 34.2 % | +5.01 % | 2.07 | 13.9 % / −23.3 % |
+| Three Weeks Tight 1.1.0 | hold_low8 | 634 | 37.4 % | +5.48 % | 2.10 | 18.8 % / −22.6 % |
+| Three Weeks Tight 1.1.0 | hold_low5 | 677 | 27.3 % | +4.61 % | 2.21 | 18.1 % / −19.6 % |
+
+(Three Weeks Tight 1.0.0 with hold_s7: 783 trades, +4.71 %, PF 1.98, CAGR 15.4 % / −21.1 %.) Development only, survivorship PARTIAL. No rule dominates: `hold_low8` mostly ends up a −8 % stop (the setup low is usually further away), so it trades a slightly wider stop for a higher win rate; `hold_low5` cuts losers sooner but wins less often. The default rule stays `hold_s7`; the exit rule is revisited in step 7 with all strategies side by side.
+

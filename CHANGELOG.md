@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed (Multi-Strategy phase step 4c: after the chart review)
+- Three Weeks Tight 1.1.0: a pattern deeper than 15 % (one that includes the sharp move into it) is no longer a full Three Weeks Tight; it stays a watch-list grade.
+- Two more exit rules to compare in backtests: `hold_low8` and `hold_low5` (stop at the setup's low or 8 % / 5 %, whichever is tighter). The default rule is still `hold_s7`.
+
 ### Added (Multi-Strategy phase step 4: Flat base and Three Weeks Tight)
 - Two new strategies, `flat_base` and `three_weeks_tight`, with their own detectors, grades, pivots and stops, score parts and config files (`config/strategies/`). They are research-only for now: the daily run does not run them.
 - `vcp compute setups --strategy flat_base|three_weeks_tight --as-of DATE`, and `--strategy` on scores, labels, backtests and the score views for them.
