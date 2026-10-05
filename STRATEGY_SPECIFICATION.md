@@ -618,6 +618,114 @@ A 3WT often sits inside a flat base or a VCP's final contraction. All are record
 
 ---
 
+# 15. Cup and handle (`cup_handle-1.0.0`) and Double bottom (`double_bottom-1.0.0`) — signed off 2026-10-05
+
+Two longer bases from O'Neil's published descriptions. Both are found on adjusted daily bars ending at the as-of bar `t`, with the shared measurements of §12A, the shared breakout rule (§10.1) and the scan path of §12B. Every number is a config value and a starting hypothesis, tuned on the development period only. The other rules carry over from §13: the pivot never moves, a breakout freezes the base's shape (it is measured up to the day before the breakout), and the move-away rule from decision F2 applies: a close more than 3 % above the pivot without breakout volume means no setup (`MOVED_ABOVE_BASE`).
+
+## 15.1 Cup and handle (`cup_handle`)
+
+A rounded, U-shaped correction after an advance. The right side climbs back near the old high, then a short, shallow pullback (the handle) forms in the upper half, on light volume. The buy point is the top of the handle.
+
+**Points** (all indices into the daily bars; earliest bar on a tie):
+
+1. **Right lip `R`** (the handle's start): the highest high among bars `t − max_handle_days + 1` … `t − min_handle_days + 1` (5 … 25 sessions ago), with no high after it above it. So the handle is 5 to 25 sessions long and stays below its start.
+2. **Left lip `L`**: the highest high among bars `R − max_cup_days` … `R − min_cup_days` (35 … 325 sessions before `R`, i.e. 7 … 65 weeks), with no high between `L` and `R` above `R`'s high × (1 + `lip_tolerance_pct` / 100) (3 %): the cup stays below its rims.
+3. **Cup bottom `B`**: the lowest low between `L` and `R`.
+4. **Handle low `H`**: the lowest low from `R` to `t` (or to the day before a breakout).
+
+**Measurements**
+
+| Name | Definition |
+|---|---|
+| cup depth % | (high[L] − low[B]) / high[L] × 100 |
+| cup length | `R − L` sessions (and ISO weeks) |
+| right-lip gap % | (high[L] − high[R]) / high[L] × 100 (negative when the right lip is higher) |
+| bottom share | share of the cup's bars (`L` … `R`) whose low is in the lowest quarter of the cup's range (≤ low[B] + 25 % × (high[L] − low[B])) |
+| bottom position | (B − L) / (R − L): where the bottom sits in the cup, 0 = left lip, 1 = right lip |
+| handle depth % | (high[R] − low[H]) / high[R] × 100 |
+| handle position | (low[H] − low[B]) / (high[L] − low[B]): 0.5 = cup midpoint, 1 = left lip |
+| handle dry-up | `volume_dryup_ratio(volume, recent = handle sessions, base = 50, end = last handle bar)` |
+| prior advance % | `prior_advance(high, low, L, lookback = 120)` |
+
+**Rounded, not V (the judgement call made measurable):** a U spends time near its low and has its low in the middle; a V touches the low once. Rule: bottom share ≥ `min_bottom_share` (0.15) **and** at least `min_bottom_sessions` (5) bars in the lowest quarter **and** bottom position between 0.15 and 0.85. (Decision C1, §15.4.)
+
+**Tiers**
+
+| Tier | Grade | Rules (all must hold) |
+|---|---|---|
+| `CUP_HANDLE_LIKE` | 1 | cup depth ≤ 50 %; handle depth ≤ 15 %; handle in the upper half (handle position ≥ 0.5); right-lip gap ≤ 15 % |
+| `CUP_HANDLE` | 2 | cup depth 12 … 33 %; rounded (rule above); handle depth ≤ 12 %; handle position ≥ 0.5; right-lip gap ≤ 10 %; prior advance ≥ 30 %; Trend Template PASS and weekly Stage 2 |
+| `CUP_HANDLE_A` | 3 | as grade 2, and handle depth ≤ 8 %, handle dry-up ≤ 0.8, handle low above the 50-day average close |
+
+No setup: `INSUFFICIENT_HISTORY` (fewer bars than the shortest cup and handle need), `NO_HANDLE` (no right lip that the later bars stay below), `NO_CUP` (no left lip, or a high inside the cup above the rims), `NO_PRIOR_ADVANCE` (below the detector minimum of 20 %), `TOO_DEEP` (no tier met), `MOVED_ABOVE_BASE`.
+
+**Pivot and stop:** pivot = high[R] × (1 + 0.1 %), the top of the handle. `stop_reference_price` = the handle low. `base_start` = the left lip's date, `base_end` = the breakout date. Status as §13.3.
+
+**Score part** (`PATTERN`, weights sum to 100):
+
+| Sub-component | Weight | Measurement | worst → best |
+|---|---|---|---|
+| `roundness` | 25 | bottom share | 0.15 → 0.40 |
+| `handle_depth` | 25 | handle depth % | 12 → 4 |
+| `handle_position` | 20 | handle position | 0.5 → 0.85 |
+| `cup_depth` | 20 | cup depth % | 33 → 15 |
+| `prior_advance` | 10 | prior advance % | 30 → 100 |
+
+Dry-up measure for the shared volume score: the handle dry-up.
+
+**Stored details:** `left_lip_date`, `bottom_date`, `right_lip_date`, `handle_low_date`, cup and handle depths, cup weeks, handle sessions, right-lip gap, bottom share and position, handle position, handle dry-up.
+
+**History needed:** 325 + 25 + 120 + 10 = 480 bars (about two years). The research data starts in 2021, so cups longer than about a year can only be found from 2023 onwards. (Decision C3, §15.4.)
+
+**Worked example (synthetic):** a stock rises 45 % to a left lip of 200 (bar `L`), falls over 6 weeks to a low of 160 (depth 20 %), spends 2 weeks between 160 and 170 (12 of 60 cup bars in the lowest quarter, below 170: bottom share 0.20, bottom position 0.45), climbs over 4 weeks to a right lip of 196 (gap 2 %), then drifts 8 sessions down to 186 on 0.7 × volume (handle depth 5.1 %, handle position (186 − 160) / 40 = 0.65). Handle low 186 above the 50-day average close (about 181). → **CUP_HANDLE_A**, pivot 196.20, stop 186; the close is 2.7 % below the pivot → **PIVOT_READY**.
+
+## 15.2 Double bottom (`double_bottom`)
+
+A W: a decline, a rally to a middle peak, a second decline that slightly undercuts the first low (shaking out weak holders), then a rally back. The buy point is the top of the middle peak.
+
+**Points**
+
+1. **Left high `L`**: the highest high among bars `t − max_base_days` … `t − min_base_days` (325 … 35 sessions ago).
+2. **Second low `B2`**: the lowest low after `L` (the undercut is the lowest point of the base).
+3. **Middle peak `M` and first low `B1`**: for each bar `m` between `L` and `B2`, its first low is the lowest low between `L` and `m`; `m` qualifies when it bounced at least the grade-1 minimum (8 %) above that low and the spacing below holds. `M` = the qualifying bar with the highest high (the latest on a tie); `B1` = its first low.
+4. Spacing: at least `min_leg_days` (5) sessions between `L` and `B1`, `B1` and `M`, `M` and `B2`; at least 3 sessions after `B2` up to `t`.
+
+**Measurements:** base depth % = (high[L] − low[B2]) / high[L]; undercut % = (low[B1] − low[B2]) / low[B1] × 100 (≥ 0); middle bounce % = (high[M] − low[B1]) / low[B1] × 100; middle-peak position = (high[M] − low[B2]) / (high[L] − low[B2]); right side = range % and low of the last 10 bars; prior advance % into `L` (lookback 120).
+
+**Tiers**
+
+| Tier | Grade | Rules |
+|---|---|---|
+| `DOUBLE_BOTTOM_LIKE` | 1 | depth ≤ 50 %; undercut 0 … 8 %; middle bounce ≥ 8 % |
+| `DOUBLE_BOTTOM` | 2 | depth 15 … 35 %; undercut 0 … 5 % (the second low at or slightly below the first); middle bounce ≥ 10 %; middle peak below the left high; base ≥ 35 sessions; prior advance ≥ 30 %; Trend Template PASS and weekly Stage 2 |
+| `DOUBLE_BOTTOM_A` | 3 | as grade 2, and a true undercut (> 0 %), right-side range ≤ 8 %, volume dry-up ≤ 0.8 |
+
+No setup: `INSUFFICIENT_HISTORY`, `NO_W` (the points cannot be placed with the spacing), `NO_PRIOR_ADVANCE`, `TOO_DEEP`, `MOVED_ABOVE_BASE`.
+
+**Pivot and stop:** pivot = high[M] × (1 + 0.1 %). `stop_reference_price` = the right-side low (last 10 bars), as decision F1 for flat bases; the second low is usually 15 %+ below the pivot. (Decision D2, §15.4.)
+
+**Score part:** `right_side` 25 (right-side range % 8 → 2), `depth` 25 (35 → 15), `undercut` 15 (0 → 3: a small undercut is the textbook form), `middle_peak` 15 (middle-peak position 0.5 → 0.85), `prior_advance` 20 (30 → 100). Dry-up: last 10 bars vs the 50 before.
+
+**Worked example (synthetic):** left high 300; first low 240 (bar 20 after `L`); middle peak 276 (bounce 15 %, position (276 − 237) / 63 = 0.62); second low 237 (undercut 1.25 %, depth 21 %); rally to a close of 270, last 10 bars 262 … 274 (range 4.4 %). → **DOUBLE_BOTTOM** (grade 3 also needs the dry-up), pivot 276.28, stop 262; the close is 2.3 % below the pivot → **PIVOT_READY**.
+
+## 15.3 Overlap expected
+
+A cup with a handle is often also a VCP (two contractions: the cup and the handle) or a flat base once the handle is long. A double bottom's right side can be a Three Weeks Tight. All are recorded (§7).
+
+## 15.4 Decisions for step 5 (owner, 2026-10-05: all as recommended)
+
+| # | Question | Options | Decided |
+|---|---|---|---|
+| C1 | How to tell a rounded cup from a V | (a) bottom share ≥ 0.15, ≥ 5 bars in the lowest quarter, bottom in the middle 70 % of the cup · (b) also require each side of the cup to last ≥ 3 weeks · (c) no rule, leave it to the chart review | (a): measurable and close to how a U looks; the chart review checks it |
+| C2 | Cup without a handle | (a) handle required (5 … 25 sessions) · (b) also a separate tier for a cup without a handle, pivot at the left lip | (a): the handle is where the buy point and the tight stop are; a cup without a handle is often caught as a flat base or VCP |
+| C3 | Longest cup | (a) 65 weeks (O'Neil), accepting that long cups appear only from 2023 in our data · (b) 40 weeks | (a) |
+| D1 | Double bottom in this step | (a) build both now · (b) cup and handle first, double bottom after its chart review | (a): same building blocks; one rescan and one chart review round for both |
+| D2 | Double-bottom stop | (a) right-side low (last 10 bars) · (b) the second low | (a), as for flat bases (F1) |
+| G1′ | Ranked grades | grade 2+, as decided for flat base and 3WT (G1) | as G1 |
+| C4 | Chart review | ~30 per strategy, development period, same mix as C1 of step 4 (12 grade 2, 8 grade 3, 6 grade 1, 4 near-misses) | as listed |
+
+---
+
 # 17. Configuration validation (blocks a scan)
 
 - Each file under `config/strategies/` loads into its strategy's model; unknown keys and a missing file for a registered strategy are refused.

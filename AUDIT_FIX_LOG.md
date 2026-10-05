@@ -2187,3 +2187,7 @@ Under the daily-run lock (`~/vcp_spike/ms4_apply.sh`):
 
 (Three Weeks Tight 1.0.0 with hold_s7: 783 trades, +4.71 %, PF 1.98, CAGR 15.4 % / −21.1 %.) Development only, survivorship PARTIAL. No rule dominates: `hold_low8` mostly ends up a −8 % stop (the setup low is usually further away), so it trades a slightly wider stop for a higher win rate; `hold_low5` cuts losers sooner but wins less often. The default rule stays `hold_s7`; the exit rule is revisited in step 7 with all strategies side by side.
 
+## Multi-Strategy phase step 5a — Cup and handle and Double bottom spec (2026-10-05)
+
+STRATEGY_SPECIFICATION §15: `cup_handle-1.0.0` (left lip, rounded cup 7–65 weeks, right lip, handle 5–25 sessions in the upper half; measurable rounded-vs-V rule; pivot = handle high, stop = handle low) and `double_bottom-1.0.0` (W with a slight undercut; pivot = middle peak, stop = right-side low), with tiers, score parts, worked examples. Owner signed off 2026-10-05 with every recommendation: C1 rounded rule (bottom share ≥ 0.15, ≥ 5 bars in the lowest quarter, bottom in the middle 70 %); C2 handle required; C3 cups up to 65 weeks; D1 both strategies built now; D2 double-bottom stop = right-side low; G1′ grade 2+ ranked; C4 chart review ~30 per strategy, same mix as step 4. Build continues in a new chat (owner request). Docs only.
+
