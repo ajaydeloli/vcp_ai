@@ -12,6 +12,7 @@ Concise entry point for AI coding agents on the NSE VCP scanner. Details live in
 | VCP detection, classification, confirmation | `VCP_SPECIFICATION.md` |
 | Trend Template, RS formula, weekly Stage | `TREND_TEMPLATE_SPECIFICATION.md` |
 | Scoring and ranking | `SCORING_SPECIFICATION.md` |
+| Strategies: registry, setup record, multi-label, per-strategy keys | `STRATEGY_SPECIFICATION.md` |
 | Detailed agent rules (reference) | `AI_AGENT_RULES.md` |
 
 If code and spec disagree: stop, name the conflict, propose the smallest change. Never silently pick one.

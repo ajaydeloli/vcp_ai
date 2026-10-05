@@ -2067,3 +2067,19 @@ From the next trading day the daily run updates labels after scoring.
 - **Research copy** `data/golden_src.duckdb` (21:43–00:51 IST; backup `data/backups/golden_src_pre_c11.duckdb`): same rebuild, then all 248 weekly scans (config 64da9482a769) rerun in date order, then labels. No errors.
   - Scans are point-in-time, so a phantom factor only distorted scans after its ex-date. SIYSIL passes 27 → 22 (the 5 from Aug–Sep 2026 removed; last pass now 2025-01-24). TVSHLTD 70 → 66 (Sep 2026 removed; last pass now 2026-04-17). TVSMOTOR 105 → 105: its passes were genuine, so the earlier "105 affected" count overstated the impact.
   - Total Trend Template passes 46,238 → 46,234 out of 284,738 rows. Stored backtest results from Phase 9 step 6 are stale only for those few setups; rerun the report when convenient.
+
+## Multi-Strategy phase step 1 — strategy spec and schema plan (2026-10-05)
+
+**Plan:** "Multi-Strategy Research Platform — Phase Plan" (Claude Docs, 2026-10-04). Owner accepted D1–D6 on 2026-10-05: phase now, before Phases 10–13; multi-label; Trend Template for every strategy (only High Tight Flag may waive the 52-week-low rule); one ranked list per strategy until step 7; Flat base and Three Weeks Tight first; about 30 charts reviewed per strategy.
+
+**Docs only, no code or data change.**
+- `STRATEGY_SPECIFICATION.md` (new): strategy registry (`patterns/registry.py`, `config/strategies/<id>.yaml`), per-strategy versions and config hash, scan ids, Trend Template per strategy, the setup record with a common 0–3 grade, the multi-label rule and overlap measures, the detector contract, the scoring split (pattern part and dry-up measure per strategy, the rest shared), breakouts/labels/backtests keyed by strategy, validation looks counted per strategy version, and the exact-reproduction test that step 2 must pass.
+- `DATABASE_SCHEMA.md` §35A (new): `strategy_setups`, `strategy_setup_status_history`, `strategy_breakout_events`, `strategy_scan_run_results`; `strategy_id` on `setup_scores`, `score_components`, `forward_labels` (key rebuilt), `backtest_runs` (+ `algorithm_version`), `scan_runs`; views `setups`, `breakout_events`, `setup_scores_v`; `DATA_SCHEMA_VERSION` 1 → 2. §49A points to it.
+- `AGENTS.md`: spec table row.
+
+**Owner decisions on the open points (2026-10-05), all as recommended:** O1 new strategies' config hash chained on `scan_config_hash`; O2 VCP setups read through a view over `vcp_patterns`, no copy; O3 VCP thresholds stay in `strategy.yaml` / `scoring.yaml`; O4 new strategies store score rows only for stocks with a setup; O5 `vcp_score` / `vcp_weight` keep their names and mean "pattern score", with an alias view.
+
+**Checks on the research DB (read-only, 2026-10-05).** The draft `setups` view over `vcp_patterns` returns 256,053 rows (255,772 with a stop level). Joining `setup_scores` to it by strategy, date, config hash, snapshot and primary flag finds the same 46,070 rows as today's scan-id slicing join. DuckDB 1.5.6 adds a column with a default to existing rows and can then set it NOT NULL.
+
+**Noted for later.** The research DB has 46,243 `forward_labels` rows against 46,234 `setup_scores` rows; the 9 extra are probably left from the Fix C11 rescans. To be checked when the Phase 9 report is rerun.
+

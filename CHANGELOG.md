@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (Multi-Strategy phase step 1: spec)
+- `STRATEGY_SPECIFICATION.md`: how several base patterns (VCP first, then Flat base and Three Weeks Tight) will share the same data, gates, scores, labels and backtests. Each pattern match is its own setup, each strategy has its own ranked list, and VCP results stay exactly as they are.
+- `DATABASE_SCHEMA.md` §35A: the planned tables, columns and views that add a strategy to every stored result. Nothing is built yet; that is step 2.
+
 ### Fixed (Fix C11: phantom bonus adjustments)
 - NSE bonuses of preference shares ("Bonus Ncrps 4:1" and similar) were read as equity bonuses, so all earlier prices were divided by up to 47. SIYSIL then passed the Trend Template (and ranked #1) while its real price was below its 50-day average; TVSMOTOR and TVSHLTD were also affected. These records are now stored as unmodelled actions and never rescale prices.
 - Safety net: a split or bonus that would move prices by 30 % or more is applied only when the raw prices around the ex-date show that jump. Otherwise the factor is withheld and the stock is blocked with a `ratio_unconfirmed` data-quality event until someone checks it.

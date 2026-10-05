@@ -1323,6 +1323,109 @@ Scores are rankings, not probabilities.
 
 ---
 
+# 35A. Strategy dimension (Multi-Strategy phase, signed off 2026-10-05)
+
+Rules in STRATEGY_SPECIFICATION.md (decisions O1–O5, §19). Specified in step 1; built in step 2. Every result row names its strategy. VCP keeps its own tables; other strategies share generic tables; views give one reading surface. Existing VCP rows keep every value; they only gain `strategy_id = 'vcp'`.
+
+## 35A.1 New tables (other strategies; VCP never writes them)
+
+`strategy_setups`: the setup record (STRATEGY_SPECIFICATION §6.1).
+
+```text
+setup_id                VARCHAR PRIMARY KEY      -- st-<sha256(scan_id, instrument_id, base_start)[:24]>
+strategy_id             VARCHAR NOT NULL
+scan_id                 VARCHAR NOT NULL         -- setup-<strategy_id>-<date>-<hash12>[-<snapshot>]
+instrument_id           VARCHAR NOT NULL
+as_of_date              DATE    NOT NULL
+is_primary              BOOLEAN NOT NULL
+base_start_date         DATE    NOT NULL
+base_end_date           DATE
+base_high               DOUBLE  NOT NULL
+base_low                DOUBLE  NOT NULL
+base_depth_pct          DOUBLE  NOT NULL
+base_duration_days      INTEGER NOT NULL
+prior_advance_pct       DOUBLE
+pivot_price             DOUBLE
+pivot_date              DATE
+pivot_source            VARCHAR
+pivot_distance_pct      DOUBLE
+stop_reference_price    DOUBLE
+dryup_volume_ratio      DOUBLE                   -- the strategy's dry-up measure (score input)
+classification          VARCHAR NOT NULL         -- the strategy's tier name
+grade                   INTEGER NOT NULL         -- 0..3
+status                  VARCHAR NOT NULL
+confirmation_state      VARCHAR NOT NULL
+trend_gate              VARCHAR NOT NULL         -- PASS | RELAXED
+weekly_stage2_pass      BOOLEAN
+invalidation_reasons    VARCHAR
+unmet_rules             VARCHAR                  -- JSON
+breakout_event_id       VARCHAR
+details_json            VARCHAR NOT NULL         -- JSON, '{}' when none
+algorithm_version       VARCHAR NOT NULL
+config_hash             VARCHAR NOT NULL         -- strategy config hash
+data_snapshot_id        VARCHAR NOT NULL
+created_at              TIMESTAMPTZ NOT NULL
+```
+
+Unique: one primary per `(scan_id, instrument_id)`. A rerun of a scan id replaces its rows (as `vcp_patterns`).
+
+`strategy_setup_status_history`: as `vcp_status_history` (§34A) plus `strategy_id`; key `(strategy_id, instrument_id, as_of_date, config_hash)`; columns `setup_id`, `previous_as_of_date`, `previous_classification`, `new_classification`, `previous_status`, `new_status`, `reason`, `algorithm_version`.
+
+`strategy_breakout_events`: as `vcp_breakout_events` plus `strategy_id`; id `"sb-" + sha256(strategy_id, instrument_id, base_start, config_hash)[:24]`; unique `(strategy_id, instrument_id, base_start_date, config_hash)`. Immutable.
+
+`strategy_scan_run_results`: as `vcp_scan_run_results` with `grade` added; key `(scan_run_id, instrument_id)` (the run row names the strategy).
+
+## 35A.2 Columns added to existing tables
+
+| Table | Added | Existing rows | Key |
+|---|---|---|---|
+| `setup_scores` | `strategy_id VARCHAR NOT NULL` | `'vcp'` | unchanged `(scan_id, instrument_id)`: the scan id names the strategy |
+| `score_components` | `strategy_id VARCHAR NOT NULL` | `'vcp'` | unchanged |
+| `forward_labels` | `strategy_id VARCHAR NOT NULL` | `'vcp'` | **rebuilt**: `(strategy_id, instrument_id, as_of_date, config_hash, label_version, data_snapshot_id)` |
+| `backtest_runs` | `strategy_id VARCHAR NOT NULL`, `algorithm_version VARCHAR` | `'vcp'`, `'vcp-1.1.0'` | unchanged |
+| `scan_runs` | `strategy_id VARCHAR` | `'vcp'` for scan types `VCP` and `SCORE`; NULL for `TREND_TEMPLATE` | unchanged |
+
+- `scan_runs.scan_type` gains `SETUP` (a non-VCP detector run). VCP detector runs stay `VCP`; score runs of every strategy are `SCORE`.
+- `setup_scores.vcp_score` / `vcp_weight` hold the pattern score / weight of the row's strategy; `score_components.component` is `'VCP'` for VCP rows and `'PATTERN'` for others (STRATEGY_SPECIFICATION §9.3).
+- `results_hash` formulas are unchanged; `strategy_id` is not hashed (the scan id already names the strategy), so VCP hashes stay equal.
+
+## 35A.3 Views
+
+```sql
+-- one reading surface for setups of every strategy
+CREATE OR REPLACE VIEW setups AS
+SELECT p.vcp_pattern_id AS setup_id, 'vcp' AS strategy_id, p.scan_id, p.instrument_id,
+       p.as_of_date, p.is_primary, p.base_start_date, p.base_end_date, p.base_high,
+       p.base_low, p.base_depth_pct, p.base_duration_days,
+       p.prior_advance_return_pct AS prior_advance_pct, p.pivot_price, p.pivot_date,
+       p.pivot_source, p.pivot_distance_pct,
+       (SELECT c.trough_price FROM vcp_contractions c WHERE c.vcp_pattern_id = p.vcp_pattern_id
+         ORDER BY c.sequence_number DESC LIMIT 1) AS stop_reference_price,
+       p.final_volume_ratio AS dryup_volume_ratio, p.classification,
+       CASE p.classification WHEN 'A_PLUS_VCP' THEN 3 WHEN 'VCP' THEN 2
+                             WHEN 'VCP_LIKE' THEN 1 ELSE 0 END AS grade,
+       p.status, p.confirmation_state,
+       CASE WHEN p.trend_template_pass THEN 'PASS' ELSE 'FAIL' END AS trend_gate,
+       p.weekly_stage2_pass, p.invalidation_reasons, p.unmet_rules, p.breakout_event_id,
+       '{}' AS details_json, p.algorithm_version, p.config_hash, p.data_snapshot_id, p.created_at
+FROM vcp_patterns p
+UNION ALL
+SELECT * FROM strategy_setups;    -- columns listed explicitly in the DDL, same order
+```
+
+- `breakout_events`: `vcp_breakout_events` (with `'vcp'`) union `strategy_breakout_events`.
+- `setup_scores_v`: `setup_scores` with `vcp_score AS pattern_score`, `vcp_weight AS pattern_weight`.
+- Labels, the event engine and reports read `setups` joined to `setup_scores` on `(strategy_id, instrument_id, as_of_date, config_hash, data_snapshot_id)` and `is_primary`; no code derives a scan id from another by slicing.
+
+## 35A.4 Migration
+
+- In `DuckDBStore.migrate()`, idempotent, like the earlier lineage migrations: add the columns, fill existing rows as in §35A.2, rebuild `forward_labels` with the new key (copy, swap, row count checked), create the new tables and views.
+- One-time, logged in AUDIT_FIX_LOG; applied to the main DB only after the owner's go, under the daily-run lock and after `backup_database` (keep 3).
+- `DATA_SCHEMA_VERSION` 1 → 2 (`versioning.py`). It was never bumped by earlier migrations; from now on each schema change bumps it.
+- Indexes: `strategy_setups (strategy_id, as_of_date, instrument_id)`, `setup_scores (strategy_id, as_of_date)`, `forward_labels (strategy_id, as_of_date)`.
+
+---
+
 # 36. Fundamental Snapshots
 
 Fundamentals must be point-in-time, basis-aware and revision-aware.
@@ -1758,6 +1861,8 @@ bars_after, complete, computed_at
 Rows are created by `vcp compute labels` and updated until `complete`. A NULL means "not known yet" (too few later bars) or "not applicable" (no pivot), never 0.
 
 ---
+
+**Strategy dimension:** `forward_labels` and `backtest_runs` gain `strategy_id` (and `backtest_runs.algorithm_version`); see §35A.
 
 **Implementation (Phase 9 step 3):** as above, plus `period_name`, `settings_json` (rule, classes, minimum score, watch days, horizon, volume ratio, costs, maximum positions), `metrics_json` (every-trade and portfolio statistics) and `code_commit`. `backtest_events` follows §49; event types also include `OPEN_AT_END` (a position still open when the data ends; it is not counted as a trade). `metadata_json` holds the pivot, stop, return and reasons.
 
