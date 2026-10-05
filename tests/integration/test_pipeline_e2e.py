@@ -316,7 +316,7 @@ def test_full_pipeline_from_an_empty_database(
     assert "scores need the Trend Template and VCP scans" in capsys.readouterr().err
 
     # Multi-Strategy step 4: the new strategies run on the same Trend Template scan.
-    for sid in ("flat_base", "three_weeks_tight"):
+    for sid in ("flat_base", "three_weeks_tight", "cup_handle", "double_bottom"):
         for argv in (["compute", "setups", "--strategy", sid, "--as-of", as_of],
                      ["compute", "scores", "--strategy", sid, "--as-of", as_of],
                      ["compute", "labels", "--strategy", sid]):  # fmt: skip

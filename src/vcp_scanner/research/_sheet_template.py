@@ -118,6 +118,9 @@ function draw(cv, w) {
     if (m.sl) { g.strokeStyle = "#dc2626"; g.setLineDash([3, 4]); g.beginPath();
       g.moveTo(0, y(m.sl)); g.lineTo(W - padR, y(m.sl)); g.stroke(); g.setLineDash([]);
       g.fillStyle = "#dc2626"; g.fillText("stop " + m.sl.toFixed(2), 6, y(m.sl) + 12); }
+    (m.pts || []).forEach(p => { if (p.i < 0) return; g.fillStyle = "#0369a1";
+      g.beginPath(); g.arc(x(p.i), y(p.y), 4, 0, 7); g.fill();
+      g.fillText(p.k, x(p.i) - 4, p.up ? y(p.y) - 8 : y(p.y) + 16); });
     if (m.bo >= 0) { g.fillStyle = "#16a34a"; g.beginPath();
       g.arc(x(m.bo), y(w.c[m.bo]), 5, 0, 7); g.fill(); g.fillText("breakout", x(m.bo) + 6, y(w.c[m.bo])); }
   }

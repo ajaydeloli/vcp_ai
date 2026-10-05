@@ -2191,3 +2191,20 @@ Under the daily-run lock (`~/vcp_spike/ms4_apply.sh`):
 
 STRATEGY_SPECIFICATION §15: `cup_handle-1.0.0` (left lip, rounded cup 7–65 weeks, right lip, handle 5–25 sessions in the upper half; measurable rounded-vs-V rule; pivot = handle high, stop = handle low) and `double_bottom-1.0.0` (W with a slight undercut; pivot = middle peak, stop = right-side low), with tiers, score parts, worked examples. Owner signed off 2026-10-05 with every recommendation: C1 rounded rule (bottom share ≥ 0.15, ≥ 5 bars in the lowest quarter, bottom in the middle 70 %); C2 handle required; C3 cups up to 65 weeks; D1 both strategies built now; D2 double-bottom stop = right-side low; G1′ grade 2+ ranked; C4 chart review ~30 per strategy, same mix as step 4. Build continues in a new chat (owner request). Docs only.
 
+
+## Multi-Strategy phase step 5b — Cup and handle and Double bottom built (2026-10-05)
+
+**Owner go:** 2026-10-05 ("A–C as recommended, go ahead"; then option (a) for old double-bottom breakouts).
+
+**Code.**
+- `patterns/cup_handle/detector.py`, `patterns/double_bottom/detector.py` (new): STRATEGY_SPECIFICATION §15.1, §15.2, on the shared measurements of §12A and the step-4 contract (`find_breakout`, `setup_status`). New helpers `highest` / `lowest` in `patterns/strategy_base.py`.
+- `config/models.py`: `CupHandleSettings`, `DoubleBottomSettings` (detector settings, tiers, ranking, scoring, with checks); `config/strategies/cup_handle.yaml`, `double_bottom.yaml` (enabled false, stage research, `ranking.min_grade` 2). Both registered in `patterns/registry.py`. Lookback: cup 480 bars, double bottom 455.
+- Readings of §15.1 chosen by the owner before the build (§15.5): A rim check against the higher rim; B any high above the handle start before a breakout is `NO_HANDLE` (a close > 3 % above the pivot: `MOVED_ABOVE_BASE`); C cup points found from the as-of bar, so a broken-out cup stays visible about 4 sessions.
+- **Found on the first real-data check and decided (option a):** a double bottom kept its base long after a breakout (about 75 % of its setups were BREAKOUT/FAILED, grade 2+ breakouts a median 35 days old). They are ranked, and the backtest engine enters on any breakout-volume close above the pivot, so stale Ws would have opened trades 15–20 % above the pivot. Now a double bottom is no setup more than `max_days_after_breakout` (10) sessions after its breakout (`OLD_BREAKOUT`). Options (b) note only and (c) a cross rule in the engine (all strategies; step 7) were rejected.
+- `research/strategy_review.py`, `research/_sheet_template.py`: long bases get a longer chart (from 40 bars before the base start), and the stored points are drawn as labelled dots (cup L, B, R, H; double bottom L, B1, M, B2). The summary line shows cup/handle and undercut/bounce measures.
+
+**Tests.** `test_cup_handle.py` (13: the §15.1 worked example → CUP_HANDLE_A, PIVOT_READY, pivot 196.20, stop 186; grade 2 without dry-up; a V cup not rounded → grade 1; no Stage 2 → grade 1; INSUFFICIENT_HISTORY, NO_HANDLE, MOVED_ABOVE_BASE, NO_CUP, NO_PRIOR_ADVANCE, TOO_DEEP; breakout freezes the handle then FAILED; STALE_DATA; lookback 480). `test_double_bottom.py` (13: the §15.2 worked example → DOUBLE_BOTTOM, PIVOT_READY, pivot 276.28, stop 262; grade 3 with dry-up; equal lows not a true undercut; no Stage 2 → grade 1; INSUFFICIENT_HISTORY, NO_W, NO_PRIOR_ADVANCE, TOO_DEEP, MOVED_ABOVE_BASE; breakout freezes then FAILED; OLD_BREAKOUT after 10 sessions; STALE_DATA). `test_strategy_review.py`: long-base chart and point marks. The e2e test runs all four new strategies (setups, scores, labels, baseline backtest). Unknown-strategy examples in `test_strategy_framework.py` now use `ascending_base`.
+
+**Real-data check** (copy `data/tmp/ms5b/res.duckdb` of the research DB; 6 weekly dates 2022-06-24 … 2026-09-25; about 1.5 s per date): cup and handle 10–129 setups per date (grade 2+ about 15–20 %, mostly FORMING); double bottom after option (a) 2–36 per date (grade 2+ 23 of 71 rows). No errors.
+
+**Not changed:** the main DB and the research DB (step 6 of the build plan asks the owner first); VCP code and results; no schema change.

@@ -91,5 +91,18 @@ def setup_status(
     return "FORMING"
 
 
+def highest(values: Sequence[float], lo: int, hi: int, latest: bool = False) -> int:
+    """Index of the highest value among bars ``lo`` .. ``hi`` (both included); earliest on a
+    tie, or latest with ``latest``."""
+    sign = -1 if latest else 1
+    return min(range(lo, hi + 1), key=lambda i: (-values[i], sign * i))
+
+
+def lowest(values: Sequence[float], lo: int, hi: int, latest: bool = False) -> int:
+    """Index of the lowest value among bars ``lo`` .. ``hi``; earliest on a tie, or latest."""
+    sign = -1 if latest else 1
+    return min(range(lo, hi + 1), key=lambda i: (values[i], sign * i))
+
+
 def is_ranked(grade: int, status: str, min_grade: int) -> bool:
     return grade >= min_grade and status in RANKED_STATUSES

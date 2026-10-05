@@ -28,6 +28,15 @@ from vcp_scanner.research.review import write_review
 
 QUOTAS: dict[str, int] = {"GRADE_2": 12, "GRADE_3": 8, "GRADE_1": 6, "NEAR_MISS": 4}
 _TREND_RULE = "trend_template_and_stage2"
+#: Stored point dates drawn as labelled dots: details key -> (label, price, label above).
+POINTS: dict[str, tuple[str, str, bool]] = {
+    "left_lip_date": ("L", "h", True), "bottom_date": ("B", "l", False),
+    "right_lip_date": ("R", "h", True), "handle_low_date": ("H", "l", False),
+    "left_high_date": ("L", "h", True), "first_low_date": ("B1", "l", False),
+    "middle_peak_date": ("M", "h", True), "second_low_date": ("B2", "l", False),
+}  # fmt: skip
+#: Bars shown before the base start, so the advance into it is visible.
+LEAD_BARS = 40
 
 HELP = """<dl class="help">
   <dt>What to check</dt>
@@ -36,6 +45,8 @@ HELP = """<dl class="help">
   <dt>Marks</dt>
   <dd>Grey dashed line = where the base / pattern starts. Purple dashed line = the pivot (buy
       point). Red dashed line = the stop level. A green dot = the breakout day, when there is one.
+      Blue dots = the pattern's points (cup: L left lip, B bottom, R right lip / handle start,
+      H handle low; double bottom: L left high, B1 first low, M middle peak, B2 second low).
       The line above the chart is the detector's verdict.</dd>
   <dt>Yes</dt><dd>The base start, pivot and stop sit where you would put them.</dd>
   <dt>Partly</dt><dd>Mostly right, but one mark is off. Say which in the notes.</dd>
@@ -123,6 +134,13 @@ def summary(s: Mapping[str, Any], grade2_tier: str) -> str:
     if "weekly_close_range_pct" in det and det["weekly_close_range_pct"] is not None:
         parts.append(f"weekly closes within {det['weekly_close_range_pct']:.1f}%, "
                      f"{det.get('weeks')} weeks")  # fmt: skip
+    if "handle_depth_pct" in det:
+        parts.append(f"cup {det.get('cup_weeks')} weeks, handle {det['handle_depth_pct']:.1f}% "
+                     f"deep over {det.get('handle_sessions')} sessions, bottom share "
+                     f"{det.get('bottom_share', 0):.2f}")  # fmt: skip
+    if "undercut_pct" in det:
+        parts.append(f"undercut {det['undercut_pct']:.1f}%, middle bounce "
+                     f"{det.get('middle_bounce_pct', 0):.1f}%")  # fmt: skip
     if "max_close_change_pct" in det:
         parts.append(f"largest weekly close change {det['max_close_change_pct']:.2f}%, "
                      f"{det.get('tight_weeks')} tight weeks")  # fmt: skip
@@ -141,20 +159,27 @@ def build_windows(
 ) -> list[dict[str, Any]]:
     out = []
     for k, s in enumerate(chosen):
+        # Long bases (cups up to 65 weeks) need more than the usual chart length.
+        days = max(420, (s["as_of_date"] - s["base_start_date"]).days + 2 * LEAD_BARS)
         bars = store.conn.execute(
             "SELECT trade_date, high_adj, low_adj, close_adj, volume_adj"
             " FROM daily_prices_adjusted_current WHERE computed_from_snapshot_id = ?"
             " AND instrument_id = ? AND trade_date <= ? AND trade_date > ?"
             " ORDER BY trade_date",
-            [
-                LIVE_SNAPSHOT_ID,
-                s["instrument_id"],
-                s["as_of_date"],
-                s["as_of_date"] - timedelta(days=420),
-            ],
-        ).fetchall()[-CHART_BARS:]
+            [LIVE_SNAPSHOT_ID, s["instrument_id"], s["as_of_date"],
+             s["as_of_date"] - timedelta(days=days)],
+        ).fetchall()  # fmt: skip
+        start = next((i for i, b in enumerate(bars) if b[0] >= s["base_start_date"]), 0)
+        bars = bars[min(max(0, len(bars) - CHART_BARS), max(0, start - LEAD_BARS)) :]
         d = [b[0].isoformat() for b in bars]
         idx = {x: i for i, x in enumerate(d)}
+        pts = []
+        for key, (label, col, up) in POINTS.items():
+            when = s["details"].get(key)
+            if isinstance(when, str) and when in idx:
+                bar = bars[idx[when]]
+                pts.append({"k": label, "i": idx[when], "up": up,
+                            "y": round(bar[1] if col == "h" else bar[2], 2)})  # fmt: skip
         be = s["base_end_date"]
         out.append({
             "id": f"{strategy_id}-{s['instrument_id']}-{s['as_of_date']}", "n": k + 1,
@@ -168,7 +193,7 @@ def build_windows(
                   "sl": None if s["stop_reference_price"] is None
                   else round(s["stop_reference_price"], 2),
                   "bo": idx.get(be.isoformat(), -1) if be else -1,
-                  "txt": summary(s, grade2_tier)},
+                  "pts": pts, "txt": summary(s, grade2_tier)},
         })  # fmt: skip
     return out
 

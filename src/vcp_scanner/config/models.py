@@ -932,3 +932,118 @@ class ThreeWeeksTightSettings(StrictBaseModel):
     def validate_tiers(self) -> ThreeWeeksTightSettings:
         _check_tiers(dict(self.classification), self.ranking, "three_weeks_tight")
         return self
+
+
+class CupHandleDetectorConfig(StrictBaseModel):
+    """STRATEGY_SPECIFICATION 15.1: point search windows, the rim tolerance and the rounded-cup
+    rule (decision C1), which grade 2 and 3 require."""
+
+    min_handle_days: Annotated[int, Field(ge=2)] = 5
+    max_handle_days: Annotated[int, Field(ge=3)] = 25
+    min_cup_days: Annotated[int, Field(ge=10)] = 35
+    max_cup_days: Annotated[int, Field(ge=20)] = 325
+    lip_tolerance_pct: Annotated[float, Field(ge=0)] = 3.0
+    min_prior_advance_pct: Annotated[float, Field(ge=0)] = 20.0
+    prior_advance_lookback_days: Annotated[int, Field(ge=1)] = 120
+    pivot_buffer_pct: Annotated[float, Field(ge=0)] = 0.1
+    max_overshoot_pct: Annotated[float, Field(ge=0)] = 3.0
+    bottom_zone_pct: Annotated[float, Field(gt=0, lt=100)] = 25.0
+    min_bottom_share: Annotated[float, Field(ge=0, le=1)] = 0.15
+    min_bottom_sessions: Annotated[int, Field(ge=1)] = 5
+    min_bottom_position: Annotated[float, Field(ge=0, le=1)] = 0.15
+    max_bottom_position: Annotated[float, Field(ge=0, le=1)] = 0.85
+    sma_days: Annotated[int, Field(ge=2)] = 50
+    dryup_base_days: Annotated[int, Field(ge=1)] = 50
+
+    @model_validator(mode="after")
+    def validate_windows(self) -> CupHandleDetectorConfig:
+        if self.min_handle_days >= self.max_handle_days:
+            raise ValueError("min_handle_days must be below max_handle_days")
+        if self.min_cup_days >= self.max_cup_days:
+            raise ValueError("min_cup_days must be below max_cup_days")
+        if self.min_bottom_position >= self.max_bottom_position:
+            raise ValueError("min_bottom_position must be below max_bottom_position")
+        return self
+
+
+class CupHandleTier(StrictBaseModel):
+    grade: Annotated[int, Field(ge=1, le=3)]
+    max_cup_depth_pct: Annotated[float, Field(gt=0)]
+    min_cup_depth_pct: Annotated[float, Field(ge=0)] | None = None
+    max_handle_depth_pct: Annotated[float, Field(gt=0)]
+    min_handle_position: Annotated[float, Field(ge=0, le=1)] | None = None
+    max_right_lip_gap_pct: Annotated[float, Field(gt=0)]
+    require_rounded: bool = False
+    min_prior_advance_pct: Annotated[float, Field(ge=0)] | None = None
+    max_handle_dryup_ratio: Annotated[float, Field(gt=0)] | None = None
+    handle_low_above_sma: bool = False
+
+
+class CupHandleSettings(StrictBaseModel):
+    detector: CupHandleDetectorConfig = Field(default_factory=CupHandleDetectorConfig)
+    classification: dict[str, CupHandleTier]
+    ranking: RankingConfig = Field(default_factory=RankingConfig)
+    scoring: PatternScoringConfig
+
+    @model_validator(mode="after")
+    def validate_tiers(self) -> CupHandleSettings:
+        _check_tiers(dict(self.classification), self.ranking, "cup_handle")
+        for name, t in self.classification.items():
+            if t.min_cup_depth_pct is not None and t.min_cup_depth_pct >= t.max_cup_depth_pct:
+                raise ValueError(f"cup_handle.{name}: min_cup_depth_pct >= max_cup_depth_pct")
+        return self
+
+
+class DoubleBottomDetectorConfig(StrictBaseModel):
+    """STRATEGY_SPECIFICATION 15.2."""
+
+    min_base_days: Annotated[int, Field(ge=10)] = 35
+    max_base_days: Annotated[int, Field(ge=20)] = 325
+    min_leg_days: Annotated[int, Field(ge=1)] = 5
+    min_days_after_low: Annotated[int, Field(ge=0)] = 3
+    min_prior_advance_pct: Annotated[float, Field(ge=0)] = 20.0
+    prior_advance_lookback_days: Annotated[int, Field(ge=1)] = 120
+    pivot_buffer_pct: Annotated[float, Field(ge=0)] = 0.1
+    max_overshoot_pct: Annotated[float, Field(ge=0)] = 3.0
+    right_side_days: Annotated[int, Field(ge=2)] = 10
+    dryup_recent_days: Annotated[int, Field(ge=1)] = 10
+    dryup_base_days: Annotated[int, Field(ge=1)] = 50
+    #: Sessions after its breakout that a base stays a setup (step 5b, owner option a).
+    max_days_after_breakout: Annotated[int, Field(ge=0)] = 10
+
+    @model_validator(mode="after")
+    def validate_windows(self) -> DoubleBottomDetectorConfig:
+        if self.min_base_days >= self.max_base_days:
+            raise ValueError("min_base_days must be below max_base_days")
+        if 3 * self.min_leg_days + self.min_days_after_low >= self.min_base_days:
+            raise ValueError("the W's legs do not fit in min_base_days")
+        return self
+
+
+class DoubleBottomTier(StrictBaseModel):
+    grade: Annotated[int, Field(ge=1, le=3)]
+    max_depth_pct: Annotated[float, Field(gt=0)]
+    min_depth_pct: Annotated[float, Field(ge=0)] | None = None
+    max_undercut_pct: Annotated[float, Field(ge=0)]
+    require_undercut: bool = False  # a true undercut (> 0 %)
+    min_middle_bounce_pct: Annotated[float, Field(gt=0)]
+    middle_below_left_high: bool = False
+    min_base_days: Annotated[int, Field(ge=1)] | None = None
+    min_prior_advance_pct: Annotated[float, Field(ge=0)] | None = None
+    max_right_side_range_pct: Annotated[float, Field(gt=0)] | None = None
+    max_dryup_ratio: Annotated[float, Field(gt=0)] | None = None
+
+
+class DoubleBottomSettings(StrictBaseModel):
+    detector: DoubleBottomDetectorConfig = Field(default_factory=DoubleBottomDetectorConfig)
+    classification: dict[str, DoubleBottomTier]
+    ranking: RankingConfig = Field(default_factory=RankingConfig)
+    scoring: PatternScoringConfig
+
+    @model_validator(mode="after")
+    def validate_tiers(self) -> DoubleBottomSettings:
+        _check_tiers(dict(self.classification), self.ranking, "double_bottom")
+        for name, t in self.classification.items():
+            if t.min_depth_pct is not None and t.min_depth_pct >= t.max_depth_pct:
+                raise ValueError(f"double_bottom.{name}: min_depth_pct >= max_depth_pct")
+        return self

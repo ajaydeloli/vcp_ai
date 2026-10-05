@@ -1,0 +1,64 @@
+# double_bottom.yaml - Double bottom (STRATEGY_SPECIFICATION 15.2; signed off 2026-10-05)
+# Every number is a starting hypothesis, tuned on the development period only.
+strategy_id: double_bottom
+algorithm_version: double_bottom-1.0.0
+enabled: false          # the daily run does not run it yet (step 8)
+stage: research
+trend_gate:
+  mode: required
+detector:
+  min_base_days: 35              # left high 35..325 sessions before the as-of bar
+  max_base_days: 325
+  min_leg_days: 5                # sessions between L-B1, B1-M, M-B2
+  min_days_after_low: 3          # sessions after the second low
+  min_prior_advance_pct: 20
+  prior_advance_lookback_days: 120
+  pivot_buffer_pct: 0.1
+  max_overshoot_pct: 3           # decision F2
+  right_side_days: 10            # right-side range and stop (decision D2)
+  dryup_recent_days: 10
+  dryup_base_days: 50
+  max_days_after_breakout: 10    # sessions a broken-out W stays a setup (step 5b, option a)
+classification:
+  double_bottom_like:
+    grade: 1
+    max_depth_pct: 50
+    max_undercut_pct: 8
+    min_middle_bounce_pct: 8     # also the minimum bounce for a middle peak
+  double_bottom:
+    grade: 2
+    min_depth_pct: 15
+    max_depth_pct: 35
+    max_undercut_pct: 5
+    min_middle_bounce_pct: 10
+    middle_below_left_high: true
+    min_base_days: 35
+    min_prior_advance_pct: 30
+  double_bottom_a:
+    grade: 3
+    min_depth_pct: 15
+    max_depth_pct: 35
+    max_undercut_pct: 5
+    require_undercut: true
+    min_middle_bounce_pct: 10
+    middle_below_left_high: true
+    min_base_days: 35
+    min_prior_advance_pct: 30
+    max_right_side_range_pct: 8
+    max_dryup_ratio: 0.8
+ranking:
+  min_grade: 2                   # decision G1'
+  pivot_ready_max_distance_pct: 3
+scoring:                         # pattern part (section 15.2)
+  weights:
+    right_side: 25
+    depth: 25
+    undercut: 15
+    middle_peak: 15
+    prior_advance: 20
+  bounds:
+    right_side: {worst: 8, best: 2}
+    depth: {worst: 35, best: 15}
+    undercut: {worst: 0, best: 3}
+    middle_peak: {worst: 0.5, best: 0.85}
+    prior_advance: {worst: 30, best: 100}

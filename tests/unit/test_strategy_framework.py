@@ -59,7 +59,8 @@ def test_vcp_scan_ids_are_unchanged_and_others_carry_the_strategy() -> None:
 
 
 def test_registry_has_the_three_strategies_with_their_versions() -> None:
-    assert set(REGISTRY) == {"vcp", "flat_base", "three_weeks_tight"}
+    assert set(REGISTRY) == {"vcp", "flat_base", "three_weeks_tight", "cup_handle",
+                             "double_bottom"}  # fmt: skip
     assert get_strategy("vcp").algorithm_version == VCP_ALGORITHM_VERSION
     vcp = load_runtime(ROOT / "config", "vcp")
     assert vcp.tiers == ("NONE", "VCP_LIKE", "VCP", "A_PLUS_VCP")
@@ -86,7 +87,7 @@ def test_bad_strategy_settings_are_refused(tmp_path: Path) -> None:
 
 def test_unknown_strategy_is_refused() -> None:
     with pytest.raises(ConfigError, match="Unknown strategy"):
-        get_strategy("cup_handle")
+        get_strategy("ascending_base")
 
 
 def test_ranked_classes_are_unchanged() -> None:
@@ -115,7 +116,8 @@ def test_vcp_defaults_when_its_file_is_missing(tmp_path: Path) -> None:
     [
         ("vcp", "strategy_id: vcp\nalgorithm_version: vcp-0.9.0\nconfig_source: legacy\n",
          "code implements"),
-        ("cup_handle", "strategy_id: cup_handle\nalgorithm_version: x-1\n", "unknown strategy"),
+        ("ascending_base", "strategy_id: ascending_base\nalgorithm_version: x-1\n",
+         "unknown strategy"),
         ("flat_base", "strategy_id: vcp\nalgorithm_version: vcp-1.1.0\n", "file name"),
         ("flat_base", "strategy_id: flat_base\nalgorithm_version: flat_base-1.0.0\n"
          "config_source: legacy\n", "vcp only"),
@@ -229,15 +231,15 @@ def test_config_hash_per_strategy(capsys: pytest.CaptureFixture[str]) -> None:
     cfg_dir = str(ROOT / "config")
     assert main(["config", "hash", "--config-dir", cfg_dir, "--strategy", "vcp"]) == 0
     assert capsys.readouterr().out.strip() == scan_config_hash(load_scanner_config(cfg_dir))
-    assert main(["config", "hash", "--config-dir", cfg_dir, "--strategy", "cup_handle"]) == 1
+    assert main(["config", "hash", "--config-dir", cfg_dir, "--strategy", "ascending_base"]) == 1
 
 
 @pytest.mark.parametrize(
     "argv",
     [
-        ["compute", "setups", "--as-of", "2026-10-01", "--strategy", "cup_handle"],
-        ["compute", "scores", "--as-of", "2026-10-01", "--strategy", "cup_handle"],
-        ["compute", "labels", "--strategy", "cup_handle"],
+        ["compute", "setups", "--as-of", "2026-10-01", "--strategy", "ascending_base"],
+        ["compute", "scores", "--as-of", "2026-10-01", "--strategy", "ascending_base"],
+        ["compute", "labels", "--strategy", "ascending_base"],
         ["backtest", "run", "--from", "2026-01-01", "--to", "2026-02-01", "--strategy", "x"],
         ["backtest", "run", "--from", "2026-01-01", "--to", "2026-02-01", "--classes", "FLAT"],
     ],

@@ -1,0 +1,68 @@
+# cup_handle.yaml - Cup and handle (STRATEGY_SPECIFICATION 15.1; signed off 2026-10-05)
+# Every number is a starting hypothesis, tuned on the development period only.
+strategy_id: cup_handle
+algorithm_version: cup_handle-1.0.0
+enabled: false          # the daily run does not run it yet (step 8)
+stage: research
+trend_gate:
+  mode: required
+detector:
+  min_handle_days: 5             # the handle is 5..25 sessions, its start (right lip) included
+  max_handle_days: 25
+  min_cup_days: 35               # left lip 7..65 weeks before the right lip (decision C3)
+  max_cup_days: 325
+  lip_tolerance_pct: 3           # no high inside the cup above the higher rim x 1.03
+  min_prior_advance_pct: 20
+  prior_advance_lookback_days: 120
+  pivot_buffer_pct: 0.1
+  max_overshoot_pct: 3           # decision F2
+  bottom_zone_pct: 25            # "lowest quarter" of the cup's range
+  min_bottom_share: 0.15         # rounded, not V (decision C1)
+  min_bottom_sessions: 5
+  min_bottom_position: 0.15
+  max_bottom_position: 0.85
+  sma_days: 50                   # grade 3: handle low above the 50-day average close
+  dryup_base_days: 50            # handle dry-up: handle sessions vs the 50 before
+classification:                  # lowest tier first; tier name = key in upper case
+  cup_handle_like:
+    grade: 1
+    max_cup_depth_pct: 50
+    max_handle_depth_pct: 15
+    min_handle_position: 0.5
+    max_right_lip_gap_pct: 15
+  cup_handle:
+    grade: 2
+    min_cup_depth_pct: 12
+    max_cup_depth_pct: 33
+    require_rounded: true
+    max_handle_depth_pct: 12
+    min_handle_position: 0.5
+    max_right_lip_gap_pct: 10
+    min_prior_advance_pct: 30
+  cup_handle_a:
+    grade: 3
+    min_cup_depth_pct: 12
+    max_cup_depth_pct: 33
+    require_rounded: true
+    max_handle_depth_pct: 8
+    min_handle_position: 0.5
+    max_right_lip_gap_pct: 10
+    min_prior_advance_pct: 30
+    max_handle_dryup_ratio: 0.8
+    handle_low_above_sma: true
+ranking:
+  min_grade: 2                   # decision G1'
+  pivot_ready_max_distance_pct: 3
+scoring:                         # pattern part (section 15.1)
+  weights:
+    roundness: 25
+    handle_depth: 25
+    handle_position: 20
+    cup_depth: 20
+    prior_advance: 10
+  bounds:
+    roundness: {worst: 0.15, best: 0.40}
+    handle_depth: {worst: 12, best: 4}
+    handle_position: {worst: 0.5, best: 0.85}
+    cup_depth: {worst: 33, best: 15}
+    prior_advance: {worst: 30, best: 100}

@@ -724,6 +724,25 @@ A cup with a handle is often also a VCP (two contractions: the cup and the handl
 | G1′ | Ranked grades | grade 2+, as decided for flat base and 3WT (G1) | as G1 |
 | C4 | Chart review | ~30 per strategy, development period, same mix as C1 of step 4 (12 grade 2, 8 grade 3, 6 grade 1, 4 near-misses) | as listed |
 
+## 15.5 As built (step 5b, 2026-10-05) and three readings (owner, 2026-10-05)
+
+Config: `config/strategies/cup_handle.yaml`, `double_bottom.yaml` (enabled false, stage research, `ranking.min_grade` 2); every number of §15.1–15.2 is a key there. Grade 3 repeats the grade-2 rules in its tier, as for the flat base. Lookback: cup 480 bars, double bottom 455.
+
+Where §15.1 could be read two ways, the owner chose (2026-10-05):
+
+- **A. Rim check:** no high between `L` and `R` above the **higher** rim × 1.03 (max(high[L], high[R])). Read literally (high[R] × 1.03), any cup whose right lip is more than about 3 % below the left would fail on the bars just after `L`, contradicting the 10–15 % right-lip gaps the tiers allow.
+- **B. Above the handle start without a breakout:** point 1 is kept strict. A close more than 3 % above the pivot without breakout volume is `MOVED_ABOVE_BASE`; any other high above high[R] up to the handle's end is `NO_HANDLE` (F2's "a smaller close above the pivot leaves the base intact" does not apply to the cup: the handle stays below its start). A breakout less than 5 sessions after `R` (handle too short) is `NO_HANDLE`.
+- **C. After a breakout:** `R` is searched 5–25 sessions back from the as-of bar, so a broken-out cup stays visible (BREAKOUT / FAILED) only until its breakout bar becomes the highest high of that window, about 4 sessions. Trades are unaffected: signals come from the scans before the breakout. A recorded breakout is reused only for the same left lip **and** the same pivot.
+
+**Double bottom after a breakout (owner, 2026-10-05, option a):** its left high stays in the 35–325-session window long after a breakout, so on the first real-data check (6 dates, copy of the research DB) about 75 % of double-bottom setups were BREAKOUT/FAILED, grade 2+ breakouts a median 35 days old. Those are ranked, and the backtest engine enters on any breakout-volume close above the pivot (not only a cross), which would chase stocks 15–20 % above the middle peak. Rule: more than `max_days_after_breakout` (10) sessions after its breakout, a double bottom is no setup (`OLD_BREAKOUT`), the same two weeks a Three Weeks Tight stays a setup (T2). Rejected: (b) leave it and note it; (c) require a cross in the engine (changes every strategy's backtest; for step 7).
+
+Other details fixed in code:
+
+- Cup: handle sessions = bars `R` … handle end, `R` included (5 … 25). Bottom share counts bars `L` … `R`, both included. `base_start` = left lip, `base_duration_days` = `L` … handle end, `pivot_source` = `HANDLE_HIGH`. The 50-day average for grade 3 is of closes ending at the handle's last bar.
+- Double bottom: the second low is the **latest** bar on a tie, so two equal lows are a W with a 0 % undercut (not grade 3, which needs a true undercut). The first low of a candidate middle peak `m` is the lowest low of `L+1` … `m−1` (earliest on a tie). After a breakout the points are measured up to the day before it; `pivot_source` = `MIDDLE_PEAK`.
+- Stored details: cup `left_lip_date`, `bottom_date`, `right_lip_date`, `handle_low_date`, `cup_depth_pct`, `handle_depth_pct`, `cup_sessions`, `cup_weeks`, `handle_sessions`, `right_lip_gap_pct`, `bottom_share`, `bottom_sessions`, `bottom_position`, `rounded`, `handle_position`, `handle_dryup_ratio`, `handle_low`, `sma_close`, `prior_advance_low_date`, `pivot_buffer_pct`. Double bottom `left_high_date`, `first_low_date`, `middle_peak_date`, `second_low_date`, `first_low`, `middle_peak`, `second_low`, `undercut_pct`, `middle_bounce_pct`, `middle_peak_position`, `right_side_range_pct`, `right_side_low`, `base_sessions`, `prior_advance_low_date`, `pivot_buffer_pct`.
+- Chart review sheet: charts of long bases start 40 bars before the base start (more than the usual 260 bars when needed), and the points are drawn as labelled dots (cup L, B, R, H; double bottom L, B1, M, B2).
+
 ---
 
 # 17. Configuration validation (blocks a scan)

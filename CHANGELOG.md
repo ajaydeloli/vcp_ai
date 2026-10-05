@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (Multi-Strategy phase step 5b: Cup and handle and Double bottom)
+- Two new research-only strategies, `cup_handle` and `double_bottom`, with their own detectors, grades, pivots and stops, score parts and config files. The daily run does not run them.
+- A double bottom stops being a setup 10 sessions after its breakout, so an old breakout is not ranked or traded as a fresh one.
+- They work with `vcp compute setups|scores|labels --strategy ID`, backtests and the chart-review sheet like the step-4 strategies.
+- Chart-review sheets: long bases get a longer chart, and the pattern's points (cup: left lip, bottom, right lip, handle low; double bottom: left high, two lows, middle peak) are marked.
+
 ### Changed (Multi-Strategy phase step 4c: after the chart review)
 - Three Weeks Tight 1.1.0: a pattern deeper than 15 % (one that includes the sharp move into it) is no longer a full Three Weeks Tight; it stays a watch-list grade.
 - Two more exit rules to compare in backtests: `hold_low8` and `hold_low5` (stop at the setup's low or 8 % / 5 %, whichever is tighter). The default rule is still `hold_s7`.
