@@ -85,7 +85,7 @@ def run_backtest(args: argparse.Namespace) -> int:
 
 
 def _settings(args: argparse.Namespace) -> dict[str, Any] | None:
-    from vcp_scanner.patterns.registry import get_strategy
+    from vcp_scanner.patterns.registry import load_runtime
     from vcp_scanner.research.outcomes import DEFAULT_RULE, TRADE_RULES
 
     rules = {r.name for r in TRADE_RULES}
@@ -94,7 +94,7 @@ def _settings(args: argparse.Namespace) -> dict[str, Any] | None:
         _err(f"Unknown rule {rule}; rules: {', '.join(sorted(rules))}")
         return None
     try:
-        entry = get_strategy(args.strategy)
+        entry = load_runtime(args.config_dir, args.strategy)
     except Exception as e:
         _err(f"Strategy error: {e}")
         return None
@@ -107,7 +107,8 @@ def _settings(args: argparse.Namespace) -> dict[str, Any] | None:
             _err(f"Unknown classes for {entry.strategy_id}: {', '.join(unknown)}; "
                  f"tiers: {', '.join(entry.tiers)}")  # fmt: skip
             return None
-    return {"strategy": entry.strategy_id, "rule": rule, "classes": classes,
+    return {"strategy": entry.strategy_id, "config_dir": args.config_dir, "rule": rule,
+            "classes": classes,
             "min_score": args.min_score, "watch_days": args.watch_days,
             "max_positions": args.max_positions, "cost_bps": args.cost_bps,
             "baseline": args.baseline}  # fmt: skip
@@ -130,12 +131,12 @@ def _execute(
     from vcp_scanner.data.repositories.duckdb_backtest_repository import (
         DuckDBBacktestRepository,
     )
-    from vcp_scanner.patterns.registry import get_strategy
+    from vcp_scanner.patterns.registry import load_runtime
     from vcp_scanner.research.outcomes import TRADE_RULES
     from vcp_scanner.versioning import STRATEGY_VERSION, code_state
 
     started = datetime.now(UTC)
-    entry = get_strategy(settings["strategy"])
+    entry = load_runtime(settings["config_dir"], settings["strategy"])
     rule = next(r for r in TRADE_RULES if r.name == settings["rule"])
     ecfg = EngineConfig(
         rule, watch_days=settings["watch_days"],
@@ -179,7 +180,8 @@ def _execute(
         "data_snapshot_id": snapshot, "execution_model": "close-of-breakout-day",
         "research_mode": True, "survivorship_status": out["survivorship"],
         "status": "COMPLETED", "period_name": period,
-        "settings_json": json.dumps({**settings, "horizon": ecfg.horizon,
+        "settings_json": json.dumps({**{k: v for k, v in settings.items() if k != "config_dir"},
+                                     "horizon": ecfg.horizon,
                                      "min_volume_ratio": ecfg.min_volume_ratio}, sort_keys=True),
         "metrics_json": json.dumps({"every_trade": out["every_trade"], "portfolio": port_stats},
                                    sort_keys=True, default=str),

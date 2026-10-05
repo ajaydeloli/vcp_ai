@@ -815,3 +815,120 @@ class StrategyFileConfig(StrictBaseModel):
     def result_relevant(self) -> dict[str, object]:
         """The values that can change a result (everything but ``enabled`` and ``stage``)."""
         return self.model_dump(exclude={"enabled", "stage"})
+
+
+# -- Settings of file-configured strategies (STRATEGY_SPECIFICATION 13, 14) ----------------------
+
+
+class PatternScoringConfig(StrictBaseModel):
+    """A strategy's pattern-score part (STRATEGY_SPECIFICATION 9.2): sub-component weights (sum
+    100) and worst/best bounds. The names are checked against the strategy's scorer."""
+
+    weights: dict[str, float]
+    bounds: dict[str, NormalizationBounds]
+
+    @model_validator(mode="after")
+    def validate_weights(self) -> PatternScoringConfig:
+        if set(self.weights) != set(self.bounds):
+            raise ValueError("pattern weights and bounds must name the same sub-components")
+        if any(w < 0 for w in self.weights.values()):
+            raise ValueError("pattern weights must be >= 0")
+        if not math.isclose(sum(self.weights.values()), 100.0, abs_tol=1e-6):
+            raise ValueError(f"pattern weights sum to {sum(self.weights.values())}, not 100")
+        return self
+
+    def check_names(self, names: tuple[str, ...], label: str) -> None:
+        _expect_names(self.weights, names, label)
+
+
+class RankingConfig(StrictBaseModel):
+    min_grade: Annotated[int, Field(ge=1, le=3)] = 2
+    pivot_ready_max_distance_pct: Annotated[float, Field(gt=0)] = 3.0
+
+
+class FlatBaseDetectorConfig(StrictBaseModel):
+    """STRATEGY_SPECIFICATION 13.1 (``min_duration_days`` = the shortest tier's length)."""
+
+    min_duration_days: Annotated[int, Field(ge=5)] = 20
+    max_duration_days: Annotated[int, Field(ge=10)] = 65
+    min_prior_advance_pct: Annotated[float, Field(ge=0)] = 20.0
+    prior_advance_lookback_days: Annotated[int, Field(ge=1)] = 120
+    pivot_buffer_pct: Annotated[float, Field(ge=0)] = 0.1
+    max_overshoot_pct: Annotated[float, Field(ge=0)] = 3.0
+    right_side_days: Annotated[int, Field(ge=2)] = 10
+    dryup_recent_days: Annotated[int, Field(ge=1)] = 10
+    dryup_base_days: Annotated[int, Field(ge=1)] = 50
+
+    @model_validator(mode="after")
+    def validate_durations(self) -> FlatBaseDetectorConfig:
+        if self.min_duration_days >= self.max_duration_days:
+            raise ValueError("min_duration_days must be below max_duration_days")
+        return self
+
+
+class FlatBaseTier(StrictBaseModel):
+    grade: Annotated[int, Field(ge=1, le=3)]
+    max_depth_pct: Annotated[float, Field(gt=0)]
+    min_duration_days: Annotated[int, Field(ge=1)] | None = None
+    max_weekly_close_range_pct: Annotated[float, Field(gt=0)] | None = None
+    max_right_side_range_pct: Annotated[float, Field(gt=0)] | None = None
+    max_dryup_ratio: Annotated[float, Field(gt=0)] | None = None
+
+
+class ThreeWeeksTightDetectorConfig(StrictBaseModel):
+    """STRATEGY_SPECIFICATION 14.1."""
+
+    max_age_weeks: Annotated[int, Field(ge=0, le=8)] = 2
+    min_prior_advance_pct: Annotated[float, Field(ge=0)] = 20.0
+    prior_advance_lookback_days: Annotated[int, Field(ge=1)] = 120
+    prior_high_window_days: Annotated[int, Field(ge=0)] = 20
+    pivot_buffer_pct: Annotated[float, Field(ge=0)] = 0.1
+    dryup_base_days: Annotated[int, Field(ge=1)] = 50
+
+
+class ThreeWeeksTightTier(StrictBaseModel):
+    grade: Annotated[int, Field(ge=1, le=3)]
+    max_close_change_pct: Annotated[float, Field(gt=0)]
+    max_depth_pct: Annotated[float, Field(gt=0)] | None = None
+    max_dryup_ratio: Annotated[float, Field(gt=0)] | None = None
+
+
+def _check_tiers(tiers: dict[str, object], ranking: RankingConfig, strategy: str) -> None:
+    """Tier names upper-case-able and unique, grades strictly rising in file order,
+    ``min_grade`` one of them (STRATEGY_SPECIFICATION 17)."""
+    grades = [getattr(t, "grade") for t in tiers.values()]  # noqa: B009
+    if not grades:
+        raise ValueError(f"{strategy}: no tiers")
+    if any(b <= a for a, b in zip(grades, grades[1:], strict=False)):
+        raise ValueError(f"{strategy}: tier grades must rise in file order, got {grades}")
+    if ranking.min_grade not in grades:
+        raise ValueError(f"{strategy}: ranking.min_grade {ranking.min_grade} is not a tier grade")
+
+
+class FlatBaseSettings(StrictBaseModel):
+    detector: FlatBaseDetectorConfig = Field(default_factory=FlatBaseDetectorConfig)
+    classification: dict[str, FlatBaseTier]
+    ranking: RankingConfig = Field(default_factory=RankingConfig)
+    scoring: PatternScoringConfig
+
+    @model_validator(mode="after")
+    def validate_tiers(self) -> FlatBaseSettings:
+        _check_tiers(dict(self.classification), self.ranking, "flat_base")
+        for name, t in self.classification.items():
+            if t.min_duration_days is not None and t.min_duration_days < (
+                self.detector.min_duration_days
+            ):
+                raise ValueError(f"flat_base.{name}.min_duration_days is below the detector's")
+        return self
+
+
+class ThreeWeeksTightSettings(StrictBaseModel):
+    detector: ThreeWeeksTightDetectorConfig = Field(default_factory=ThreeWeeksTightDetectorConfig)
+    classification: dict[str, ThreeWeeksTightTier]
+    ranking: RankingConfig = Field(default_factory=RankingConfig)
+    scoring: PatternScoringConfig
+
+    @model_validator(mode="after")
+    def validate_tiers(self) -> ThreeWeeksTightSettings:
+        _check_tiers(dict(self.classification), self.ranking, "three_weeks_tight")
+        return self

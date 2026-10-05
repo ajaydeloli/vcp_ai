@@ -66,6 +66,8 @@ def add_research_parser(subparsers: argparse._SubParsersAction) -> None:  # type
     rv.add_argument("--from", dest="date_from", required=True, metavar="YYYY-MM-DD")
     rv.add_argument("--to", dest="date_to", required=True, metavar="YYYY-MM-DD")
     rv.add_argument("--seed", type=int, default=20261003)
+    rv.add_argument("--strategy", default="vcp",
+                    help="Strategy whose stored setups to review (default: vcp)")  # fmt: skip
     rv.add_argument("--out", required=True, help="Output folder")
     rv.add_argument("--db", default="data/vcp_scanner.duckdb")
     rv.add_argument("--config-dir", default="config")
@@ -176,6 +178,8 @@ def _sheet(args: argparse.Namespace) -> int:
 def _review(args: argparse.Namespace) -> int:
     from collections import Counter
 
+    if getattr(args, "strategy", "vcp") != "vcp":
+        return _strategy_review(args)
     from vcp_scanner.research.labelling import collect_candidates
     from vcp_scanner.research.review import build_windows, select, write_review
 
@@ -203,6 +207,40 @@ def _review(args: argparse.Namespace) -> int:
     print(f"Scan dates : {len(dates)} ({dates[0]} .. {dates[-1]})")
     print(f"Sheet      : {len(windows)} windows -> {paths['sheet']}")
     print(f"Strata     : {dict(sorted(Counter(c.stratum for c in chosen).items()))}")
+    return 0
+
+
+def _strategy_review(args: argparse.Namespace) -> int:
+    """Chart review of a file-configured strategy's stored setups (decision D6, C1)."""
+    from collections import Counter
+
+    from vcp_scanner.config.strategies import strategy_config_hash
+    from vcp_scanner.patterns.registry import load_runtime
+    from vcp_scanner.research import strategy_review as sr
+
+    cfg = load_scanner_config(args.config_dir)
+    try:
+        rt = load_runtime(args.config_dir, args.strategy)
+    except Exception as e:
+        _err(f"Strategy error: {e}")
+        return 1
+    config_hash = strategy_config_hash(cfg, rt.file)
+    grade2 = next((t for t in rt.tiers if rt.grade(t) == 2), "")
+    start, end = date.fromisoformat(args.date_from), date.fromisoformat(args.date_to)
+    with _open_store(args.db) as store:
+        setups = sr.load_setups(store, rt.strategy_id, config_hash, start, end)
+        if not setups:
+            _err(f"No stored {rt.strategy_id} setups with config {config_hash[:12]} between "
+                 f"{start} and {end}. Run `vcp compute setups --strategy {rt.strategy_id}` "
+                 "for those dates first.")  # fmt: skip
+            return 1
+        chosen = sr.select(setups, grade2, args.seed)
+        windows = sr.build_windows(store, chosen, grade2, rt.strategy_id)
+    name = rt.strategy_id.replace("_", " ")
+    paths = sr.write(windows, Path(args.out), f"{name} chart review {start}..{end}", name)
+    print(f"Setups     : {len(setups)} stored ({start} .. {end})")
+    print(f"Sheet      : {len(windows)} windows -> {paths['sheet']}")
+    print(f"Strata     : {dict(sorted(Counter(w['stratum'] for w in windows).items()))}")
     return 0
 
 

@@ -315,6 +315,34 @@ def test_full_pipeline_from_an_empty_database(
     assert cli_main(missing) == 1
     assert "scores need the Trend Template and VCP scans" in capsys.readouterr().err
 
+    # Multi-Strategy step 4: the new strategies run on the same Trend Template scan.
+    for sid in ("flat_base", "three_weeks_tight"):
+        for argv in (["compute", "setups", "--strategy", sid, "--as-of", as_of],
+                     ["compute", "scores", "--strategy", sid, "--as-of", as_of],
+                     ["compute", "labels", "--strategy", sid]):  # fmt: skip
+            assert cli_main([*argv, "--db", db, "--config-dir", CONFIG_DIR]) == 0, (
+                capsys.readouterr().err)  # fmt: skip
+        out = capsys.readouterr().out
+        assert f"{sid} setups for 2024-06-28" in out and "Forward labels" in out
+        bt_s = ["backtest", "run", "--from", as_of, "--to", as_of, "--strategy", sid,
+                "--baseline", "--db", db, "--config-dir", CONFIG_DIR]  # fmt: skip
+        code = cli_main(bt_s)
+        out, err = capsys.readouterr()
+        assert (code == 0 and f"[{sid}]" in out) or "No eligible" in err
+        with DuckDBStore(db) as store:
+            q = store.conn.execute
+            assert q("SELECT count(*) FROM scan_runs WHERE scan_type = 'SETUP'"
+                     " AND strategy_id = ?", [sid]).fetchone() == (1,)  # fmt: skip
+            prim = q("SELECT count(*) FROM strategy_setups WHERE strategy_id = ? AND is_primary",
+                     [sid]).fetchone()  # fmt: skip
+            assert q("SELECT count(*) FROM setup_scores WHERE strategy_id = ?",
+                     [sid]).fetchone() == prim  # fmt: skip
+            assert q("SELECT count(*) FROM forward_labels WHERE strategy_id = ?",
+                     [sid]).fetchone() == prim  # fmt: skip
+            # VCP's rows are untouched by the other strategies (multi-label).
+            assert q("SELECT count(*) FROM setup_scores WHERE strategy_id = 'vcp'"
+                     ).fetchone() == passers  # fmt: skip
+
     # Phase 6 step 8: a blind labelling sheet from the scan, and its CSV back into fixtures.
     sheet_dir = tmp_path / "sheet"
     sheet_argv = ["research", "labelling-sheet", "--from", as_of, "--to", as_of, "--db", db,

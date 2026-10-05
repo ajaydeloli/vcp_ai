@@ -115,6 +115,11 @@ function draw(cv, w) {
     if (m.pv) { g.strokeStyle = "#7c3aed"; g.setLineDash([6, 4]); g.beginPath();
       g.moveTo(0, y(m.pv)); g.lineTo(W - padR, y(m.pv)); g.stroke(); g.setLineDash([]);
       g.fillStyle = "#7c3aed"; g.fillText("pivot " + m.pv.toFixed(2), 6, y(m.pv) - 4); }
+    if (m.sl) { g.strokeStyle = "#dc2626"; g.setLineDash([3, 4]); g.beginPath();
+      g.moveTo(0, y(m.sl)); g.lineTo(W - padR, y(m.sl)); g.stroke(); g.setLineDash([]);
+      g.fillStyle = "#dc2626"; g.fillText("stop " + m.sl.toFixed(2), 6, y(m.sl) + 12); }
+    if (m.bo >= 0) { g.fillStyle = "#16a34a"; g.beginPath();
+      g.arc(x(m.bo), y(w.c[m.bo]), 5, 0, 7); g.fill(); g.fillText("breakout", x(m.bo) + 6, y(w.c[m.bo])); }
   }
   const vols = w.v.map(v => v || 0), vmax = Math.max(...vols) || 1, vb = H - padB, bw = Math.max(1, (W - padR) / n - 1);
   g.fillStyle = css("--vol");

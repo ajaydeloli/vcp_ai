@@ -16,15 +16,16 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from datetime import date
-from typing import Protocol
+from typing import Any, Protocol
 
-from vcp_scanner.config.models import ScoringConfig
+from vcp_scanner.config.models import PatternScoringConfig, ScoringConfig
 from vcp_scanner.domain.strategy import RANKED_STATUSES, VCP_GRADES
 from vcp_scanner.scoring.components import (
     ComponentScore,
     measure_distribution,
     measure_up_down_volume,
     rs_score,
+    score_component,
     trend_score,
     vcp_score,
     volume_score,
@@ -50,6 +51,20 @@ class PatternInputs:
 
 
 @dataclass(frozen=True, slots=True)
+class GenericPatternInputs:
+    """The primary setup of a file-configured strategy, as scoring reads it
+    (STRATEGY_SPECIFICATION 9.2): its grade, status, measurements by score sub-component, and
+    its dry-up ratio."""
+
+    classification: str
+    status: str
+    confirmation_state: str | None
+    grade: int
+    measures: Mapping[str, float | None]
+    dryup_ratio: float | None
+
+
+@dataclass(frozen=True, slots=True)
 class SetupInputs:
     instrument_id: str
     as_of: date
@@ -61,7 +76,7 @@ class SetupInputs:
     sma200_lagged: float | None
     closes: Sequence[float]  # adjusted closes up to the as-of bar
     volumes: Sequence[float | None]
-    pattern: PatternInputs | None  # the primary VCP pattern, None without one
+    pattern: PatternInputs | GenericPatternInputs | None  # the primary setup, None without one
 
 
 @dataclass(frozen=True, slots=True)
@@ -111,11 +126,11 @@ class PatternScoring(Protocol):
 
     component: str
 
-    def pattern_score(self, p: PatternInputs | None, cfg: ScoringConfig) -> ComponentScore: ...
+    def pattern_score(self, p: Any, cfg: ScoringConfig) -> ComponentScore: ...
 
-    def dryup_ratio(self, p: PatternInputs | None) -> float | None: ...
+    def dryup_ratio(self, p: Any) -> float | None: ...
 
-    def eligible(self, p: PatternInputs | None) -> bool: ...
+    def eligible(self, p: Any) -> bool: ...
 
 
 class VCPPatternScoring:
@@ -141,6 +156,30 @@ class VCPPatternScoring:
 
 
 VCP_PATTERN_SCORING = VCPPatternScoring()
+
+
+class FilePatternScoring:
+    """The pattern part of a file-configured strategy: its own sub-components, weights and
+    bounds (config ``scoring``), the setup's dry-up ratio, and grade >= ``min_grade`` with a
+    ranked status for eligibility (STRATEGY_SPECIFICATION 6.3, 9.2)."""
+
+    component = "PATTERN"
+
+    def __init__(self, names: tuple[str, ...], cfg: PatternScoringConfig, min_grade: int) -> None:
+        cfg.check_names(names, "pattern")
+        self._names, self._cfg, self._min_grade = names, cfg, min_grade
+
+    def pattern_score(self, p: Any, cfg: ScoringConfig) -> ComponentScore:
+        measures = p.measures if isinstance(p, GenericPatternInputs) else {}
+        return score_component("PATTERN", measures, self._cfg.weights, self._cfg.bounds,
+                               self._names)  # fmt: skip
+
+    def dryup_ratio(self, p: Any) -> float | None:
+        return p.dryup_ratio if isinstance(p, GenericPatternInputs) else None
+
+    def eligible(self, p: Any) -> bool:
+        return (isinstance(p, GenericPatternInputs) and p.grade >= self._min_grade
+                and p.status in RANKED_STATUSES)  # fmt: skip
 
 
 def shared_components(

@@ -162,8 +162,9 @@ def build_windows(
 
 
 def write_review(
-    windows: Sequence[dict[str, Any]], out_dir: Path, *, title: str
-) -> dict[str, Path]:
+    windows: Sequence[dict[str, Any]], out_dir: Path, *, title: str,
+    help_html: str = REVIEW_HELP, options: str = REVIEW_OPTIONS,
+) -> dict[str, Path]:  # fmt: skip
     """Write review_windows.json (no bars) and review_sheet.html into ``out_dir``."""
     out_dir.mkdir(parents=True, exist_ok=True)
     paths = {"windows": out_dir / "review_windows.json", "sheet": out_dir / "review_sheet.html"}
@@ -173,8 +174,8 @@ def write_review(
     paths["windows"].write_text(json.dumps(meta, indent=1))
     html = (
         _SHEET.replace("__TITLE__", title)
-        .replace("__HELP__", REVIEW_HELP)
-        .replace("__OPTIONS__", REVIEW_OPTIONS)
+        .replace("__HELP__", help_html)
+        .replace("__OPTIONS__", options)
         .replace("__DATA__", json.dumps(list(windows), separators=(",", ":")))
     )
     paths["sheet"].write_text(html)

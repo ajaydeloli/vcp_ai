@@ -7,6 +7,8 @@ stored result names its strategy. VCP is strategy ``vcp`` and keeps its original
 from __future__ import annotations
 
 import re
+from dataclasses import dataclass, field
+from datetime import date
 from typing import Final
 
 from vcp_scanner.domain.snapshot import LIVE_SNAPSHOT_ID
@@ -51,3 +53,62 @@ def score_scan_id(strategy_id: str, as_of_iso: str, config_hash: str, data_snaps
     if strategy_id == VCP_STRATEGY_ID:
         return _with_snapshot(f"score-{as_of_iso}-{config_hash[:12]}", data_snapshot_id)
     return _with_snapshot(f"score-{strategy_id}-{as_of_iso}-{config_hash[:12]}", data_snapshot_id)
+
+
+# -- the setup record of file-configured strategies (STRATEGY_SPECIFICATION 6.1) -----------------
+
+
+@dataclass(frozen=True, slots=True)
+class Breakout:
+    """A base's breakout (STRATEGY_SPECIFICATION 10.1): first close above the pivot on
+    volume >= the ratio x the mean of the 50 bars before it."""
+
+    breakout_date: date
+    pivot_price: float
+    volume_ratio: float
+
+
+@dataclass(frozen=True, slots=True)
+class Setup:
+    """One detected setup, before ids and storage (STRATEGY_SPECIFICATION 6.1)."""
+
+    instrument_id: str
+    as_of_date: date
+    base_start: date
+    base_end: date | None
+    base_high: float
+    base_low: float
+    base_depth_pct: float
+    base_duration_days: int
+    prior_advance_pct: float | None
+    pivot_price: float | None
+    pivot_date: date | None
+    pivot_source: str | None
+    pivot_distance_pct: float | None
+    stop_reference_price: float | None
+    dryup_volume_ratio: float | None
+    classification: str
+    grade: int
+    status: str
+    confirmation_state: str
+    trend_gate: str
+    weekly_stage2_pass: bool | None
+    breakout: Breakout | None = None
+    invalidation_reasons: tuple[str, ...] = ()
+    unmet_rules: dict[str, list[str]] = field(default_factory=dict)
+    details: dict[str, object] = field(default_factory=dict)
+    #: Raw measurements by score sub-component name (STRATEGY_SPECIFICATION 9.2).
+    measures: dict[str, float | None] = field(default_factory=dict)
+    is_primary: bool = True
+
+
+@dataclass(frozen=True, slots=True)
+class StrategyResult:
+    """A detector's answer for one instrument and date: a setup, or why there is none, or a
+    data state."""
+
+    instrument_id: str
+    as_of_date: date
+    setup: Setup | None
+    no_setup_reason: str | None = None
+    data_state: str | None = None

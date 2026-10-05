@@ -1,0 +1,43 @@
+# three_weeks_tight.yaml - Three Weeks Tight (STRATEGY_SPECIFICATION 14; signed off 2026-10-05)
+# Every number is a starting hypothesis, tuned on the development period only.
+strategy_id: three_weeks_tight
+algorithm_version: three_weeks_tight-1.0.0
+enabled: false
+stage: research
+trend_gate:
+  mode: required
+detector:
+  max_age_weeks: 2               # decision T2
+  min_prior_advance_pct: 20
+  prior_advance_lookback_days: 120
+  prior_high_window_days: 20
+  pivot_buffer_pct: 0.1
+  dryup_base_days: 50            # dry-up: the pattern's sessions vs the 50 before
+classification:
+  three_weeks_tight_like:
+    grade: 1
+    max_close_change_pct: 2.5
+  three_weeks_tight:
+    grade: 2
+    max_close_change_pct: 1.5
+  three_weeks_tight_a:
+    grade: 3
+    max_close_change_pct: 1.0
+    max_depth_pct: 6
+    max_dryup_ratio: 0.8
+ranking:
+  min_grade: 2                   # decision G1
+  pivot_ready_max_distance_pct: 3
+scoring:                         # pattern part (section 14.4)
+  weights:
+    tightness: 35
+    pattern_depth: 25
+    prior_advance: 20
+    tight_weeks: 10
+    near_high: 10
+  bounds:
+    tightness: {worst: 1.5, best: 0.3}
+    pattern_depth: {worst: 10, best: 3}
+    prior_advance: {worst: 20, best: 60}
+    tight_weeks: {worst: 3, best: 5}
+    near_high: {worst: 10, best: 0}

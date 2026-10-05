@@ -34,7 +34,7 @@ _PLAIN = {
     "distribution": "high-volume down days (25 sessions)",
     "rs_rank": "RS rank",
 }
-_ORDER = {"TREND": 0, "VCP": 1, "VOLUME": 2, "RS": 3, "FUNDAMENTAL": 4}
+_ORDER = {"TREND": 0, "VCP": 1, "PATTERN": 1, "VOLUME": 2, "RS": 3, "FUNDAMENTAL": 4}
 
 
 def _fmt(x: float | None, digits: int = 1) -> str:
@@ -105,7 +105,8 @@ def run_scores_list(args: argparse.Namespace) -> int:
         ).fetchall()  # fmt: skip
     print(f"Setup scores {as_of} ({scan_id}); {'all passers' if args.all else 'ranked setups'}")
     print(f"  {'#':>3} {'symbol':14} {'score':>5} {'pctl':>5} {'state':11} {'class':10} "
-          f"{'status':11} {'trend':>5} {'vcp':>5} {'vol':>5} {'rs':>5}")  # fmt: skip
+          f"{'status':11} {'trend':>5} {'vcp' if strategy_id == 'vcp' else 'pat':>5} "
+          f"{'vol':>5} {'rs':>5}")  # fmt: skip
     for k, r in enumerate(rows, 1):
         mark = "" if r[10] else "  (not ranked)"
         print(f"  {k:3d} {r[0]:14.14} {_fmt(r[1]):>5} {_fmt(r[2], 0):>5} {r[3] or '-':11} "
@@ -151,15 +152,24 @@ def run_scores_explain(args: argparse.Namespace) -> int:
             [scan_id, head[0]],
         ).fetchall()
     bounds = _bounds(cfg)
+    pattern = "VCP" if strategy_id == "vcp" else "PATTERN"
+    if pattern == "PATTERN":
+        from vcp_scanner.config.models import PatternScoringConfig
+        from vcp_scanner.patterns.registry import load_runtime
+
+        settings = load_runtime(args.config_dir, strategy_id).settings
+        pcfg = getattr(settings, "scoring", None)
+        if isinstance(pcfg, PatternScoringConfig):
+            bounds.update({("PATTERN", k): (b.worst, b.best) for k, b in pcfg.bounds.items()})
     print(f"{args.symbol.upper()} on {as_of}: final score {_fmt(head[1])} "
           f"({head[18]}; ranks setups, not a probability)")  # fmt: skip
     rank = (f"ranking percentile {_fmt(head[2], 0)} among {head[6] or '-'} setups"
-            if head[3] else "not ranked (needs VCP_LIKE or better, forming / pivot-ready / "
-            "breakout)")  # fmt: skip
+            if head[3] else "not ranked (needs " + ("VCP_LIKE or better" if pattern == "VCP"
+            else "grade 2 or better") + ", forming / pivot-ready / breakout)")  # fmt: skip
     print(f"  {head[4] or 'no pattern'} / {head[5] or '-'}; {rank}")
     if head[7]:
         print(f"  flags: {head[7]}")
-    comp = {"TREND": (head[8], head[13]), "VCP": (head[9], head[14]),
+    comp = {"TREND": (head[8], head[13]), pattern: (head[9], head[14]),
             "VOLUME": (head[10], head[15]), "RS": (head[11], head[16]),
             "FUNDAMENTAL": (head[12], head[17])}  # fmt: skip
     print("  final = sum(weight x component) / 100 over available components:")

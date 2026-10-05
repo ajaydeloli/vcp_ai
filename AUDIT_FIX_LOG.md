@@ -2132,3 +2132,27 @@ Owner go 2026-10-05. Under the daily-run lock (`~/vcp_spike/ms2_apply.sh`):
 
 STRATEGY_SPECIFICATION §12B (scan path for new strategies), §13 Flat / tight base (`flat_base-1.0.0`), §14 Three Weeks Tight (`three_weeks_tight-1.0.0`): rules, tiers and grades, status, pivot and stop, score parts, stored details, worked examples, config. Owner signed off 2026-10-05 with every recommendation: G1 only grade 2+ ranked for the new strategies; F1 flat-base stop = right-side low (10 bars); F2 a close > 3 % above the pivot without breakout volume ends a flat base; T1 Three Weeks Tight on completed weeks only; T2 a 3WT stays a setup for 2 weeks after it completes; C1 chart-review sample of ~30 per strategy (12 grade 2, 8 grade 3, 6 grade 1, 4 near-misses, spread over the years). Docs only.
 
+## Multi-Strategy phase step 4b — Flat base and Three Weeks Tight built (2026-10-05)
+
+**Owner go:** 2026-10-05 ("go with all your recommendations and build step 4").
+
+**Code.**
+- `domain/strategy.py`: `Setup`, `Breakout`, `StrategyResult`. `patterns/strategy_base.py` (new): `StrategyDetector` protocol, `StrategyContext`, `DailyBars`, `find_breakout` (first breakout-volume close above the pivot, so weekly scans do not miss mid-week breakouts), `setup_status`.
+- `patterns/flat_base/detector.py`, `patterns/three_weeks_tight/detector.py` (new): STRATEGY_SPECIFICATION §13, §14, on the shared measurements of §12A.
+- `config/models.py`: typed settings (`FlatBaseSettings`, `ThreeWeeksTightSettings`, tiers, `RankingConfig`, `PatternScoringConfig`); `config/strategies/flat_base.yaml`, `three_weeks_tight.yaml` (enabled false, stage research).
+- `patterns/registry.py`: entries build a `StrategyRuntime` (grades, min grade, pattern scoring, detector) from the strategy file; every file's settings are validated at load.
+- `scoring/engine.py`: `GenericPatternInputs`, `FilePatternScoring` (pattern component `PATTERN`, the setup's dry-up ratio, grade >= min grade).
+- `data/repositories/duckdb_strategy_repository.py` (new) and `cli_setups.py` (new): the §12B scan path (`vcp compute setups --strategy ID`): gate = Trend Template PASS, bars, detector, breakout events, status history, `scan_runs` type SETUP, run results. Scores read the primary setups (`strategy_setups`, measures in `details_json`); labels and backtests unchanged apart from reading the runtime's tiers.
+- `research/strategy_review.py` (new), `vcp research review-sheet --strategy ID`: decision C1 sample from stored setups; the sheet now also draws a stop line and the breakout day.
+- `cli_scores_view.py`: `PATTERN` component and its bounds in `scores explain`.
+
+**Bug found and fixed before merge:** Three Weeks Tight counted "tight weeks" against the grade-3 change limit (1.0 %) instead of grade 2's (1.5 %), so a grade-2 pattern could show 1 tight week. Fixed, with a test; the strategy was rescanned.
+
+**Tests.** `test_flat_base.py` (9), `test_three_weeks_tight.py` (9), `test_strategy_repository.py` (3), `test_strategy_review.py` (2), registry and settings tests in `test_strategy_framework.py`, and the end-to-end pipeline test now runs both strategies (setups, scores, labels, baseline backtest) and checks VCP's rows are untouched. Full suite 1,213 passed, 2 skipped; ruff, format, mypy clean.
+
+**Research rescan** (copy `data/tmp/ms4/res.duckdb` of the research DB, code ad1a359 + the tight-weeks fix; 13:47–14:17 IST): both strategies over all 248 weekly dates, in order, then scores and labels; no errors. Counts, first development backtests and the Three Weeks Tight observation (steady drifts, wide weekly ranges) are in STRATEGY_SPECIFICATION §14.10.
+
+**Chart review sheets (D6)** for the development period: `reports/chart_review/flat_base/review_sheet.html` and `reports/chart_review/three_weeks_tight/review_sheet.html` (30 windows each: 12 grade 2, 8 grade 3, 6 grade 1, 4 near-misses, 2022–2024).
+
+**Not changed:** the main DB and the research DB (the rescan is on a copy; whether it replaces the research DB is the owner's call); VCP code and results.
+

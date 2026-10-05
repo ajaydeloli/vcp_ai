@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (Multi-Strategy phase step 4: Flat base and Three Weeks Tight)
+- Two new strategies, `flat_base` and `three_weeks_tight`, with their own detectors, grades, pivots and stops, score parts and config files (`config/strategies/`). They are research-only for now: the daily run does not run them.
+- `vcp compute setups --strategy flat_base|three_weeks_tight --as-of DATE`, and `--strategy` on scores, labels, backtests and the score views for them.
+- `vcp research review-sheet --strategy ID`: a chart-review sheet of stored setups with the detector's base start, pivot, stop and breakout drawn on each chart.
+
 ### Added (Multi-Strategy phase step 3: shared base measurements)
 - Shared measurements for the coming base patterns: weekly bars as of a date, weekly close range and week-to-week close change, prior advance, base high/low/depth/length, and a volume dry-up ratio. They are computed on the fly; nothing is stored and no VCP result changes.
 

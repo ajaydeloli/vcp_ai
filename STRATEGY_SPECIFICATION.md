@@ -436,7 +436,8 @@ No base (no setup, the reason stored in `strategy_scan_run_results`): `INSUFFICI
 
 - Status (§6.2): data state → BREAKOUT / FAILED (events, §12B) → `PIVOT_READY` (grade ≥ 2 and the close 0 – 3 % below the pivot) → `FORMING`. Nothing is `INVALIDATED`: a deeper drop makes the base `TOO_DEEP` (no setup) or a lower tier.
 - `stop_reference_price` = the right-side low (lowest low of the last 10 bars). (Decision F1, §14.9.)
-- `base_end_date` = the breakout date after a breakout, else NULL. `confirmation_state` = `CONFIRMED` (no swing confirmation lag: the start is at least 25 bars old).
+- `base_end_date` = the breakout date after a breakout, else NULL. After a breakout the base is measured up to the day before it (depth, weekly closes, right side, dry-up): its shape is frozen and later bars only decide BREAKOUT / FAILED. `confirmation_state` = `CONFIRMED` (no swing confirmation lag: the start is at least 20 bars old).
+- **Breakouts between scan dates**: the detector looks for the first breakout-volume close above the pivot anywhere after the base start, so weekly research scans do not miss a mid-week breakout (as VCP's structural breakout).
 
 ## 13.4 Score part (§9.2)
 
@@ -470,23 +471,25 @@ enabled: false
 stage: research
 trend_gate: {mode: required}
 detector:
-  min_duration_days: 25
+  min_duration_days: 20          # the start search; FLAT_BASE itself needs 25
   max_duration_days: 65
   min_prior_advance_pct: 20
   prior_advance_lookback_days: 120
   pivot_buffer_pct: 0.1
   max_overshoot_pct: 3
   right_side_days: 10
+  dryup_recent_days: 10
+  dryup_base_days: 50
 classification:
   flat_base_like:   {grade: 1, max_depth_pct: 20, min_duration_days: 20}
   flat_base:        {grade: 2, max_depth_pct: 15, min_duration_days: 25, max_weekly_close_range_pct: 10}
-  tight_flat_base:  {grade: 3, max_depth_pct: 10, max_weekly_close_range_pct: 6,
+  tight_flat_base:  {grade: 3, max_depth_pct: 10, min_duration_days: 25, max_weekly_close_range_pct: 6,
                      max_right_side_range_pct: 5, max_dryup_ratio: 0.8}
 ranking: {min_grade: 2, pivot_ready_max_distance_pct: 3}
-scoring:
-  pattern: {weights: {...}, bounds: {...}}   # §13.4
-  dryup_measure: {recent: 10, base: 50}
+scoring: {weights: {...}, bounds: {...}}   # §13.4
 ```
+
+As built: `config/strategies/flat_base.yaml` (enabled false, stage research).
 
 ---
 
@@ -553,15 +556,41 @@ detector:
   prior_advance_lookback_days: 120
   prior_high_window_days: 20
   pivot_buffer_pct: 0.1
+  dryup_base_days: 50
 classification:
   three_weeks_tight_like: {grade: 1, max_close_change_pct: 2.5}
   three_weeks_tight:      {grade: 2, max_close_change_pct: 1.5}
   three_weeks_tight_a:    {grade: 3, max_close_change_pct: 1.0, max_depth_pct: 6, max_dryup_ratio: 0.8}
 ranking: {min_grade: 2, pivot_ready_max_distance_pct: 3}
-scoring:
-  pattern: {weights: {...}, bounds: {...}}   # §14.4
-  dryup_measure: {recent: pattern, base: 50}
+scoring: {weights: {...}, bounds: {...}}   # §14.4
 ```
+
+As built: `config/strategies/three_weeks_tight.yaml` (enabled false, stage research). The detector needs 262 bars (the 52-week high for `near_high`).
+
+## 14.10 First results (research copy, 2026-10-05; development period only)
+
+Built in step 4 and run over all 248 weekly research dates (2022-01 … 2026-09) on a copy of the research DB (`data/tmp/ms4/res.duckdb`; the research DB itself is unchanged until the owner decides).
+
+| | Flat base | Three Weeks Tight |
+|---|---|---|
+| Grade 2+ setup rows / distinct bases (2022–2026) | 3,433 / 1,638 | 5,647 / 3,468 |
+| Grade 3 rows | 82 | 204 |
+| Eligible (ranked) score rows | 3,195 | 5,444 |
+| Same-day overlap with VCP's eligible setups | 46 % | 34 % |
+
+Development walk-forward (2022-02-01 … 2024-06-30, rule `hold_s7`, 15 bps a side; survivorship PARTIAL):
+
+| Strategy | Signals | Trades | Win | Avg | Profit factor | Portfolio CAGR / max DD |
+|---|---|---|---|---|---|---|
+| VCP (same copy, current code) | 6,690 | 1,803 | 29.3 % | +3.77 % | 1.74 | 6.8 % / −40.6 % |
+| Flat base | 1,489 | 449 | 38.3 % | +5.58 % | 2.28 | 25.0 % / −16.5 % |
+| Flat base, baseline (every setup with a pivot) | 8,748 | 1,675 | 32.5 % | +4.17 % | 1.87 | 18.9 % / −25.0 % |
+| Three Weeks Tight | 2,985 | 783 | 32.4 % | +4.71 % | 1.98 | 15.4 % / −21.1 % |
+| Three Weeks Tight, baseline | 7,440 | 1,535 | 32.2 % | +4.83 % | 2.00 | 13.3 % / −30.0 % |
+
+Not yet read as an edge (§10.4): chart review (D6) comes first; several strategies are being compared (multiple testing); validation is unopened.
+
+**For the chart review:** 49 % of grade-2+ Three Weeks Tight patterns are three closes drifting the same way (a steady trend of about 1 % a week also meets the close-change rule), and their median pattern depth is 10.5 % (25 %/75 %: 7.9 %/13.8 %): weekly closes are tight but the weeks' ranges often are not. A depth or close-range limit for grade 2 is a candidate change after the review.
 
 ## 14.8 Overlap expected
 

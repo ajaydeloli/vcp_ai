@@ -75,9 +75,10 @@ def run_compute_scores(args: argparse.Namespace) -> int:
     if resolved is None:
         return 1
     strategy_id, config_hash = resolved
-    if strategy_id != VCP_STRATEGY_ID:  # pragma: no cover - only VCP is registered (step 2)
-        _err(f"Scoring for strategy {strategy_id} arrives with its detector (steps 4-6).")
-        return 1
+    from vcp_scanner.patterns.registry import load_runtime
+
+    runtime = load_runtime(args.config_dir, strategy_id)
+    is_vcp = strategy_id == VCP_STRATEGY_ID
     scan_hash = scan_config_hash(cfg)
     scoring = cfg.strategy.scoring
 
@@ -91,10 +92,12 @@ def run_compute_scores(args: argparse.Namespace) -> int:
         have = {r[0] for r in store.conn.execute(
             "SELECT scan_type FROM scan_runs WHERE scan_id IN (?, ?)", [trend_scan, vcp_scan]
         ).fetchall()}  # fmt: skip
-        if "TREND_TEMPLATE" not in have or "VCP" not in have:
-            _err(f"Error: scores need the Trend Template and VCP scans {trend_scan} and "
-                 f"{vcp_scan}. Run `vcp compute trend-template` and `vcp compute vcp --as-of "
-                 f"{iso}` with the same config first.")  # fmt: skip
+        if "TREND_TEMPLATE" not in have or ("VCP" if is_vcp else "SETUP") not in have:
+            _err(f"Error: scores need the Trend Template and {'VCP' if is_vcp else strategy_id}"
+                 f" scans {trend_scan} "
+                 f"and {vcp_scan}. Run `vcp compute trend-template` and `vcp compute setups "
+                 f"--strategy {strategy_id} --as-of {iso}` with the same config "
+                 "first.")  # fmt: skip
             return 1
         trend_run = store.conn.execute(
             "SELECT universe_snapshot_id, universe_cutoff, survivorship_status,"
@@ -103,8 +106,10 @@ def run_compute_scores(args: argparse.Namespace) -> int:
             [trend_scan],
         ).fetchone()
         repo = DuckDBScoreRepository(store, snapshot)
-        inputs = repo.load_inputs(as_of, trend_scan, vcp_scan, cfg.strategy.vcp.volatility.measure)
-        scored = score_scan(inputs, scoring, float(cfg.strategy.trend_template.min_rs_rank))
+        inputs = repo.load_inputs(as_of, trend_scan, vcp_scan, cfg.strategy.vcp.volatility.measure,
+                                  strategy_scan=not is_vcp)  # fmt: skip
+        scored = score_scan(inputs, scoring, float(cfg.strategy.trend_template.min_rs_rank),
+                            runtime.scoring)  # fmt: skip
         scan_id = score_scan_id(strategy_id, iso, config_hash, snapshot)
         repo.save_scan(scan_id, scored, scoring.version, config_hash, started_at, strategy_id)
 
@@ -117,7 +122,8 @@ def run_compute_scores(args: argparse.Namespace) -> int:
         commit, dirty = code_state()
         eligible = [s for s in scored if s.eligible]
         run = ScanRun(
-            scan_run_id=f"scorerun-{as_of:%Y%m%d}-{started_at:%Y%m%dT%H%M%S%f}Z",
+            scan_run_id=(f"scorerun-{'' if is_vcp else strategy_id + '-'}{as_of:%Y%m%d}-"
+                         f"{started_at:%Y%m%dT%H%M%S%f}Z"),
             scan_type="SCORE",
             as_of_date=as_of,
             scan_id=scan_id,

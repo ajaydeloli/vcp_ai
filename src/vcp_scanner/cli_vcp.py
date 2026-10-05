@@ -41,7 +41,7 @@ def vcp_scan_id(as_of_iso: str, config_hash: str, data_snapshot_id: str) -> str:
 
 def run_compute_setups(args: argparse.Namespace) -> int:
     """``vcp compute setups --strategy ID``: one strategy's detector (STRATEGY_SPECIFICATION
-    11.2). VCP keeps its own scan path; other strategies arrive in steps 4-6."""
+    11.2, 12B). VCP keeps its own scan path; the others run through ``cli_setups``."""
     from vcp_scanner.patterns.registry import get_strategy
 
     strategy_id = getattr(args, "strategy", None) or VCP_STRATEGY_ID
@@ -52,8 +52,9 @@ def run_compute_setups(args: argparse.Namespace) -> int:
         return 1
     if strategy_id == VCP_STRATEGY_ID:
         return run_compute_vcp(args)
-    _err(f"No detector for strategy {strategy_id} yet.")  # pragma: no cover - VCP only (step 2)
-    return 1  # pragma: no cover
+    from vcp_scanner.cli_setups import run_compute_strategy_setups
+
+    return run_compute_strategy_setups(args)
 
 
 def run_compute_vcp(args: argparse.Namespace) -> int:

@@ -1,0 +1,51 @@
+# flat_base.yaml - Flat / tight base (STRATEGY_SPECIFICATION 13; signed off 2026-10-05)
+# Every number is a starting hypothesis, tuned on the development period only.
+strategy_id: flat_base
+algorithm_version: flat_base-1.0.0
+enabled: false          # the daily run does not run it yet (step 8)
+stage: research
+trend_gate:
+  mode: required
+detector:
+  min_duration_days: 20          # shortest tier (FLAT_BASE_LIKE); FLAT_BASE needs 25
+  max_duration_days: 65          # 13 weeks
+  min_prior_advance_pct: 20
+  prior_advance_lookback_days: 120
+  pivot_buffer_pct: 0.1
+  max_overshoot_pct: 3           # decision F2
+  right_side_days: 10            # right-side range and stop (decision F1)
+  dryup_recent_days: 10
+  dryup_base_days: 50
+classification:                  # lowest tier first; tier name = key in upper case
+  flat_base_like:
+    grade: 1
+    max_depth_pct: 20
+    min_duration_days: 20
+  flat_base:
+    grade: 2
+    max_depth_pct: 15
+    min_duration_days: 25
+    max_weekly_close_range_pct: 10
+  tight_flat_base:
+    grade: 3
+    max_depth_pct: 10
+    min_duration_days: 25
+    max_weekly_close_range_pct: 6
+    max_right_side_range_pct: 5
+    max_dryup_ratio: 0.8
+ranking:
+  min_grade: 2                   # decision G1
+  pivot_ready_max_distance_pct: 3
+scoring:                         # pattern part (section 13.4)
+  weights:
+    depth: 30
+    weekly_tightness: 25
+    right_side: 20
+    length: 15
+    prior_advance: 10
+  bounds:
+    depth: {worst: 15, best: 5}
+    weekly_tightness: {worst: 10, best: 3}
+    right_side: {worst: 8, best: 2}
+    length: {worst: 5, best: 10}
+    prior_advance: {worst: 20, best: 60}
