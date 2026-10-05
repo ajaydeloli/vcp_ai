@@ -2107,3 +2107,11 @@ From the next trading day the daily run updates labels after scoring.
 
 **Not yet applied** to the main or research DB: the schema migration runs on the first open with the new code, so the merge waits for the owner's go (backup, daily-run lock).
 
+
+### Multi-Strategy step 2 applied (2026-10-05 12:03–12:04 IST, code 2d8fc43)
+
+Owner go 2026-10-05. Under the daily-run lock (`~/vcp_spike/ms2_apply.sh`):
+- **Backups** (health-checked, keep 3): `data/backups/vcp_scanner_20261005_063329.duckdb`, `data/backups/golden_src_20261005_063338.duckdb`.
+- **Merge:** `ms-step2-framework` fast-forwarded into `main` (5251638 → 2d8fc43) and pushed.
+- **Migration** (`DuckDBStore.migrate()`), main and research DB: `setup_scores`, `score_components`, `forward_labels`, `backtest_runs` rebuilt with `strategy_id` (every row `vcp`); `scan_runs.strategy_id` = `vcp` for VCP and SCORE runs (main 6 + 4, research 501 + 499), NULL for Trend Template runs; new tables and views created; `setups` shows 4,928 (main) and 256,053 (research) rows.
+- **Check:** row counts of the six key tables unchanged in both databases (main: 469 scores, 6,097 components, 474 labels; research: 46,234 / 601,042 / 46,243, 5 backtest runs). `vcp scores list` for 1 Oct shows the same ranking as before (MWL 72.1, GLAND 70.0, UFLEX 66.0, TFCILTD 65.7, MBAPL 64.8).
