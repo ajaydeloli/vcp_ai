@@ -369,7 +369,24 @@ Each new strategy gets its own section here **before** its code (steps 4–6): r
 
 **Chart review (D6):** for each new strategy, before its first backtest is read, about 30 sample charts go to the owner in a labelling sheet like the VCP one (`vcp research labelling-sheet --strategy <id>`), mixed across grades and with some near-misses. The detector is changed (new version) until it agrees with the owner's eye; disagreements and their fixes are logged.
 
-**Shared features (step 3):** measurements used by more than one strategy (weekly close range, prior advance %, base depth and length helpers) are computed once in `features/` / `data/features/`, not inside a detector. Their tables are specified in DATABASE_SCHEMA when step 3 starts.
+**Shared features (step 3):** see §12A.
+
+## 12A. Shared base measurements (Multi-Strategy step 3, 2026-10-05)
+
+Owner decision 2026-10-05 (option A of three): pure functions in `features/base_measures.py`, computed from the daily bars a detector already holds; **nothing is stored** and no table is added. Window lengths are per-strategy thresholds and base measures depend on each detector's base start, so precomputed columns would bake strategy settings into the shared feature table. VCP keeps its own copies of these formulas, so its results cannot move.
+
+| Function | Definition | `None` when |
+|---|---|---|
+| `weekly_bars` | ISO weeks (Mon–Sun) of the daily bars up to the as-of bar: week end = last trading day, open = first day's open, close = last day's close, high/low = extremes, volume = sum. The as-of week uses only days up to the as-of bar and is `partial` Monday–Thursday (the weekly Stage rule). | volume: any day's volume missing |
+| `weekly_close_range_pct(closes, N)` | (max − min) / min × 100 over the last N weekly closes | fewer than N closes; a close missing or ≤ 0 |
+| `max_weekly_close_change_pct(closes, N)` | largest \|close / previous − 1\| × 100 over the last N week-to-week changes (N + 1 closes) | as above, with N + 1 |
+| `prior_advance(high, low, end, lookback)` | high[end] / lowest low of the `lookback` bars ending at `end` − 1, × 100; earliest low on a tie; `window_complete` False with fewer bars (VCP §8.1 item 1) | `end` outside the series; a low ≤ 0 or missing |
+| `base_extremes(dates, high, low, start, end)` | highest high and lowest low of bars start..end (earliest on a tie), depth % = (high − low) / high × 100, length in sessions and in ISO weeks | the window does not fit; a value missing |
+| `volume_dryup_ratio(volume, recent, base=50)` | mean volume of the last `recent` bars / mean of the `base` bars before them | a window does not fit; any volume missing; base mean 0 |
+
+`base_extremes.high` is the highest high in the window; VCP's `base_high` is the base-start bar's high. They differ after a breakout above the start (about 10 % of stored VCP patterns); a detector that means the start bar's high reads `high[start]`.
+
+**Checked on real data** (copy of the research DB, 5 dates 2022-02-11 … 2026-09-30, every universe stock): `weekly_bars` equals the stored `weekly_prices` for all 386,220 completed weeks (open, high, low, close exact; volume to 1e-9 relative, the sum order differs); `prior_advance` equals VCP's stored `prior_advance_return_pct` exactly for all 5,283 patterns with one, and `base_extremes` gives VCP's base low and base length exactly.
 
 ---
 

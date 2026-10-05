@@ -2115,3 +2115,16 @@ Owner go 2026-10-05. Under the daily-run lock (`~/vcp_spike/ms2_apply.sh`):
 - **Merge:** `ms-step2-framework` fast-forwarded into `main` (5251638 → 2d8fc43) and pushed.
 - **Migration** (`DuckDBStore.migrate()`), main and research DB: `setup_scores`, `score_components`, `forward_labels`, `backtest_runs` rebuilt with `strategy_id` (every row `vcp`); `scan_runs.strategy_id` = `vcp` for VCP and SCORE runs (main 6 + 4, research 501 + 499), NULL for Trend Template runs; new tables and views created; `setups` shows 4,928 (main) and 256,053 (research) rows.
 - **Check:** row counts of the six key tables unchanged in both databases (main: 469 scores, 6,097 components, 474 labels; research: 46,234 / 601,042 / 46,243, 5 backtest runs). `vcp scores list` for 1 Oct shows the same ranking as before (MWL 72.1, GLAND 70.0, UFLEX 66.0, TFCILTD 65.7, MBAPL 64.8).
+
+## Multi-Strategy phase step 3 — shared base measurements (2026-10-05)
+
+**Owner decisions (2026-10-05):** start step 3; store nothing (option A of three: in-memory functions / new feature columns / a new weekly table). The plan's exit "feature rebuild on a copy matches row counts" is replaced by a real-data consistency check, since nothing is rebuilt.
+
+**Code.** `features/base_measures.py` (new): `weekly_bars`, `weekly_close_range_pct`, `max_weekly_close_change_pct`, `prior_advance`, `base_extremes`, `volume_dryup_ratio` (definitions in STRATEGY_SPECIFICATION §12A). Pure: no storage, clock or provider access. VCP code untouched.
+
+**Tests.** Full suite 1,189 passed, 2 skipped; ruff, format, mypy clean. `tests/unit/test_base_measures.py` (20 tests on hand-built series: ISO weeks, partial as-of week, holiday weeks, missing volume, tightness windows, ties, short windows, bad inputs, and the shared prior advance / base low / length equal to VCP's segmentation on a synthetic base).
+
+**Real-data check** (copy `data/tmp/ms3/res.duckdb` of the research DB, 5 dates 2022-02-11, 2023-04-06, 2024-06-07, 2025-08-08, 2026-09-30, `~/vcp_spike/ms3_check.py`): `weekly_bars` from the adjusted daily bars equals the stored `weekly_prices` for all 386,220 completed weeks (OHLC exact, volume within 1e-9 relative: the SQL and Python sums add in a different order). `prior_advance` equals VCP's stored `prior_advance_return_pct` exactly for all 5,283 patterns with one; `base_extremes` gives the same base low and base length, and the base-start high equals VCP's `base_high`. In 516 of them (10 %) a later bar is above that high (a breakout): documented, since `base_extremes.high` is the window's highest high.
+
+**Not changed:** the database (nothing written; the check ran read-only on a copy), VCP results, stored features.
+

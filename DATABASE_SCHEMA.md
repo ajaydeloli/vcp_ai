@@ -1419,6 +1419,8 @@ SELECT * FROM strategy_setups;
 - `setup_scores_v`: `setup_scores` with `vcp_score AS pattern_score`, `vcp_weight AS pattern_weight`.
 - Labels, the event engine and reports read `setups` joined to `setup_scores` on `(strategy_id, instrument_id, as_of_date, config_hash, data_snapshot_id)` and `is_primary`; no code derives a scan id from another by slicing.
 
+Shared base measurements (Multi-Strategy step 3, STRATEGY_SPECIFICATION §12A) add **no** table: they are computed in memory from the adjusted daily bars (owner decision 2026-10-05).
+
 ## 35A.4 Migration
 
 - In `DuckDBStore.migrate()` (`_migrate_strategy_dimension`), idempotent, after the table DDL pass: `setup_scores`, `score_components`, `forward_labels` and `backtest_runs` are rebuilt from their new DDL in one transaction each (`_rebuild_table`, row counts checked), with `strategy_id = 'vcp'` and, for backtest runs, `algorithm_version` = the VCP algorithm version stored with their config hash; `scan_runs.strategy_id` is added and filled for VCP and SCORE runs. Then the views are (re)created.

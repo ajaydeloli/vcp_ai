@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (Multi-Strategy phase step 3: shared base measurements)
+- Shared measurements for the coming base patterns: weekly bars as of a date, weekly close range and week-to-week close change, prior advance, base high/low/depth/length, and a volume dry-up ratio. They are computed on the fly; nothing is stored and no VCP result changes.
+
 ### Changed (Multi-Strategy phase step 2: strategy framework, VCP only)
 - Every stored score, label and backtest now names its strategy (`strategy_id`). Existing results all belong to VCP and their values are unchanged: a rebuild of 30 Sep, 1 Oct and 10 research dates with the old and the new code gave identical patterns, scores, labels and backtests.
 - New `config/strategies/vcp.yaml` registers VCP as strategy #1. Its thresholds stay in `strategy.yaml` and `scoring.yaml`.
