@@ -2230,3 +2230,9 @@ STRATEGY_SPECIFICATION §15: `cup_handle-1.0.0` (left lip, rounded cup 7–65 we
 - A 22:00 IST daily run (late slot; "all steps OK", ended 22:34) held the lock; the watcher `~/vcp_spike/ms5b_cup11_chain.sh` waited, then ff-merged bd595ab and, under the lock, backed up (`data/backups/golden_src_20261005_170507.duckdb`; keep=3 rotated out `golden_src_20261005_093106`), rescanned cup_handle 1.1.0 over all 248 dates (setups, scores), labels (2,268), and ran 4 development walk-forwards (3 rules + baseline). No errors. Results: STRATEGY_SPECIFICATION §15.7.
 - Review sheet rebuilt from 1.1.0: `reports/chart_review/cup_handle/review_sheet.html` (30 windows, the C4 mix); marks checked (`ms5b_marks.py`: 4 points in order, pivot = R × 1.001, stop = H; charts 260–369 bars). Shapes eyeballed as text sketches: L at the prior peak, R back near it.
 - The 1.0.0 rows (a7f96c6ec87e) and their 4 backtest runs stay as a version tried.
+
+## Multi-Strategy phase step 5c — chart review of Cup and handle and Double bottom (2026-10-05)
+
+**Chart review (C4)** of the step-5b sheets by the owner (answers in `reports/chart_review/{cup_handle,double_bottom}/review_answers_2026-10-05.csv`, no notes; analysis `~/vcp_spike/ms5b_answers.py`; summary in STRATEGY_SPECIFICATION §15.8): Cup and handle 1.1.0 29 yes / 1 partly / 0 no; Double bottom 1.0.0 16 yes / 13 partly / 1 no, with every grade-3 chart marked yes and grade 2 mostly partly, but no measured value separating yes from partly.
+
+**Owner decisions (2026-10-05):** cup_handle-1.1.0 unchanged; double_bottom-1.0.0 accepted as is (option b). No code, config or database change. Step 5 is complete; next is step 6 (High tight flag).

@@ -805,6 +805,14 @@ Same-day overlap of eligible setups: cup → VCP 44 %, → flat base 11 %, → 3
 
 Graded cups now do better per trade than the baseline (PF 1.96 vs 1.78), on 136 trades. Not read as an edge (§10.4): chart review first, several strategies compared, validation unopened. The review sheet was rebuilt from 1.1.0 (text sketches of the windows now show the right lip near the left lip).
 
+## 15.8 Chart review (decision C4) and decisions (owner, 2026-10-05)
+
+Answers: `reports/chart_review/<strategy>/review_answers_2026-10-05.csv` (30 windows each, development period; no notes given).
+
+- **Cup and handle 1.1.0: 29 yes, 1 partly (FILATEX, nothing unusual in its numbers), 0 no.** Geometry accepted; `cup_handle-1.1.0` unchanged.
+- **Double bottom 1.0.0: 16 yes, 13 partly, 1 no (SPANDANA).** By grade: grade 3 8 of 8 yes; grade 2 4 yes / 7 partly / 1 no; grade 1 and near-misses 4 yes / 6 partly. No measured value separates the grade-2 yes from the partly charts (right-side range: yes 13–19 %, partly 9–20 %; undercut, middle-peak position and leg spacing overlap); two partly answers are breakouts with the close 14–23 % above the pivot (GRSE, HNDFDS). Without notes on which mark was off, no rule was fitted. **Owner decision (option b): `double_bottom-1.0.0` accepted as is.** Rejected: (a) collect notes on the 14 partly/no charts first; (c) rank grade 3 only (about 75 rows in 2022–2026, too few trades).
+- Both strategies go to step 7 (comparison, exit rule, validation once per strategy) with their current versions: cup_handle-1.1.0 (`e36477f23b36`), double_bottom-1.0.0 (`dd7107637b1b`).
+
 ---
 
 
