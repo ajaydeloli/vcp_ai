@@ -743,7 +743,42 @@ Other details fixed in code:
 - Stored details: cup `left_lip_date`, `bottom_date`, `right_lip_date`, `handle_low_date`, `cup_depth_pct`, `handle_depth_pct`, `cup_sessions`, `cup_weeks`, `handle_sessions`, `right_lip_gap_pct`, `bottom_share`, `bottom_sessions`, `bottom_position`, `rounded`, `handle_position`, `handle_dryup_ratio`, `handle_low`, `sma_close`, `prior_advance_low_date`, `pivot_buffer_pct`. Double bottom `left_high_date`, `first_low_date`, `middle_peak_date`, `second_low_date`, `first_low`, `middle_peak`, `second_low`, `undercut_pct`, `middle_bounce_pct`, `middle_peak_position`, `right_side_range_pct`, `right_side_low`, `base_sessions`, `prior_advance_low_date`, `pivot_buffer_pct`.
 - Chart review sheet: charts of long bases start 40 bars before the base start (more than the usual 260 bars when needed), and the points are drawn as labelled dots (cup L, B, R, H; double bottom L, B1, M, B2).
 
+## 15.6 First results (research DB, 2026-10-05; development period only)
+
+Rescan of `data/golden_src.duckdb` (code 99224e0, 21:29–21:52 IST, under the daily-run lock, backup `golden_src_20261005_155936.duckdb`): both strategies over all 248 weekly dates, scores and labels (cup 15,176 observations, config `a7f96c6ec87e`; double bottom 3,063, `dd7107637b1b`). No errors.
+
+| | Cup and handle 1.0.0 | Double bottom 1.0.0 |
+|---|---|---|
+| Grade 1 / 2 / 3 rows (2022–2026) | 12,140 / 2,583 / 453 | 2,178 / 810 / 75 |
+| Grade 2+ distinct bases (summed by year) | 1,439 | 374 |
+| Grade 2+ rows / bases, development period | 1,677 / 796 | 372 / 157 |
+| Eligible (ranked) score rows | 2,943 | 801 |
+| Grade 2+ median depth; length | 21.2 %; 75 sessions | 23.1 %; 58 sessions |
+| Grade 2+ stop below the pivot (10/50/90 %) | 6.0 / 9.2 / 11.6 % | 7.2 / 13.2 / 20.3 % |
+| Most common no-setup reasons | NO_HANDLE 14,785, TOO_DEEP 12,879, NO_CUP 2,455 | NO_W 27,725, OLD_BREAKOUT 10,966, TOO_DEEP 3,754 |
+| Why grade 1 is not grade 2 (top) | not rounded 7,833, handle too deep 4,543 | undercut > 5 % 990, middle peak not below the left high 867 |
+
+Same-day overlap of eligible setups: cup → VCP 22 %, → flat base 9 %, → 3WT 13 %, → double bottom 2 %; double bottom → VCP 54 %, → flat base 4 %, → 3WT 9 %, → cup 7 %. (VCP → cup 5 %, → double bottom 4 %.)
+
+Development walk-forward (2022-02-01 … 2024-06-30, 15 bps a side; survivorship PARTIAL):
+
+| Strategy | Rule | Signals | Trades | Win | Avg | PF | Portfolio CAGR / max DD |
+|---|---|---|---|---|---|---|---|
+| Cup and handle | hold_s7 | 1,626 | 476 | 31.3 % | +4.08 % | 1.83 | 18.7 % / −28.2 % |
+| Cup and handle | hold_low8 | 1,626 | 465 | 33.8 % | +4.18 % | 1.79 | 16.1 % / −31.1 % |
+| Cup and handle | hold_low5 | 1,626 | 496 | 23.0 % | +3.19 % | 1.79 | 17.7 % / −32.6 % |
+| Cup and handle, baseline | hold_s7 | 8,391 | 1,565 | 29.6 % | +3.72 % | 1.74 | 22.2 % / −17.8 % |
+| Double bottom | hold_s7 | 341 | 119 | 25.2 % | +1.56 % | 1.29 | 3.5 % / −18.1 % |
+| Double bottom | hold_low8 | 341 | 119 | 31.1 % | +3.25 % | 1.60 | 8.6 % / −20.0 % |
+| Double bottom | hold_low5 | 341 | 129 | 17.1 % | +0.61 % | 1.14 | 1.6 % / −16.8 % |
+| Double bottom, baseline | hold_s7 | 1,516 | 492 | 30.7 % | +4.51 % | 1.91 | 21.2 % / −35.4 % |
+
+Not read as an edge (§10.4): the chart review comes first, several strategies are compared, validation is unopened. For both, the graded setups do no better than every setup with a pivot (baseline).
+
+**Found while checking the review-sheet marks (cup):** the right lip is usually well **above** the left lip. Grade 2+ right-lip gap: median −9.4 % (10/25/75/90 %: −27.6 / −17.3 / −3.9 / +1.0 %); 78 % of grade 2+ rows have the right lip more than 3 % above the left. §15.1 bounds the gap only from above (≤ 10 %), so a pullback in an uptrend that rallies past the old high and then pauses passes as a "cup with handle". The stock has already cleared the left-lip pivot; this is not O'Neil's form. Waiting for the owner's decision; the cup chart-review sheet waits for it.
+
 ---
+
 
 # 17. Configuration validation (blocks a scan)
 

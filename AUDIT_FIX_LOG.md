@@ -2208,3 +2208,11 @@ STRATEGY_SPECIFICATION §15: `cup_handle-1.0.0` (left lip, rounded cup 7–65 we
 **Real-data check** (copy `data/tmp/ms5b/res.duckdb` of the research DB; 6 weekly dates 2022-06-24 … 2026-09-25; about 1.5 s per date): cup and handle 10–129 setups per date (grade 2+ about 15–20 %, mostly FORMING); double bottom after option (a) 2–36 per date (grade 2+ 23 of 71 rows). No errors.
 
 **Not changed:** the main DB and the research DB (step 6 of the build plan asks the owner first); VCP code and results; no schema change.
+
+### Step 5b research DB rescan, walk-forwards and review sheets (2026-10-05 21:29–22:05 IST, owner go)
+
+- **Research DB** `data/golden_src.duckdb`, under the daily-run lock (`~/vcp_spike/ms5b_research.sh`, code 99224e0); backup `data/backups/golden_src_20261005_155936.duckdb` (keep=3; `golden_src_20261005_063338` rotated out, `golden_src_pre_c11` kept). cup_handle then double_bottom over all 248 weekly dates in date order (setups, scores), then labels: cup 15,176 observations (config a7f96c6ec87e), double bottom 3,063 (dd7107637b1b). No errors; about 11 minutes per strategy.
+- **Counts, overlap and development walk-forwards** (`~/vcp_spike/ms5b_stats.py`, `ms5b_wf.sh`; 8 runs: 3 exit rules + baseline per strategy, development period only): STRATEGY_SPECIFICATION §15.6. Graded setups did no better than the baseline for either strategy; the double bottom is weak (119 trades, PF 1.29 with hold_s7).
+- **Chart-review sheets** (decision C4; development period; 12 grade 2, 8 grade 3, 6 grade 1, 4 near-misses each): `reports/chart_review/cup_handle/review_sheet.html`, `reports/chart_review/double_bottom/review_sheet.html`. Marks checked against the setups (`~/vcp_spike/ms5b_marks.py`): every window has its 4 points in order, base start = L, pivot = R / M high × 1.001, cup stop = H; charts 243–367 bars. Shapes checked as text sketches (`ms5b_spark.py`): the double bottoms look like Ws.
+- **Finding (cup):** most cups have the right lip well above the left lip (grade 2+ median 9.4 % above; 78 % more than 3 % above), because §15.1 bounds the right-lip gap only from above. Reported to the owner with options; the cup sheet is not sent for review until decided.
+- The main DB was not touched; VCP, flat base and 3WT rows unchanged.
