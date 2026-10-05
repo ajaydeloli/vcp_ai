@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed (Multi-Strategy phase step 5b: Cup and handle 1.1.0)
+- A cup's right lip may now be at most 3 % above its left lip. Before, most "cups" were stocks that had already rallied past their old high and then paused.
+
 ### Added (Multi-Strategy phase step 5b: Cup and handle and Double bottom)
 - Two new research-only strategies, `cup_handle` and `double_bottom`, with their own detectors, grades, pivots and stops, score parts and config files. The daily run does not run them.
 - A double bottom stops being a setup 10 sessions after its breakout, so an old breakout is not ranked or traded as a fresh one.

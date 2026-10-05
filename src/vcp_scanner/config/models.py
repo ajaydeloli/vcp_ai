@@ -943,6 +943,8 @@ class CupHandleDetectorConfig(StrictBaseModel):
     min_cup_days: Annotated[int, Field(ge=10)] = 35
     max_cup_days: Annotated[int, Field(ge=20)] = 325
     lip_tolerance_pct: Annotated[float, Field(ge=0)] = 3.0
+    #: 1.1.0: the right lip at most this much above the left lip, else no cup.
+    max_right_lip_above_pct: Annotated[float, Field(ge=0)] = 3.0
     min_prior_advance_pct: Annotated[float, Field(ge=0)] = 20.0
     prior_advance_lookback_days: Annotated[int, Field(ge=1)] = 120
     pivot_buffer_pct: Annotated[float, Field(ge=0)] = 0.1

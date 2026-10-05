@@ -156,6 +156,16 @@ def test_no_cup_when_a_high_inside_tops_the_rims() -> None:
     assert DET.detect(b.ctx()).no_setup_reason == "NO_CUP"
 
 
+def test_right_lip_well_above_the_left_is_no_cup() -> None:
+    """1.1.0: a stock that rallied past its old high and paused is not in a cup."""
+    b = worked_example()
+    b.h[L + 60] = 204.0  # 2 % above the left lip: still a cup
+    s = DET.detect(b.ctx()).setup
+    assert s is not None and s.details["right_lip_gap_pct"] == pytest.approx(-2.0)
+    b.h[L + 60] = 210.0  # 5 % above: no cup
+    assert DET.detect(b.ctx()).no_setup_reason == "NO_CUP"
+
+
 def test_no_prior_advance() -> None:
     r = DET.detect(worked_example(flat_prior=True).ctx())
     assert r.setup is None and r.no_setup_reason == "NO_PRIOR_ADVANCE"

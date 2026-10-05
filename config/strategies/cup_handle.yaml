@@ -1,7 +1,7 @@
 # cup_handle.yaml - Cup and handle (STRATEGY_SPECIFICATION 15.1; signed off 2026-10-05)
 # Every number is a starting hypothesis, tuned on the development period only.
 strategy_id: cup_handle
-algorithm_version: cup_handle-1.0.0
+algorithm_version: cup_handle-1.1.0   # 1.1.0: right lip at most 3 % above the left lip (2026-10-05)
 enabled: false          # the daily run does not run it yet (step 8)
 stage: research
 trend_gate:
@@ -12,6 +12,7 @@ detector:
   min_cup_days: 35               # left lip 7..65 weeks before the right lip (decision C3)
   max_cup_days: 325
   lip_tolerance_pct: 3           # no high inside the cup above the higher rim x 1.03
+  max_right_lip_above_pct: 3     # 1.1.0: else the stock already cleared its old high: no cup
   min_prior_advance_pct: 20
   prior_advance_lookback_days: 120
   pivot_buffer_pct: 0.1

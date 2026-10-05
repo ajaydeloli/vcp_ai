@@ -653,7 +653,7 @@ A rounded, U-shaped correction after an advance. The right side climbs back near
 
 | Tier | Grade | Rules (all must hold) |
 |---|---|---|
-| `CUP_HANDLE_LIKE` | 1 | cup depth ≤ 50 %; handle depth ≤ 15 %; handle in the upper half (handle position ≥ 0.5); right-lip gap ≤ 15 % |
+| `CUP_HANDLE_LIKE` | 1 | (1.1.0, all tiers: right lip at most 3 % above the left lip, else no cup) cup depth ≤ 50 %; handle depth ≤ 15 %; handle in the upper half (handle position ≥ 0.5); right-lip gap ≤ 15 % |
 | `CUP_HANDLE` | 2 | cup depth 12 … 33 %; rounded (rule above); handle depth ≤ 12 %; handle position ≥ 0.5; right-lip gap ≤ 10 %; prior advance ≥ 30 %; Trend Template PASS and weekly Stage 2 |
 | `CUP_HANDLE_A` | 3 | as grade 2, and handle depth ≤ 8 %, handle dry-up ≤ 0.8, handle low above the 50-day average close |
 
@@ -775,7 +775,9 @@ Development walk-forward (2022-02-01 … 2024-06-30, 15 bps a side; survivorship
 
 Not read as an edge (§10.4): the chart review comes first, several strategies are compared, validation is unopened. For both, the graded setups do no better than every setup with a pivot (baseline).
 
-**Found while checking the review-sheet marks (cup):** the right lip is usually well **above** the left lip. Grade 2+ right-lip gap: median −9.4 % (10/25/75/90 %: −27.6 / −17.3 / −3.9 / +1.0 %); 78 % of grade 2+ rows have the right lip more than 3 % above the left. §15.1 bounds the gap only from above (≤ 10 %), so a pullback in an uptrend that rallies past the old high and then pauses passes as a "cup with handle". The stock has already cleared the left-lip pivot; this is not O'Neil's form. Waiting for the owner's decision; the cup chart-review sheet waits for it.
+**Found while checking the review-sheet marks (cup):** the right lip is usually well **above** the left lip. Grade 2+ right-lip gap: median −9.4 % (10/25/75/90 %: −27.6 / −17.3 / −3.9 / +1.0 %); 78 % of grade 2+ rows have the right lip more than 3 % above the left. §15.1 bounds the gap only from above (≤ 10 %), so a pullback in an uptrend that rallies past the old high and then pauses passes as a "cup with handle". The stock has already cleared the left-lip pivot; this is not O'Neil's form.
+
+**Decision (owner, 2026-10-05, option a): `cup_handle-1.1.0`.** The right lip may be at most `max_right_lip_above_pct` (3 %, the rim tolerance) above the left lip; otherwise there is no cup (`NO_CUP`). Rejected: (b) a −5 % gap floor for grades 2–3 only; (c) no rule, left to the chart review. The 1.0.0 rows stay in the research DB under config `a7f96c6ec87e` as a version tried. Results of 1.1.0: §15.7.
 
 ---
 

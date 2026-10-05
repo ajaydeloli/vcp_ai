@@ -2216,3 +2216,11 @@ STRATEGY_SPECIFICATION §15: `cup_handle-1.0.0` (left lip, rounded cup 7–65 we
 - **Chart-review sheets** (decision C4; development period; 12 grade 2, 8 grade 3, 6 grade 1, 4 near-misses each): `reports/chart_review/cup_handle/review_sheet.html`, `reports/chart_review/double_bottom/review_sheet.html`. Marks checked against the setups (`~/vcp_spike/ms5b_marks.py`): every window has its 4 points in order, base start = L, pivot = R / M high × 1.001, cup stop = H; charts 243–367 bars. Shapes checked as text sketches (`ms5b_spark.py`): the double bottoms look like Ws.
 - **Finding (cup):** most cups have the right lip well above the left lip (grade 2+ median 9.4 % above; 78 % more than 3 % above), because §15.1 bounds the right-lip gap only from above. Reported to the owner with options; the cup sheet is not sent for review until decided.
 - The main DB was not touched; VCP, flat base and 3WT rows unchanged.
+
+## Multi-Strategy phase step 5b — Cup and handle 1.1.0 (2026-10-05)
+
+**Owner decision** (option a, after the §15.6 finding that 78 % of grade 2+ cups had the right lip more than 3 % above the left): a cup's right lip may be at most `max_right_lip_above_pct` (3 %, the rim tolerance) above its left lip, else `NO_CUP`. `cup_handle-1.1.0`, new config hash e36477f23b36; the 1.0.0 rows (a7f96c6ec87e) stay in the research DB as a version tried.
+
+**Code:** `CupHandleDetectorConfig.max_right_lip_above_pct`, the check in `patterns/cup_handle/detector.py`, `config/strategies/cup_handle.yaml`. **Test:** right lip 2 % above the left is still a cup, 5 % above is `NO_CUP`. Full suite 1,245 passed, 2 skipped; ruff, format, mypy clean.
+
+**Real-data check** (copy `data/tmp/ms5b/res.duckdb`, 3 dates): setups per date 14 / 15 / 8 (1.0.0: 39 / 129 / 83); grade 2: 6 / 4 / 1.

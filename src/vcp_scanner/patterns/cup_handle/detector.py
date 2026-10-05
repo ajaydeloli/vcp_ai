@@ -1,4 +1,4 @@
-"""Cup and handle detector, ``cup_handle-1.0.0`` (STRATEGY_SPECIFICATION 15.1).
+"""Cup and handle detector, ``cup_handle-1.1.0`` (STRATEGY_SPECIFICATION 15.1).
 
 A rounded, U-shaped correction after an advance; the right side climbs back near the old high,
 then a short, shallow pullback (the handle) forms in the upper half on light volume. Steps, on
@@ -7,7 +7,9 @@ adjusted daily bars ending at the as-of bar ``t`` (earliest bar on a tie through
 1. Right lip ``R`` (the handle's start) = the highest high among bars ``t - max_handle + 1`` ..
    ``t - min_handle + 1``. Pivot = high[R] x (1 + buffer); it never moves.
 2. Left lip ``L`` = the highest high among bars ``R - max_cup`` .. ``R - min_cup``. No high
-   between them may exceed the higher rim x (1 + tolerance) (step 5b reading A): else NO_CUP.
+   between them may exceed the higher rim x (1 + tolerance) (step 5b reading A), and the right
+   lip may be at most ``max_right_lip_above_pct`` above the left (1.1.0: a stock that already
+   rallied past its old high is not in a cup): else NO_CUP.
 3. Breakout: a recorded one for this base (same left lip and pivot), else the first close above
    the pivot after ``R`` on breakout volume. After a breakout the handle ends the day before it
    (the shape is frozen; ``base_end`` = the breakout date).
@@ -37,7 +39,7 @@ from vcp_scanner.patterns.strategy_base import (
     setup_status,
 )
 
-ALGORITHM_VERSION = "cup_handle-1.0.0"
+ALGORITHM_VERSION = "cup_handle-1.1.0"  # 1.1.0: right lip at most 3 % above the left
 STRATEGY_ID = "cup_handle"
 SCORE_SUBS = ("roundness", "handle_depth", "handle_position", "cup_depth", "prior_advance")
 
@@ -74,7 +76,8 @@ class CupHandleDetector:
         # 2. Left lip and the rim check.
         lip = highest(b.high, max(0, r - d.max_cup_days), r - d.min_cup_days)
         rim = max(b.high[lip], b.high[r]) * (1.0 + d.lip_tolerance_pct / 100.0)
-        if any(b.high[k] > rim for k in range(lip + 1, r)):
+        above = b.high[lip] * (1.0 + d.max_right_lip_above_pct / 100.0)
+        if b.high[r] > above or any(b.high[k] > rim for k in range(lip + 1, r)):
             return StrategyResult(iid, as_of, None, "NO_CUP")
 
         # 3. Breakout (recorded for this base, else searched) freezes the handle.
