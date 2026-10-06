@@ -2300,3 +2300,7 @@ Under the daily-run lock (`~/vcp_spike/m2_apply.sh`): health check and backup `d
 **Tests.** `test_paper_ledger.py` (6: entry with stop, open then stop exit, watch expiry; an open position keeps its slot; append only after the last closed day; a data fix is one divergence, not repeated; the repository appends and never updates or deletes; the summary); daily-run chain; e2e runs `paper update` / `status`. Full suite 1,262 passed, 2 skipped; ruff, format, mypy clean.
 
 **Real-data check** (copy `data/tmp/m3/main.duckdb` of the main DB): sessions 2026-10-01 and 10-05 written for all five strategies (VCP 211 rows, flat base 53, 3WT 66, cup 12, double bottom 23: watch-list entries and expiries); `breadth50` off on both days (26–27 % above the 50-day average; the research DB agrees), so no paper entries yet; a second run appended nothing.
+
+### M3 applied to the main DB (2026-10-06 13:14 IST)
+
+68fa391 ff-merged; under the daily-run lock (`~/vcp_spike/m3_apply.sh`): health check, backup `data/backups/vcp_scanner_20261006_074435.duckdb` (keep=3: `vcp_scanner_20261005_134501` rotated out); the first open with the new code created `paper_events` (schema version 3); first `vcp paper update`: sessions 2026-10-01 and 10-05 for all five strategies (365 rows: watch-list entries and expiries; regime off both days, so no entries), same as on the copy. Git tag **`paper-v1`** on 68fa391 (pushed): the freeze point of §21.1. From the 19:15 run the daily run appends each new session.
