@@ -18,6 +18,11 @@ evenings: every step catches up on its own.
    ``compute scores`` for every session after the last scanned one (one session on the first
    run), in date order (VCP breakout tracking reads the previous date, VCP_SPECIFICATION 61B);
    then ``compute labels`` once (forward labels of earlier observations, Phase 9).
+6. Paper strategies (STRATEGY_SPECIFICATION 21.2): for every other strategy whose file says
+   ``enabled: true`` (all ``stage: paper`` in the monitoring phase), ``compute setups`` and
+   ``compute scores --strategy ID`` after each date's VCP scores, and ``compute labels
+   --strategy ID`` after VCP's labels. A strategy file that fails to load is a failed step;
+   VCP still runs.
 
 One line per run is appended to ``<db folder>/logs/daily_runs.log``.
 """
@@ -67,6 +72,17 @@ def sessions_to_scan(db: str) -> list[date]:
     if last_scan is None:
         return sessions[-1:]
     return [d for d in sessions if d > last_scan]
+
+
+def paper_strategies(config_dir: str) -> list[str]:
+    """Strategies other than VCP that the daily run executes (``enabled: true``), in registry
+    order. Raises when a strategy file is invalid (section 17)."""
+    from vcp_scanner.domain.strategy import VCP_STRATEGY_ID
+    from vcp_scanner.patterns.registry import REGISTRY, load_strategies
+
+    files = load_strategies(config_dir)
+    return [sid for sid in REGISTRY
+            if sid != VCP_STRATEGY_ID and sid in files and files[sid].enabled]  # fmt: skip
 
 
 def run_daily(args: argparse.Namespace, cli_main: Callable[[list[str]], int]) -> int:
@@ -128,6 +144,12 @@ def run_daily(args: argparse.Namespace, cli_main: Callable[[list[str]], int]) ->
     step("adjusted prices", ["ingest", "adjusted-prices", "--db", db])
     step("features", ["compute", "features", "--db", db])
 
+    try:
+        strategies = paper_strategies(cfg)
+    except Exception as exc:  # a bad strategy file: VCP still runs, the run is marked failed
+        print(f"\n=== strategy config\nERROR: {exc}")
+        results.append(("strategy config", 1))
+        strategies = []
     scan_dates = sessions_to_scan(db)
     for d in scan_dates:
         iso = d.isoformat()
@@ -140,8 +162,16 @@ def run_daily(args: argparse.Namespace, cli_main: Callable[[list[str]], int]) ->
                             "--config-dir", cfg])  # fmt: skip
         step(f"scores {iso}", ["compute", "scores", "--as-of", iso, "--db", db,
                                "--config-dir", cfg])  # fmt: skip
+        for sid in strategies:
+            step(f"{sid} setups {iso}", ["compute", "setups", "--strategy", sid, "--as-of", iso,
+                                         "--db", db, "--config-dir", cfg])  # fmt: skip
+            step(f"{sid} scores {iso}", ["compute", "scores", "--strategy", sid, "--as-of", iso,
+                                         "--db", db, "--config-dir", cfg])  # fmt: skip
     if scan_dates:
         step("forward labels", ["compute", "labels", "--db", db, "--config-dir", cfg])
+        for sid in strategies:
+            step(f"{sid} forward labels", ["compute", "labels", "--strategy", sid, "--db", db,
+                                           "--config-dir", cfg])  # fmt: skip
 
     collected = sorted(
         str(r[0])

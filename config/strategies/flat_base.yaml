@@ -2,8 +2,8 @@
 # Every number is a starting hypothesis, tuned on the development period only.
 strategy_id: flat_base
 algorithm_version: flat_base-1.0.0
-enabled: false          # the daily run does not run it yet (step 8)
-stage: research
+enabled: true           # the daily run executes it (monitoring phase, STRATEGY_SPECIFICATION 21.2)
+stage: paper            # live paper tracking from 2026-10-01 (21.1); frozen until the review
 trend_gate:
   mode: required
 detector:

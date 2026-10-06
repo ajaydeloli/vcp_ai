@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed (Monitoring phase M2: the daily run scans every paper strategy)
+- The evening run now also finds and scores Flat base, Three Weeks Tight, Cup and handle and Double bottom setups for each new session, and updates their forward labels. All five strategies are marked `stage: paper` and are frozen until the paper review.
+
 ### Changed (Multi-Strategy phase step 7d: backtest defaults)
 - Backtests now default to the rules chosen on the development period for every strategy: enter on a real cross of the pivot (at most 5 % above it), only while at least 40 % of the universe is above its 50-day average, and exit at the setup low or −8 % (60-session time exit). Set in `config/backtest.yaml` (`defaults`); the old behaviour is `--entry breakout --regime none --rule hold_s7`.
 
