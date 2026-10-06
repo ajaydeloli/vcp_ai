@@ -567,6 +567,12 @@ def build_parser() -> argparse.ArgumentParser:
         "--backup-keep", type=int, default=3, help="Number of backups to keep (default 3)"
     )
     daily_parser.add_argument(
+        "--serving-copy",
+        action="store_true",
+        help="Last step: refresh the dashboard's read-only serving copy of the database "
+        "(<db folder>/serving/vcp_serving.duckdb)",
+    )
+    daily_parser.add_argument(
         "--no-backup",
         action="store_true",
         help="Skip the pre-run health check and backup (not recommended)",
@@ -583,6 +589,9 @@ def build_parser() -> argparse.ArgumentParser:
     from vcp_scanner.cli_paper import add_paper_parser
 
     add_paper_parser(subparsers)
+    from vcp_scanner.cli_api import add_api_parser
+
+    add_api_parser(subparsers)
 
     scores_cmd = subparsers.add_parser("scores", help="Read stored setup scores (Phase 7)")
     scores_sub = scores_cmd.add_subparsers(dest="scores_command")
@@ -1044,6 +1053,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         from vcp_scanner.cli_paper import run_paper
 
         return run_paper(args)
+    if args.command == "api":
+        from vcp_scanner.cli_api import run_api
+
+        return run_api(args)
     if args.command == "backtest":
         from vcp_scanner.cli_backtest import run_backtest
 

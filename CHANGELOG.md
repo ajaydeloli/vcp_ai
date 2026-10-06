@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (Dashboard D1: serving copy and read-only API)
+- `vcp api serve` starts a read-only local API (127.0.0.1:8000, GET only) for the dashboard: status, summary, market breadth and regime, ranked setups per strategy, stocks (bars with averages, setups with marks and score parts, Trend Template conditions), recent activity and the paper panel with the review criteria. It reads only a serving copy of the database and picks up a replaced copy without a restart.
+- `vcp run daily --serving-copy` refreshes that copy as the run's last step (atomic; off by default until enabled). Adds `fastapi` and `uvicorn` to the dependencies.
+
 ### Changed (Dashboard D0: spec signed off)
 - FRONTEND_SPECIFICATION §67 (Dashboard v1: read-only local API and web page for the monitoring phase) is signed off: FastAPI + Next.js, a serving copy of the database refreshed by the daily run, the dashboard page only, dark theme. Docs only.
 

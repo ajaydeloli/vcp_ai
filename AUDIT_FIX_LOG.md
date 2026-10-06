@@ -2312,3 +2312,20 @@ The owner asked for a web dashboard calling an API, after his mockup. FRONTEND_S
 ## Dashboard D0 — §67 signed off (2026-10-06)
 
 Owner decisions W1–W4, each as recommended: FastAPI + Next.js (TypeScript, Tailwind, TanStack Query, Lightweight Charts, Zod); a serving copy `data/serving/vcp_serving.duckdb` refreshed atomically as the daily run's last step, the API opening only that copy read-only; v1 is the dashboard page only; dark theme. FRONTEND_SPECIFICATION §67 is no longer "proposed". Next: D1 (serving copy step, API v1, `vcp api serve`, tests on a fixture database). Docs only; no code, database or strategy change.
+
+## Dashboard D1 — serving copy and read-only API (2026-10-06)
+
+Owner go after the §67 sign-off. FRONTEND_SPECIFICATION §67.3 and §67.9.
+
+**Code.**
+- `serving.py` (new): `refresh_serving_copy` (checkpoint, copy to `.partial`, open check, atomic rename; the previous copy stays on any failure). `daily.py`: last step with `--serving-copy` (**off by default**: the owner is asked before the daily run writes it); a failed copy is a failed step.
+- `api/` (new, FastAPI): `models` (Pydantic, `as_of` and `data_time` on every response, missing = null), `db` (read-only serving copy, re-opened when the file is replaced), `context` (paper strategies, config hashes, tiers, from `config/`), `queries` and `reports` (the SQL), `app` (GET `/api/v1/...`, CORS for the local page only). `cli_api.py`: `vcp api serve` (127.0.0.1:8000). `pyproject.toml`: `fastapi`, `uvicorn`; `httpx` for the tests.
+
+**Found while testing, fixed:** DuckDB keeps one database instance per file path in a process, so re-connecting to a replaced file while the old connection was open kept serving the old data. `ServingDb` now waits until no request uses the old copy, closes it, then opens the new one (test: the new request waits for one in flight and then sees the new file). FastAPI could not resolve a local type alias for the `date` parameter and silently ignored `?date=`; the alias is module-level now (a test covers dates).
+
+**Tests (+37; 1,299 passed, 2 skipped; ruff and mypy --strict clean).** `tests/unit/test_serving.py` (7: readable copy, replaced with new data, a failed refresh keeps the old copy, the daily run writes it only when asked and last, a failed copy fails the run); `tests/api/` (30) on a synthetic database built with the real schema and paper repository: every endpoint with exact values, the five config hashes equal the frozen ones, null instead of 0, all routes GET only and the two databases byte-identical after requests, 503 without a copy, warnings of §21.5, hot replacement.
+
+**Real-data check** (copy `data/tmp/d1/main.duckdb` of the main DB; 2026-10-06 14:28 IST): serving copy of 2.23 GB in 9 s; `vcp api serve` on 127.0.0.1 answered status, summary, market (250 days), setups, paper and activity with 200 in 0.03–0.28 s; POST gave 405; the copy replaced under the running server was picked up without a restart. Numbers agree with the ledger: five strategies at the frozen hashes, 207 Trend Template passers and 61 ranked VCP setups on 2026-10-05, breadth 26–27 % on 10-01 and 10-05, regime off, no paper trades. `company` is null for most stocks (no names stored); the status warnings list was empty.
+
+**Not changed:** the main DB and the research DB (the check ran on a copy), every strategy, rule, scan, score, label and the ledger; the daily run's default behaviour (the serving step is off until the owner agrees).
+

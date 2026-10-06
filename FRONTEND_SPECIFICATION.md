@@ -2010,7 +2010,7 @@ Left-navigation items other than Dashboard (Screener, Watchlist, Backtests, Repo
 | Step | Content |
 |---|---|
 | D0 | This section (docs only) |
-| D1 | Serving copy in the daily run; API v1 with tests (fixture database); `vcp api serve` |
+| D1 | Serving copy in the daily run; API v1 with tests (fixture database); `vcp api serve` (built 2026-10-06, §67.9) |
 | D2 | `frontend/`: the dashboard page against the API; component and API-contract tests; `scripts/dashboard.sh`; screenshot check |
 | D3+ | Later, each specified first: stock page, screener filters, watchlist (needs writes: own decision), backtest and paper history pages, phone access (needs login and network setup) |
 
@@ -2026,3 +2026,16 @@ NIFTY / BANKNIFTY quotes (no index data); sector and market-cap filters (no such
 | W2 | Database access | (a) serving copy refreshed by the daily run · (b) the API reads the main database directly and shows "busy" during the run | (a): `data/serving/vcp_serving.duckdb`, refreshed atomically as the daily run's last step; the API opens only that copy, read-only |
 | W3 | v1 scope | (a) the dashboard page of §67.4 only · (b) also a full stock page and screener now | (a): one page done well first |
 | W4 | Theme | (a) dark, after the mockup · (b) light · (c) both with a switch | (a), the switch later |
+
+## 67.9 As built: API v1 (step D1, 2026-10-06)
+
+- **Serving copy** (`vcp_scanner.serving`): `vcp run daily --serving-copy` adds a last step that checkpoints the main database, copies it to `<db folder>/serving/vcp_serving.duckdb` under a `.partial` name, checks that the copy opens, then renames it over the old one. A failed copy fails the run (named in the summary line) and leaves the previous copy in place. **Opt-in, off by default** until the owner agrees; the 2.2 GB copy takes about 9 s.
+- **API** (`vcp_scanner.api`, FastAPI): the endpoints of §67.3 under `/api/v1`, GET only (other verbs: 405), CORS for `http://localhost:3000` and `http://127.0.0.1:3000` only. `vcp api serve [--host 127.0.0.1] [--port 8000] [--data-dir data] [--serving-db PATH]`. Logs and backups are read from the main database's folder (`--data-dir`).
+- **The copy is opened read-only and re-opened when the file is replaced**, once no request still reads the old one (DuckDB keeps one instance per path in a process, so a plain re-connect would keep showing the old file). A missing copy gives a 503 naming the command that writes it.
+- **Strategies and hashes** are read from `config/` at start-up: the five paper strategies with their config hashes (equal to the frozen ones of STRATEGY_SPECIFICATION §21.1; a test pins them) and tiers. `/setups` shows the ranked list (`eligible=true`, the default; `eligible=false` adds the other scored rows), best score first, with optional `min_grade`, `status`, `limit`; `date` defaults to the strategy's latest scan.
+- **`/market`** uses the repository's breadth query and the frozen regime of `config/backtest.yaml` (`breadth50`), so it agrees with the paper ledger; the equal-weight index is rebased to 100 at the first day shown and labelled "our NSE universe ... not NIFTY".
+- **`/stocks/{symbol}/bars`**: adjusted bars with 20/50/200-day averages computed from the closes (null until that many bars exist; `technical_features_daily.ema_*` are not used). **`/stocks/{symbol}/setups`**: per strategy the stored setup, VCP contractions or the detector's points (`details_json`, drawn on the bar's high or low as in the chart review), score parts, and the Trend Template conditions and weekly stage.
+- **`/status` warnings** (STRATEGY_SPECIFICATION §21.5): no new prices for 2 or more sessions (weekdays not recorded as non-sessions; today counts after 20:00 IST), a strategy without a scan for the newest scan date, a paper ledger behind that date, no backup or the newest older than 7 days.
+- **`/paper`**: `paper/status.summarize` over the ledger rows, with the §21.6 criteria. Closed trades, profit factor and average trade are judged only from 30 closed trades; **portfolio drawdown and return against the equal-weight index are `null` in v1** (not computed yet; they belong to the weekly summary).
+- **Missing is null**: no company name is stored for most instruments (`instruments.company_name`), so `company` is often `null`; a strategy with no closed trade has `null` win rate and average, not 0.
+

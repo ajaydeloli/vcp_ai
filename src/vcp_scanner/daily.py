@@ -26,6 +26,10 @@ evenings: every step catches up on its own.
 7. ``paper update``: the paper ledger appends the new sessions' decisions of every paper
    strategy (STRATEGY_SPECIFICATION 21.3).
 
+8. Serving copy (FRONTEND_SPECIFICATION 67.2; only with ``--serving-copy``): the checkpointed
+   database is copied atomically to ``<db folder>/serving/vcp_serving.duckdb`` for the
+   read-only dashboard API. A failed copy fails the run but leaves the previous copy in place.
+
 One line per run is appended to ``<db folder>/logs/daily_runs.log``.
 """
 
@@ -46,6 +50,7 @@ from vcp_scanner.backup import (
 )
 from vcp_scanner.data.providers._time import IST
 from vcp_scanner.data.storage.duckdb_store import DuckDBStore
+from vcp_scanner.serving import default_serving_path, refresh_serving_copy
 
 logger = logging.getLogger(__name__)
 
@@ -175,6 +180,17 @@ def run_daily(args: argparse.Namespace, cli_main: Callable[[list[str]], int]) ->
             step(f"{sid} forward labels", ["compute", "labels", "--strategy", sid, "--db", db,
                                            "--config-dir", cfg])  # fmt: skip
         step("paper ledger", ["paper", "update", "--db", db, "--config-dir", cfg])
+
+    if getattr(args, "serving_copy", False):
+        target = Path(getattr(args, "serving_path", None) or default_serving_path(db))
+        print(f"\n=== serving copy ({datetime.now(UTC).astimezone(IST):%H:%M} IST)")
+        try:
+            copy = refresh_serving_copy(db, target)
+            print(f"Serving copy: {copy} ({copy.stat().st_size / 1e9:.2f} GB)")
+            results.append(("serving copy", 0))
+        except Exception as exc:  # the dashboard keeps the previous copy
+            print(f"ERROR: serving copy not refreshed: {exc}. The dashboard keeps the old copy.")
+            results.append(("serving copy", 1))
 
     collected = sorted(
         str(r[0])
