@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed (Dashboard D0: spec signed off)
+- FRONTEND_SPECIFICATION §67 (Dashboard v1: read-only local API and web page for the monitoring phase) is signed off: FastAPI + Next.js, a serving copy of the database refreshed by the daily run, the dashboard page only, dark theme. Docs only.
+
 ### Added (Monitoring phase M3: paper ledger)
 - `vcp paper update` (run by the daily run) records each evening what the frozen rules decide for every paper strategy (watch list, entries, exits, skipped entries) in a new append-only table `paper_events`; `vcp paper status` shows open paper positions and results so far. Database schema version 3 (the table is created on first open).
 

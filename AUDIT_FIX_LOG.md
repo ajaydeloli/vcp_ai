@@ -2308,3 +2308,7 @@ Under the daily-run lock (`~/vcp_spike/m2_apply.sh`): health check and backup `d
 ## Dashboard D0 — spec proposed, awaiting sign-off (2026-10-06)
 
 The owner asked for a web dashboard calling an API, after his mockup. FRONTEND_SPECIFICATION §67 (proposed, decisions W1–W4 awaiting the owner; recommended: FastAPI + Next.js, a serving copy of the database refreshed by the daily run, the dashboard page only in v1, dark theme): read-only, local (127.0.0.1), API v1 endpoints, the page layout, what is out of v1 (NIFTY quotes, sector / market-cap filters, writes, alerts, remote access). Replaces the static reports of STRATEGY_SPECIFICATION §21.4 (M4). The owner will continue the dashboard in a new session. Docs only.
+
+## Dashboard D0 — §67 signed off (2026-10-06)
+
+Owner decisions W1–W4, each as recommended: FastAPI + Next.js (TypeScript, Tailwind, TanStack Query, Lightweight Charts, Zod); a serving copy `data/serving/vcp_serving.duckdb` refreshed atomically as the daily run's last step, the API opening only that copy read-only; v1 is the dashboard page only; dark theme. FRONTEND_SPECIFICATION §67 is no longer "proposed". Next: D1 (serving copy step, API v1, `vcp api serve`, tests on a fixture database). Docs only; no code, database or strategy change.

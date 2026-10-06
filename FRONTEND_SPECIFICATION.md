@@ -1953,9 +1953,9 @@ The system is therefore a **decision-support and research terminal**, not an aut
 
 ---
 
-# 67. Dashboard v1 for the monitoring phase (proposed 2026-10-06, awaiting sign-off)
+# 67. Dashboard v1 for the monitoring phase (signed off 2026-10-06)
 
-The owner asked (2026-10-06) for a web dashboard that calls an API, in the style of his mockup (dark theme: KPI cards, a candidates / breakouts table, a candlestick chart with the base and pivot, setup details, recent activity, market overview). It replaces the static HTML reports of STRATEGY_SPECIFICATION §21.4 (step M4) and is the first, narrow slice of PROJECT_DESIGN Phase 10. The rest of this document stays the long-term target; this section is what is built now.
+The owner asked (2026-10-06, signed off the same day: W1–W4 all as recommended, §67.8) for a web dashboard that calls an API, in the style of his mockup (dark theme: KPI cards, a candidates / breakouts table, a candlestick chart with the base and pivot, setup details, recent activity, market overview). It replaces the static HTML reports of STRATEGY_SPECIFICATION §21.4 (step M4) and is the first, narrow slice of PROJECT_DESIGN Phase 10. The rest of this document stays the long-term target; this section is what is built now.
 
 ## 67.1 Principles
 
@@ -2018,11 +2018,11 @@ Left-navigation items other than Dashboard (Screener, Watchlist, Backtests, Repo
 
 NIFTY / BANKNIFTY quotes (no index data); sector and market-cap filters (no such data in `instruments`); quotes of named traders; interactive screening that runs scans from the page; any write; alerts; remote access.
 
-## 67.8 Decisions (awaiting the owner)
+## 67.8 Decisions (owner, 2026-10-06: all as recommended)
 
-| # | Question | Options | Recommended |
+| # | Question | Options | Decided |
 |---|---|---|---|
-| W1 | Stack | (a) FastAPI + Next.js as in §5 · (b) FastAPI serving one plain HTML/JS page | (a) |
-| W2 | Database access | (a) serving copy refreshed by the daily run · (b) the API reads the main database directly and shows "busy" during the run | (a) |
+| W1 | Stack | (a) FastAPI + Next.js as in §5 · (b) FastAPI serving one plain HTML/JS page | (a): FastAPI + Next.js (TypeScript, Tailwind, TanStack Query, Lightweight Charts, Zod) |
+| W2 | Database access | (a) serving copy refreshed by the daily run · (b) the API reads the main database directly and shows "busy" during the run | (a): `data/serving/vcp_serving.duckdb`, refreshed atomically as the daily run's last step; the API opens only that copy, read-only |
 | W3 | v1 scope | (a) the dashboard page of §67.4 only · (b) also a full stock page and screener now | (a): one page done well first |
 | W4 | Theme | (a) dark, after the mockup · (b) light · (c) both with a switch | (a), the switch later |
