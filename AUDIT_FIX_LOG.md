@@ -2258,3 +2258,11 @@ The owner judged every strategy's development results average and asked whether 
 **Real-data check** (copy `data/tmp/ms7b/res.duckdb`, flat base, development period): defaults reproduce the stored step-4c run exactly (449 trades, PF 2.28, CAGR 25.0 % / −16.5 %). One run of each option (not yet results; the staged runs are 7c): `cross_5` 183 trades, PF 2.30, CAGR 26.0 % / −14.4 %; `breadth50` 428, 2.25, 22.4 % / −14.7 %; `ew50` 427, 2.24, 18.6 % / −14.5 %; `trail_e20` 479, 1.53, 11.6 % / −20.1 %; `trail_s50` 450, 2.35, 15.8 % / −18.3 %. Regime on-share by year in §20.7.
 
 **Not changed:** stored scans, scores, labels, backtests; the main and research DBs; no schema change.
+
+## Multi-Strategy phase steps 7c–7d — staged development runs and the rule choice (2026-10-06)
+
+**7c** (research DB, under the daily-run lock, `~/vcp_spike/ms7c_stage.sh`, report `ms7c_report.py`; code c2d65dc): stage 1 entry `cross_5` (5 runs, 10:51 IST, backup `golden_src_20261006_052113`), stage 2 regimes `breadth50`, `ew50` (10 runs, 11:07, backup `golden_src_20261006_053633`), stage 3 exits `hold_low8`, `trail_e20`, `trail_s50` (15 runs, 11:13, backup `golden_src_20261006_054255`; keep=3 rotated out the 142803, 155936 and 170507 backups). Development period only; no errors; nothing but backtest runs added. Results: STRATEGY_SPECIFICATION §20.8.
+
+**7d owner decisions (2026-10-06, each as recommended):** entry `cross_5`, regime `breadth50`, exit `hold_low8`, the same for every strategy, chosen on pooled results.
+
+**Code (step 7d):** `config/backtest.yaml` `defaults` (entry, regime, rule) read by `vcp backtest run|walk-forward` when the command line names none; `BacktestDefaults` validates the names. The engine's own defaults and the outcome study's `DEFAULT_RULE` (hold_s7) are unchanged. Test: the shipped defaults and refused names. Full suite 1,255 passed, 2 skipped; ruff, format, mypy clean. **Real-data check** (copy of the research DB): `vcp backtest walk-forward --strategy flat_base` with no options reproduces the stage-3 run (173 trades, PF 2.73, CAGR 31.1 % / −15.9 %).

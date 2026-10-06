@@ -927,3 +927,37 @@ Out of this round: signal ranking for portfolio slots (7e); fundamentals (needs 
 - `trail_e20` / `trail_s50` exist only in the event engine (`outcomes.ENGINE_RULES`); the window outcome study keeps its six rules.
 - Regime members for a day: the eligible members of the universe of the latest completed Trend Template scan (current scan config) on or before that day; before the first scan, the first scan's (warm-up of the 50-day index only). Days with fewer than 50 members are off. Computed per backtest from `technical_features_daily` (`sma_50`, `daily_return`, current features version) and the adjusted closes; nothing stored.
 - Share of days "on" (research DB, 2022–2026): `breadth50` 68 / 79 / 78 / 47 / 66 %, `ew50` 62 / 76 / 78 / 45 / 63 % (2022 … 2026).
+
+## 20.8 Development results (step 7c) and decisions (owner, 2026-10-06, step 7d)
+
+Research DB, development period (2022-02-01 … 2024-06-30), 15 bps a side, survivorship PARTIAL; runs under the daily-run lock with a backup before each stage. 30 new runs (stage 1: 5, stage 2: 10, stage 3: 15); the `breakout` / `hold_s7` runs of steps 4–5 served as stage 1's baseline and stage 2's `cross_5` / `hold_s7` runs as stage 3's. Pooled = every trade of the five strategies together; means are over the five portfolios.
+
+**Stage 1, entry** (hold_s7, no regime): `breakout` → `cross_5`: pooled trades 3,154 → 1,282, win 31.5 → 33.1 %, average 4.23 → 4.87 %, profit factor 1.87 → 2.03, mean portfolio CAGR 12.7 → 18.3 %; max drawdown lower for every strategy (VCP −40.6 → −24.5 %, CAGR 6.8 → 22.5 %). Cup and handle alone got worse (PF 1.96 → 1.67). **Decision: `cross_5`.**
+
+**Stage 2, regime** (cross_5, hold_s7):
+
+| Regime | Pooled trades, PF | Mean CAGR / max DD / Sharpe |
+|---|---|---|
+| none | 1,282, 2.03 | 18.3 % / −14.7 % / 1.18 |
+| breadth50 | 1,144, 2.05 | 17.1 % / −12.4 % / 1.16 |
+| ew50 | 1,115, 2.04 | 15.9 % / −12.6 % / 1.11 |
+
+Per-trade quality unchanged; drawdowns about 2 points lower (VCP −24.5 → −17.3 %, 3WT −17.3 → −12.7 % with breadth50) for 1–2 points of CAGR. The development period was mostly a strong market (breadth50 on 68–79 % of days); the weak 2025 (47 %) is in validation. **Decision: `breadth50`**, as protection the development data barely tests.
+
+**Stage 3, exits** (cross_5, breadth50):
+
+| Rule | Pooled trades, win, avg, PF | Mean CAGR / max DD / Sharpe |
+|---|---|---|
+| hold_s7 | 1,144, 32.3 %, 5.02 %, 2.05 | 17.1 % / −12.4 % / 1.16 |
+| hold_low8 | 1,132, 36.2 %, 6.00 %, 2.20 | 18.8 % / −13.8 % / 1.22 |
+| trail_e20 | 1,191, 35.8 %, 1.91 %, 1.55 | 7.2 % / −15.8 % / 0.60 |
+| trail_s50 | 1,147, 31.7 %, 4.32 %, 2.02 | 13.1 % / −14.9 % / 0.93 |
+
+Trailing exits sell winners too early (trail_e20's trailing exits average +6.5 %); the best 10 % of trades give about 60 % of all gains, and hold_s7's 60-session time exits average +28 %. hold_low8's stop is in practice −8 % (the setup low is usually further), so fewer trades are stopped out. Per strategy, hold_low8 vs hold_s7 portfolio CAGR / max DD: flat base 31.1 / −15.9 vs 24.9 / −14.4 %; 3WT 26.7 / −14.5 vs 22.7 / −12.7 %; cup 11.3 / −10.3 vs 10.3 / −9.3 %; double bottom 10.6 / −8.5 vs 8.6 / −8.3 %; VCP 14.2 / −19.6 vs 19.1 / −17.3 % (the one strategy worse at portfolio level). **Decision: `hold_low8`.**
+
+**As decided:** every strategy's backtests use `--entry cross_5 --regime breadth50 --rule hold_low8` by default (`config/backtest.yaml` `defaults`; the Phase 9 behaviour stays available as `--entry breakout --regime none --rule hold_s7`). The window outcome study keeps `hold_s7` as its default rule. Rejected: `ew50`, `none`; `trail_e20`, `trail_s50`, `hold_s7`.
+
+**Parked idea (not tested, to avoid another development look now):** a time exit longer than 60 sessions, since the time exits carry the gains.
+
+Not read as an edge yet (§10.4): validation is unopened; 7e opens it once per strategy with these frozen rules.
+

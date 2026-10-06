@@ -11,6 +11,11 @@ already looked at in outcome checks). Guards:
 * ``validation`` needs ``--validation`` and every look is counted in the run log (it is meant to
   be looked at rarely, for a choice already made on development);
 * ``test`` (live paper) needs ``--test`` and at least ``min_test_months`` of data.
+
+``defaults`` are the entry rule, market regime and exit rule a backtest uses when the command
+line does not name them (STRATEGY_SPECIFICATION 20; owner decision 2026-10-06, step 7d:
+``cross_5``, ``breadth50``, ``hold_low8``); the Phase 9 behaviour is ``--entry breakout
+--regime none --rule hold_s7``.
 """
 
 from __future__ import annotations
@@ -34,6 +39,29 @@ class Period(BaseModel):
     end: date | None = None  # None = up to the latest data
 
 
+class BacktestDefaults(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    entry: str = "cross_5"
+    regime: str = "breadth50"
+    rule: str = "hold_low8"
+
+    @model_validator(mode="after")
+    def validate_names(self) -> BacktestDefaults:
+        from vcp_scanner.backtest.engine import ENTRY_RULES
+        from vcp_scanner.backtest.regime import REGIMES
+        from vcp_scanner.research.outcomes import ENGINE_RULES
+
+        if self.entry not in ENTRY_RULES:
+            raise ValueError(f"defaults.entry {self.entry!r} is not one of {ENTRY_RULES}")
+        if self.regime not in REGIMES:
+            raise ValueError(f"defaults.regime {self.regime!r} is not one of {REGIMES}")
+        rules = [r.name for r in ENGINE_RULES]
+        if self.rule not in rules:
+            raise ValueError(f"defaults.rule {self.rule!r} is not one of {rules}")
+        return self
+
+
 class BacktestConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -45,6 +73,7 @@ class BacktestConfig(BaseModel):
         Period(name="live_paper", role="test", start=date(2026, 10, 1)),
     ])  # fmt: skip
     min_test_months: Annotated[int, Field(ge=1)] = 6
+    defaults: BacktestDefaults = Field(default_factory=BacktestDefaults)
 
     @model_validator(mode="after")
     def validate_periods(self) -> BacktestConfig:

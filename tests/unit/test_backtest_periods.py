@@ -41,3 +41,16 @@ def test_overlap_order_and_names_are_checked() -> None:
 def test_months_between() -> None:
     assert months_between(date(2026, 10, 1), date(2027, 4, 1)) == 6
     assert months_between(date(2026, 10, 1), date(2026, 10, 31)) == 0
+
+
+def test_backtest_defaults_are_the_step_7d_choice() -> None:
+    from vcp_scanner.backtest.periods import BacktestDefaults
+
+    d = load_backtest_config(REPO / "config").defaults
+    assert (d.entry, d.regime, d.rule) == ("cross_5", "breadth50", "hold_low8")
+    with pytest.raises(ValueError, match="defaults.entry"):
+        BacktestDefaults(entry="gap")
+    with pytest.raises(ValueError, match="defaults.regime"):
+        BacktestDefaults(regime="nifty")
+    with pytest.raises(ValueError, match="defaults.rule"):
+        BacktestDefaults(rule="t99")

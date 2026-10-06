@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed (Multi-Strategy phase step 7d: backtest defaults)
+- Backtests now default to the rules chosen on the development period for every strategy: enter on a real cross of the pivot (at most 5 % above it), only while at least 40 % of the universe is above its 50-day average, and exit at the setup low or −8 % (60-session time exit). Set in `config/backtest.yaml` (`defaults`); the old behaviour is `--entry breakout --regime none --rule hold_s7`.
+
 ### Added (Multi-Strategy phase step 7b: entry, market regime and trailing exits for backtests)
 - `vcp backtest run|walk-forward --entry cross_5`: enter only on a real cross of the pivot and at most 5 % above it.
 - `--regime breadth50|ew50`: no new entries when the market (our own universe) is weak; open trades keep running.

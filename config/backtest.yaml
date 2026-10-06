@@ -17,3 +17,10 @@ periods:
     start: 2026-10-01
 
 min_test_months: 6
+
+# Rules a backtest uses unless the command line names others (STRATEGY_SPECIFICATION 20.8;
+# owner decision 2026-10-06, step 7d, chosen on pooled development results of all strategies).
+defaults:
+  entry: cross_5        # a real cross of the pivot, close at most 5 % above it
+  regime: breadth50     # new entries only while >= 40 % of the universe is above its 50-day average
+  rule: hold_low8       # stop at the setup low or -8 %, whichever is tighter; 60-session time exit

@@ -23,17 +23,20 @@ CLASSES = ("VCP_LIKE", "VCP", "A_PLUS_VCP")
 
 def _common(p: argparse.ArgumentParser) -> None:
     p.add_argument("--strategy", default="vcp", help="Strategy to replay (default: vcp)")
-    p.add_argument("--rule", default=None, help="Exit rule (default: the research default)")
+    p.add_argument("--rule", default=None,
+                   help="Exit rule (default: config/backtest.yaml defaults.rule)")  # fmt: skip
     p.add_argument("--classes", default=None,
                    help="Classifications to trade, the strategy's own tier names "
                    "(comma-separated; default: its ranked tiers, for VCP "
                    f"{','.join(CLASSES)})")  # fmt: skip
     p.add_argument("--min-score", type=float, default=None)
-    p.add_argument("--entry", choices=["breakout", "cross_5"], default="breakout",
-                   help="Entry rule: breakout (default) or cross_5 (a real cross of the pivot, "
-                   "close at most 5%% above it; STRATEGY_SPECIFICATION 20.2)")  # fmt: skip
-    p.add_argument("--regime", choices=["none", "breadth50", "ew50"], default="none",
-                   help="Market regime gate for new entries (default none; 20.3)")  # fmt: skip
+    p.add_argument("--entry", choices=["breakout", "cross_5"], default=None,
+                   help="Entry rule: breakout or cross_5 (a real cross of the pivot, close at "
+                   "most 5%% above it; STRATEGY_SPECIFICATION 20.2). Default: "
+                   "config/backtest.yaml defaults.entry")  # fmt: skip
+    p.add_argument("--regime", choices=["none", "breadth50", "ew50"], default=None,
+                   help="Market regime gate for new entries (20.3). Default: "
+                   "config/backtest.yaml defaults.regime")  # fmt: skip
     p.add_argument("--baseline", action="store_true",
                    help="Trade every passer with a pivot (any class or status): the comparison "
                    "baseline for the VCP classes")  # fmt: skip
@@ -90,11 +93,17 @@ def run_backtest(args: argparse.Namespace) -> int:
 
 
 def _settings(args: argparse.Namespace) -> dict[str, Any] | None:
+    from vcp_scanner.backtest.periods import load_backtest_config
     from vcp_scanner.patterns.registry import load_runtime
-    from vcp_scanner.research.outcomes import DEFAULT_RULE, ENGINE_RULES
+    from vcp_scanner.research.outcomes import ENGINE_RULES
 
+    try:
+        defaults = load_backtest_config(args.config_dir).defaults
+    except Exception as e:
+        _err(f"config/backtest.yaml error: {e}")
+        return None
     rules = {r.name for r in ENGINE_RULES}
-    rule = args.rule or DEFAULT_RULE
+    rule = args.rule or defaults.rule
     if rule not in rules:
         _err(f"Unknown rule {rule}; rules: {', '.join(sorted(rules))}")
         return None
@@ -116,8 +125,8 @@ def _settings(args: argparse.Namespace) -> dict[str, Any] | None:
             "classes": classes,
             "min_score": args.min_score, "watch_days": args.watch_days,
             "max_positions": args.max_positions, "cost_bps": args.cost_bps,
-            "baseline": args.baseline, "entry": args.entry,
-            "regime": args.regime}  # fmt: skip
+            "baseline": args.baseline, "entry": args.entry or defaults.entry,
+            "regime": args.regime or defaults.regime}  # fmt: skip
 
 
 def _strategy_hash(cfg: Any, strategy_id: str, config_dir: str) -> str:
