@@ -979,3 +979,72 @@ Market context (our equal-weight universe index, `breadth50` share of days on): 
 
 Validation is now spent for these versions (§10.4): changing a rule because of these numbers and re-running validation would fit to it. Any new idea is chosen on development only and judged on live paper (from 2026-10-01).
 
+
+---
+
+# 21. Monitoring phase: frozen strategies, paper tracking and reporting (signed off 2026-10-06)
+
+After validation (§20.9) showed no edge outside the strong 2022–2024 advance, the owner decided (2026-10-06) to **stop strategy research** and move to reporting and monitoring. Live paper trading from 2026-10-01 (`config/backtest.yaml`, period `live_paper`) is now the only fair test. This section replaces Multi-Strategy steps 6 (High tight flag), 7e (ranking, combined list, go-live) and the open part of 8, and narrows PROJECT_DESIGN Phases 10–12 to what monitoring needs; Phase 13 (ML) and the API are deferred.
+
+## 21.1 What is frozen
+
+Until the review (§21.6), nothing below changes. A change to any of them is a new version, restarts that strategy's paper clock, and is logged.
+
+| Item | Frozen value |
+|---|---|
+| Strategies | `vcp-1.1.0` (scan config `64da9482a769`), `flat_base-1.0.0` (`c4918be30855`), `three_weeks_tight-1.1.0` (`9ed3b8e7c31a`), `cup_handle-1.1.0` (`e36477f23b36`), `double_bottom-1.0.0` (`dd7107637b1b`) |
+| Trade rules | entry `cross_5`, regime `breadth50`, exit `hold_low8`, watch 20 sessions, 10 positions, 15 bps a side (§20.8) |
+| Scoring, labels | `scoring-1.0.0`, `labels-1.0.0` |
+| Code | a git tag `paper-v1` on the commit that starts the paper ledger; later commits may fix bugs (logged, with a check that no paper result changes) or add reporting, never change a rule |
+
+Data fixes (corporate actions, late bhavcopies) continue as today; they are logged and the review notes any that changed a paper trade.
+
+## 21.2 Daily run (step M2)
+
+After the VCP and score steps of each scan date, the daily run also runs, for each of the four other strategies: `compute setups --strategy ID`, `compute scores --strategy ID`; labels for all strategies as today. Their config files stay `stage: research`; a new value `stage: paper` marks the strategies being paper-tracked (all five), and the daily run runs every strategy whose stage is `paper` or `live`. The new scans cost about 1.5 s per strategy per date. The four strategies' scans for the scan dates since 2026-09-30 are back-filled once, in date order (point-in-time, so the same as if they had run each evening).
+
+## 21.3 Paper ledger (step M3)
+
+Every evening after the scans, for each paper strategy, the frozen rules are applied to that day's bar only (the event engine's daily step): new watch-list entries from today's eligible setups, today's entries (breakout close, `cross_5`, regime on), today's exits (`hold_low8` stop or the 60-session time exit). What is decided is **appended** to a ledger and never edited:
+
+- one row per event (`WATCH`, `ENTRY`, `EXIT`, `WATCH_EXPIRED`, `SKIPPED_NO_SLOT`, `REGIME_OFF`), with the strategy, instrument, date, price, the setup and scan it came from, the rule set's name (`paper-v1`) and the code commit;
+- the paper portfolio per strategy: 10 slots, equal size at entry, higher setup score first on a crowded day (as the engine);
+- a day the daily run does not finish is caught up the next evening, in date order, before the new day.
+
+At the review, the ledger is compared with `vcp backtest walk-forward --test` over the same months (a replay of the same rules on the stored scans). They should agree; any difference (usually a data fix) is explained.
+
+## 21.4 Reports (step M4)
+
+- **Daily report** (`reports/daily/<date>.html`, written by the daily run; plus one summary line in `data/logs/daily_runs.log`): market regime on/off with the breadth share and the equal-weight universe index against its 50-day average; per strategy the ranked list (grade 2+, or VCP's ranked tiers) with pivot, distance to pivot and stop; stocks on more than one list; today's paper entries and exits; open paper positions with open profit/loss and stop; the daily run's data health (steps, prices up to, surveillance lists, corporate-action warnings). Lists are a watch list, not trade instructions.
+- **Weekly summary** (`reports/weekly/<ISO week>.html`, Fridays): per strategy since 2026-10-01: paper trades, win rate, average, profit factor, open positions, portfolio return and drawdown, against the equal-weight universe index; breadth trend; data issues of the week.
+- Both are plain files on this PC (`\\wsl.localhost\Ubuntu\home\ubuntu\projects\vcp_ai\reports\…`); no server, API or alerts in this phase.
+
+## 21.5 Monitoring of the system itself
+
+The daily summary line already records failed steps. Added: the daily report flags (a) no new prices for 2 sessions, (b) a strategy with no scan on a scan date, (c) the paper ledger not updated for a session, (d) backups older than 7 days. Nothing pages or emails; the owner reads the report.
+
+## 21.6 Review and success criteria (set now, before any paper result)
+
+- **When:** the first weekly summary on or after **2027-04-01** (6 months), or later if fewer than 30 paper trades in total.
+- **A strategy counts as working** only if, on its paper ledger: at least **30 closed trades**; profit factor **≥ 1.3**; average trade > 0 after costs; portfolio max drawdown no worse than **−20 %**; and a portfolio return above the equal-weight universe index over the same months. Fewer than 30 trades: not judged; the paper phase continues for that strategy up to 12 months.
+- **Then:** the owner decides per strategy: real money (a separate decision, with position sizing), continue on paper, or retire. No rule is changed before this review.
+
+## 21.7 Steps
+
+| Step | Content |
+|---|---|
+| M1 | This section (docs only) |
+| M2 | Daily run runs the five paper strategies; `stage: paper`; back-fill since 2026-09-30 (main DB, under the lock, backup first) |
+| M3 | Paper ledger table (schema change: DATABASE_SCHEMA), the daily paper step, catch-up; tag `paper-v1` |
+| M4 | Daily report and weekly summary; system checks of §21.5 |
+| then | Monitoring only: the owner reads the reports; fixes are bugs only; review per §21.6 |
+
+## 21.8 Decisions for the monitoring phase (owner, 2026-10-06: all as recommended)
+
+| # | Question | Options | Decided |
+|---|---|---|---|
+| P1 | Which strategies are paper-tracked | (a) all five · (b) only the three with the most development trades (VCP, flat base, 3WT) | (a): it costs nothing, and the review needs each one's own record |
+| P2 | How paper results are kept | (a) an append-only ledger written each evening, compared with a replay at review · (b) no ledger, only replay with `walk-forward --test` at review | (a): it freezes what was known each evening, so a later data fix cannot quietly change the record |
+| P3 | Report format | (a) HTML files on this PC, daily and weekly · (b) also a published page (Artifact) updated each evening · (c) text only | (a): simplest; (b) can follow if you want it on your phone |
+| P4 | Success criteria | as §21.6 · stricter (PF ≥ 1.5) · looser (PF ≥ 1.2) | as §21.6 |
+| P5 | Paper start | (a) 2026-10-01, the four new strategies back-filled from their point-in-time scans · (b) the day M3 is deployed | (a): the scans are point-in-time, so back-filling a week is the same as having run it |
