@@ -7,11 +7,18 @@ Signals come from stored scans (``setup_scores`` + the primary VCP pattern): an 
 * **entry** (``BREAKOUT``): the first close above the pivot within ``watch_days`` sessions on
   volume >= ``min_volume_ratio`` x the mean of the 50 sessions before it (the detector's
   breakout rule); the trade is filled at that close (cost included);
+* entry rule ``cross_5`` (STRATEGY_SPECIFICATION 20.2) also needs the previous close at or
+  below the pivot (a real cross) and the close at most ``max_entry_extension_pct`` above it;
+  a day that fails this does not end the watch;
+* market regime (20.3): with ``regime`` set, an entry also needs the regime on at that day's
+  close; an "off" day does not end the watch and never closes an open trade;
 * the watch ends without a trade after ``watch_days`` sessions (``INVALIDATION``, reason
   ``NO_BREAKOUT``), or when a newer scan of the same stock replaces it;
-* **exit** by the exit rule (``outcomes.TradeRule``): stop (``STOP``), target (``EXIT_SIGNAL``)
-  or the close ``horizon`` sessions after entry (``TIME_EXIT``); a bar touching both stop and
-  target counts as the stop.
+* **exit** by the exit rule (``outcomes.TradeRule``): stop (``STOP``), target (``EXIT_SIGNAL``),
+  for trailing rules the close below the rule's moving average of the closes from
+  ``trail_after`` sessions after entry (``TRAIL_EXIT``, 20.4), or the close ``horizon``
+  sessions after entry (``TIME_EXIT``; the rule's own horizon if it has one); a bar touching
+  both stop and target counts as the stop.
 
 One position per stock at a time. Two views:
 
@@ -26,7 +33,7 @@ Costs: ``cost_bps`` per side (default 15 bps, about NSE delivery STT + charges +
 from __future__ import annotations
 
 from collections import defaultdict
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from datetime import date
 from typing import Any
@@ -34,6 +41,8 @@ from typing import Any
 from vcp_scanner.research.outcomes import TradeRule
 
 VOLUME_BASE = 50
+#: Entry rules (STRATEGY_SPECIFICATION 20.2): ``breakout`` (Phase 9) and ``cross_5``.
+ENTRY_RULES = ("breakout", "cross_5")
 
 
 @dataclass(frozen=True, slots=True)
@@ -86,6 +95,14 @@ class EngineConfig:
     min_volume_ratio: float = 1.5
     cost_bps: float = 15.0
     max_positions: int = 10
+    entry: str = "breakout"
+    max_entry_extension_pct: float = 5.0
+    #: Market regime by day (20.3); None = no regime filter. A day missing from it is "off".
+    regime: Mapping[date, bool] | None = None
+
+    def __post_init__(self) -> None:
+        if self.entry not in ENTRY_RULES:
+            raise ValueError(f"unknown entry rule {self.entry!r}; rules: {ENTRY_RULES}")
 
 
 def _stop_price(entry: float, rule: TradeRule, final_low: float | None) -> float:
@@ -106,6 +123,42 @@ def _breakout(bars: Sequence[Bar], i: int, pivot: float, ratio: float) -> bool:
     return mean > 0 and b.volume >= ratio * mean
 
 
+def moving_average(bars: Sequence[Bar], kind: str) -> list[float | None]:
+    """The trailing rule's line, of the closes up to and including each bar: ``ema20`` (20-day
+    EMA, alpha 2/21, seeded with the mean of the first 20 closes) or ``sma50`` (mean of the last
+    50 closes). ``None`` until enough bars."""
+    closes = [b.close for b in bars]
+    out: list[float | None] = [None] * len(closes)
+    if kind == "sma50":
+        run = 0.0
+        for i, c in enumerate(closes):
+            run += c
+            if i >= 50:
+                run -= closes[i - 50]
+            if i >= 49:
+                out[i] = run / 50
+        return out
+    if kind == "ema20":
+        if len(closes) >= 20:
+            e = sum(closes[:20]) / 20
+            out[19] = e
+            for i in range(20, len(closes)):
+                e += 2 / 21 * (closes[i] - e)
+                out[i] = e
+        return out
+    raise ValueError(f"unknown trailing line {kind!r}")
+
+
+def _may_enter(bars: Sequence[Bar], i: int, pivot: float, cfg: EngineConfig) -> bool:
+    """Entry rule and regime on top of the breakout (module docstring)."""
+    if cfg.entry == "cross_5":
+        if i == 0 or bars[i - 1].close > pivot:
+            return False
+        if bars[i].close > pivot * (1 + cfg.max_entry_extension_pct / 100):
+            return False
+    return cfg.regime is None or cfg.regime.get(bars[i].day, False)
+
+
 def run_signals(
     signals: Sequence[Signal], bars: dict[str, list[Bar]], cfg: EngineConfig
 ) -> tuple[list[Trade], list[Event]]:
@@ -119,6 +172,8 @@ def run_signals(
         by_inst[s.instrument_id].append(s)
     for iid, sigs in by_inst.items():
         bs = bars.get(iid, [])
+        line = moving_average(bs, cfg.rule.trail) if cfg.rule.trail else None
+        horizon = cfg.rule.horizon or cfg.horizon
         start_of = {s.scan_date: s for s in sigs}
         watch: tuple[Signal, int] | None = None  # (signal, last watch index)
         held: tuple[Signal, int, float, float, float | None] | None = None
@@ -131,7 +186,10 @@ def run_signals(
                     kind, price = "STOP", stop
                 elif target is not None and b.high >= target:
                     kind, price = "EXIT_SIGNAL", target
-                elif k - ek >= cfg.horizon:
+                elif (line is not None and k - ek >= cfg.rule.trail_after
+                      and (m := line[k]) is not None and b.close < m):  # fmt: skip
+                    kind, price = "TRAIL_EXIT", b.close
+                elif k - ek >= horizon:
                     kind, price = "TIME_EXIT", b.close
                 if kind is not None and price is not None:
                     net = (price * (1 - cost)) / (entry * (1 + cost)) - 1
@@ -154,7 +212,7 @@ def run_signals(
             if watch is None:
                 continue
             s, last = watch
-            if _breakout(bs, k, s.pivot, cfg.min_volume_ratio):
+            if _breakout(bs, k, s.pivot, cfg.min_volume_ratio) and _may_enter(bs, k, s.pivot, cfg):
                 entry = b.close
                 stop = _stop_price(entry, cfg.rule, s.final_low)
                 tp = cfg.rule.target_pct

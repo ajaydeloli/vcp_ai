@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (Multi-Strategy phase step 7b: entry, market regime and trailing exits for backtests)
+- `vcp backtest run|walk-forward --entry cross_5`: enter only on a real cross of the pivot and at most 5 % above it.
+- `--regime breadth50|ew50`: no new entries when the market (our own universe) is weak; open trades keep running.
+- Exit rules `trail_e20` and `trail_s50`: exit on a close below the 20-day EMA or the 50-day average, with a −7 % first stop.
+- Defaults are unchanged; existing backtests give the same results.
+
 ### Changed (Multi-Strategy phase step 5b: Cup and handle 1.1.0)
 - A cup's right lip may now be at most 3 % above its left lip. Before, most "cups" were stocks that had already rallied past their old high and then paused.
 

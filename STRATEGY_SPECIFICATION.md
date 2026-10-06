@@ -919,3 +919,11 @@ About 7–9 runs per strategy. At each stage the owner chooses **one** option fo
 | T | Testing | (a) staged, one choice for all strategies on pooled results · (b) full grid (24 runs per strategy) | (a) |
 
 Out of this round: signal ranking for portfolio slots (7e); fundamentals (needs a data-source decision; a later phase).
+
+## 20.7 As built (step 7b, 2026-10-06)
+
+- `vcp backtest run|walk-forward --entry breakout|cross_5 --regime none|breadth50|ew50 --rule …`; defaults `breakout`, `none`, `hold_s7` reproduce the stored development runs exactly (flat base: 449 trades, PF 2.28, CAGR 25.0 % / −16.5 %). Entry and regime are stored in each run's `settings_json` and printed with the run.
+- **The trailing lines are computed from the trade's own adjusted closes in the engine**, not read from `technical_features_daily`: its `ema_*` columns are not computed (stored NULL, DATA_SPECIFICATION). `ema20`: alpha 2/21, seeded with the mean of the first 20 closes; `sma50`: mean of the last 50 closes, today included (same as the stored `sma_50`). The bars of a 120-session rule reach 250 calendar days after the period end (130 for 60 sessions).
+- `trail_e20` / `trail_s50` exist only in the event engine (`outcomes.ENGINE_RULES`); the window outcome study keeps its six rules.
+- Regime members for a day: the eligible members of the universe of the latest completed Trend Template scan (current scan config) on or before that day; before the first scan, the first scan's (warm-up of the 50-day index only). Days with fewer than 50 members are off. Computed per backtest from `technical_features_daily` (`sma_50`, `daily_return`, current features version) and the adjusted closes; nothing stored.
+- Share of days "on" (research DB, 2022–2026): `breadth50` 68 / 79 / 78 / 47 / 66 %, `ew50` 62 / 76 / 78 / 45 / 63 % (2022 … 2026).

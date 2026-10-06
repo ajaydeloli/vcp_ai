@@ -79,6 +79,12 @@ class TradeRule:
     target_pct: float | None
     stop_pct: float
     stop_at_final_low: bool = False
+    #: Event engine only (STRATEGY_SPECIFICATION 20.4): exit at the close below this moving
+    #: average of the closes ("ema20" or "sma50") from ``trail_after`` sessions after entry,
+    #: and a time exit after ``horizon`` sessions (None: the engine's default, 60).
+    trail: str | None = None
+    trail_after: int = 5
+    horizon: int | None = None
 
 
 DEFAULT_RULE = "hold_s7"  # owner decision 2026-10-03
@@ -91,6 +97,13 @@ TRADE_RULES = (
     TradeRule("hold_low8", None, 8.0, stop_at_final_low=True),
     TradeRule("hold_low5", None, 5.0, stop_at_final_low=True),
     TradeRule("hold_s7", None, 7.0),
+)
+#: Rules of the event engine (``vcp backtest``): the rules above plus the trailing exits of
+#: STRATEGY_SPECIFICATION 20.4, which the window outcome study does not simulate.
+ENGINE_RULES = (
+    *TRADE_RULES,
+    TradeRule("trail_e20", None, 7.0, trail="ema20", horizon=120),
+    TradeRule("trail_s50", None, 7.0, trail="sma50", horizon=120),
 )
 
 

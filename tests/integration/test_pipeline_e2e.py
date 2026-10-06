@@ -272,6 +272,27 @@ def test_full_pipeline_from_an_empty_database(
     out, err = capsys.readouterr()
     assert (base == 0 and "baseline: every passer" in out) or "No eligible scored" in err
 
+    # Multi-Strategy step 7b: entry rule, market regime and a trailing exit (spec 20).
+    for regime in ("breadth50", "ew50"):
+        new = cli_main([*bt, "--entry", "cross_5", "--regime", regime, "--rule", "trail_e20"])
+        out, err = capsys.readouterr()
+        assert (new == 0 and f"entry cross_5; regime {regime}" in out) or (
+            "No eligible scored" in err)  # fmt: skip
+    with DuckDBStore(db) as store:
+        from vcp_scanner.backtest.regime import breadth_regime
+        from vcp_scanner.config import load_scanner_config
+        from vcp_scanner.config.loader import scan_config_hash
+        from vcp_scanner.data.repositories.duckdb_backtest_repository import (
+            DuckDBBacktestRepository,
+        )
+        from vcp_scanner.domain.features import FEATURES_CALCULATION_VERSION
+
+        rows = DuckDBBacktestRepository(store).breadth(
+            AS_OF, AS_OF, scan_config_hash(load_scanner_config(CONFIG_DIR)),
+            FEATURES_CALCULATION_VERSION)  # fmt: skip
+    assert rows and rows[-1].day == AS_OF and 0 <= rows[-1].above <= rows[-1].with_average
+    assert set(breadth_regime(rows)) == {r.day for r in rows}
+
     # Phase 9 step 4: walk-forward; validation and test stay hidden without their flags.
     wf = ["backtest", "walk-forward", "--db", db, "--config-dir", CONFIG_DIR]
     assert cli_main(wf) == 0

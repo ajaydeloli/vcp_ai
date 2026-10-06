@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import argparse
 import json
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 from typing import Any
 
 from vcp_scanner.cli_pipeline import _err, _open_store, _resolve_data_snapshot
@@ -29,6 +29,11 @@ def _common(p: argparse.ArgumentParser) -> None:
                    "(comma-separated; default: its ranked tiers, for VCP "
                    f"{','.join(CLASSES)})")  # fmt: skip
     p.add_argument("--min-score", type=float, default=None)
+    p.add_argument("--entry", choices=["breakout", "cross_5"], default="breakout",
+                   help="Entry rule: breakout (default) or cross_5 (a real cross of the pivot, "
+                   "close at most 5%% above it; STRATEGY_SPECIFICATION 20.2)")  # fmt: skip
+    p.add_argument("--regime", choices=["none", "breadth50", "ew50"], default="none",
+                   help="Market regime gate for new entries (default none; 20.3)")  # fmt: skip
     p.add_argument("--baseline", action="store_true",
                    help="Trade every passer with a pivot (any class or status): the comparison "
                    "baseline for the VCP classes")  # fmt: skip
@@ -86,9 +91,9 @@ def run_backtest(args: argparse.Namespace) -> int:
 
 def _settings(args: argparse.Namespace) -> dict[str, Any] | None:
     from vcp_scanner.patterns.registry import load_runtime
-    from vcp_scanner.research.outcomes import DEFAULT_RULE, TRADE_RULES
+    from vcp_scanner.research.outcomes import DEFAULT_RULE, ENGINE_RULES
 
-    rules = {r.name for r in TRADE_RULES}
+    rules = {r.name for r in ENGINE_RULES}
     rule = args.rule or DEFAULT_RULE
     if rule not in rules:
         _err(f"Unknown rule {rule}; rules: {', '.join(sorted(rules))}")
@@ -111,7 +116,8 @@ def _settings(args: argparse.Namespace) -> dict[str, Any] | None:
             "classes": classes,
             "min_score": args.min_score, "watch_days": args.watch_days,
             "max_positions": args.max_positions, "cost_bps": args.cost_bps,
-            "baseline": args.baseline}  # fmt: skip
+            "baseline": args.baseline, "entry": args.entry,
+            "regime": args.regime}  # fmt: skip
 
 
 def _strategy_hash(cfg: Any, strategy_id: str, config_dir: str) -> str:
@@ -128,25 +134,34 @@ def _execute(
     """One backtest over [start, end]; stores it and returns its summary (None: no signals)."""
     from vcp_scanner.backtest.engine import EngineConfig, run_portfolio, run_signals
     from vcp_scanner.backtest.metrics import equity_stats, trade_stats
+    from vcp_scanner.backtest.regime import regime_by_day
     from vcp_scanner.data.repositories.duckdb_backtest_repository import (
         DuckDBBacktestRepository,
     )
+    from vcp_scanner.domain.features import FEATURES_CALCULATION_VERSION
     from vcp_scanner.patterns.registry import load_runtime
-    from vcp_scanner.research.outcomes import TRADE_RULES
+    from vcp_scanner.research.outcomes import ENGINE_RULES
     from vcp_scanner.versioning import STRATEGY_VERSION, code_state
 
     started = datetime.now(UTC)
     entry = load_runtime(settings["config_dir"], settings["strategy"])
-    rule = next(r for r in TRADE_RULES if r.name == settings["rule"])
-    ecfg = EngineConfig(
-        rule, watch_days=settings["watch_days"],
-        min_volume_ratio=cfg.strategy.vcp.breakout.min_volume_ratio,
-        cost_bps=settings["cost_bps"], max_positions=settings["max_positions"],
-    )  # fmt: skip
+    rule = next(r for r in ENGINE_RULES if r.name == settings["rule"])
     snapshot = _resolve_data_snapshot(store, None)
     if snapshot is None:
         return None
     repo = DuckDBBacktestRepository(store, snapshot)
+    regime_kind = settings.get("regime", "none")
+    regime = None
+    if regime_kind != "none":  # up to the last watch day of the last signals
+        rows = repo.breadth(start, end + timedelta(days=45), scan_config_hash(cfg),
+                            FEATURES_CALCULATION_VERSION)  # fmt: skip
+        regime = regime_by_day(regime_kind, rows)
+    ecfg = EngineConfig(
+        rule, watch_days=settings["watch_days"],
+        min_volume_ratio=cfg.strategy.vcp.breakout.min_volume_ratio,
+        cost_bps=settings["cost_bps"], max_positions=settings["max_positions"],
+        entry=settings.get("entry", "breakout"), regime=regime,
+    )  # fmt: skip
     classes = settings["classes"]
     if settings["baseline"]:
         classes = list(entry.tiers)  # every tier (VCP: NONE, VCP_LIKE, VCP, A_PLUS_VCP)
@@ -156,7 +171,9 @@ def _execute(
     if not signals:
         return None
     scan_dates = sorted({s.scan_date for s in signals})
-    bars = repo.bars(sorted({s.instrument_id for s in signals}), start, end)
+    horizon = rule.horizon or ecfg.horizon  # 60 sessions ~ 130 calendar days after ``end``
+    after = 130 if horizon <= ecfg.horizon else 130 + 2 * (horizon - ecfg.horizon)
+    bars = repo.bars(sorted({s.instrument_id for s in signals}), start, end, after)
     trades, events = run_signals(signals, bars, ecfg)
     port = run_portfolio(trades, bars, ecfg)
     port_stats: dict[str, Any] = {**trade_stats(port.taken), **equity_stats(port.equity)}
@@ -201,7 +218,9 @@ def _print(o: dict[str, Any], settings: dict[str, Any]) -> None:
     kind = "setups (baseline: every passer with a pivot)" if settings["baseline"] else (
         "eligible setups")  # fmt: skip
     print(f"  Signals     : {o['signals']} {kind} on {o['scan_dates']} scan dates; "
-          f"rule {settings['rule']}; costs {settings['cost_bps']:g} bps per side")  # fmt: skip
+          f"rule {settings['rule']}; entry {settings.get('entry', 'breakout')}; regime "
+          f"{settings.get('regime', 'none')}; costs {settings['cost_bps']:g} bps "
+          "per side")  # fmt: skip
     s = o["every_trade"]
     print(f"  Every trade : {s['trades']} trades, win {_f(s['win_rate'], 100, 1)}%, avg "
           f"{_f(s['avg_ret'])}%, median {_f(s['median_ret'])}%, profit factor "

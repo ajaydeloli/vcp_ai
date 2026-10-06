@@ -2240,3 +2240,21 @@ STRATEGY_SPECIFICATION §15: `cup_handle-1.0.0` (left lip, rounded cup 7–65 we
 ## Multi-Strategy phase step 7a — step 7 re-planned: entry, market regime, exits (2026-10-06)
 
 The owner judged every strategy's development results average and asked whether there is scope for improvement. Recommended and signed off (2026-10-06, all as recommended): test the rules shared by every strategy before more patterns. STRATEGY_SPECIFICATION §20: E entry `cross_5` (a real cross of the pivot, close at most 5 % above it); R market regime from our own universe, `breadth50` (≥ 40 % of members above their 50-day average) and `ew50` (equal-weight universe index above its 50-day average), tested separately, fixed thresholds, entries only; X trailing exits `trail_e20` and `trail_s50` (−7 % initial stop, 120-session time exit); T staged testing (entry, then regime, then exits), one choice for all strategies on pooled development results. Defaults stay as today until the owner's 7d decision. High tight flag (step 6) moves after step 7. Docs only.
+
+## Multi-Strategy phase step 7b — entry rules, market regime and trailing exits built (2026-10-06)
+
+**Owner go:** 2026-10-06 ("yes start 7b"). STRATEGY_SPECIFICATION §20.2–20.4, as built §20.7.
+
+**Code.**
+- `backtest/engine.py`: `EngineConfig.entry` (`breakout` default, `cross_5`), `max_entry_extension_pct`, `regime` (day → on/off; None = no filter); `moving_average` (`ema20`, `sma50` of the trade's own closes); `TRAIL_EXIT`; a rule's own horizon.
+- `research/outcomes.py`: `TradeRule.trail`, `trail_after`, `horizon`; `ENGINE_RULES` = the six rules + `trail_e20`, `trail_s50` (the outcome study is unchanged).
+- `backtest/regime.py` (new): `breadth50`, `ew50` from per-day universe aggregates. `DuckDBBacktestRepository.breadth` (the aggregates), `bars(after_days=…)`.
+- `cli_backtest.py`: `--entry`, `--regime`; the new rules; stored in `settings_json`, printed.
+
+**Found while building:** `technical_features_daily.ema_20` is never computed (all NULL), so the 20-day EMA is computed in the engine from the trade's closes (§20.7).
+
+**Tests.** `test_backtest_rules.py` (9: defaults unchanged; cross needs the previous close at or below the pivot; the 5 % limit; an off day delays entry, never closes a trade, a missing day is off; moving averages; trailing exit after 5 sessions; −7 % stop first; 120-session horizon; breadth and ew regimes); the e2e test runs `cross_5` with both regimes and `trail_e20`, and checks the breadth query. Full suite 1,254 passed, 2 skipped; ruff, format, mypy clean.
+
+**Real-data check** (copy `data/tmp/ms7b/res.duckdb`, flat base, development period): defaults reproduce the stored step-4c run exactly (449 trades, PF 2.28, CAGR 25.0 % / −16.5 %). One run of each option (not yet results; the staged runs are 7c): `cross_5` 183 trades, PF 2.30, CAGR 26.0 % / −14.4 %; `breadth50` 428, 2.25, 22.4 % / −14.7 %; `ew50` 427, 2.24, 18.6 % / −14.5 %; `trail_e20` 479, 1.53, 11.6 % / −20.1 %; `trail_s50` 450, 2.35, 15.8 % / −18.3 %. Regime on-share by year in §20.7.
+
+**Not changed:** stored scans, scores, labels, backtests; the main and research DBs; no schema change.
