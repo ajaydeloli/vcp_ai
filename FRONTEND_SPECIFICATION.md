@@ -1950,3 +1950,79 @@ The design should support the actual research process rather than simply make th
 ```
 
 The system is therefore a **decision-support and research terminal**, not an autonomous trading interface.
+
+---
+
+# 67. Dashboard v1 for the monitoring phase (proposed 2026-10-06, awaiting sign-off)
+
+The owner asked (2026-10-06) for a web dashboard that calls an API, in the style of his mockup (dark theme: KPI cards, a candidates / breakouts table, a candlestick chart with the base and pivot, setup details, recent activity, market overview). It replaces the static HTML reports of STRATEGY_SPECIFICATION §21.4 (step M4) and is the first, narrow slice of PROJECT_DESIGN Phase 10. The rest of this document stays the long-term target; this section is what is built now.
+
+## 67.1 Principles
+
+- **Read-only.** Neither the API nor the page writes anything; the frozen strategies and the paper ledger are untouched (STRATEGY_SPECIFICATION §21.1).
+- **Honest data only.** Every number comes from our database; nothing the database does not have is shown or imitated. Lists are labelled a watch list, not trade instructions; the page footer says "Research tool, not financial advice".
+- **Local.** The API listens on `127.0.0.1:8000`, the page on `localhost:3000`, on this PC only (Windows reaches WSL's localhost). No login, no remote access, no alerts in v1.
+- The frontend never reads DuckDB directly (§4).
+
+## 67.2 Database access: a serving copy
+
+DuckDB does not let another process read while the daily run writes. The daily run's last step copies the database (after its checkpoint) to `data/serving/vcp_serving.duckdb` (replaced atomically: write to a temporary file, then rename). The API opens only that copy, read-only, and re-opens it when the file changes. During the evening run the dashboard shows the previous evening's data, with its time stamped in the status bar. The copy is a cache: never backed up, never committed.
+
+## 67.3 API v1 (`/api/v1`, GET only, JSON, FastAPI)
+
+| Endpoint | Returns |
+|---|---|
+| `/status` | latest prices date, latest scan date per strategy, serving copy time, last daily-run summary line, paper ledger through, newest backup's age; the warnings of STRATEGY_SPECIFICATION §21.5 |
+| `/summary?date=` | the KPI cards: universe size, Trend Template passers, grade 2+ setups per strategy, breakouts that day, mean score of the top 10 per strategy |
+| `/market?days=250` | per day: breadth (share above the 50-day average), the equal-weight universe index and its 50-day average, regime on/off |
+| `/strategies` | the five strategies: version, config hash, stage, ranked tiers |
+| `/setups?strategy=&date=&min_grade=&status=` | the ranked list: symbol, company, classification, grade, status, score and its parts, RS rank, pivot, distance to pivot, stop, base start / end / length, breakout date |
+| `/setups/overlap?date=` | stocks with an eligible setup in more than one strategy |
+| `/stocks/{symbol}/bars?days=260` | adjusted OHLCV with the 20/50/200-day averages |
+| `/stocks/{symbol}/setups?date=` | each strategy's setup for the stock on that date with its marks (VCP contractions; flat base / 3WT / cup / double-bottom points from `details_json`), Trend Template conditions, weekly stage |
+| `/activity?days=7` | breakouts, paper entries and exits, scans and daily runs, newest first |
+| `/paper` | per strategy: closed trades, win rate, average, profit factor, open positions (entry, stop, last, open %), skipped, divergences; the review criteria of §21.6 with progress |
+
+Pydantic response models; every response carries `as_of` and `data_time`. Missing values are `null`, never 0 (AGENTS.md rule 4).
+
+## 67.4 Page v1 (`/dashboard`)
+
+Layout after the owner's mockup (dark theme, left navigation, top bar with symbol search and the data date):
+
+- **KPI cards:** universe scanned, grade 2+ setups (all strategies; per strategy on hover), breakouts today, market regime (on/off with breadth %), paper positions open.
+- **Setups table** with one tab per strategy plus "Breakouts" and "On several lists": symbol, score, grade badge, status, RS rank, pivot, distance to pivot, stop, base length, breakout date; sortable; a row opens the stock in the chart panel.
+- **Chart panel** (TradingView Lightweight Charts): candles, volume, 20/50/200-day averages, the selected strategy's marks (base start, pivot line, stop line, points, breakout), range buttons.
+- **Setup details** beside the chart: the strategy's measurements and score parts, Trend Template pass/fail, weekly stage.
+- **Recent activity** (from `/activity`) and **Market overview** (breadth, our universe index vs its 50-day average, regime days on in the last 20 sessions; labelled "our NSE universe", not NIFTY).
+- **Paper panel:** per strategy results so far against the review criteria, open positions.
+- **Status bar:** data date, serving copy time, warnings.
+
+Left-navigation items other than Dashboard (Screener, Watchlist, Backtests, Reports) are shown disabled with "later" until built.
+
+## 67.5 Stack and running it
+
+- API: FastAPI + uvicorn (added to `pyproject.toml`), package `vcp_scanner.api`; `vcp api serve`.
+- Web: `frontend/` (Next.js, TypeScript, Tailwind, TanStack Query, Lightweight Charts, Zod for response checks), built with the Node 18 already installed.
+- `scripts/dashboard.sh` starts both; the owner opens `http://localhost:3000`. Starting it at login is the owner's choice (not automatic in v1).
+
+## 67.6 Steps
+
+| Step | Content |
+|---|---|
+| D0 | This section (docs only) |
+| D1 | Serving copy in the daily run; API v1 with tests (fixture database); `vcp api serve` |
+| D2 | `frontend/`: the dashboard page against the API; component and API-contract tests; `scripts/dashboard.sh`; screenshot check |
+| D3+ | Later, each specified first: stock page, screener filters, watchlist (needs writes: own decision), backtest and paper history pages, phone access (needs login and network setup) |
+
+## 67.7 Not in v1
+
+NIFTY / BANKNIFTY quotes (no index data); sector and market-cap filters (no such data in `instruments`); quotes of named traders; interactive screening that runs scans from the page; any write; alerts; remote access.
+
+## 67.8 Decisions (awaiting the owner)
+
+| # | Question | Options | Recommended |
+|---|---|---|---|
+| W1 | Stack | (a) FastAPI + Next.js as in §5 · (b) FastAPI serving one plain HTML/JS page | (a) |
+| W2 | Database access | (a) serving copy refreshed by the daily run · (b) the API reads the main database directly and shows "busy" during the run | (a) |
+| W3 | v1 scope | (a) the dashboard page of §67.4 only · (b) also a full stock page and screener now | (a): one page done well first |
+| W4 | Theme | (a) dark, after the mockup · (b) light · (c) both with a switch | (a), the switch later |

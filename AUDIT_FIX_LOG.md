@@ -2304,3 +2304,7 @@ Under the daily-run lock (`~/vcp_spike/m2_apply.sh`): health check and backup `d
 ### M3 applied to the main DB (2026-10-06 13:14 IST)
 
 68fa391 ff-merged; under the daily-run lock (`~/vcp_spike/m3_apply.sh`): health check, backup `data/backups/vcp_scanner_20261006_074435.duckdb` (keep=3: `vcp_scanner_20261005_134501` rotated out); the first open with the new code created `paper_events` (schema version 3); first `vcp paper update`: sessions 2026-10-01 and 10-05 for all five strategies (365 rows: watch-list entries and expiries; regime off both days, so no entries), same as on the copy. Git tag **`paper-v1`** on 68fa391 (pushed): the freeze point of §21.1. From the 19:15 run the daily run appends each new session.
+
+## Dashboard D0 — spec proposed, awaiting sign-off (2026-10-06)
+
+The owner asked for a web dashboard calling an API, after his mockup. FRONTEND_SPECIFICATION §67 (proposed, decisions W1–W4 awaiting the owner; recommended: FastAPI + Next.js, a serving copy of the database refreshed by the daily run, the dashboard page only in v1, dark theme): read-only, local (127.0.0.1), API v1 endpoints, the page layout, what is out of v1 (NIFTY quotes, sector / market-cap filters, writes, alerts, remote access). Replaces the static reports of STRATEGY_SPECIFICATION §21.4 (M4). The owner will continue the dashboard in a new session. Docs only.
