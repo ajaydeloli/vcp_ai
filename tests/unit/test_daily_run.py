@@ -73,7 +73,7 @@ def test_run_daily_chains_the_steps_from_the_last_settled_day(tmp_path: Path) ->
         "compute vcp",
         "compute scores",
     ] + [n for _ in paper for n in ("compute setups", "compute scores")]
-    assert names[5:] == per_date + ["compute labels"] * 5  # fmt: skip
+    assert names[5:] == per_date + ["compute labels"] * 5 + ["paper update"]  # fmt: skip
     assert all("2026-09-25" in a for a in calls[5 : 5 + len(per_date)])
     # Monitoring phase (spec 21.2): every enabled strategy after VCP, labels per strategy.
     strategy_args = [a[a.index("--strategy") + 1] for a in calls if "--strategy" in a]

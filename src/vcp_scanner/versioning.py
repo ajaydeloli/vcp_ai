@@ -39,7 +39,7 @@ VCP_ALGORITHM_VERSION: Final[str] = "vcp-1.1.0"  # 1.1.0: equal-high merge on (2
 FUNDAMENTAL_ALGORITHM_VERSION: Final[str] = "fund-1.0.0"
 
 # Owned by DATABASE_SCHEMA.md (migrations arrive in Phase 1)
-DATA_SCHEMA_VERSION: Final[int] = 2  # 2: strategy dimension (Multi-Strategy step 2)
+DATA_SCHEMA_VERSION: Final[int] = 3  # 2: strategy dimension; 3: paper ledger (monitoring M3)
 
 
 def version_manifest() -> dict[str, str | int]:

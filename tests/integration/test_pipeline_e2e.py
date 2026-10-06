@@ -364,6 +364,13 @@ def test_full_pipeline_from_an_empty_database(
             assert q("SELECT count(*) FROM setup_scores WHERE strategy_id = 'vcp'"
                      ).fetchone() == passers  # fmt: skip
 
+    # Monitoring M3: the paper ledger (the fixture's scans end before the paper start, so the
+    # update has nothing to write unless pointed at a session; status reads an empty ledger).
+    assert cli_main(["paper", "update", "--db", db, "--config-dir", CONFIG_DIR]) == 0
+    assert "nothing to do" in capsys.readouterr().out
+    assert cli_main(["paper", "status", "--db", db, "--config-dir", CONFIG_DIR]) == 0
+    assert "[flat_base] ledger through -" in capsys.readouterr().out
+
     # Phase 6 step 8: a blind labelling sheet from the scan, and its CSV back into fixtures.
     sheet_dir = tmp_path / "sheet"
     sheet_argv = ["research", "labelling-sheet", "--from", as_of, "--to", as_of, "--db", db,

@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (Monitoring phase M3: paper ledger)
+- `vcp paper update` (run by the daily run) records each evening what the frozen rules decide for every paper strategy (watch list, entries, exits, skipped entries) in a new append-only table `paper_events`; `vcp paper status` shows open paper positions and results so far. Database schema version 3 (the table is created on first open).
+
 ### Changed (Monitoring phase M2: the daily run scans every paper strategy)
 - The evening run now also finds and scores Flat base, Three Weeks Tight, Cup and handle and Double bottom setups for each new session, and updates their forward labels. All five strategies are marked `stage: paper` and are frozen until the paper review.
 

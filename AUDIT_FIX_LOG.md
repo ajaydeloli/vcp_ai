@@ -2286,3 +2286,17 @@ After the validation result (§20.9) the owner decided to stop strategy research
 ### M2 applied to the main DB (2026-10-06 12:40–12:41 IST)
 
 Under the daily-run lock (`~/vcp_spike/m2_apply.sh`): health check and backup `data/backups/vcp_scanner_20261006_071026.duckdb` (keep=3: `vcp_scanner_20261004_153355` rotated out), then the four paper strategies back-filled over the main DB's scan dates 2026-09-30, 10-01, 10-05 in date order (setups, scores), then their labels (flat base 298, 3WT 234, cup 26, double bottom 41 observations, all still open). Same counts as the check on the copy; no errors. Then 8e5b3f9 was ff-merged, so the 19:15 daily run scans all five strategies from 2026-10-06.
+
+## Monitoring phase M3 — paper ledger built (2026-10-06)
+
+**Owner go:** 2026-10-06 ("first finish M3"). STRATEGY_SPECIFICATION §21.3, as built §21.9; DATABASE_SCHEMA §49B.
+
+**Code.**
+- `paper/ledger.py` (new): `derive_events` (the frozen rules replayed with the event engine into `WATCH`, `WATCH_EXPIRED`, `ENTRY`, `SKIPPED_NO_SLOT`, `EXIT`, `DAY_CLOSED`), `plan_update` (append only after the last `DAY_CLOSED`; a recomputed difference before it becomes one `DIVERGENCE`). `paper/status.py`: closed / open / skipped / divergences.
+- `backtest/engine.py`: `run_signals(include_open=True)` returns positions still held at the last bar as `OPEN` trades, which never free a portfolio slot (backtests unchanged: default False).
+- `paper_events` table (append-only; `DuckDBPaperRepository` only inserts, `INSERT OR IGNORE` on a deterministic event id); `DATA_SCHEMA_VERSION` 3.
+- `cli_paper.py`: `vcp paper update|status`; `daily.py`: `paper update` after the labels.
+
+**Tests.** `test_paper_ledger.py` (6: entry with stop, open then stop exit, watch expiry; an open position keeps its slot; append only after the last closed day; a data fix is one divergence, not repeated; the repository appends and never updates or deletes; the summary); daily-run chain; e2e runs `paper update` / `status`. Full suite 1,262 passed, 2 skipped; ruff, format, mypy clean.
+
+**Real-data check** (copy `data/tmp/m3/main.duckdb` of the main DB): sessions 2026-10-01 and 10-05 written for all five strategies (VCP 211 rows, flat base 53, 3WT 66, cup 12, double bottom 23: watch-list entries and expiries); `breadth50` off on both days (26–27 % above the 50-day average; the research DB agrees), so no paper entries yet; a second run appended nothing.

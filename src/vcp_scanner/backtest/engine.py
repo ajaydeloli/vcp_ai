@@ -160,10 +160,14 @@ def _may_enter(bars: Sequence[Bar], i: int, pivot: float, cfg: EngineConfig) -> 
 
 
 def run_signals(
-    signals: Sequence[Signal], bars: dict[str, list[Bar]], cfg: EngineConfig
-) -> tuple[list[Trade], list[Event]]:
+    signals: Sequence[Signal], bars: dict[str, list[Bar]], cfg: EngineConfig,
+    include_open: bool = False,
+) -> tuple[list[Trade], list[Event]]:  # fmt: skip
     """Every trade on its own (module docstring). Bars are per instrument, oldest first, and
-    must include the 50 sessions before the first signal."""
+    must include the 50 sessions before the first signal. ``include_open`` (paper ledger,
+    STRATEGY_SPECIFICATION 21.3): a position still held at the last bar is also returned, as
+    a trade with ``exit_kind`` ``OPEN`` marked at that bar's close; it never frees a portfolio
+    slot."""
     cost = cfg.cost_bps / 10_000
     trades: list[Trade] = []
     events: list[Event] = []
@@ -227,6 +231,12 @@ def run_signals(
         if held is not None:  # censored: fewer than ``horizon`` sessions left in the data
             events.append(Event(iid, bs[-1].day, "OPEN_AT_END", None,
                                 {"entry_day": bs[held[1]].day.isoformat()}))  # fmt: skip
+            if include_open:
+                s, ek, entry, _, _ = held
+                lb = bs[-1]
+                net = (lb.close * (1 - cost)) / (entry * (1 + cost)) - 1
+                trades.append(Trade(iid, s.scan_date, bs[ek].day, entry, lb.day, lb.close,
+                                    "OPEN", net * 100, s.score, s.classification))  # fmt: skip
     trades.sort(key=lambda t: (t.entry_day, t.instrument_id))
     return trades, events
 
@@ -270,7 +280,7 @@ def run_portfolio(
         # exits first, so a slot freed today can be reused today
         still = []
         for t, sh in open_pos:
-            if t.exit_day == d:
+            if t.exit_day == d and t.exit_kind != "OPEN":
                 cash += sh * t.exit * (1 - cost)
             else:
                 still.append((t, sh))

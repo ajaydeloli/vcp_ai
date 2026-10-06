@@ -580,6 +580,9 @@ def build_parser() -> argparse.ArgumentParser:
     from vcp_scanner.cli_backtest import add_backtest_parser
 
     add_backtest_parser(subparsers)
+    from vcp_scanner.cli_paper import add_paper_parser
+
+    add_paper_parser(subparsers)
 
     scores_cmd = subparsers.add_parser("scores", help="Read stored setup scores (Phase 7)")
     scores_sub = scores_cmd.add_subparsers(dest="scores_command")
@@ -1037,6 +1040,10 @@ def main(argv: Sequence[str] | None = None) -> int:
             return 0
         return runner(args)
 
+    if args.command == "paper":
+        from vcp_scanner.cli_paper import run_paper
+
+        return run_paper(args)
     if args.command == "backtest":
         from vcp_scanner.cli_backtest import run_backtest
 

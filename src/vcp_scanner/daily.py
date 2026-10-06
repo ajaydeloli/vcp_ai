@@ -23,6 +23,8 @@ evenings: every step catches up on its own.
    ``compute scores --strategy ID`` after each date's VCP scores, and ``compute labels
    --strategy ID`` after VCP's labels. A strategy file that fails to load is a failed step;
    VCP still runs.
+7. ``paper update``: the paper ledger appends the new sessions' decisions of every paper
+   strategy (STRATEGY_SPECIFICATION 21.3).
 
 One line per run is appended to ``<db folder>/logs/daily_runs.log``.
 """
@@ -172,6 +174,7 @@ def run_daily(args: argparse.Namespace, cli_main: Callable[[list[str]], int]) ->
         for sid in strategies:
             step(f"{sid} forward labels", ["compute", "labels", "--strategy", sid, "--db", db,
                                            "--config-dir", cfg])  # fmt: skip
+        step("paper ledger", ["paper", "update", "--db", db, "--config-dir", cfg])
 
     collected = sorted(
         str(r[0])

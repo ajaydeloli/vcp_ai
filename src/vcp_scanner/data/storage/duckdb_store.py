@@ -895,6 +895,26 @@ CREATE TABLE IF NOT EXISTS backtest_events (
 )
 """
 
+# Paper ledger (STRATEGY_SPECIFICATION 21.3; DATABASE_SCHEMA 49B; monitoring phase M3).
+# Append-only: rows are inserted, never updated or deleted (a later data fix is recorded as a
+# DIVERGENCE row, not an edit).
+_DDL_PAPER_EVENTS = """
+CREATE TABLE IF NOT EXISTS paper_events (
+    event_id      VARCHAR     PRIMARY KEY,
+    rule_set      VARCHAR     NOT NULL,
+    strategy_id   VARCHAR     NOT NULL,
+    config_hash   VARCHAR     NOT NULL,
+    instrument_id VARCHAR,
+    event_date    DATE        NOT NULL,
+    event_type    VARCHAR     NOT NULL,
+    price         DOUBLE,
+    scan_date     DATE,
+    metadata_json VARCHAR,
+    code_commit   VARCHAR,
+    recorded_at   TIMESTAMPTZ NOT NULL
+)
+"""
+
 # Strategy dimension (STRATEGY_SPECIFICATION; DATABASE_SCHEMA 35A; Multi-Strategy step 2).
 # Setups of strategies other than VCP (VCP keeps vcp_patterns; the ``setups`` view unions both).
 _DDL_STRATEGY_SETUPS = """
@@ -1067,6 +1087,7 @@ _ALL_DDL: list[tuple[str, str]] = [
     ("strategy_setup_status_history", _DDL_STRATEGY_SETUP_STATUS_HISTORY),
     ("strategy_breakout_events", _DDL_STRATEGY_BREAKOUT_EVENTS),
     ("strategy_scan_run_results", _DDL_STRATEGY_SCAN_RUN_RESULTS),
+    ("paper_events", _DDL_PAPER_EVENTS),
 ]
 
 

@@ -1048,3 +1048,10 @@ The daily summary line already records failed steps. Added: the daily report fla
 | P3 | Report format | (a) HTML files on this PC, daily and weekly · (b) also a published page (Artifact) updated each evening · (c) text only | (a): simplest; (b) can follow if you want it on your phone |
 | P4 | Success criteria | as §21.6 · stricter (PF ≥ 1.5) · looser (PF ≥ 1.2) | as §21.6 |
 | P5 | Paper start | (a) 2026-10-01, the four new strategies back-filled from their point-in-time scans · (b) the day M3 is deployed | (a): the scans are point-in-time, so back-filling a week is the same as having run it |
+
+## 21.9 As built: paper ledger (step M3, 2026-10-06)
+
+- `vcp paper update [--strategy ID] [--through DATE]` (the daily run's last step) and `vcp paper status`. Table `paper_events` (DATABASE_SCHEMA §49B), rule set `paper-v1`.
+- Each evening the frozen rules (`config/backtest.yaml` defaults, 10 positions, watch 20 sessions, 15 bps) are replayed with the event engine from the paper start (2026-10-01) to the latest VCP-scored session, on the eligible setups scanned from 7 days before the start; open positions are kept in the replay (they hold their slot). Events: `WATCH`, `WATCH_EXPIRED` (no entry in 20 sessions, or replaced by a newer scan of the stock), `ENTRY` (with stop), `SKIPPED_NO_SLOT`, `EXIT` (with kind and return after costs), `DAY_CLOSED` (one per session, with the regime that day; this replaces the separate `REGIME_OFF` event of §21.3). Only events after the last `DAY_CLOSED` are appended; a recomputed difference before it is appended once as `DIVERGENCE`.
+- First run on a copy of the main DB (2026-10-06): sessions 2026-10-01 and 10-05 written for all five strategies; `breadth50` off on both days (26–27 % of the universe above its 50-day average, as in the research DB), so no paper entries yet; a second run appended nothing.
+

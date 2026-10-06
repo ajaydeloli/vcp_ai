@@ -1906,6 +1906,30 @@ Position sizing can remain outside the VCP engine.
 
 ---
 
+# 49B. Paper Ledger (monitoring phase M3, 2026-10-06)
+
+Rules: STRATEGY_SPECIFICATION §21.3. One row per paper decision of a frozen strategy; **append-only** (rows are inserted and never updated or deleted; a later data fix that would change a stored decision is recorded as a `DIVERGENCE` row). Schema version 3.
+
+```text
+paper_events
+event_id      VARCHAR PRIMARY KEY      -- pe-<sha256(rule_set, strategy, config_hash, type, instrument, date, scan_date, price)[:24]>
+rule_set      VARCHAR NOT NULL         -- paper-v1 (entry cross_5, regime breadth50, exit hold_low8, 10 positions)
+strategy_id   VARCHAR NOT NULL
+config_hash   VARCHAR NOT NULL         -- the strategy config hash (VCP: scan_config_hash)
+instrument_id VARCHAR                  -- NULL for DAY_CLOSED and DIVERGENCE
+event_date    DATE    NOT NULL
+event_type    VARCHAR NOT NULL         -- WATCH | WATCH_EXPIRED | ENTRY | SKIPPED_NO_SLOT | EXIT | DAY_CLOSED | DIVERGENCE
+price         DOUBLE                   -- entry / exit close (adjusted); NULL otherwise
+scan_date     DATE                     -- the scan the setup came from
+metadata_json VARCHAR                  -- ENTRY: stop, score, classification; EXIT: kind, ret_pct, entry_day; DAY_CLOSED: regime_on; DIVERGENCE: the differing events
+code_commit   VARCHAR
+recorded_at   TIMESTAMPTZ NOT NULL
+```
+
+`DAY_CLOSED` rows mark how far each strategy's ledger is written (one per session). The first open of a database with the new code creates the empty table (`CREATE TABLE IF NOT EXISTS`); nothing else changes.
+
+---
+
 # 50. Alerts
 
 Operational alerts can initially remain in DuckDB.
