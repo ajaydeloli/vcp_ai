@@ -365,7 +365,7 @@ Each new strategy gets its own section here **before** its code (steps 4–6): r
 - §13 Flat / tight base (`flat_base`) — step 4
 - §14 Three Weeks Tight (`three_weeks_tight`) — step 4
 - §15 Cup and handle (`cup_handle`), double bottom (`double_bottom`) — step 5
-- §16 High tight flag (`high_tight_flag`) — step 6; the only relaxed Trend Template (§5). If fewer than about 30 occur in 2022–2026 it stays a watch-list flag, not a tested strategy.
+- §16 High tight flag (`high_tight_flag`) — step 6, built after step 7 (§20); the only relaxed Trend Template (§5). If fewer than about 30 occur in 2022–2026 it stays a watch-list flag, not a tested strategy.
 
 **Chart review (D6):** for each new strategy, before its first backtest is read, about 30 sample charts go to the owner in a labelling sheet like the VCP one (`vcp research labelling-sheet --strategy <id>`), mixed across grades and with some near-misses. The detector is changed (new version) until it agrees with the owner's eye; disagreements and their fixes are logged.
 
@@ -849,3 +849,73 @@ All five recommendations were accepted.
 | O5 | Pattern score columns | Keep `vcp_score` / `vcp_weight` meaning "pattern score", plus the `setup_scores_v` alias view (§9.3) | VCP rows stay byte-identical |
 
 Rejected options, for the record: O1 (b) a new shared hash without VCP, (c) one global hash; O2 (b) VCP rows copied into `strategy_setups`; O3 (b) move the VCP thresholds now; O4 (b) every gate passer; O5 (b) new `pattern_score` columns with a VCP backfill.
+
+---
+
+# 20. Step 7 re-planned: entry, market regime and exits (signed off 2026-10-06)
+
+After step 5 the owner judged every strategy's development results average (profit factor 1.7–2.3, win rate 25–38 %, median trade −7.3 % = most trades end at the stop; graded setups barely beat "every setup with a pivot"; the setup score does not rank, Phase 7). The likely gains are in the rules around the patterns, which are shared by all strategies, rather than in more pattern detectors. Step 7 is re-planned so these are tested first; High tight flag (step 6) moves after step 7.
+
+## 20.1 Order
+
+| Part | Content |
+|---|---|
+| 7a | This section (docs only) |
+| 7b | Build: entry rules, regime filter and trailing exits in the event engine; `--entry`, `--regime` and the new `--rule` names on `backtest run` / `walk-forward`; tests. **Defaults stay as today** (entry `breakout`, regime `none`, rule `hold_s7`), so no stored result and no existing command changes |
+| 7c | Development-period runs on the research DB (backtest runs only; no scan, score or label changes), staged as §20.5 |
+| 7d | Report; owner picks one entry rule, one regime rule and one exit rule, the same for every strategy |
+| 7e | The original step 7 with those rules frozen: comparison report and overlap, validation opened once per strategy (§10.4), signal ranking for portfolio slots, the combined list (§7), the owner's go-live decision |
+| then | Step 6 High tight flag, step 8 daily run and per-strategy lists |
+
+## 20.2 Entry (decision E: option c)
+
+Today an entry is the first close above the pivot on volume ≥ 1.5 × the 50-session mean, within `watch_days` (20) sessions after the scan date. A stock already well above its pivot enters on its next busy day, far from the buy point.
+
+New entry rule `cross_5` (name in config and on the command line):
+
+1. the breakout-volume close above the pivot (as today), **and**
+2. a real cross: the previous session's close is at or below the pivot, **and**
+3. the close is at most `max_entry_extension_pct` (5 %) above the pivot (O'Neil's buy zone).
+
+A day that fails 2 or 3 does not end the watch: a later session may still cross from below within `watch_days`. Exits, stops and costs are unchanged. `breakout` (today's rule) stays available.
+
+## 20.3 Market regime (decision R: options a and b, tested separately)
+
+Computed from our own universe and stored features only (no index data and no new provider; a Nifty index series, option d, would be a data-policy change and is left for later). For each trading day `d`, over the instruments that are universe members on `d` and have that day's adjusted close and features:
+
+- **`breadth50`**: share of them whose close is above their 50-day average (`technical_features_daily.sma_50`). Regime **on** when ≥ 40 %.
+- **`ew50`**: an equal-weight index of the universe (cumulative product of 1 + the mean of the members' daily returns, `daily_return`), on when its value is above its own 50-day average.
+
+The regime only gates **new entries**: an entry on day `d` needs the regime on at `d`'s close (known at the same close the entry uses, so no look-ahead). A signal whose breakout happens on an "off" day does not enter that day; its watch continues. Open trades are never closed by the regime. Thresholds (40 %, 50 days) are fixed here and **not tuned**. `none` (today) stays available. The daily on/off series is computed when a backtest runs (nothing stored now); storing it for the daily run is a step-8 decision.
+
+## 20.4 Exits (decision X: options a and b)
+
+Two new trade rules beside `hold_s7` and `hold_low8` (the others stay available):
+
+| Rule | Initial stop | Trailing exit | Time exit |
+|---|---|---|---|
+| `trail_e20` | −7 % below entry | the close below the 20-day EMA (`ema_20`), from the 5th session after entry; filled at that close | 120 sessions |
+| `trail_s50` | −7 % below entry | the close below the 50-day average (`sma_50`), from the 5th session after entry | 120 sessions |
+
+The −7 % stop is checked first each day (intraday low, as today); the trailing exit uses the close. A "half at +20 %" rule (option c) needs partial exits in the engine and is left for later.
+
+## 20.5 How it is tested (decision T: option a)
+
+Development period only (2022-02-01 … 2024-06-30), every strategy (VCP, flat base, 3WT 1.1.0, cup and handle 1.1.0, double bottom 1.0.0), portfolio and every-trade views as today. One stage at a time, each stage keeping the earlier stages' winners:
+
+1. **Entry**: `breakout` vs `cross_5`, rule `hold_s7`, regime `none` (2 runs per strategy; `breakout` exists already).
+2. **Regime**: `none` vs `breadth50` vs `ew50`, with the chosen entry and `hold_s7` (2 new runs).
+3. **Exits**: `hold_s7`, `hold_low8`, `trail_e20`, `trail_s50`, with the chosen entry and regime (3 new runs).
+
+About 7–9 runs per strategy. At each stage the owner chooses **one** option for all strategies, from the results pooled across strategies (trades, profit factor, average trade, portfolio CAGR and drawdown), not the best per strategy, to limit fitting to noise. Every variant is counted and reported (§10.4); validation stays unopened until 7e.
+
+## 20.6 Decisions (owner, 2026-10-06: all as recommended)
+
+| # | Question | Options | Decided |
+|---|---|---|---|
+| E | Entry | (a) real cross only · (b) close ≤ 5 % above the pivot only · (c) both | (c) `cross_5` |
+| R | Market regime | (a) breadth ≥ 40 % above the 50-day average · (b) equal-weight universe index above its 50-day average · (c) both at once · (d) Nifty index from a new provider | (a) and (b), tested separately, fixed thresholds |
+| X | Exits to add | (a) trail on the 20-day EMA · (b) trail on the 50-day average · (c) half at +20 %, trail the rest | (a) and (b) |
+| T | Testing | (a) staged, one choice for all strategies on pooled results · (b) full grid (24 runs per strategy) | (a) |
+
+Out of this round: signal ranking for portfolio slots (7e); fundamentals (needs a data-source decision; a later phase).
