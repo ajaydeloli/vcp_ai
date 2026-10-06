@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (Dashboard D2: the web page)
+- `frontend/` (Next.js, TypeScript, Tailwind, Lightweight Charts): the `/dashboard` page of the read-only dashboard: KPI cards, ranked setups per strategy, candlestick chart with pivot and stop, setup details, recent activity, market overview, paper panel and status bar. `scripts/dashboard.sh` starts the API and the page (`http://localhost:3000/dashboard`).
+- API: `GET /api/v1/search` (symbol or company name) for the page's search box.
+
 ### Added (Dashboard D1: serving copy and read-only API)
 - `vcp api serve` starts a read-only local API (127.0.0.1:8000, GET only) for the dashboard: status, summary, market breadth and regime, ranked setups per strategy, stocks (bars with averages, setups with marks and score parts, Trend Template conditions), recent activity and the paper panel with the review criteria. It reads only a serving copy of the database and picks up a replaced copy without a restart.
 - `vcp run daily --serving-copy` refreshes that copy as the run's last step (atomic; off by default until enabled). Adds `fastapi` and `uvicorn` to the dependencies.

@@ -1,0 +1,31 @@
+{
+ "as_of": "2026-10-05",
+ "data_time": "2026-10-06T14:00:00+05:30",
+ "rows": [
+  {
+   "instrument_id": "NSE_EQ|ALPHA",
+   "symbol": "ALPHA",
+   "company": "Alpha Industries Ltd",
+   "strategies": [
+    {
+     "strategy_id": "vcp",
+     "classification": "A_PLUS_VCP",
+     "grade": 3,
+     "score": 91.0
+    },
+    {
+     "strategy_id": "flat_base",
+     "classification": "FLAT_BASE",
+     "grade": 2,
+     "score": 70.0
+    },
+    {
+     "strategy_id": "cup_handle",
+     "classification": "CUP_HANDLE",
+     "grade": 2,
+     "score": 60.0
+    }
+   ]
+  }
+ ]
+}

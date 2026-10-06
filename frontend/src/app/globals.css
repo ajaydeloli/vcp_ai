@@ -1,0 +1,17 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+body {
+  min-height: 100vh;
+}
+
+/* thin dark scrollbars inside the tables and lists */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #1b2740 transparent;
+}

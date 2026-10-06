@@ -59,6 +59,21 @@ def resolve_symbol(cur: Cur, symbol: str) -> tuple[str, str, str | None] | None:
     return None if row is None else (str(row[0]), str(row[1]), row[2])
 
 
+def search_symbols(cur: Cur, text: str, limit: int) -> list[m.SearchHit]:
+    """Instruments whose symbol starts with, or whose company name contains, ``text``; an exact
+    symbol first, then symbol prefixes, then names (top-bar search box)."""
+    needle = text.strip().upper()
+    rows = cur.execute(
+        "SELECT instrument_id, symbol, company_name FROM instruments"
+        " WHERE upper(symbol) LIKE ? || '%'"
+        " OR upper(coalesce(company_name, '')) LIKE '%' || ? || '%'"
+        " ORDER BY (upper(symbol) = ?) DESC, (upper(symbol) LIKE ? || '%') DESC,"
+        " is_active DESC NULLS LAST, symbol LIMIT ?",
+        [needle, needle, needle, needle, limit],
+    ).fetchall()
+    return [m.SearchHit(instrument_id=str(r[0]), symbol=str(r[1]), company=r[2]) for r in rows]
+
+
 def tiers(spec: StrategySpec) -> list[m.Tier]:
     return [m.Tier(name=k, grade=g, ranked=g >= spec.min_grade) for k, g in spec.grades.items()]
 

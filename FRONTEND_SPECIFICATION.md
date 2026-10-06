@@ -1981,6 +1981,7 @@ DuckDB does not let another process read while the daily run writes. The daily r
 | `/stocks/{symbol}/bars?days=260` | adjusted OHLCV with the 20/50/200-day averages |
 | `/stocks/{symbol}/setups?date=` | each strategy's setup for the stock on that date with its marks (VCP contractions; flat base / 3WT / cup / double-bottom points from `details_json`), Trend Template conditions, weekly stage |
 | `/activity?days=7` | breakouts, paper entries and exits, scans and daily runs, newest first |
+| `/search?q=&limit=` | symbol search for the top bar: symbol prefix or company-name match, exact symbol first (added in D2) |
 | `/paper` | per strategy: closed trades, win rate, average, profit factor, open positions (entry, stop, last, open %), skipped, divergences; the review criteria of §21.6 with progress |
 
 Pydantic response models; every response carries `as_of` and `data_time`. Missing values are `null`, never 0 (AGENTS.md rule 4).
@@ -2011,7 +2012,7 @@ Left-navigation items other than Dashboard (Screener, Watchlist, Backtests, Repo
 |---|---|
 | D0 | This section (docs only) |
 | D1 | Serving copy in the daily run; API v1 with tests (fixture database); `vcp api serve` (built 2026-10-06, §67.9) |
-| D2 | `frontend/`: the dashboard page against the API; component and API-contract tests; `scripts/dashboard.sh`; screenshot check |
+| D2 | `frontend/`: the dashboard page against the API; component and API-contract tests; `scripts/dashboard.sh`; screenshot check (built 2026-10-07, §67.10) |
 | D3+ | Later, each specified first: stock page, screener filters, watchlist (needs writes: own decision), backtest and paper history pages, phone access (needs login and network setup) |
 
 ## 67.7 Not in v1
@@ -2039,3 +2040,13 @@ NIFTY / BANKNIFTY quotes (no index data); sector and market-cap filters (no such
 - **`/paper`**: `paper/status.summarize` over the ledger rows, with the §21.6 criteria. Closed trades, profit factor and average trade are judged only from 30 closed trades; **portfolio drawdown and return against the equal-weight index are `null` in v1** (not computed yet; they belong to the weekly summary).
 - **Missing is null**: no company name is stored for most instruments (`instruments.company_name`), so `company` is often `null`; a strategy with no closed trade has `null` win rate and average, not 0.
 
+## 67.10 As built: dashboard page (D2, 2026-10-07)
+
+- **`frontend/`**: Next 15 (App Router), React 19, TypeScript strict, Tailwind (dark theme), TanStack Query (5-minute refetch, no refetch on window focus), Lightweight Charts v4, Zod. `/` redirects to `/dashboard`. The browser calls `/api/v1/*` on port 3000; Next forwards it to `VCP_API_URL` (default `http://127.0.0.1:8000`).
+- **Every response is checked by a Zod schema**; a response that does not match shows an error box, not a wrong number. Missing values show "—", never 0.
+- **Panels** as §67.4: KPI cards, setups table (tab per strategy, Breakouts, On several lists; sortable, missing values last), chart with 20/50/200-day averages and marks (pivot and stop lines, base and breakout markers; marks on days without bars are dropped), setup details with the unmet rules per tier, Trend Template, recent activity, market overview, paper panel, status bar. Left navigation: only Dashboard is active.
+- **Honest labels**: "our NSE universe" (not NIFTY), lists are a watch list, "No real money", "Research tool, not financial advice" in the status bar.
+- **API addition**: `GET /api/v1/search` (§67.3) for the top-bar search.
+- **Tests**: 62 frontend tests (Zod contract against committed real API samples in `frontend/tests/fixtures/api/`, kept equal to the API by `tests/api/test_contract_samples.py`; format and chart-series functions; components; the page with a fetch mock and a chart-library mock). A real-data check with the browser pane on a copy of the main database.
+- **Run**: `scripts/dashboard.sh` starts `vcp api serve` and the web server; open `http://localhost:3000/dashboard`.
+- **Not changed**: any strategy, rule, scan, score, label or the ledger (read-only).

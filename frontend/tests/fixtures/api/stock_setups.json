@@ -1,0 +1,157 @@
+{
+ "as_of": "2026-10-05",
+ "data_time": "2026-10-06T14:00:00+05:30",
+ "symbol": "ALPHA",
+ "company": "Alpha Industries Ltd",
+ "close": 171.9,
+ "weekly_stage": "STAGE_2",
+ "weekly_stage2_pass": true,
+ "trend_template_pass": true,
+ "conditions": [
+  {
+   "name": "close_above_sma150",
+   "measurement": 92.0,
+   "threshold": 70.0,
+   "passed": true
+  },
+  {
+   "name": "sma200_rising",
+   "measurement": 93.0,
+   "threshold": 70.0,
+   "passed": true
+  },
+  {
+   "name": "rs_rank_min",
+   "measurement": 94.0,
+   "threshold": 70.0,
+   "passed": true
+  }
+ ],
+ "setups": [
+  {
+   "strategy_id": "vcp",
+   "classification": "A_PLUS_VCP",
+   "grade": 3,
+   "status": "PIVOT_READY",
+   "eligible": true,
+   "score": 91.0,
+   "pivot": 120.0,
+   "stop": 122.0,
+   "base_start": "2026-08-01",
+   "base_end": null,
+   "base_depth_pct": 18.8,
+   "breakout_date": null,
+   "points": [],
+   "contractions": [
+    {
+     "sequence": 1,
+     "peak_date": "2026-08-11",
+     "peak_price": 130.0,
+     "trough_date": "2026-08-21",
+     "trough_price": 118.0,
+     "depth_pct": 9.2
+    },
+    {
+     "sequence": 2,
+     "peak_date": "2026-08-12",
+     "peak_price": 128.0,
+     "trough_date": "2026-08-22",
+     "trough_price": 122.0,
+     "depth_pct": 4.7
+    }
+   ],
+   "score_parts": [
+    {
+     "component": "TREND",
+     "sub_component": "high_proximity",
+     "raw": 3.2,
+     "normalized": 80.0,
+     "points": 33.0,
+     "max_points": 40.0
+    },
+    {
+     "component": "VCP",
+     "sub_component": "tightening",
+     "raw": 0.68,
+     "normalized": 80.0,
+     "points": 17.0,
+     "max_points": 40.0
+    }
+   ],
+   "details": {
+    "base_high": 0.0,
+    "base_low": 0.0,
+    "prior_advance_pct": null,
+    "dryup_volume_ratio": null,
+    "confirmation_state": "CONFIRMED",
+    "invalidation_reasons": null,
+    "unmet_rules": {}
+   }
+  },
+  {
+   "strategy_id": "flat_base",
+   "classification": "FLAT_BASE",
+   "grade": 2,
+   "status": "FORMING",
+   "eligible": true,
+   "score": 70.0,
+   "pivot": 126.0,
+   "stop": 108.0,
+   "base_start": "2026-08-03",
+   "base_end": null,
+   "base_depth_pct": 12.0,
+   "breakout_date": null,
+   "points": [],
+   "contractions": [],
+   "score_parts": [],
+   "details": {
+    "base_high": 125.0,
+    "base_low": 110.0,
+    "prior_advance_pct": null,
+    "dryup_volume_ratio": null,
+    "confirmation_state": "CONFIRMED",
+    "invalidation_reasons": null,
+    "unmet_rules": {}
+   }
+  },
+  {
+   "strategy_id": "cup_handle",
+   "classification": "CUP_HANDLE",
+   "grade": 2,
+   "status": "FORMING",
+   "eligible": true,
+   "score": 60.0,
+   "pivot": 126.0,
+   "stop": 108.0,
+   "base_start": "2026-08-03",
+   "base_end": null,
+   "base_depth_pct": 12.0,
+   "breakout_date": null,
+   "points": [
+    {
+     "label": "L",
+     "day": "2026-08-03",
+     "price": 168.5
+    },
+    {
+     "label": "B",
+     "day": "2026-08-20",
+     "price": 167.8
+    }
+   ],
+   "contractions": [],
+   "score_parts": [],
+   "details": {
+    "left_lip_date": "2026-08-03",
+    "bottom_date": "2026-08-20",
+    "base_high": 125.0,
+    "base_low": 110.0,
+    "prior_advance_pct": null,
+    "dryup_volume_ratio": null,
+    "confirmation_state": "CONFIRMED",
+    "invalidation_reasons": null,
+    "unmet_rules": {}
+   }
+  }
+ ]
+}

@@ -37,7 +37,8 @@ def test_strategies_are_the_five_frozen_ones(ro_env: Env) -> None:
 
 def test_every_response_carries_as_of_and_data_time(ro_env: Env) -> None:
     urls = ["status", "strategies", "summary", "market", "setups", "setups/overlap",
-            "stocks/ALPHA/bars", "stocks/ALPHA/setups", "activity", "paper"]  # fmt: skip
+            "stocks/ALPHA/bars", "stocks/ALPHA/setups", "activity", "paper",
+            "search?q=alp"]  # fmt: skip
     for u in urls:
         body = get(ro_env, f"/api/v1/{u}")
         assert "as_of" in body and "data_time" in body, u
@@ -164,6 +165,18 @@ def test_stock_setups_carry_marks_conditions_and_score_parts(ro_env: Env) -> Non
     ]
     empty = get(ro_env, f"/api/v1/stocks/ALPHA/setups?date={PREV}")
     assert empty["setups"] == [] and empty["conditions"] == [] and empty["weekly_stage"] is None
+
+
+def test_search_finds_symbols_and_company_names(ro_env: Env) -> None:
+    hits = get(ro_env, "/api/v1/search?q=alp")["results"]
+    assert [(h["symbol"], h["company"]) for h in hits] == [("ALPHA", "Alpha Industries Ltd")]
+    assert [h["symbol"] for h in get(ro_env, "/api/v1/search?q=gamm")["results"]] == ["GAMMA"]
+    assert [h["symbol"] for h in get(ro_env, "/api/v1/search?q=beta ltd")["results"]] == ["BETA"]
+    # exact symbol first, then prefixes; fillers F00..F59 come after
+    assert get(ro_env, "/api/v1/search?q=F1")["results"][0]["symbol"] == "F10"
+    assert len(get(ro_env, "/api/v1/search?q=F&limit=3")["results"]) == 3
+    assert get(ro_env, "/api/v1/search?q=zzz")["results"] == []
+    get(ro_env, "/api/v1/search?q=", 422)
 
 
 def test_activity_is_newest_first_with_every_source(ro_env: Env) -> None:

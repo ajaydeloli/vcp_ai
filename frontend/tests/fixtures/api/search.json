@@ -1,0 +1,12 @@
+{
+ "as_of": "2026-10-05",
+ "data_time": "2026-10-06T14:00:00+05:30",
+ "query": "alp",
+ "results": [
+  {
+   "instrument_id": "NSE_EQ|ALPHA",
+   "symbol": "ALPHA",
+   "company": "Alpha Industries Ltd"
+  }
+ ]
+}

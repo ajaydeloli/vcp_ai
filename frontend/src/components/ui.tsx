@@ -1,0 +1,85 @@
+import type { ReactNode } from "react";
+import { classLabel, sentence } from "@/lib/fmt";
+
+export function Card({
+  title,
+  subtitle,
+  right,
+  children,
+  className = "",
+}: {
+  title: ReactNode;
+  subtitle?: ReactNode;
+  right?: ReactNode;
+  children: ReactNode;
+  className?: string;
+}) {
+  return (
+    <section className={`rounded-lg border border-line bg-panel p-4 ${className}`}>
+      <header className="mb-3 flex items-start justify-between gap-3">
+        <div>
+          <h2 className="text-sm font-semibold text-ink">{title}</h2>
+          {subtitle ? <p className="mt-0.5 text-xs text-mute">{subtitle}</p> : null}
+        </div>
+        {right}
+      </header>
+      {children}
+    </section>
+  );
+}
+
+export function Loading({ what = "data" }: { what?: string }) {
+  return (
+    <p role="status" className="py-6 text-center text-xs text-mute">
+      Loading {what}…
+    </p>
+  );
+}
+
+export function ErrorBox({ error }: { error: unknown }) {
+  const message = error instanceof Error ? error.message : "Something went wrong";
+  return (
+    <p role="alert" className="rounded border border-down/40 bg-down/10 p-3 text-xs text-down">
+      {message}
+    </p>
+  );
+}
+
+export function Empty({ children }: { children: ReactNode }) {
+  return <p className="py-6 text-center text-xs text-mute">{children}</p>;
+}
+
+/** Grade badge: 3 green, 2 blue, 1 grey (the grades of STRATEGY_SPECIFICATION 6.3). */
+export function GradeBadge({ classification, grade }: { classification: string; grade: number }) {
+  const color =
+    grade >= 3
+      ? "border-up/60 bg-up/10 text-up"
+      : grade === 2
+        ? "border-accent/60 bg-accent/10 text-accent"
+        : "border-line bg-panel2 text-mute";
+  return (
+    <span
+      className={`inline-block whitespace-nowrap rounded border px-1.5 py-0.5 text-[11px] ${color}`}
+    >
+      {classLabel(classification)}
+    </span>
+  );
+}
+
+export function StatusPill({ status }: { status: string }) {
+  const color =
+    status === "BREAKOUT"
+      ? "border-accent/60 bg-accent/10 text-accent"
+      : status === "PIVOT_READY"
+        ? "border-up/60 bg-up/10 text-up"
+        : status === "FORMING"
+          ? "border-warn/50 bg-warn/10 text-warn"
+          : "border-line bg-panel2 text-mute";
+  return (
+    <span
+      className={`inline-block whitespace-nowrap rounded border px-1.5 py-0.5 text-[11px] ${color}`}
+    >
+      {sentence(status)}
+    </span>
+  );
+}

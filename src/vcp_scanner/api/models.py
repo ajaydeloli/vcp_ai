@@ -134,6 +134,17 @@ class OverlapResponse(Stamped):
     rows: list[OverlapRow]
 
 
+class SearchHit(BaseModel):
+    instrument_id: str
+    symbol: str
+    company: str | None
+
+
+class SearchResponse(Stamped):
+    query: str
+    results: list[SearchHit]
+
+
 class Bar(BaseModel):
     day: date
     open: float | None

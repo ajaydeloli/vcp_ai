@@ -1,0 +1,70 @@
+{
+ "as_of": "2026-10-05",
+ "data_time": "2026-10-06T14:00:00+05:30",
+ "events": [
+  {
+   "day": "2026-10-05",
+   "time": "2026-10-05T20:30:00+05:30",
+   "kind": "SCAN",
+   "strategy_id": null,
+   "symbol": null,
+   "text": "Trend Template scan for 2026-10-05 completed"
+  },
+  {
+   "day": "2026-10-05",
+   "time": "2026-10-05T19:15:00+05:30",
+   "kind": "DAILY_RUN",
+   "strategy_id": null,
+   "symbol": null,
+   "text": "prices to 2026-10-05 | scanned 2026-10-05 | surveillance lists collected: ASM, GSM, T2T | all steps OK"
+  },
+  {
+   "day": "2026-10-05",
+   "time": null,
+   "kind": "BREAKOUT",
+   "strategy_id": "vcp",
+   "symbol": "BETA",
+   "text": "Breakout above pivot 140.00, volume 1.8x average"
+  },
+  {
+   "day": "2026-10-05",
+   "time": null,
+   "kind": "PAPER_EXIT",
+   "strategy_id": "vcp",
+   "symbol": "GAMMA",
+   "text": "Paper exit (STOP), -5.15 % after costs"
+  },
+  {
+   "day": "2026-10-01",
+   "time": "2026-10-05T20:30:00+05:30",
+   "kind": "SCAN",
+   "strategy_id": null,
+   "symbol": null,
+   "text": "Trend Template scan for 2026-10-01 completed"
+  },
+  {
+   "day": "2026-10-01",
+   "time": "2026-10-01T19:15:00+05:30",
+   "kind": "DAILY_RUN",
+   "strategy_id": null,
+   "symbol": null,
+   "text": "prices to 2026-10-01 | scanned 2026-10-01 | all steps OK"
+  },
+  {
+   "day": "2026-10-01",
+   "time": null,
+   "kind": "PAPER_ENTRY",
+   "strategy_id": "vcp",
+   "symbol": "BETA",
+   "text": "Paper entry at 100.00, stop 92.00"
+  },
+  {
+   "day": "2026-10-01",
+   "time": null,
+   "kind": "PAPER_ENTRY",
+   "strategy_id": "vcp",
+   "symbol": "GAMMA",
+   "text": "Paper entry at 50.00, stop 46.00"
+  }
+ ]
+}

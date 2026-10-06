@@ -1,0 +1,151 @@
+{
+ "as_of": "2026-10-05",
+ "data_time": "2026-10-06T14:00:00+05:30",
+ "strategies": [
+  {
+   "strategy_id": "vcp",
+   "algorithm_version": "vcp-1.1.0",
+   "config_hash": "64da9482a769",
+   "stage": "paper",
+   "min_grade": 1,
+   "tiers": [
+    {
+     "name": "NONE",
+     "grade": 0,
+     "ranked": false
+    },
+    {
+     "name": "VCP_LIKE",
+     "grade": 1,
+     "ranked": true
+    },
+    {
+     "name": "VCP",
+     "grade": 2,
+     "ranked": true
+    },
+    {
+     "name": "A_PLUS_VCP",
+     "grade": 3,
+     "ranked": true
+    }
+   ]
+  },
+  {
+   "strategy_id": "flat_base",
+   "algorithm_version": "flat_base-1.0.0",
+   "config_hash": "c4918be30855",
+   "stage": "paper",
+   "min_grade": 2,
+   "tiers": [
+    {
+     "name": "NONE",
+     "grade": 0,
+     "ranked": false
+    },
+    {
+     "name": "FLAT_BASE_LIKE",
+     "grade": 1,
+     "ranked": false
+    },
+    {
+     "name": "FLAT_BASE",
+     "grade": 2,
+     "ranked": true
+    },
+    {
+     "name": "TIGHT_FLAT_BASE",
+     "grade": 3,
+     "ranked": true
+    }
+   ]
+  },
+  {
+   "strategy_id": "three_weeks_tight",
+   "algorithm_version": "three_weeks_tight-1.1.0",
+   "config_hash": "9ed3b8e7c31a",
+   "stage": "paper",
+   "min_grade": 2,
+   "tiers": [
+    {
+     "name": "NONE",
+     "grade": 0,
+     "ranked": false
+    },
+    {
+     "name": "THREE_WEEKS_TIGHT_LIKE",
+     "grade": 1,
+     "ranked": false
+    },
+    {
+     "name": "THREE_WEEKS_TIGHT",
+     "grade": 2,
+     "ranked": true
+    },
+    {
+     "name": "THREE_WEEKS_TIGHT_A",
+     "grade": 3,
+     "ranked": true
+    }
+   ]
+  },
+  {
+   "strategy_id": "cup_handle",
+   "algorithm_version": "cup_handle-1.1.0",
+   "config_hash": "e36477f23b36",
+   "stage": "paper",
+   "min_grade": 2,
+   "tiers": [
+    {
+     "name": "NONE",
+     "grade": 0,
+     "ranked": false
+    },
+    {
+     "name": "CUP_HANDLE_LIKE",
+     "grade": 1,
+     "ranked": false
+    },
+    {
+     "name": "CUP_HANDLE",
+     "grade": 2,
+     "ranked": true
+    },
+    {
+     "name": "CUP_HANDLE_A",
+     "grade": 3,
+     "ranked": true
+    }
+   ]
+  },
+  {
+   "strategy_id": "double_bottom",
+   "algorithm_version": "double_bottom-1.0.0",
+   "config_hash": "dd7107637b1b",
+   "stage": "paper",
+   "min_grade": 2,
+   "tiers": [
+    {
+     "name": "NONE",
+     "grade": 0,
+     "ranked": false
+    },
+    {
+     "name": "DOUBLE_BOTTOM_LIKE",
+     "grade": 1,
+     "ranked": false
+    },
+    {
+     "name": "DOUBLE_BOTTOM",
+     "grade": 2,
+     "ranked": true
+    },
+    {
+     "name": "DOUBLE_BOTTOM_A",
+     "grade": 3,
+     "ranked": true
+    }
+   ]
+  }
+ ]
+}

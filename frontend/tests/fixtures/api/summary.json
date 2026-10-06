@@ -1,0 +1,44 @@
+{
+ "as_of": "2026-10-05",
+ "data_time": "2026-10-06T14:00:00+05:30",
+ "universe_size": 63,
+ "scanned": 3,
+ "trend_template_pass": 3,
+ "strategies": [
+  {
+   "strategy_id": "vcp",
+   "ranked": 2,
+   "grade2_plus": 2,
+   "breakouts": 1,
+   "mean_top10_score": 88.5
+  },
+  {
+   "strategy_id": "flat_base",
+   "ranked": 2,
+   "grade2_plus": 2,
+   "breakouts": 0,
+   "mean_top10_score": 75.0
+  },
+  {
+   "strategy_id": "three_weeks_tight",
+   "ranked": 0,
+   "grade2_plus": 0,
+   "breakouts": 0,
+   "mean_top10_score": null
+  },
+  {
+   "strategy_id": "cup_handle",
+   "ranked": 1,
+   "grade2_plus": 1,
+   "breakouts": 0,
+   "mean_top10_score": 60.0
+  },
+  {
+   "strategy_id": "double_bottom",
+   "ranked": 0,
+   "grade2_plus": 0,
+   "breakouts": 0,
+   "mean_top10_score": null
+  }
+ ]
+}

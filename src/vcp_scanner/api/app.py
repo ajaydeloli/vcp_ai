@@ -130,6 +130,16 @@ def create_app(
             return m.SetupsResponse(as_of=day, data_time=db.data_time(), strategy_id=strategy,
                                     rows=rows)  # fmt: skip
 
+    @app.get(f"{api}/search", response_model=m.SearchResponse)
+    def search(
+        q_: Annotated[str, Query(alias="q", min_length=1, max_length=40)],
+        limit: Annotated[int, Query(ge=1, le=20)] = 10,
+    ) -> m.SearchResponse:
+        with db.cursor() as cur:
+            hits = q.search_symbols(cur, q_, limit)
+            return m.SearchResponse(as_of=q.latest_prices_date(cur), data_time=db.data_time(),
+                                    query=q_, results=hits)  # fmt: skip
+
     @app.get(f"{api}/stocks/{{symbol}}/bars", response_model=m.BarsResponse)
     def stock_bars(
         symbol: str, days: Annotated[int, Query(ge=20, le=1500)] = 260

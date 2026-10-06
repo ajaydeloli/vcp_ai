@@ -2329,3 +2329,17 @@ Owner go after the §67 sign-off. FRONTEND_SPECIFICATION §67.3 and §67.9.
 
 **Not changed:** the main DB and the research DB (the check ran on a copy), every strategy, rule, scan, score, label and the ledger; the daily run's default behaviour (the serving step is off until the owner agrees).
 
+## Dashboard D2 — the web page (2026-10-07)
+
+Owner go "start D2. you can do some minor changes if needed." FRONTEND_SPECIFICATION §67.4, §67.6 and §67.10.
+
+**Code.** `frontend/` (new): Next 15 app with the `/dashboard` page against the API of D1; Zod schemas for every response (`src/lib/schemas.ts`), TanStack Query hooks (`api.ts`), formatting and chart-series helpers (`fmt.ts`, `chartData.ts`), the panels of §67.4. `scripts/dashboard.sh` (new) starts `vcp api serve` and the web server. Minor API change: `GET /api/v1/search?q=&limit=` (`SearchHit`, `SearchResponse`, `queries.search_symbols`) for the top-bar search. `.gitignore`: node_modules, .next and test output.
+
+**Found while testing, fixed:** acronyms in labels ("A plus VCP", "Rs rank") are now upper-cased by `sentence`; unmet rules are shown per tier; the details grid no longer clips at narrow widths; daily-run activity rows carry the prefix "Daily run:".
+
+**Tests.** 62 frontend tests (contract, format and chart helpers, components, page), `tests/api/test_contract_samples.py` (the committed sample responses equal what the API returns), `test_search_finds_symbols_and_company_names`. Frontend `npm run check` (tests, tsc, eslint) and `npm run build` pass; Python suite 1,301 passed, 2 skipped; ruff and mypy --strict clean.
+
+**Real-data check** (copy of the main database, 2026-10-06 IST, browser pane): the page renders real data (1,271 universe, 207 Trend Template passers, 74 grade 2+ setups, 3 breakouts, regime off at 27.0 % breadth, no paper trades); chart for GLAND with pivot 3,008.00 and stop 2,841.10; the API answered in 0.03 to 0.3 s.
+
+**Not changed:** the main and research databases, every strategy, rule, scan, score, label and the ledger; the daily run (the serving copy stays off until the owner agrees).
+

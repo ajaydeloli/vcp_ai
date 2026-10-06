@@ -28,3 +28,11 @@ reports/*
 
 # Personal scratch notes and scripts (audit P3-1)
 scratch/
+
+# Dashboard frontend (FRONTEND_SPECIFICATION 67)
+frontend/node_modules/
+frontend/.next/
+frontend/*.tsbuildinfo
+frontend/next-env.d.ts
+frontend/test-results/
+frontend/screenshots/
