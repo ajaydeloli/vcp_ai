@@ -961,3 +961,21 @@ Trailing exits sell winners too early (trail_e20's trailing exits average +6.5 %
 
 Not read as an edge yet (§10.4): validation is unopened; 7e opens it once per strategy with these frozen rules.
 
+## 20.9 Validation, opened once per strategy (2026-10-06, step 7e)
+
+Owner go 2026-10-06. Frozen rules `cross_5`, `breadth50`, `hold_low8`; validation period 2024-07-01 … 2026-09-30; look number 1 for every strategy (no earlier validation runs existed). Research DB, under the daily-run lock, backup `golden_src_20261006_055406`; code 987dc29.
+
+| Strategy | Development: trades, PF, CAGR / max DD | Validation: trades, win, avg, PF | Validation portfolio: CAGR / max DD |
+|---|---|---|---|
+| VCP | 574, 2.15, 14.2 / −19.6 % | 317, 25.9 %, −0.62 %, 0.89 | −6.7 / −26.1 % |
+| Flat base | 173, 2.73, 31.1 / −15.9 % | 104, 24.0 %, −1.76 %, 0.70 | −5.4 / −15.9 % |
+| Three Weeks Tight | 284, 2.05, 26.7 / −14.5 % | 159, 27.7 %, −0.70 %, 0.87 | −5.7 / −22.9 % |
+| Cup and handle | 69, 1.79, 11.3 / −10.3 % | 46, 37.0 %, +0.94 %, 1.19 | +2.7 / −11.5 % |
+| Double bottom | 32, 2.82, 10.6 / −8.5 % | 26, 34.6 %, −0.82 %, 0.84 | −1.1 / −9.8 % |
+
+**The development edge did not hold.** Every strategy is about flat to negative in validation; none reaches a profit factor of 1.2.
+
+Market context (our equal-weight universe index, `breadth50` share of days on): development 2022-02 … 2024-06 **+93 %** (75 % on); validation 2024 H2 +6 % (71 %), 2025 −5.6 % (47 %), 2026 to September +7.5 % (66 %). The development period was a strong broad advance; validation was roughly flat with a sharp correction from late 2024. Validation trades by entry half-year (all strategies): 2024 H2 232 trades, 19 % winners, −2.1 % average (entries just before the correction, while breadth was still above 40 %); 2025 H1 58, +1.1 %; 2025 H2 146, −1.7 %; 2026 H1 129, 45 % winners, +4.2 %; 2026 H2 87, −4.1 % (some still open at the data end are not counted). The breakout edge measured on development looks largely like exposure to that advance; `breadth50` (a lagging 50-day measure) did not keep the strategies out of the late-2024 correction.
+
+Validation is now spent for these versions (§10.4): changing a rule because of these numbers and re-running validation would fit to it. Any new idea is chosen on development only and judged on live paper (from 2026-10-01).
+

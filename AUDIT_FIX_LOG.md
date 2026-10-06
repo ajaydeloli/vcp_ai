@@ -2266,3 +2266,9 @@ The owner judged every strategy's development results average and asked whether 
 **7d owner decisions (2026-10-06, each as recommended):** entry `cross_5`, regime `breadth50`, exit `hold_low8`, the same for every strategy, chosen on pooled results.
 
 **Code (step 7d):** `config/backtest.yaml` `defaults` (entry, regime, rule) read by `vcp backtest run|walk-forward` when the command line names none; `BacktestDefaults` validates the names. The engine's own defaults and the outcome study's `DEFAULT_RULE` (hold_s7) are unchanged. Test: the shipped defaults and refused names. Full suite 1,255 passed, 2 skipped; ruff, format, mypy clean. **Real-data check** (copy of the research DB): `vcp backtest walk-forward --strategy flat_base` with no options reproduces the stage-3 run (173 trades, PF 2.73, CAGR 31.1 % / −15.9 %).
+
+## Multi-Strategy phase step 7e — validation opened once per strategy (2026-10-06 11:24 IST)
+
+Owner go ("yes, open validation now"). `vcp backtest walk-forward --validation` per strategy with the frozen defaults (cross_5, breadth50, hold_low8), under the daily-run lock (`~/vcp_spike/ms7c_stage.sh "--validation"`, code 987dc29), backup `data/backups/golden_src_20261006_055406.duckdb` (keep=3 rotated out 052113). Look number 1 for all five strategies; each run also re-ran the development period (identical to the 7c runs). No errors.
+
+**Result:** the development edge did not hold. Validation profit factors 0.70–1.19, portfolio CAGR −6.7 … +2.7 %; full table and market context in STRATEGY_SPECIFICATION §20.9 (development was a +93 % broad advance of the equal-weight universe; validation roughly flat with a correction from late 2024). Reported to the owner with options; no rule changed.
