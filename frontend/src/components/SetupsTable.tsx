@@ -1,18 +1,17 @@
 "use client";
 
-import { useQueries } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
-import { getJson, paths, useOverlap, useSetups } from "@/lib/api";
-import { DASH, fmtDay, fmtInt, fmtNum, fmtPct, fmtPrice, strategyLabel } from "@/lib/fmt";
-import * as schemas from "@/lib/schemas";
-import type { SetupRow, Summary } from "@/lib/schemas";
+import { useOverlap, useSetups } from "@/lib/api";
+import { DASH, fmtDay, fmtInt, fmtNum, fmtPct, fmtPrice, strategyLabel, tone } from "@/lib/fmt";
+import { countList, PAGE_SIZE, pageNumbers, VCP_LISTS } from "@/lib/lists";
+import type * as schemas from "@/lib/schemas";
+import type { SetupRow } from "@/lib/schemas";
 import { Card, Empty, ErrorBox, GradeBadge, Loading, StatusPill } from "./ui";
 
 export type Selection = { symbol: string; strategy: string };
 
 type Props = {
   strategies: { strategy_id: string }[];
-  summary?: Summary;
   selected: Selection | null;
   onSelect: (s: Selection) => void;
 };
@@ -25,57 +24,51 @@ type Col = {
   render: (r: SetupRow) => React.ReactNode;
 };
 
+const scoreTone = (v: number | null): string =>
+  v === null ? "text-mute" : v >= 85 ? "bg-up/20 text-up" : v >= 70 ? "bg-accent/20 text-accent" : "bg-panel2 text-ink";
+
 const COLS: Col[] = [
   {
     key: "symbol",
     label: "Symbol",
     get: (r) => r.symbol,
-    render: (r) => (
-      <div>
-        <span className="font-medium text-ink">{r.symbol}</span>
-        {r.company ? <div className="max-w-36 truncate text-[11px] text-mute">{r.company}</div> : null}
-      </div>
-    ),
+    render: (r) => <span className="font-medium text-accent">{r.symbol}</span>,
   },
-  { key: "score", label: "Score", align: "right", get: (r) => r.score, render: (r) => fmtNum(r.score) },
+  {
+    key: "company",
+    label: "Company",
+    get: (r) => r.company,
+    render: (r) => <span className="block max-w-40 truncate text-ink">{r.company ?? DASH}</span>,
+  },
   {
     key: "grade",
-    label: "Grade",
+    label: "Setup",
     get: (r) => r.grade,
     render: (r) => <GradeBadge classification={r.classification} grade={r.grade} />,
   },
-  { key: "status", label: "Status", get: (r) => r.status, render: (r) => <StatusPill status={r.status} /> },
+  {
+    key: "score",
+    label: "Score",
+    align: "right",
+    get: (r) => r.score,
+    render: (r) => (
+      <span className={`inline-block min-w-9 rounded px-1.5 py-0.5 text-center font-medium ${scoreTone(r.score)}`}>
+        {fmtNum(r.score, 0)}
+      </span>
+    ),
+  },
   { key: "rs", label: "RS", align: "right", get: (r) => r.rs_rank, render: (r) => fmtInt(r.rs_rank) },
   { key: "pivot", label: "Pivot", align: "right", get: (r) => r.pivot, render: (r) => fmtPrice(r.pivot) },
+  { key: "price", label: "Price", align: "right", get: (r) => r.close, render: (r) => fmtPrice(r.close) },
+  { key: "status", label: "Status", get: (r) => r.status, render: (r) => <StatusPill status={r.status} /> },
   {
-    key: "dist",
-    label: "To pivot",
+    key: "change",
+    label: "Change",
     align: "right",
-    get: (r) => r.pivot_distance_pct,
-    render: (r) => fmtPct(r.pivot_distance_pct),
-  },
-  { key: "stop", label: "Stop", align: "right", get: (r) => r.stop, render: (r) => fmtPrice(r.stop) },
-  {
-    key: "base",
-    label: "Base days",
-    align: "right",
-    get: (r) => r.base_days,
-    render: (r) => fmtInt(r.base_days),
-  },
-  {
-    key: "brk",
-    label: "Breakout",
-    get: (r) => r.breakout_date,
-    render: (r) => (r.breakout_date ? fmtDay(r.breakout_date) : DASH),
+    get: (r) => r.change_pct,
+    render: (r) => <span className={tone(r.change_pct)}>{fmtPct(r.change_pct, 1, true)}</span>,
   },
 ];
-
-const STRATEGY_COL: Col = {
-  key: "strategy",
-  label: "Strategy",
-  get: (r) => r.strategy_id,
-  render: (r) => <span className="text-mute">{strategyLabel(r.strategy_id)}</span>,
-};
 
 export function sortRows(rows: SetupRow[], col: Col, dir: "asc" | "desc"): SetupRow[] {
   const sign = dir === "asc" ? 1 : -1;
@@ -89,67 +82,128 @@ export function sortRows(rows: SetupRow[], col: Col, dir: "asc" | "desc"): Setup
   });
 }
 
-const BREAKOUTS = "breakouts";
 const OVERLAP = "overlap";
+const LIST = "list:";
 
-export function SetupsTable({ strategies, summary, selected, onSelect }: Props) {
-  const [tab, setTab] = useState<string>(strategies[0]?.strategy_id ?? "vcp");
+export function Pager({
+  page,
+  total,
+  onPage,
+}: {
+  page: number;
+  total: number;
+  onPage: (p: number) => void;
+}) {
+  const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const from = total === 0 ? 0 : page * PAGE_SIZE + 1;
+  const to = Math.min(total, (page + 1) * PAGE_SIZE);
+  const btn = "min-w-7 rounded border px-2 py-1 text-xs";
+  return (
+    <nav aria-label="Pages" className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-mute">
+      <span>
+        Showing {from}–{to} of {total}
+      </span>
+      <div className="flex items-center gap-1">
+        <button
+          type="button"
+          aria-label="Previous page"
+          disabled={page === 0}
+          onClick={() => onPage(page - 1)}
+          className={`${btn} border-line enabled:hover:text-ink disabled:opacity-40`}
+        >
+          ‹
+        </button>
+        {pageNumbers(page, pages).map((p, i) =>
+          p === "…" ? (
+            <span key={`gap${i}`} className="px-1">
+              …
+            </span>
+          ) : (
+            <button
+              key={p}
+              type="button"
+              aria-label={`Page ${p + 1}`}
+              aria-current={p === page ? "page" : undefined}
+              onClick={() => onPage(p)}
+              className={`${btn} ${p === page ? "border-accent bg-accent text-white" : "border-line hover:text-ink"}`}
+            >
+              {p + 1}
+            </button>
+          ),
+        )}
+        <button
+          type="button"
+          aria-label="Next page"
+          disabled={page >= pages - 1}
+          onClick={() => onPage(page + 1)}
+          className={`${btn} border-line enabled:hover:text-ink disabled:opacity-40`}
+        >
+          ›
+        </button>
+      </div>
+    </nav>
+  );
+}
+
+export function SetupsTable({ strategies, selected, onSelect }: Props) {
+  const [tab, setTab] = useState<string>(`${LIST}top`);
+  const [page, setPage] = useState(0);
   const [sort, setSort] = useState<{ key: string; dir: "asc" | "desc" }>({ key: "score", dir: "desc" });
 
-  const isStrategy = tab !== BREAKOUTS && tab !== OVERLAP;
-  const single = useSetups(tab, undefined, isStrategy);
+  const vcpList = tab.startsWith(LIST);
+  const strategy = vcpList ? "vcp" : tab;
+  const isStrategy = tab !== OVERLAP;
+  const single = useSetups(strategy, undefined, isStrategy);
+  const vcp = useSetups("vcp");
   const overlap = useOverlap(tab === OVERLAP);
-  const breakouts = useQueries({
-    queries: strategies.map((s) => ({
-      queryKey: ["setups", s.strategy_id, "BREAKOUT"],
-      queryFn: () => getJson(paths.setups(s.strategy_id, "BREAKOUT"), schemas.setups),
-      enabled: tab === BREAKOUTS,
-      staleTime: 60_000,
-    })),
-  });
 
-  const columns = tab === BREAKOUTS ? [COLS[0] as Col, STRATEGY_COL, ...COLS.slice(1)] : COLS;
-  const col = columns.find((c) => c.key === sort.key) ?? (COLS[1] as Col);
+  const col = COLS.find((c) => c.key === sort.key) ?? (COLS[3] as Col);
 
   const rows: SetupRow[] = useMemo(() => {
-    const raw =
-      tab === BREAKOUTS
-        ? breakouts.flatMap((q) => q.data?.rows ?? [])
-        : isStrategy
-          ? (single.data?.rows ?? [])
-          : [];
-    return sortRows(raw, col, sort.dir);
-  }, [tab, isStrategy, breakouts, single.data, col, sort.dir]);
+    const raw = single.data?.rows ?? [];
+    const keep = vcpList ? (VCP_LISTS.find((l) => `${LIST}${l.id}` === tab)?.test ?? (() => true)) : () => true;
+    return sortRows(raw.filter(keep), col, sort.dir);
+  }, [single.data, vcpList, tab, col, sort.dir]);
 
-  const count = (id: string) => summary?.strategies.find((s) => s.strategy_id === id)?.ranked;
+  const others = strategies.filter((s) => s.strategy_id !== "vcp");
   const tabs = [
-    ...strategies.map((s) => ({ id: s.strategy_id, label: strategyLabel(s.strategy_id), n: count(s.strategy_id) })),
-    { id: BREAKOUTS, label: "Breakouts", n: undefined },
+    ...VCP_LISTS.map((l) => ({
+      id: `${LIST}${l.id}`,
+      label: l.label,
+      n: vcp.data ? countList(vcp.data.rows, l.id) : undefined,
+    })),
+    ...others.map((s) => ({ id: s.strategy_id, label: strategyLabel(s.strategy_id), n: undefined })),
     { id: OVERLAP, label: "On several lists", n: overlap.data?.rows.length },
   ];
 
-  const loading =
-    tab === OVERLAP ? overlap.isPending : tab === BREAKOUTS ? breakouts.some((q) => q.isPending) : single.isPending;
-  const error =
-    tab === OVERLAP ? overlap.error : tab === BREAKOUTS ? breakouts.find((q) => q.error)?.error : single.error;
+  const loading = tab === OVERLAP ? overlap.isPending : single.isPending;
+  const error = tab === OVERLAP ? overlap.error : single.error;
   const asOf = tab === OVERLAP ? overlap.data?.as_of : single.data?.as_of;
+
+  const total = tab === OVERLAP ? (overlap.data?.rows.length ?? 0) : rows.length;
+  const lastPage = Math.max(0, Math.ceil(total / PAGE_SIZE) - 1);
+  const at = Math.min(page, lastPage);
+  const slice = rows.slice(at * PAGE_SIZE, (at + 1) * PAGE_SIZE);
 
   return (
     <Card
-      title="Setups: watch list"
+      title="Watch list"
       subtitle={`Ranked by setup score${asOf ? `, scan of ${fmtDay(asOf)}` : ""}. A watch list for research, not buy signals.`}
-      className="min-w-0 xl:absolute xl:inset-0"
+      className="min-w-0"
     >
-      <div role="tablist" aria-label="Setup lists" className="mb-3 flex flex-wrap gap-1 border-b border-line pb-2">
+      <div role="tablist" aria-label="Setup lists" className="mb-3 flex flex-wrap gap-x-1 gap-y-1 border-b border-line pb-2">
         {tabs.map((t) => (
           <button
             key={t.id}
             role="tab"
             type="button"
             aria-selected={tab === t.id}
-            onClick={() => setTab(t.id)}
+            onClick={() => {
+              setTab(t.id);
+              setPage(0);
+            }}
             className={`rounded px-2.5 py-1 text-xs ${
-              tab === t.id ? "bg-accent text-white" : "text-mute hover:text-ink"
+              tab === t.id ? "bg-accent/15 text-accent underline decoration-accent decoration-2 underline-offset-8" : "text-mute hover:text-ink"
             }`}
           >
             {t.label}
@@ -163,60 +217,68 @@ export function SetupsTable({ strategies, summary, selected, onSelect }: Props) 
       ) : loading ? (
         <Loading what="setups" />
       ) : tab === OVERLAP ? (
-        <OverlapList rows={overlap.data?.rows ?? []} onSelect={onSelect} selected={selected} />
+        <>
+          <OverlapList
+            rows={(overlap.data?.rows ?? []).slice(at * PAGE_SIZE, (at + 1) * PAGE_SIZE)}
+            onSelect={onSelect}
+            selected={selected}
+          />
+          <Pager page={at} total={total} onPage={setPage} />
+        </>
       ) : rows.length === 0 ? (
         <Empty>No setups in this list on this scan date.</Empty>
       ) : (
-        <div className="min-h-0 max-h-[520px] flex-1 overflow-auto xl:max-h-none">
-          <table className="w-full text-left text-xs">
-            <thead className="sticky top-0 bg-panel text-[11px] uppercase text-mute">
-              <tr>
-                <th className="px-2 py-1.5 font-medium">#</th>
-                {columns.map((c) => (
-                  <th
-                    key={c.key}
-                    className={`px-2 py-1.5 font-medium ${c.align === "right" ? "text-right" : ""}`}
-                    aria-sort={sort.key === c.key ? (sort.dir === "asc" ? "ascending" : "descending") : "none"}
-                  >
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setSort((s) => ({
-                          key: c.key,
-                          dir: s.key === c.key && s.dir === "desc" ? "asc" : "desc",
-                        }))
-                      }
-                      className="uppercase hover:text-ink"
+        <>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs">
+              <thead className="text-[11px] uppercase text-mute">
+                <tr>
+                  <th className="px-2 py-1.5 font-medium">#</th>
+                  {COLS.map((c) => (
+                    <th
+                      key={c.key}
+                      className={`px-2 py-1.5 font-medium ${c.align === "right" ? "text-right" : ""}`}
+                      aria-sort={sort.key === c.key ? (sort.dir === "asc" ? "ascending" : "descending") : "none"}
                     >
-                      {c.label}
-                      {sort.key === c.key ? (sort.dir === "asc" ? " ▲" : " ▼") : ""}
-                    </button>
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((r, i) => {
-                const on = selected?.symbol === r.symbol && selected.strategy === r.strategy_id;
-                return (
-                  <tr
-                    key={`${r.strategy_id}:${r.symbol}`}
-                    aria-selected={on}
-                    onClick={() => onSelect({ symbol: r.symbol, strategy: r.strategy_id })}
-                    className={`cursor-pointer border-t border-line/60 hover:bg-panel2 ${on ? "bg-panel2" : ""}`}
-                  >
-                    <td className="px-2 py-1.5 text-mute">{i + 1}</td>
-                    {columns.map((c) => (
-                      <td key={c.key} className={`px-2 py-1.5 ${c.align === "right" ? "text-right tabular-nums" : ""}`}>
-                        {c.render(r)}
-                      </td>
-                    ))}
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSort((s) => ({ key: c.key, dir: s.key === c.key && s.dir === "desc" ? "asc" : "desc" }));
+                          setPage(0);
+                        }}
+                        className="uppercase hover:text-ink"
+                      >
+                        {c.label}
+                        {sort.key === c.key ? (sort.dir === "asc" ? " ▲" : " ▼") : ""}
+                      </button>
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {slice.map((r, i) => {
+                  const on = selected?.symbol === r.symbol && selected.strategy === r.strategy_id;
+                  return (
+                    <tr
+                      key={`${r.strategy_id}:${r.symbol}`}
+                      aria-selected={on}
+                      onClick={() => onSelect({ symbol: r.symbol, strategy: r.strategy_id })}
+                      className={`cursor-pointer border-t border-line/60 hover:bg-panel2 ${on ? "bg-panel2" : ""}`}
+                    >
+                      <td className="px-2 py-2 text-mute">{at * PAGE_SIZE + i + 1}</td>
+                      {COLS.map((c) => (
+                        <td key={c.key} className={`px-2 py-2 ${c.align === "right" ? "text-right tabular-nums" : ""}`}>
+                          {c.render(r)}
+                        </td>
+                      ))}
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+          <Pager page={at} total={total} onPage={setPage} />
+        </>
       )}
     </Card>
   );
@@ -233,18 +295,18 @@ function OverlapList({
 }) {
   if (rows.length === 0) return <Empty>No stock is on more than one list on this scan date.</Empty>;
   return (
-    <ul className="min-h-0 max-h-[520px] flex-1 divide-y xl:max-h-none divide-line/60 overflow-auto text-xs">
+    <ul className="divide-y divide-line/60 text-xs">
       {rows.map((r) => (
         <li key={r.symbol}>
           <button
             type="button"
             onClick={() => onSelect({ symbol: r.symbol, strategy: r.strategies[0]?.strategy_id ?? "vcp" })}
-            className={`flex w-full items-center justify-between gap-3 px-2 py-2 text-left hover:bg-panel2 ${
+            className={`flex w-full items-center justify-between gap-3 px-2 py-2.5 text-left hover:bg-panel2 ${
               selected?.symbol === r.symbol ? "bg-panel2" : ""
             }`}
           >
             <span>
-              <span className="font-medium text-ink">{r.symbol}</span>
+              <span className="font-medium text-accent">{r.symbol}</span>
               {r.company ? <span className="ml-2 text-mute">{r.company}</span> : null}
             </span>
             <span className="flex flex-wrap justify-end gap-1">

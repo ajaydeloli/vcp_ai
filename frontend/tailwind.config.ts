@@ -16,6 +16,7 @@ const config: Config = {
         up: "#26c281",
         down: "#ef5350",
         warn: "#f5a524",
+        violet: "#8b5cf6",
       },
       fontFamily: { sans: ["ui-sans-serif", "system-ui", "Segoe UI", "Roboto", "sans-serif"] },
     },

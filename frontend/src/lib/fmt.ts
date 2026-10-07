@@ -68,3 +68,11 @@ export const sentence = (s: string): string => {
 };
 
 export const classLabel = sentence;
+
+/** Calendar days from one ISO date to another ("2026-08-11" to "2026-08-21" is 10); null if either is missing. */
+export const daysBetween = (from: string | null | undefined, to: string | null | undefined): number | null => {
+  if (!from || !to) return null;
+  const a = Date.parse(`${from}T00:00:00Z`);
+  const b = Date.parse(`${to}T00:00:00Z`);
+  return Number.isNaN(a) || Number.isNaN(b) ? null : Math.round((b - a) / 86_400_000);
+};

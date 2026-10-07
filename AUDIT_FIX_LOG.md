@@ -2353,3 +2353,13 @@ Owner review of the page: the setups card was much shorter than the chart card, 
 
 **Tests:** frontend 62 passed (no logic changed). **Not changed:** any data, strategy, rule, scan, score, label or the ledger.
 
+## Dashboard D2.2 — layout after the second mockup (2026-10-07)
+
+Owner request: build the page as in the new mockup image: chart in a separate card next to the watch list, setup overview in separate cards below, score as a ring, watch list ten rows a page with page numbers. Owner answers: own universe index now (NIFTY with live data later), Fundamentals shown as not available, breadth donut = above / below the 50-day average, no sector or index filters. FRONTEND_SPECIFICATION §67.11.
+
+**Code (frontend only, no API change).** New: `Rings.tsx` (donut, score ring, sparkline), `SetupOverview.tsx` (VCP pattern, Trend Template, Fundamentals, Score breakdown; replaces `SetupDetails.tsx`), `lib/lists.ts` (VCP list filters, page size, page numbers). Rewritten: `Dashboard`, `Nav` (data status box), `TopBar` (universe index tile), `KpiCards` (six tiles), `SetupsTable` (tabs, ten rows a page, pager), `StockPanel` (chart card with header figures; the strategy chosen is now owned by the page). `Card` takes an optional title.
+
+**Tests.** 73 frontend tests (+11): the KPI counts and breadth donut, the list tabs, paging (25 rows: pages, next / previous, new list starts on page 1), the chart card, the four overview cards (contractions, dash for missing, fundamentals not available, score ring), the universe index tile, page numbers, days between dates. `npm run check` (tests, tsc, eslint) clean. Browser pane at 1536 px: watch list and chart card 627 x 639 px each; overview cards 464 px each; activity, market, paper 420 px each.
+
+**Not changed:** the API, data, any strategy, rule, scan, score, label or the ledger.
+

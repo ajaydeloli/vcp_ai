@@ -3,26 +3,34 @@ import { classLabel, sentence } from "@/lib/fmt";
 
 export function Card({
   title,
+  label,
   subtitle,
   right,
   children,
   className = "",
 }: {
-  title: ReactNode;
+  title?: ReactNode;
+  /** accessible name when the card has no visible title */
+  label?: string;
   subtitle?: ReactNode;
   right?: ReactNode;
   children: ReactNode;
   className?: string;
 }) {
   return (
-    <section className={`flex flex-col rounded-lg border border-line bg-panel p-4 ${className}`}>
-      <header className="mb-3 flex shrink-0 items-start justify-between gap-3">
-        <div>
-          <h2 className="text-sm font-semibold text-ink">{title}</h2>
-          {subtitle ? <p className="mt-0.5 text-xs text-mute">{subtitle}</p> : null}
-        </div>
-        {right}
-      </header>
+    <section
+      aria-label={title ? undefined : label}
+      className={`flex flex-col rounded-lg border border-line bg-panel p-4 ${className}`}
+    >
+      {title ? (
+        <header className="mb-3 flex shrink-0 items-start justify-between gap-3">
+          <div>
+            <h2 className="text-sm font-semibold text-ink">{title}</h2>
+            {subtitle ? <p className="mt-0.5 text-xs text-mute">{subtitle}</p> : null}
+          </div>
+          {right}
+        </header>
+      ) : null}
       {children}
     </section>
   );

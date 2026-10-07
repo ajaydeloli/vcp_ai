@@ -1,10 +1,12 @@
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { ChartView } from "@/components/ChartView";
 import { KpiCards } from "@/components/KpiCards";
 import { MarketOverview } from "@/components/MarketOverview";
 import { PaperPanel } from "@/components/PaperPanel";
+import { SetupOverview } from "@/components/SetupOverview";
 import { SetupsTable } from "@/components/SetupsTable";
 import { StatusBar } from "@/components/StatusBar";
 import { StockPanel } from "@/components/StockPanel";
@@ -14,19 +16,19 @@ import { fx, mockApi, renderApp } from "./helpers";
 
 const kpi = (title: string) => screen.getByTestId(`kpi-${title}`);
 
-describe("KPI cards", () => {
-  it("show the summary, regime and paper numbers", async () => {
+describe("KPI tiles", () => {
+  it("count the lists of the VCP ranking and show the scan and the breadth", async () => {
     mockApi();
     renderApp(<KpiCards />);
-    await waitFor(() => expect(kpi("Universe scanned")).toHaveTextContent("63"));
-    expect(screen.getByText("3 pass the Trend Template")).toBeInTheDocument();
-    const grade2 = fx.summary.strategies.reduce((a, s) => a + s.grade2_plus, 0);
-    await waitFor(() => expect(kpi("Grade 2+ setups")).toHaveTextContent(String(grade2)));
-    expect(kpi("Breakouts today")).toHaveTextContent("1");
-    await waitFor(() => expect(kpi("Market regime")).toHaveTextContent("OFF"));
-    expect(screen.getByText(/Breadth 31\.7%/)).toBeInTheDocument();
-    await waitFor(() => expect(kpi("Paper positions open")).toHaveTextContent("1"));
-    expect(screen.getByText("1 closed so far")).toBeInTheDocument();
+    await waitFor(() => expect(kpi("A+ VCP setups")).toHaveTextContent("1"));
+    expect(kpi("VCP setups")).toHaveTextContent("1");
+    expect(kpi("Forming bases")).toHaveTextContent("0");
+    expect(kpi("Breakout watch")).toHaveTextContent("2"); // ALPHA pivot ready, BETA broken out
+    await waitFor(() => expect(screen.getByText("symbols").previousElementSibling).toHaveTextContent("63"));
+    expect(screen.getByText("Trend Template").previousElementSibling).toHaveTextContent("3");
+    await waitFor(() => expect(screen.getByTestId("kpi-breadth-above")).toHaveTextContent("31.7%"));
+    expect(screen.getByTestId("kpi-regime")).toHaveTextContent("OFF");
+    expect(screen.getByRole("img", { name: /above and below its 50-day average/ })).toBeInTheDocument();
   });
 
   it("a missing value is a dash, not 0", async () => {
@@ -34,30 +36,32 @@ describe("KPI cards", () => {
       summary: { ...fx.summary, universe_size: null, trend_template_pass: null, strategies: [] },
     });
     renderApp(<KpiCards />);
-    await waitFor(() => expect(kpi("Grade 2+ setups")).toHaveTextContent("0"));
-    expect(kpi("Universe scanned")).toHaveTextContent("—");
-    expect(kpi("Universe scanned")).not.toHaveTextContent("0");
+    await waitFor(() => expect(kpi("A+ VCP setups")).toHaveTextContent("1"));
+    const symbols = screen.getByText("symbols").previousElementSibling!;
+    expect(symbols).toHaveTextContent("—");
+    expect(symbols).not.toHaveTextContent("0");
   });
 
   it("does not crash when the API is down", async () => {
-    mockApi({ summary: new Error("down"), market: new Error("down"), paper: new Error("down") });
+    mockApi({ summary: new Error("down"), market: new Error("down"), "setups?strategy=vcp": new Error("down") });
     renderApp(<KpiCards />);
-    await waitFor(() => expect(kpi("Market regime")).toHaveTextContent("—"));
-    expect(kpi("Paper positions open")).toHaveTextContent("—");
+    await waitFor(() => expect(screen.getByTestId("kpi-regime")).toHaveTextContent("—"));
+    expect(kpi("A+ VCP setups")).toHaveTextContent("—");
+    expect(screen.getByTestId("kpi-breadth-above")).toHaveTextContent("—");
   });
 });
 
 describe("setups table", () => {
   const strategies = fx.strategies.strategies;
   const setup = (onSelect = vi.fn(), selected = null as { symbol: string; strategy: string } | null) =>
-    renderApp(<SetupsTable strategies={strategies} summary={fx.summary} selected={selected} onSelect={onSelect} />);
+    renderApp(<SetupsTable strategies={strategies} selected={selected} onSelect={onSelect} />);
   const symbols = () =>
     within(screen.getByRole("table"))
       .getAllByRole("row")
       .slice(1)
-      .map((r) => r.querySelector("td:nth-child(2) span.font-medium")?.textContent ?? "");
+      .map((r) => r.querySelector("td:nth-child(2) span")?.textContent ?? "");
 
-  it("is a watch list, ranked best score first, with a tab per strategy", async () => {
+  it("is a watch list, ranked best score first, with the VCP lists and a tab per other strategy", async () => {
     mockApi();
     setup();
     await screen.findByText("ALPHA");
@@ -65,9 +69,12 @@ describe("setups table", () => {
     expect(symbols()).toEqual(["ALPHA", "BETA"]);
     const tabs = screen.getAllByRole("tab").map((t) => t.textContent);
     expect(tabs).toEqual(
-      expect.arrayContaining(["VCP2", "Flat base2", "3 weeks tight0", "Cup & handle1", "Double bottom0", "Breakouts"]),
-    );
-    expect(screen.getByRole("tab", { name: /VCP/ })).toHaveAttribute("aria-selected", "true");
+      expect.arrayContaining([
+        "Top setups2", "A+ VCP1", "VCP1", "VCP like0", "Forming0", "Breakout watch2",
+        "Flat base", "3 weeks tight", "Cup & handle", "Double bottom", "On several lists",
+      ]),
+    ); // fmt: skip
+    expect(screen.getByRole("tab", { name: /Top setups/ })).toHaveAttribute("aria-selected", "true");
   });
 
   it("shows grade, status, pivot and the company name; a missing pivot is a dash", async () => {
@@ -81,6 +88,8 @@ describe("setups table", () => {
     expect(first).toHaveTextContent("A+ VCP");
     expect(first).toHaveTextContent("Pivot ready");
     expect(first).toHaveTextContent("120.00");
+    expect(first).toHaveTextContent("171.90");
+    expect(first).toHaveTextContent("+0.1%");
     expect(second).toHaveTextContent("—");
     expect(second).not.toHaveTextContent("0.00");
   });
@@ -124,14 +133,47 @@ describe("setups table", () => {
     expect(row).toHaveAttribute("aria-selected", "true");
   });
 
-  it("Breakouts collects the breakout status of every list, with a strategy column", async () => {
-    const calls = mockApi();
+  it("each VCP tab is a cut of the same ranking", async () => {
+    mockApi();
     setup();
     await screen.findByText("ALPHA");
-    await userEvent.click(screen.getByRole("tab", { name: "Breakouts" }));
+    const tab = (label: string, n: number) =>
+      screen.getByRole("tab", { name: new RegExp(`^${label.replace("+", "\\+")}\\s*${n}$`) });
+    await userEvent.click(tab("A+ VCP", 1));
+    await waitFor(() => expect(symbols()).toEqual(["ALPHA"]));
+    await userEvent.click(tab("VCP", 1));
     await waitFor(() => expect(symbols()).toEqual(["BETA"]));
-    expect(screen.getByRole("button", { name: "Strategy" })).toBeInTheDocument();
-    expect(calls.filter((c) => c.includes("status=BREAKOUT"))).toHaveLength(strategies.length);
+    await userEvent.click(tab("Breakout watch", 2));
+    await waitFor(() => expect(symbols()).toEqual(["ALPHA", "BETA"]));
+    await userEvent.click(tab("Forming", 0));
+    expect(await screen.findByText(/No setups in this list/)).toBeInTheDocument();
+  });
+
+  it("shows ten rows a page with page numbers, and a new list starts on page 1", async () => {
+    const rows = Array.from({ length: 25 }, (_, i) => ({
+      ...fx.setupsVcp.rows[0]!,
+      symbol: `S${String(i + 1).padStart(2, "0")}`,
+      instrument_id: `NSE_EQ|S${i + 1}`,
+      score: 90 - i,
+    }));
+    mockApi({ "setups?strategy=vcp": { ...fx.setupsVcp, rows } });
+    setup();
+    await screen.findByText("S01");
+    expect(symbols()).toHaveLength(10);
+    expect(screen.getByText("Showing 1–10 of 25")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Page 2" }));
+    expect(symbols()[0]).toBe("S11");
+    expect(within(screen.getByRole("table")).getAllByRole("row")[1]).toHaveTextContent("11");
+    await userEvent.click(screen.getByRole("button", { name: "Next page" }));
+    expect(symbols()).toEqual(["S21", "S22", "S23", "S24", "S25"]);
+    expect(screen.getByText("Showing 21–25 of 25")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Next page" })).toBeDisabled();
+    await userEvent.click(screen.getByRole("button", { name: "Previous page" }));
+    expect(symbols()[0]).toBe("S11");
+    await userEvent.click(screen.getByRole("tab", { name: /Flat base/ }));
+    await waitFor(() => expect(screen.getByText(/Showing 1–2 of 2/)).toBeInTheDocument());
+    await userEvent.click(screen.getByRole("tab", { name: /Top setups/ }));
+    await waitFor(() => expect(symbols()[0]).toBe("S01")); // back on page 1
   });
 
   it("On several lists shows every list a stock is on", async () => {
@@ -160,10 +202,15 @@ describe("setups table", () => {
   });
 });
 
+function Harness({ first = "vcp" }: { first?: string }) {
+  const [sel, setSel] = useState({ symbol: "ALPHA", strategy: first });
+  return <StockPanel selection={sel} onSelect={setSel} />;
+}
+
 describe("stock panel", () => {
-  it("draws the chart with the strategy's marks, pivot and stop, and lists the setups", async () => {
+  it("is its own card: name, price, setup figures, and the chart with marks, pivot and stop", async () => {
     mockApi();
-    renderApp(<StockPanel selection={{ symbol: "ALPHA", strategy: "vcp" }} />);
+    renderApp(<Harness />);
     await screen.findByText("Alpha Industries Ltd");
     await waitFor(() => expect(liveCharts()).toHaveLength(1));
     const chart = liveCharts()[0]!;
@@ -177,16 +224,19 @@ describe("stock panel", () => {
     const vcp = fx.stockSetups.setups[0]!;
     expect(candles.priceLines.find((l) => l.title === "Pivot")?.price).toBe(vcp.pivot);
 
+    expect(screen.getByText("171.90", { selector: "span" })).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText("RS rank").nextElementSibling).toHaveTextContent("91"));
+    expect(screen.getByText("Score").nextElementSibling).toHaveTextContent("91");
+    expect(screen.getByText("Pivot").nextElementSibling).toHaveTextContent("120.00");
+    expect(screen.getByText("A+ VCP")).toBeInTheDocument();
     for (const name of ["VCP", "Flat base", "Cup & handle"]) {
       expect(screen.getByRole("button", { name })).toBeInTheDocument();
     }
-    expect(screen.getByText("3 / 3")).toBeInTheDocument(); // Trend Template conditions passed
-    expect(screen.getByText("Stage 2")).toBeInTheDocument();
   });
 
-  it("another strategy's chip changes the marks", async () => {
+  it("another strategy's chip changes the marks and the figures", async () => {
     mockApi();
-    renderApp(<StockPanel selection={{ symbol: "ALPHA", strategy: "vcp" }} />);
+    renderApp(<Harness />);
     await screen.findByText("Alpha Industries Ltd");
     await userEvent.click(screen.getByRole("button", { name: "Cup & handle" }));
     const candles = liveCharts()[0]!.of("candles")[0]!;
@@ -194,17 +244,87 @@ describe("stock panel", () => {
     expect(candles.markers.map((m) => m.text)).not.toContain("P1");
   });
 
+  it("reports the strategy picked on a chip", async () => {
+    const onSelect = vi.fn();
+    mockApi();
+    renderApp(<StockPanel selection={{ symbol: "ALPHA", strategy: "vcp" }} onSelect={onSelect} />);
+    await screen.findByText("Alpha Industries Ltd");
+    await userEvent.click(screen.getByRole("button", { name: "Flat base" }));
+    expect(onSelect).toHaveBeenCalledWith({ symbol: "ALPHA", strategy: "flat_base" });
+  });
+
   it("says when there is nothing selected", () => {
     mockApi();
-    renderApp(<StockPanel selection={null} />);
+    renderApp(<StockPanel selection={null} onSelect={() => {}} />);
     expect(screen.getByText(/Select a stock from the list/)).toBeInTheDocument();
   });
 
   it("a stock without bars is said so, not drawn", async () => {
     mockApi({ "stocks/NEWCO/bars?days=400": { ...fx.bars, symbol: "NEWCO", bars: [] } });
-    renderApp(<StockPanel selection={{ symbol: "NEWCO", strategy: "vcp" }} />);
+    renderApp(<StockPanel selection={{ symbol: "NEWCO", strategy: "vcp" }} onSelect={() => {}} />);
     expect(await screen.findByText(/No price bars for NEWCO/)).toBeInTheDocument();
     expect(liveCharts()).toHaveLength(0);
+  });
+});
+
+describe("setup overview", () => {
+  const overview = (strategy = "vcp") => renderApp(<SetupOverview selection={{ symbol: "ALPHA", strategy }} />);
+
+  it("shows the VCP pattern: contractions, base figures and distance to the pivot", async () => {
+    mockApi();
+    overview();
+    const card = (await screen.findByText("VCP pattern")).closest("section")!;
+    const [t1, t2] = within(card).getAllByRole("row").slice(1);
+    expect(t1).toHaveTextContent("T19.2%10First");
+    expect(t2).toHaveTextContent("T24.7%10✓ Tighter");
+    expect(card).toHaveTextContent("Base depth18.8%");
+    await waitFor(() => expect(card).toHaveTextContent("Base duration50 days"));
+    expect(card).toHaveTextContent("Pivot price120.00");
+    expect(card).toHaveTextContent("Current price171.90");
+    expect(card).toHaveTextContent("Distance to pivot1.2%");
+  });
+
+  it("a stock outside the ranking has dashes for base duration and distance, not 0", async () => {
+    mockApi({ "setups?strategy=vcp": { ...fx.setupsVcp, rows: [] } });
+    overview();
+    const card = (await screen.findByText("VCP pattern")).closest("section")!;
+    await waitFor(() => expect(card).toHaveTextContent("Pivot price120.00"));
+    expect(card).toHaveTextContent("Base duration—");
+    expect(card).toHaveTextContent("Distance to pivot—");
+  });
+
+  it("lists the Trend Template conditions with the weekly stage", async () => {
+    mockApi();
+    overview();
+    const card = (await screen.findByText("Trend Template")).closest("section")!;
+    expect(card).toHaveTextContent("3 / 3 ✓");
+    expect(within(card).getAllByLabelText("passed")).toHaveLength(3);
+    expect(card).toHaveTextContent("Stage 2");
+  });
+
+  it("says fundamentals are not available instead of showing numbers", async () => {
+    mockApi();
+    overview();
+    const card = (await screen.findByText("Fundamentals")).closest("section")!;
+    expect(card).toHaveTextContent("Not available");
+    expect(card).toHaveTextContent("ROE—");
+    expect(card).not.toHaveTextContent("0.0");
+  });
+
+  it("draws the score as a ring with one arc per component and the final score in the middle", async () => {
+    mockApi();
+    overview();
+    const card = (await screen.findByText("Score breakdown")).closest("section")!;
+    expect(within(card).getByRole("img", { name: /Final score 91/ })).toBeInTheDocument();
+    expect(card).toHaveTextContent("Trend33.0 / 40");
+    expect(card).toHaveTextContent("VCP17.0 / 40");
+  });
+
+  it("a setup with no score parts says so", async () => {
+    mockApi();
+    overview("flat_base");
+    const card = (await screen.findByText("Score breakdown")).closest("section")!;
+    expect(card).toHaveTextContent("No score parts stored");
   });
 });
 
@@ -292,6 +412,17 @@ describe("status bar", () => {
     renderApp(<StatusBar />);
     expect(await screen.findByRole("alert")).toHaveTextContent("vcp api serve");
     expect(screen.getByText("Research tool, not financial advice")).toBeInTheDocument();
+  });
+});
+
+describe("top bar", () => {
+  it("shows our own universe index, not NIFTY, with its day change", async () => {
+    mockApi();
+    renderApp(<TopBar onPick={() => {}} />);
+    expect(await screen.findByText("106.07")).toBeInTheDocument();
+    expect(screen.getByText("Our NSE universe index")).toBeInTheDocument();
+    expect(screen.getByText("+0.10%")).toBeInTheDocument();
+    expect(screen.queryByText(/NIFTY/i)).not.toBeInTheDocument();
   });
 });
 

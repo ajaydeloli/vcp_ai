@@ -1,12 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { useSetups, useStrategies, useSummary } from "@/lib/api";
+import { useSetups, useStrategies } from "@/lib/api";
 import { ActivityPanel } from "./ActivityPanel";
 import { KpiCards } from "./KpiCards";
 import { MarketOverview } from "./MarketOverview";
 import { Nav } from "./Nav";
 import { PaperPanel } from "./PaperPanel";
+import { SetupOverview } from "./SetupOverview";
 import { SetupsTable, type Selection } from "./SetupsTable";
 import { StatusBar } from "./StatusBar";
 import { StockPanel } from "./StockPanel";
@@ -15,7 +16,6 @@ import { ErrorBox, Loading } from "./ui";
 
 export function Dashboard() {
   const strategies = useStrategies();
-  const summary = useSummary();
   const [picked, setPicked] = useState<Selection | null>(null);
 
   // until the user picks something, show the best-ranked VCP setup (same query as the table)
@@ -37,19 +37,15 @@ export function Dashboard() {
           <Loading what="strategies" />
         ) : (
           <div className="grid gap-4 xl:grid-cols-12">
-            <div className="min-w-0 xl:relative xl:col-span-5 xl:min-h-[640px]">
-              <SetupsTable
-                strategies={strategies.data.strategies}
-                summary={summary.data}
-                selected={selected}
-                onSelect={setPicked}
-              />
+            <div className="min-w-0 xl:col-span-6 [&>section]:h-full">
+              <SetupsTable strategies={strategies.data.strategies} selected={selected} onSelect={setPicked} />
             </div>
-            <div className="min-w-0 xl:col-span-7">
-              <StockPanel selection={selected} />
+            <div className="min-w-0 xl:col-span-6 [&>section]:h-full">
+              <StockPanel selection={selected} onSelect={setPicked} />
             </div>
           </div>
         )}
+        <SetupOverview selection={selected} />
         <div className="grid gap-4 xl:grid-cols-12">
           <div className="xl:relative xl:col-span-3 xl:min-h-[420px]">
             <ActivityPanel />

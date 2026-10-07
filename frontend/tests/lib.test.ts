@@ -7,9 +7,10 @@ import {
   toSma,
   toVolume,
 } from "@/lib/chartData";
-import { classLabel, sentence, DASH, fmtDay, fmtInt, fmtNum, fmtPct, fmtPrice, fmtStamp, tone } from "@/lib/fmt";
+import { classLabel, daysBetween, sentence, DASH, fmtDay, fmtInt, fmtNum, fmtPct, fmtPrice, fmtStamp, tone } from "@/lib/fmt";
 import type { Bar, StockSetup } from "@/lib/schemas";
-import { unmetByTier } from "@/components/SetupDetails";
+import { unmetByTier } from "@/components/SetupOverview";
+import { pageNumbers } from "@/lib/lists";
 
 const bar = (day: string, o: Partial<Bar> = {}): Bar => ({
   day, open: 10, high: 12, low: 9, close: 11, volume: 1000, sma20: null, sma50: null, sma200: null, ...o,
@@ -137,5 +138,24 @@ describe("unmet rules of a setup", () => {
     expect(unmetByTier({ unmet_rules: {} })).toEqual([]);
     expect(unmetByTier({ unmet_rules: ["a"] })).toEqual([]);
     expect(unmetByTier({})).toEqual([]);
+  });
+});
+
+describe("page numbers", () => {
+  it("shows every page when there are few, and gaps when there are many", () => {
+    expect(pageNumbers(0, 1)).toEqual([0]);
+    expect(pageNumbers(0, 3)).toEqual([0, 1, 2]);
+    expect(pageNumbers(5, 12)).toEqual([0, "…", 3, 4, 5, 6, 7, "…", 11]);
+    expect(pageNumbers(0, 12)).toEqual([0, 1, 2, "…", 11]);
+    expect(pageNumbers(11, 12)).toEqual([0, "…", 9, 10, 11]);
+  });
+});
+
+describe("days between dates", () => {
+  it("counts calendar days and is null for a missing or bad date", () => {
+    expect(daysBetween("2026-08-11", "2026-08-21")).toBe(10);
+    expect(daysBetween("2026-12-30", "2027-01-02")).toBe(3);
+    expect(daysBetween(null, "2026-08-21")).toBeNull();
+    expect(daysBetween("2026-08-11", "nope")).toBeNull();
   });
 });

@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed (Dashboard D2.2: layout after the second mockup)
+- Watch list (ten rows a page, page numbers) and the chart in separate cards side by side; setup overview in four cards (VCP pattern, Trend Template, Fundamentals marked not available, score ring); six KPI tiles with a breadth donut; our own universe index in the top bar; data status in the navigation. Frontend only.
+
 ### Fixed (Dashboard D2.1)
 - The setups and chart cards, and the recent activity, market overview and paper trading cards, now have equal heights. `scripts/dashboard.sh` starts the API with the project's own `vcp` (it did not start before).
 

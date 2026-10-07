@@ -2050,3 +2050,16 @@ NIFTY / BANKNIFTY quotes (no index data); sector and market-cap filters (no such
 - **Tests**: 62 frontend tests (Zod contract against committed real API samples in `frontend/tests/fixtures/api/`, kept equal to the API by `tests/api/test_contract_samples.py`; format and chart-series functions; components; the page with a fetch mock and a chart-library mock). A real-data check with the browser pane on a copy of the main database.
 - **Run**: `scripts/dashboard.sh` starts `vcp api serve` and the web server; open `http://localhost:3000/dashboard`.
 - **Not changed**: any strategy, rule, scan, score, label or the ledger (read-only).
+
+## 67.11 As built: layout after the second mockup (D2.2, 2026-10-07)
+
+The owner's second mockup (nine panels in a fixed grid) replaced the first layout. Built as shown, with these honest differences:
+
+- **Top row:** search; **our own equal-weight universe index** (value, day change, 60-day line; not NIFTY); the data date. NIFTY 50, NIFTY 500 and SENSEX tiles come with live data (step D4), because no index data is stored.
+- **KPI tiles (6):** A+ VCP setups, VCP setups, Forming bases, Breakout watch (all counted from the ranked VCP list: classification A_PLUS_VCP, VCP; status FORMING; status PIVOT_READY or BREAKOUT), Today's scan (symbols, scanned, Trend Template passers), Market breadth (donut of our universe above / below its 50-day average, with the regime). The mockup's "new today" deltas, sparklines and Stage 1 to 4 breadth are not shown: they are not computed.
+- **Watch list card** (left) with tabs Top setups, A+ VCP, VCP, VCP like, Forming, Breakout watch (cuts of the VCP ranking), one tab per other strategy and On several lists; columns #, Symbol, Company, Setup, Score, RS, Pivot, Price, Status, Change; **ten rows a page with page numbers**. Sector and index filters are not shown (no such data); the star and Add to Watchlist buttons are not shown (a watchlist needs writes).
+- **Chart card** (right, separate): symbol, company, price and change, setup badge and status, Score / RS rank / Pivot, strategy chips, candles with averages, marks, pivot and stop.
+- **Setup overview row (4 cards):** VCP pattern (contractions with drop %, days peak to trough, tighter or wider than the one before; base depth and duration, pivot, current price, distance to pivot, stop and the rules not met), Trend Template (checklist), Fundamentals (**not available**: every value shown as a dash), Score breakdown (a ring with one arc per score component filled by its points out of its maximum, the final score in the middle).
+- **Below:** Recent activity, Market overview, Paper trading, as before. Navigation items other than Dashboard stay disabled ("later"); the Data status box shows prices, last scan and the data copy time.
+- No API change; all numbers come from the endpoints of §67.3.
+

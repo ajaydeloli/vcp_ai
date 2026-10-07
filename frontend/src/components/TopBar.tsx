@@ -1,8 +1,34 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useSearch, useStatus } from "@/lib/api";
-import { fmtDay } from "@/lib/fmt";
+import { useMarket, useSearch, useStatus } from "@/lib/api";
+import { fmtDay, fmtNum, fmtPct, tone } from "@/lib/fmt";
+import { Sparkline } from "./Rings";
+
+/** Our own equal-weight index of the scanned universe (not NIFTY: no index data is stored). */
+function UniverseIndexTile() {
+  const market = useMarket();
+  const days = market.data?.days ?? [];
+  const last = days[days.length - 1];
+  const prev = days[days.length - 2];
+  const change =
+    last?.index != null && prev?.index != null && prev.index !== 0 ? (last.index / prev.index - 1) * 100 : null;
+  return (
+    <div
+      className="flex items-center gap-3 rounded-lg border border-line bg-panel px-3 py-2"
+      title="Equal-weight index of the stocks we scan, 100 on the first day shown. Not NIFTY."
+    >
+      <div>
+        <p className="text-[10px] uppercase tracking-wide text-mute">Our NSE universe index</p>
+        <p className="text-lg font-semibold leading-tight tabular-nums text-ink">
+          {fmtNum(last?.index, 2)}
+          <span className={`ml-2 text-xs font-normal ${tone(change)}`}>{fmtPct(change, 2, true)}</span>
+        </p>
+      </div>
+      <Sparkline values={days.slice(-60).flatMap((d) => (d.index === null ? [] : [d.index]))} color="#26c281" />
+    </div>
+  );
+}
 
 export function TopBar({ onPick }: { onPick: (symbol: string) => void }) {
   const [text, setText] = useState("");
@@ -25,7 +51,7 @@ export function TopBar({ onPick }: { onPick: (symbol: string) => void }) {
   };
 
   return (
-    <div className="flex items-center justify-between gap-4">
+    <div className="flex flex-wrap items-center justify-between gap-4">
       <div className="relative w-full max-w-md">
         <input
           type="search"
@@ -41,7 +67,7 @@ export function TopBar({ onPick }: { onPick: (symbol: string) => void }) {
           }}
           placeholder="Search symbol or company"
           aria-label="Search symbol or company"
-          className="w-full rounded-lg border border-line bg-panel px-3 py-2 text-sm text-ink placeholder:text-mute focus:border-accent focus:outline-none"
+          className="w-full rounded-lg border border-line bg-panel px-3 py-2.5 text-sm text-ink placeholder:text-mute focus:border-accent focus:outline-none"
         />
         {open && debounced ? (
           <ul
@@ -70,8 +96,13 @@ export function TopBar({ onPick }: { onPick: (symbol: string) => void }) {
           </ul>
         ) : null}
       </div>
-      <div className="whitespace-nowrap rounded-lg border border-line bg-panel px-3 py-2 text-xs text-mute">
-        Data of <span className="text-ink">{fmtDay(status.data?.prices_date)}</span> (end of day)
+      <div className="flex flex-wrap items-center gap-3">
+        <UniverseIndexTile />
+        <div className="whitespace-nowrap rounded-lg border border-line bg-panel px-3 py-2 text-xs text-mute">
+          <p className="text-[10px] uppercase tracking-wide">Data of</p>
+          <p className="text-sm text-ink">{fmtDay(status.data?.prices_date)}</p>
+          <p>end of day, IST</p>
+        </div>
       </div>
     </div>
   );

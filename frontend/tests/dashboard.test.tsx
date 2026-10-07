@@ -11,9 +11,9 @@ describe("dashboard page", () => {
     renderApp(<Dashboard />);
 
     // KPI cards, list, chart, details, activity, market, paper, status bar
-    expect(await screen.findByText("Setups: watch list")).toBeInTheDocument();
-    await waitFor(() => expect(screen.getByTestId("kpi-Universe scanned")).toHaveTextContent("63"));
-    expect(await screen.findByText("Alpha Industries Ltd", { selector: "span" })).toBeInTheDocument();
+    expect(await screen.findByText("Watch list")).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText("symbols").previousElementSibling).toHaveTextContent("63"));
+    expect(await screen.findByText("Alpha Industries Ltd", { selector: "span.text-sm" })).toBeInTheDocument();
     expect(await screen.findByText("Recent activity")).toBeInTheDocument();
     expect(await screen.findByText("Market overview")).toBeInTheDocument();
     expect(await screen.findByText("Paper trading")).toBeInTheDocument();
@@ -29,7 +29,7 @@ describe("dashboard page", () => {
     // navigation: only the dashboard exists yet
     const nav = screen.getByRole("navigation", { name: "Main" });
     expect(within(nav).getByRole("link", { name: "Dashboard" })).toHaveAttribute("aria-current", "page");
-    for (const name of ["Screener", "Watchlist", "Backtests", "Reports"]) {
+    for (const name of ["Screener", "Watchlist", "Backtest", "Reports"]) {
       expect(within(nav).getByText(name).closest("[aria-disabled]")).toHaveAttribute("aria-disabled", "true");
     }
   });
@@ -42,7 +42,7 @@ describe("dashboard page", () => {
     const row = [...document.querySelectorAll("tr[aria-selected]")].find((r) => r.textContent?.includes("BETA"));
     await userEvent.click(row!);
     await waitFor(() => {
-      const heading = screen.getAllByText("BETA", { selector: "span.text-lg" });
+      const heading = screen.getAllByText("BETA", { selector: "span.text-2xl" });
       expect(heading).toHaveLength(1);
     });
   });
@@ -50,11 +50,11 @@ describe("dashboard page", () => {
   it("searching a symbol opens it in the chart panel", async () => {
     mockApi();
     renderApp(<Dashboard />);
-    await screen.findByText("Setups: watch list");
+    await screen.findByText("Watch list");
     await userEvent.type(screen.getByRole("searchbox"), "gamm");
     // the sample search answers ALPHA for any text; the panel opens whatever was picked
     await userEvent.click(within(await screen.findByRole("option")).getByRole("button"));
-    await waitFor(() => expect(screen.getAllByText("ALPHA", { selector: "span.text-lg" })).toHaveLength(1));
+    await waitFor(() => expect(screen.getAllByText("ALPHA", { selector: "span.text-2xl" })).toHaveLength(1));
   });
 
   it("reports an unreachable API instead of an empty page", async () => {
@@ -76,7 +76,7 @@ describe("dashboard page", () => {
   it("a response that breaks the contract is rejected, not displayed", async () => {
     mockApi({ summary: { as_of: "2026-10-05", data_time: "x", universe_size: "63" } });
     renderApp(<Dashboard />);
-    await waitFor(() => expect(screen.getByTestId("kpi-Universe scanned")).toHaveTextContent("—"));
-    expect(screen.getByTestId("kpi-Universe scanned")).not.toHaveTextContent("63");
+    await waitFor(() => expect(screen.getByText("symbols").previousElementSibling).toHaveTextContent("—"));
+    expect(screen.getByText("symbols").previousElementSibling).not.toHaveTextContent("63");
   });
 });

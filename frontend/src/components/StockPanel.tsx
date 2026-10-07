@@ -1,15 +1,20 @@
 "use client";
 
 import { useState } from "react";
-import { useBars, useStockSetups } from "@/lib/api";
+import { useBars, useSetups, useStockSetups } from "@/lib/api";
 import type { RangeId } from "@/lib/chartData";
-import { fmtDay, fmtPct, fmtPrice, strategyLabel, tone } from "@/lib/fmt";
+import { DASH, fmtDay, fmtInt, fmtNum, fmtPct, fmtPrice, strategyLabel, tone } from "@/lib/fmt";
 import { ChartView } from "./ChartView";
-import { SetupDetails } from "./SetupDetails";
 import type { Selection } from "./SetupsTable";
 import { Card, Empty, ErrorBox, GradeBadge, Loading, StatusPill } from "./ui";
 
-export function StockPanel({ selection }: { selection: Selection | null }) {
+export function StockPanel({
+  selection,
+  onSelect,
+}: {
+  selection: Selection | null;
+  onSelect: (s: Selection) => void;
+}) {
   if (!selection) {
     return (
       <Card title="Chart" className="min-w-0">
@@ -17,17 +22,27 @@ export function StockPanel({ selection }: { selection: Selection | null }) {
       </Card>
     );
   }
-  return <StockView key={`${selection.symbol}:${selection.strategy}`} selection={selection} />;
+  return <StockView key={selection.symbol} selection={selection} onSelect={onSelect} />;
 }
 
-function StockView({ selection }: { selection: Selection }) {
+function Figure({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="px-4 text-center first:pl-0 last:pr-0">
+      <p className="text-[11px] text-mute">{label}</p>
+      <p className="text-xl font-semibold tabular-nums text-ink">{value}</p>
+    </div>
+  );
+}
+
+function StockView({ selection, onSelect }: { selection: Selection; onSelect: (s: Selection) => void }) {
   const bars = useBars(selection.symbol);
   const stock = useStockSetups(selection.symbol);
-  const [strategy, setStrategy] = useState(selection.strategy);
+  const ranked = useSetups(selection.strategy);
   const [range, setRange] = useState<RangeId>("1Y");
 
   const setups = stock.data?.setups ?? [];
-  const active = setups.find((s) => s.strategy_id === strategy) ?? setups[0] ?? null;
+  const active = setups.find((s) => s.strategy_id === selection.strategy) ?? setups[0] ?? null;
+  const rsRank = ranked.data?.rows.find((r) => r.symbol === selection.symbol)?.rs_rank ?? null;
 
   const list = bars.data?.bars ?? [];
   const last = list[list.length - 1];
@@ -36,35 +51,50 @@ function StockView({ selection }: { selection: Selection }) {
     last?.close != null && prev?.close != null && prev.close !== 0
       ? (last.close / prev.close - 1) * 100
       : null;
+  const money = last?.close != null && prev?.close != null ? last.close - prev.close : null;
   const company = bars.data?.company ?? stock.data?.company ?? null;
 
   return (
-    <Card
-      title={
-        <span className="flex flex-wrap items-baseline gap-x-3">
-          <span className="text-lg">{selection.symbol}</span>
-          {company ? <span className="text-xs font-normal text-mute">{company}</span> : null}
-        </span>
-      }
-      subtitle={
-        last ? `Close ${fmtDay(last.day)}, adjusted prices` : bars.isPending ? undefined : "No price data"
-      }
-      right={
-        <div className="text-right">
-          <p className="text-xl font-semibold tabular-nums">{fmtPrice(last?.close)}</p>
-          <p className={`text-xs tabular-nums ${tone(change)}`}>{fmtPct(change, 2, true)}</p>
+    <Card label={`Chart of ${selection.symbol}`} className="min-w-0">
+      <div className="mb-3 flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <div className="flex flex-wrap items-baseline gap-x-3">
+            <span className="text-2xl font-semibold text-ink">{selection.symbol}</span>
+            {company ? <span className="text-sm text-mute">{company}</span> : null}
+          </div>
+          <div className="mt-2 flex flex-wrap items-baseline gap-x-3">
+            <span className="text-3xl font-semibold tabular-nums text-ink">{fmtPrice(last?.close)}</span>
+            <span className={`text-sm tabular-nums ${tone(change)}`}>
+              {money === null ? DASH : `${money > 0 ? "+" : ""}${fmtNum(money, 2)}`} ({fmtPct(change, 2, true)})
+            </span>
+          </div>
+          <p className="mt-1 text-[11px] text-mute">
+            {last ? `Close ${fmtDay(last.day)}, adjusted prices` : bars.isPending ? "" : "No price data"}
+          </p>
         </div>
-      }
-      className="min-w-0"
-    >
-      {setups.length > 0 ? (
+        <div className="flex flex-col items-end gap-3">
+          {active ? (
+            <span className="flex items-center gap-2 text-lg">
+              <GradeBadge classification={active.classification} grade={active.grade} />
+              <StatusPill status={active.status} />
+            </span>
+          ) : null}
+          <div className="flex divide-x divide-line rounded-lg border border-line bg-panel2 px-4 py-2">
+            <Figure label="Score" value={fmtNum(active?.score, 0)} />
+            <Figure label="RS rank" value={fmtInt(rsRank)} />
+            <Figure label="Pivot" value={fmtPrice(active?.pivot)} />
+          </div>
+        </div>
+      </div>
+
+      {setups.length > 1 ? (
         <div className="mb-3 flex flex-wrap items-center gap-2 text-xs" role="group" aria-label="Setup shown on the chart">
           {setups.map((s) => (
             <button
               key={s.strategy_id}
               type="button"
               aria-pressed={active?.strategy_id === s.strategy_id}
-              onClick={() => setStrategy(s.strategy_id)}
+              onClick={() => onSelect({ symbol: selection.symbol, strategy: s.strategy_id })}
               className={`rounded border px-2 py-1 ${
                 active?.strategy_id === s.strategy_id
                   ? "border-accent bg-accent/10 text-ink"
@@ -74,12 +104,6 @@ function StockView({ selection }: { selection: Selection }) {
               {strategyLabel(s.strategy_id)}
             </button>
           ))}
-          {active ? (
-            <span className="ml-1 flex items-center gap-1.5">
-              <GradeBadge classification={active.classification} grade={active.grade} />
-              <StatusPill status={active.status} />
-            </span>
-          ) : null}
         </div>
       ) : null}
 
@@ -92,16 +116,7 @@ function StockView({ selection }: { selection: Selection }) {
       ) : (
         <ChartView bars={list} setup={active} range={range} onRange={setRange} />
       )}
-
-      <div className="mt-4">
-        {stock.isError ? (
-          <ErrorBox error={stock.error} />
-        ) : stock.isPending ? (
-          <Loading what="setup details" />
-        ) : (
-          <SetupDetails stock={stock.data} setup={active} />
-        )}
-      </div>
+      {stock.isError ? <ErrorBox error={stock.error} /> : null}
     </Card>
   );
 }
