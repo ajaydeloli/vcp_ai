@@ -12,9 +12,9 @@ from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
+from vcp_scanner.api import health, reports
 from vcp_scanner.api import models as m
 from vcp_scanner.api import queries as q
-from vcp_scanner.api import reports
 from vcp_scanner.api.context import Context, StrategySpec, build_context
 from vcp_scanner.api.db import ServingCopyMissing, ServingDb
 from vcp_scanner.data.providers._time import IST
@@ -106,6 +106,19 @@ def create_app(
             breadth_threshold_pct=40.0,
             regime_days_on_last_20=sum(d.regime_on for d in rows[-20:]), days=rows,
         )  # fmt: skip
+
+    @app.get(f"{api}/market/health", response_model=m.MarketHealthResponse)
+    def market_health() -> m.MarketHealthResponse:
+        """The market read through price action, leadership, breadth and our own paper trades.
+        Display only: nothing here feeds the regime rule or any strategy."""
+        with db.cursor() as cur:
+            end = q.latest_prices_date(cur)
+            if end is None:
+                return m.MarketHealthResponse(as_of=None, data_time=db.data_time(), groups=[])
+            result: m.MarketHealthResponse = db.cached(
+                ("health", end), lambda: health.market_health(cur, ctx, end, db.data_time())
+            )
+            return result
 
     @app.get(f"{api}/setups/overlap", response_model=m.OverlapResponse)
     def setups_overlap(on: DateParam = None) -> m.OverlapResponse:

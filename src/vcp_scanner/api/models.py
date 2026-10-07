@@ -134,6 +134,24 @@ class OverlapResponse(Stamped):
     rows: list[OverlapRow]
 
 
+class HealthItem(BaseModel):
+    id: str
+    label: str
+    status: str  # green | amber | red | grey (grey: not enough data to read)
+    text: str
+    value: float | None
+
+
+class HealthGroup(BaseModel):
+    id: str
+    title: str
+    items: list[HealthItem]
+
+
+class MarketHealthResponse(Stamped):
+    groups: list[HealthGroup]
+
+
 class SearchHit(BaseModel):
     instrument_id: str
     symbol: str

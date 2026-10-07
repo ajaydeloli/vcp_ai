@@ -1,0 +1,347 @@
+"""Market health panel (FRONTEND_SPECIFICATION 67.17): the market read the way Minervini reads
+it, from our own scanned universe. Display only: nothing here feeds the regime rule, a scan,
+a score or a strategy. Thresholds are display conventions, listed in the constants below."""
+
+from __future__ import annotations
+
+import json
+from collections import defaultdict
+from datetime import date, datetime, timedelta
+from typing import Any
+
+from vcp_scanner.api import models as m
+from vcp_scanner.api.context import Context
+from vcp_scanner.api.queries import Cur, _f
+from vcp_scanner.domain.features import FEATURES_CALCULATION_VERSION
+from vcp_scanner.domain.snapshot import LIVE_SNAPSHOT_ID as LIVE
+from vcp_scanner.paper.ledger import RULE_SET
+
+SESSIONS_SHOWN = 260  # history needed for a 200-day average of the index plus a slope
+DIST_WINDOW = 25  # sessions looked at for distribution days
+DIST_DROP = -0.002  # an index fall of 0.2 % or more on higher volume is a distribution day
+DIST_AMBER, DIST_RED = 4, 6
+BREAKOUT_LOOKBACK_DAYS = 60
+FAIL_WITHIN = 5  # sessions after the breakout in which a close below the pivot is a failure
+MIN_JUDGED = 5  # fewer judged breakouts than this: no colour
+LEADER_RS = 80
+LEADER_DAYS = 20
+TRADES_JUDGED = 10  # last closed paper trades looked at; fewer: no colour
+
+_DAILY_SQL = """
+WITH runs AS (
+    SELECT as_of_date, universe_snapshot_id,
+           row_number() OVER (PARTITION BY as_of_date ORDER BY completed_at DESC) rn
+    FROM scan_runs
+    WHERE scan_type = 'TREND_TEMPLATE' AND status = 'COMPLETED'
+      AND scan_config_hash = ? AND data_snapshot_id = ?
+), scans AS (SELECT as_of_date, universe_snapshot_id FROM runs WHERE rn = 1),
+days AS (
+    SELECT DISTINCT trade_date FROM technical_features_daily
+    WHERE trade_date BETWEEN ? AND ? AND calculation_version = ? AND data_snapshot_id = ?
+), day_scan AS (
+    SELECT d.trade_date,
+           coalesce(max(s.as_of_date), (SELECT min(as_of_date) FROM scans)) AS scan_date
+    FROM days d LEFT JOIN scans s ON s.as_of_date <= d.trade_date
+    GROUP BY d.trade_date
+)
+SELECT ds.trade_date,
+       count(f.sma_50),
+       count(*) FILTER (WHERE f.sma_50 IS NOT NULL AND p.close_adj > f.sma_50),
+       count(f.sma_200),
+       count(*) FILTER (WHERE f.sma_200 IS NOT NULL AND p.close_adj > f.sma_200),
+       avg(f.daily_return), sum(p.volume_adj),
+       count(*) FILTER (WHERE f.daily_return > 0),
+       count(*) FILTER (WHERE f.daily_return < 0),
+       count(*) FILTER (WHERE f.high_252 IS NOT NULL AND p.high_adj >= f.high_252 * 0.99999),
+       count(*) FILTER (WHERE f.low_252 IS NOT NULL AND p.low_adj <= f.low_252 * 1.00001)
+FROM day_scan ds
+JOIN scans s ON s.as_of_date = ds.scan_date
+JOIN universe_memberships mem
+  ON mem.universe_snapshot_id = s.universe_snapshot_id AND mem.eligible
+JOIN technical_features_daily f
+  ON f.instrument_id = mem.instrument_id AND f.trade_date = ds.trade_date
+ AND f.calculation_version = ? AND f.data_snapshot_id = ?
+JOIN daily_prices_adjusted_current p
+  ON p.instrument_id = f.instrument_id AND p.trade_date = f.trade_date
+ AND p.computed_from_snapshot_id = ?
+GROUP BY ds.trade_date ORDER BY ds.trade_date
+"""
+
+
+def _item(id_: str, label: str, status: str, text: str, value: float | None = None) -> m.HealthItem:
+    return m.HealthItem(id=id_, label=label, status=status, text=text, value=value)
+
+
+def _sma(values: list[float], n: int, at: int) -> float | None:
+    return sum(values[at - n + 1 : at + 1]) / n if at >= n - 1 else None
+
+
+def _pct(a: float, b: float) -> float:
+    return (a / b - 1.0) * 100.0
+
+
+def _index_group(
+    index: list[float], mean_ret: list[float | None], volume: list[float]
+) -> m.HealthGroup:
+    last = len(index) - 1
+    items: list[m.HealthItem] = []
+    ma = {n: _sma(index, n, last) for n in (50, 150, 200)}
+    if any(v is None for v in ma.values()) or last < 0:
+        items.append(
+            _item(
+                "index_ma",
+                "Index vs its averages",
+                "grey",
+                "Not enough history for the 50-, 150- and 200-day averages.",
+            )
+        )
+    else:
+        above = [n for n in (50, 150, 200) if index[last] > (ma[n] or 0.0)]
+        prior = _sma(index, 200, last - 20)
+        rising = prior is not None and (ma[200] or 0.0) > prior
+        if 200 not in above:
+            status = "red"
+        elif len(above) == 3 and rising:
+            status = "green"
+        else:
+            status = "amber"
+        names = " and ".join(f"{n}-day" for n in above) or "none"
+        items.append(_item(
+            "index_ma", "Index vs its averages", status,
+            f"VCP Universe Index is above its: {names} average{'s' if len(above) > 1 else ''}. "
+            f"The 200-day line is {'rising' if rising else 'not rising'}; the index is "
+            f"{_pct(index[last], ma[200] or 1.0):+.1f}% from it.",
+            _pct(index[last], ma[200] or 1.0),
+        ))  # fmt: skip
+    start = max(1, len(index) - DIST_WINDOW)
+    dist = sum(
+        1 for i in range(start, len(index))
+        if (mean_ret[i] or 0.0) <= DIST_DROP and volume[i] > volume[i - 1]
+    )  # fmt: skip
+    status = "red" if dist >= DIST_RED else "amber" if dist >= DIST_AMBER else "green"
+    items.append(_item(
+        "distribution", "Distribution days", status,
+        f"{dist} distribution day{'s' if dist != 1 else ''} in the last {DIST_WINDOW} sessions "
+        f"(index down {-DIST_DROP * 100:.1f}% or more on higher volume; volume of our stocks, "
+        "not NIFTY).", float(dist),
+    ))  # fmt: skip
+    return m.HealthGroup(id="index", title="Index price action", items=items)
+
+
+def _breadth_group(rows: list[tuple[Any, ...]]) -> m.HealthGroup:
+    last = rows[-1]
+    items: list[m.HealthItem] = []
+    n50, a50, n200, a200 = int(last[1]), int(last[2]), int(last[3]), int(last[4])
+    if n50:
+        p = 100.0 * a50 / n50
+        status = "green" if p >= 50 else "amber" if p >= 40 else "red"
+        items.append(_item("above50", "Above 50-day average", status,
+                           f"{p:.1f}% of the universe closes above its 50-day average "
+                           "(the regime switches on at 40%).", p))  # fmt: skip
+    else:
+        items.append(_item("above50", "Above 50-day average", "grey",
+                           "No stock has a 50-day average yet."))  # fmt: skip
+    if n200:
+        p = 100.0 * a200 / n200
+        status = "green" if p >= 50 else "amber" if p >= 35 else "red"
+        items.append(
+            _item(
+                "above200",
+                "Above 200-day average",
+                status,
+                f"{p:.1f}% of the universe closes above its 200-day average.",
+                p,
+            )
+        )
+    else:
+        items.append(_item("above200", "Above 200-day average", "grey",
+                           "No stock has a 200-day average yet."))  # fmt: skip
+    adv, dec = int(last[7]), int(last[8])
+    line: list[float] = []
+    total = 0.0
+    for r in rows:
+        total += float(r[7]) - float(r[8])
+        line.append(total)
+    ma = _sma(line, 50, len(line) - 1)
+    if ma is None:
+        items.append(
+            _item(
+                "ad",
+                "Advance / decline line",
+                "grey",
+                f"{adv} advancing, {dec} declining; not enough history for the trend.",
+            )
+        )
+    else:
+        up = line[-1] > ma
+        items.append(_item(
+            "ad", "Advance / decline line", "green" if up else "red",
+            f"{adv} advancing, {dec} declining today; the cumulative line is "
+            f"{'above' if up else 'below'} its 50-day average.", float(adv - dec),
+        ))  # fmt: skip
+    return m.HealthGroup(id="breadth", title="Breadth", items=items)
+
+
+def _failed_breakouts(cur: Cur, ctx: Context, sessions: list[date], end: date) -> m.HealthItem:
+    since = end - timedelta(days=BREAKOUT_LOOKBACK_DAYS)
+    events: list[tuple[str, str, date, float]] = []
+    for spec in ctx.strategies:
+        for eid, iid, d, pivot in cur.execute(
+            "SELECT breakout_event_id, instrument_id, breakout_date, pivot_price"
+            " FROM breakout_events WHERE strategy_id = ? AND config_hash = ?"
+            " AND breakout_date BETWEEN ? AND ? AND pivot_price IS NOT NULL",
+            [spec.strategy_id, spec.config_hash, since, end],
+        ).fetchall():
+            events.append((str(eid), str(iid), d, float(pivot)))
+    if not events:
+        return _item("failed_breakouts", "Failed breakouts", "grey",
+                     f"No breakouts in the last {BREAKOUT_LOOKBACK_DAYS} days.")  # fmt: skip
+    ids = sorted({e[1] for e in events})
+    closes: dict[str, dict[date, float]] = defaultdict(dict)
+    for iid, d, c in cur.execute(
+        "SELECT instrument_id, trade_date, close_adj FROM daily_prices_adjusted_current"
+        " WHERE computed_from_snapshot_id = ? AND trade_date >= ? AND trade_date <= ?"
+        " AND instrument_id IN (SELECT unnest(?))",
+        [LIVE, since, end, ids],
+    ).fetchall():
+        if c is not None:
+            closes[str(iid)][d] = float(c)
+    pos = {d: i for i, d in enumerate(sessions)}
+    failed = held = pending = 0
+    for _eid, iid, d, pivot in events:
+        i = pos.get(d)
+        if i is None:
+            continue
+        window = sessions[i + 1 : i + 1 + FAIL_WITHIN]
+        if any(closes[iid].get(s, pivot) < pivot for s in window):
+            failed += 1
+        elif len(window) >= FAIL_WITHIN:
+            held += 1
+        else:
+            pending += 1
+    judged = failed + held
+    if judged < MIN_JUDGED:
+        return _item(
+            "failed_breakouts", "Failed breakouts", "grey",
+            f"Too few judged breakouts to read ({judged}; {pending} still too recent).",
+            None,
+        )  # fmt: skip
+    rate = 100.0 * failed / judged
+    status = "green" if rate <= 25 else "amber" if rate <= 50 else "red"
+    return _item(
+        "failed_breakouts", "Failed breakouts", status,
+        f"{failed} of {judged} breakouts in the last {BREAKOUT_LOOKBACK_DAYS} days closed back "
+        f"below their pivot within {FAIL_WITHIN} sessions ({rate:.0f}%); {pending} too recent "
+        "to judge.", rate,
+    )  # fmt: skip
+
+
+def _leaders(cur: Cur, ctx: Context, sessions: list[date], index: list[float]) -> m.HealthItem:
+    if len(sessions) <= LEADER_DAYS:
+        return _item("leaders", "Leaders vs the index", "grey", "Not enough history.")
+    d1, d0 = sessions[-1], sessions[-1 - LEADER_DAYS]
+    ids = [
+        str(r[0])
+        for r in cur.execute(
+            "SELECT instrument_id FROM trend_template_results WHERE config_hash = ?"
+            " AND data_snapshot_id = ? AND trend_template_pass AND rs_rank >= ?"
+            " AND as_of_date = (SELECT max(as_of_date) FROM trend_template_results"
+            " WHERE config_hash = ? AND data_snapshot_id = ?)",
+            [ctx.scan_hash, LIVE, LEADER_RS, ctx.scan_hash, LIVE],
+        ).fetchall()
+    ]
+    if not ids:
+        return _item("leaders", "Leaders vs the index", "grey", "No leaders in the latest scan.")
+    px: dict[str, dict[date, float]] = defaultdict(dict)
+    for iid, d, c in cur.execute(
+        "SELECT instrument_id, trade_date, close_adj FROM daily_prices_adjusted_current"
+        " WHERE computed_from_snapshot_id = ? AND trade_date IN (?, ?)"
+        " AND instrument_id IN (SELECT unnest(?))",
+        [LIVE, d0, d1, ids],
+    ).fetchall():
+        if c is not None:
+            px[str(iid)][d] = float(c)
+    rets = [_pct(v[d1], v[d0]) for v in px.values() if d0 in v and d1 in v and v[d0] > 0]
+    if not rets:
+        return _item("leaders", "Leaders vs the index", "grey", "No prices for the leaders.")
+    lead = sum(rets) / len(rets)
+    idx = _pct(index[-1], index[-1 - LEADER_DAYS])
+    gap = lead - idx
+    status = "green" if gap > 0 else "amber" if gap > -2 else "red"
+    return _item(
+        "leaders", "Leaders vs the index", status,
+        f"{len(rets)} leaders (Trend Template pass, RS {LEADER_RS}+) returned {lead:+.1f}% over "
+        f"{LEADER_DAYS} sessions against {idx:+.1f}% for the index "
+        f"({'ahead' if gap > 0 else 'behind'} by {abs(gap):.1f} points).", gap,
+    )  # fmt: skip
+
+
+def _paper(cur: Cur, ctx: Context) -> m.HealthGroup:
+    rows = cur.execute(
+        "SELECT event_date, metadata_json FROM paper_events WHERE rule_set = ?"
+        " AND event_type = 'EXIT' AND config_hash IN (SELECT unnest(?))"
+        " ORDER BY event_date DESC, recorded_at DESC",
+        [RULE_SET, [s.config_hash for s in ctx.strategies]],
+    ).fetchall()
+    rets: list[float] = []
+    for _d, meta in rows[:TRADES_JUDGED]:
+        try:
+            rets.append(float(json.loads(meta or "{}")["ret_pct"]))
+        except (KeyError, ValueError, TypeError):
+            continue
+    n = len(rets)
+    wins = sum(r > 0 for r in rets)
+    if n < TRADES_JUDGED:
+        item = _item(
+            "paper", "Our paper trades", "grey",
+            f"{n} closed paper trade{'s' if n != 1 else ''} so far; the last {TRADES_JUDGED} are "
+            "needed for a read.", None,
+        )  # fmt: skip
+    else:
+        status = "green" if wins >= 6 else "amber" if wins >= 4 else "red"
+        item = _item(
+            "paper", "Our paper trades", status,
+            f"{wins} of the last {n} closed paper trades were winners (average "
+            f"{sum(rets) / n:+.1f}%), all five strategies together.", float(wins),
+        )  # fmt: skip
+    return m.HealthGroup(id="feedback", title="Feedback loop", items=[item])
+
+
+def market_health(cur: Cur, ctx: Context, end: date, data_time: datetime) -> m.MarketHealthResponse:
+    start = end - timedelta(days=int(SESSIONS_SHOWN * 7 / 5) + 10)
+    rows = [
+        r for r in cur.execute(
+            _DAILY_SQL,
+            [ctx.scan_hash, LIVE, start - timedelta(days=120), end, FEATURES_CALCULATION_VERSION,
+             LIVE, FEATURES_CALCULATION_VERSION, LIVE, LIVE],
+        ).fetchall()
+        if r[0] <= end
+    ]  # fmt: skip
+    rows = rows[-SESSIONS_SHOWN:]
+    if len(rows) < 2:
+        return m.MarketHealthResponse(as_of=None, data_time=data_time, groups=[])
+    level, index = 1.0, []
+    for r in rows:
+        if r[5] is not None:
+            level *= 1.0 + float(r[5])
+        index.append(level)
+    sessions = [r[0] for r in rows]
+    mean_ret = [_f(r[5]) for r in rows]
+    volume = [float(r[6] or 0.0) for r in rows]
+    index_group = _index_group(index, mean_ret, volume)
+    last = rows[-1]
+    hi, lo = int(last[9]), int(last[10])
+    status = "green" if hi >= 2 * lo and hi > 0 else "red" if lo > hi else "amber"
+    leaders_items = [
+        _item("highs_lows", "New 52-week highs vs lows", status,
+              f"{hi} new 52-week highs against {lo} new lows today.", float(hi - lo)),
+        _failed_breakouts(cur, ctx, sessions, end),
+        _leaders(cur, ctx, sessions, index),
+    ]  # fmt: skip
+    groups = [
+        index_group,
+        m.HealthGroup(id="leadership", title="Leadership", items=leaders_items),
+        _breadth_group(rows),
+        _paper(cur, ctx),
+    ]
+    return m.MarketHealthResponse(as_of=sessions[-1], data_time=data_time, groups=groups)

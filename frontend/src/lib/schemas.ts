@@ -280,6 +280,19 @@ export const screener = z.object({
   rows: z.array(screenerRow),
 });
 
+export const healthItem = z.object({
+  id: z.string(),
+  label: z.string(),
+  status: z.enum(["green", "amber", "red", "grey"]),
+  text: z.string(),
+  value: num,
+});
+
+export const marketHealth = z.object({
+  ...stamp,
+  groups: z.array(z.object({ id: z.string(), title: z.string(), items: z.array(healthItem) })),
+});
+
 export type Strategies = z.infer<typeof strategies>;
 export type Status = z.infer<typeof status>;
 export type Summary = z.infer<typeof summary>;
@@ -298,3 +311,4 @@ export type Paper = z.infer<typeof paper>;
 export type Search = z.infer<typeof search>;
 export type ScreenerRow = z.infer<typeof screenerRow>;
 export type Screener = z.infer<typeof screener>;
+export type MarketHealth = z.infer<typeof marketHealth>;

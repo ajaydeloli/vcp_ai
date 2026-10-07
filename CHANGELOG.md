@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (Dashboard: Market health)
+- Market health card on the dashboard and `GET /api/v1/market/health`: index vs its 50/150/200-day averages, distribution days, new 52-week highs vs lows, failed breakouts, leaders vs the index, breadth above the 50- and 200-day averages, advance/decline line, and the last 10 paper trades; green/amber/red/grey. Display only; feeds no rule.
+
 ### Fixed (Dashboard: market charts)
 - The VCP Universe Index and breadth charts show the latest value on the price axis again. Frontend only.
 

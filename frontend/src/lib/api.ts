@@ -48,6 +48,7 @@ export const paths = {
   status: () => "status",
   strategies: () => "strategies",
   summary: () => "summary",
+  marketHealth: () => "market/health",
   market: (days: number) => `market${query({ days })}`,
   setups: (strategy: string, status?: string) => `setups${query({ strategy, status })}`,
   overlap: () => "setups/overlap",
@@ -148,5 +149,11 @@ export const useStockHistory = (symbol: string | null, days = 180) =>
     queryKey: ["stockHistory", symbol, days],
     queryFn: () => getJson(paths.stockHistory(symbol ?? "", days), s.activity),
     enabled: symbol !== null,
+    ...opts,
+  });
+export const useMarketHealth = () =>
+  useQuery({
+    queryKey: ["marketHealth"],
+    queryFn: () => getJson(paths.marketHealth(), s.marketHealth),
     ...opts,
   });

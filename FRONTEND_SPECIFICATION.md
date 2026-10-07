@@ -2115,3 +2115,23 @@ Owner request, after the multi-page mockup sheet: the dashboard shows the overal
 **From the mockup sheet, not built (no data or a later phase):** NIFTY/SENSEX/BANK NIFTY tiles and the index chart switch (live data, D4), sector strength, Alerts, Fundamentals, Backtest, Research, Reports, Data Quality and Settings pages.
 
 **Index name and regime label (2026-10-07).** Our equal-weight index of the scanned stocks is shown as "VCP Universe Index" (still not NIFTY). On the breadth chart the 40 % threshold is a dashed line without its own label, because the label covered the latest value; the caption above the chart names the rule and the threshold.
+
+## 67.17 As built: Market health card (2026-10-07)
+
+Owner request: read the market the way Minervini does (price action first, then leadership, breadth and our own results) from what the dashboard already holds. `GET /api/v1/market/health`; a card under the KPI tiles. **Display only: nothing here feeds the regime rule, a scan, a score or a strategy.** No summary verdict (Healthy / Mixed / Weak) was added; that needs rules the owner approves.
+
+**Basis.** Our scanned universe (the eligible members of the latest scan on each day), the same population as the VCP Universe Index and the breadth chart. Not NIFTY: index volume, NIFTY averages and sector groups need data we do not hold (D4 and later).
+
+| Group | Reading | Green | Amber | Red |
+|---|---|---|---|---|
+| Index price action | Index vs its 50/150/200-day averages, 200-day line rising | above all three and 200-day rising | other | below the 200-day |
+| | Distribution days in the last 25 sessions (index -0.2 % or worse on higher total volume than the day before) | 0-3 | 4-5 | 6+ |
+| Leadership | New 52-week highs vs lows today | highs at least twice the lows | in between | lows above highs |
+| | Failed breakouts: of the last 60 days' breakouts with 5 sessions behind them, the share that closed below their pivot within 5 sessions | up to 25 % | up to 50 % | above 50 % |
+| | Leaders (Trend Template pass, RS 80+) vs the index over 20 sessions | ahead | behind by under 2 points | behind by 2+ |
+| Breadth | Share above the 50-day average | 50 % + | 40-50 % | under 40 % |
+| | Share above the 200-day average | 50 % + | 35-50 % | under 35 % |
+| | Advance/decline line vs its 50-day average | above | | below |
+| Feedback loop | Winners among the last 10 closed paper trades (all strategies) | 6+ | 4-5 | 0-3 |
+
+Grey means too little data to read (fewer than 5 judged breakouts, fewer than 10 closed paper trades, not enough index history). The thresholds are display conventions, not strategy parameters, and may be changed here without a strategy-version bump.

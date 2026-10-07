@@ -9,6 +9,7 @@ describe("dashboard page (market overview)", () => {
     const calls = mockApi();
     renderApp(<Dashboard />);
 
+    expect(await screen.findByText("Market health")).toBeInTheDocument();
     expect(await screen.findByText("Market stage")).toBeInTheDocument();
     expect(await screen.findByText("Top VCP setups")).toBeInTheDocument();
     await waitFor(() => expect(screen.getByText("symbols").previousElementSibling).toHaveTextContent("63"));
@@ -24,7 +25,7 @@ describe("dashboard page (market overview)", () => {
 
     // honest labels
     expect(screen.getByText("Research tool, not financial advice")).toBeInTheDocument();
-    expect(screen.getByText(/not NIFTY/)).toBeInTheDocument();
+    expect(screen.getAllByText(/not NIFTY/).length).toBeGreaterThanOrEqual(2); // market health and market overview
     expect(screen.getByText(/No real money/)).toBeInTheDocument();
 
     // navigation
@@ -36,6 +37,17 @@ describe("dashboard page (market overview)", () => {
     for (const name of ["Backtest", "Reports"]) {
       expect(within(nav).getByText(name).closest("[aria-disabled]")).toHaveAttribute("aria-disabled", "true");
     }
+  });
+
+  it("the market health card shows four groups, each reading with a colour and a plain sentence", async () => {
+    mockApi();
+    renderApp(<Dashboard />);
+    const card = (await screen.findByText("Market health")).closest("section") as HTMLElement;
+    for (const title of ["Index price action", "Leadership", "Breadth", "Feedback loop"]) {
+      expect(await within(card).findByText(title)).toBeInTheDocument();
+    }
+    expect(within(card).getAllByRole("img", { name: /^(green|amber|red|grey)$/ }).length).toBeGreaterThanOrEqual(8);
+    expect(within(card).getByText(/changes no rule, scan or score/)).toBeInTheDocument();
   });
 
   it("the market stage card counts the scanned stocks by weekly stage", async () => {
@@ -63,6 +75,7 @@ describe("dashboard page (market overview)", () => {
       paper: new TypeError("fetch failed"),
       activity: new TypeError("fetch failed"),
       screener: new TypeError("fetch failed"),
+      "market/health": new TypeError("fetch failed"),
       "setups?strategy=vcp": new TypeError("fetch failed"),
     });
     renderApp(<Dashboard />);

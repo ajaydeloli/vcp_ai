@@ -2,6 +2,7 @@
 
 import { ActivityPanel } from "./ActivityPanel";
 import { KpiCards } from "./KpiCards";
+import { MarketHealth } from "./MarketHealth";
 import { MarketOverview } from "./MarketOverview";
 import { MarketStage } from "./MarketStage";
 import { Nav } from "./Nav";
@@ -10,7 +11,7 @@ import { StatusBar } from "./StatusBar";
 import { TopBar } from "./TopBar";
 import { TopSetups } from "./TopSetups";
 
-/** The overall market view: counts, breadth, stage cycle, our index, best setups, activity, paper. */
+/** The overall market view: counts, market health, breadth, stage cycle, our index, best setups, activity, paper. */
 export function Dashboard() {
   return (
     <div className="flex min-h-screen">
@@ -19,6 +20,7 @@ export function Dashboard() {
         <h1 className="sr-only">Dashboard</h1>
         <TopBar onPick={(symbol) => window.location.assign(`/stocks/${encodeURIComponent(symbol)}`)} />
         <KpiCards />
+        <MarketHealth />
         <div className="grid gap-4 xl:grid-cols-12">
           <div className="min-w-0 xl:col-span-4 [&>section]:h-full">
             <MarketStage />

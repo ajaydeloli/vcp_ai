@@ -308,3 +308,18 @@ def test_stock_history_is_the_activity_feed_cut_to_one_stock(ro_env: Env) -> Non
     assert get(ro_env, "/api/v1/stocks/F10/history")["events"] == []
     get(ro_env, "/api/v1/stocks/NOPE/history", 404)
     get(ro_env, "/api/v1/stocks/BETA/history?days=0", 422)
+
+
+def test_market_health_reads_the_four_groups_and_says_when_data_is_too_thin(ro_env: Env) -> None:
+    body = get(ro_env, "/api/v1/market/health")
+    groups = {g["id"]: g for g in body["groups"]}
+    assert list(groups) == ["index", "leadership", "breadth", "feedback"]
+    items = {i["id"]: i for g in body["groups"] for i in g["items"]}
+    assert {i["status"] for i in items.values()} <= {"green", "amber", "red", "grey"}
+    # the synthetic database holds only a few sessions and one closed paper trade: no colour
+    assert items["index_ma"]["status"] == "grey"
+    assert items["paper"]["status"] == "grey" and "1 closed paper trade" in items["paper"]["text"]
+    assert {"distribution", "highs_lows", "failed_breakouts", "leaders", "above50", "above200",
+            "ad"} <= set(items)  # fmt: skip
+    assert items["above50"]["value"] is not None
+    assert items["above200"]["status"] == "grey"
