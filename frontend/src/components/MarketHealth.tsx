@@ -97,23 +97,23 @@ function Charts({ d, id }: { d: Health; id: string }) {
   if (id === "index")
     return (
       <>
-        <MiniLineChart series={index} height={150} label="index-price-chart" />
+        <MiniLineChart series={index} height={150} plain label="index-price-chart" />
         <Legend items={[["VCP Universe Index", C.ink], ["50-day", C.warn], ["150-day", C.violet], ["200-day", C.down]]} />
       </>
     );
   if (id === "leadership")
     return (
       <>
-        <MiniLineChart series={highs} height={150} label="highs-lows-chart" />
+        <MiniLineChart series={highs} height={150} plain label="highs-lows-chart" />
         <Legend items={[["New 52-week highs", C.up], ["New 52-week lows", C.down]]} />
       </>
     );
   if (id === "breadth")
     return (
       <>
-        <MiniLineChart series={breadth} height={110} label="breadth-chart" />
+        <MiniLineChart series={breadth} height={110} plain label="breadth-chart" />
         <Legend items={[["% above 50-day", C.blue], ["% above 200-day", C.violet]]} />
-        <MiniLineChart series={ad} height={90} label="ad-line-chart" />
+        <MiniLineChart series={ad} height={90} plain label="ad-line-chart" />
         <Legend items={[["Advance/decline line", C.ink], ["its 50-day average", C.warn]]} />
       </>
     );

@@ -18,9 +18,11 @@ type Props = {
   /** a dashed horizontal line, e.g. the breadth threshold of the regime */
   threshold?: { value: number; title: string };
   label: string;
+  /** the legend sits below the chart: no names on the lines, each line's value on the axis in its colour */
+  plain?: boolean;
 };
 
-export function MiniLineChart({ series, height = 120, threshold, label }: Props) {
+export function MiniLineChart({ series, height = 120, threshold, label, plain }: Props) {
   const box = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const linesRef = useRef<ISeriesApi<"Line">[]>([]);
@@ -56,9 +58,9 @@ export function MiniLineChart({ series, height = 120, threshold, label }: Props)
         lineWidth: 2,
         // the first series shows its latest value on the axis; a second line next to it would
         // print over it
-        lastValueVisible: i === 0,
+        lastValueVisible: plain || i === 0,
         priceLineVisible: false,
-        title: s.name,
+        title: plain ? "" : s.name,
       });
       line.setData(s.data.map((p) => ({ time: p.time as Time, value: p.value })));
       if (i === 0 && threshold) {
@@ -76,7 +78,7 @@ export function MiniLineChart({ series, height = 120, threshold, label }: Props)
       return line;
     });
     chart.timeScale().fitContent();
-  }, [series, threshold]);
+  }, [series, threshold, plain]);
 
   return <div ref={box} role="img" aria-label={label} data-testid={`mini-${label}`} className="w-full" />;
 }
