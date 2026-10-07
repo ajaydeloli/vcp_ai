@@ -142,6 +142,8 @@ def create_app(
         min_conditions: Annotated[int | None, Query(ge=0, le=10)] = None,
         has_setup: bool = False, min_grade: Annotated[int | None, Query(ge=0, le=3)] = None,
         status: Annotated[str | None, Query(max_length=40)] = None,
+        classification: Annotated[str | None, Query(max_length=40)] = None,
+        min_strategies: Annotated[int | None, Query(ge=2, le=10)] = None,
         sort: Annotated[str, Query(pattern="^(" + "|".join(q.SCREENER_SORTS) + ")$")] = "rs_rank",
         direction: Annotated[str, Query(pattern="^(asc|desc)$")] = "desc",
         page: Annotated[int, Query(ge=1, le=1000)] = 1,
@@ -152,7 +154,8 @@ def create_app(
             q=q_, symbols={x.strip().upper() for x in (symbols or "").split(",") if x.strip()},
             stages=stage or [], tt_pass=tt_pass, near_high=near_high, min_rs=min_rs,
             min_conditions=min_conditions, has_setup=has_setup, min_grade=min_grade,
-            status=status, sort=sort, descending=direction == "desc", page=page,
+            status=status, classification=classification, min_strategies=min_strategies,
+            sort=sort, descending=direction == "desc", page=page,
             page_size=page_size,
         )  # fmt: skip
         with db.cursor() as cur:

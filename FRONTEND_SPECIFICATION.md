@@ -2099,3 +2099,17 @@ Owner request: design the watch list page. Route `/watchlist`.
 **Page.** A ★ button (Screener rows, the Stock Analysis header) adds or removes a stock; the page also has an add box (search by symbol or company). The table shows each listed stock with its latest scan result in the Screener's columns (stage, Trend Template, RS, price, change, VCP setup, score, status, distance to pivot). A listed symbol missing from the latest scan is named under the table.
 
 **API.** The Screener endpoint takes `symbols` (comma-separated, case-insensitive) to return only those stocks.
+
+## 67.16 Page roles changed: market-overview dashboard (2026-10-07)
+
+Owner request, after the multi-page mockup sheet: the dashboard shows the overall market; its watch list moves into the Screener; the stock chart and setup information live on the Stock Analysis page; the Watchlist page holds lists the owner makes. This supersedes the dashboard layout of §67.10 and §67.11 (the cards themselves are reused).
+
+**Dashboard.** KPI tiles (A+ VCP, VCP, forming bases, breakout watch, today's scan, market breadth), Market stage (the scanned stocks by weekly stage, from the Trend Template scan), Market overview (our equal-weight universe index, breadth, regime), Top VCP setups (five best, linking to Stock Analysis), Recent activity, Paper trading. The search box opens Stock Analysis.
+
+**Screener (absorbs the old watch list).** Strategy selector; presets Top setups, A+ VCP, VCP, VCP like, Forming, Pivot ready, Breakouts, On several strategies, plus the Trend Template presets; new filter Setup class; new Pivot column. API: `classification`, `min_strategies` (stocks ranked by that many strategies or more) and `pivot` in each row.
+
+**Stock Analysis.** Chart, pattern, Trend Template, fundamentals (not available), score, strategies, history (§67.14), unchanged.
+
+**Watchlist.** Several named lists made by the owner (tabs, + New watchlist, rename, delete with a confirmation step). A ★ on the Screener and Stock Analysis pages opens a small menu to put the stock in any list or in a new one. Lists stay in this browser only (§67.15); the first design's single list is carried over as "My watch list".
+
+**From the mockup sheet, not built (no data or a later phase):** NIFTY/SENSEX/BANK NIFTY tiles and the index chart switch (live data, D4), sector strength, Alerts, Fundamentals, Backtest, Research, Reports, Data Quality and Settings pages.

@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed (Dashboard: page roles)
+- Dashboard is now a market overview (market stage, our index, breadth, top VCP setups, activity, paper); its watch list is the Screener (strategy selector, A+ VCP / VCP / VCP like / Forming / Pivot ready / Breakouts / On several strategies presets, setup class filter, pivot column); chart and setup details are on the Stock Analysis page; the Watchlist page holds several user-made lists (kept in the browser). `GET /api/v1/screener` gains `classification`, `min_strategies` and `pivot`.
+
 ### Added (Dashboard: Watchlist, first design)
 - `/watchlist` page and a ★ button on the Screener and Stock Analysis pages. The list is kept in the browser only (no write to any database); `GET /api/v1/screener` takes `symbols`.
 

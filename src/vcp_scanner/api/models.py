@@ -162,6 +162,7 @@ class ScreenerRow(BaseModel):
     grade: int | None
     status: str | None
     score: float | None
+    pivot: float | None
     pivot_distance_pct: float | None
     eligible: bool | None
 

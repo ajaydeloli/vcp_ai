@@ -28,6 +28,7 @@
    "grade": 3,
    "status": "PIVOT_READY",
    "score": 91.0,
+   "pivot": 120.0,
    "pivot_distance_pct": 1.2,
    "eligible": true
   },
@@ -48,6 +49,7 @@
    "grade": 2,
    "status": "BREAKOUT",
    "score": 86.0,
+   "pivot": 140.0,
    "pivot_distance_pct": 1.2,
    "eligible": true
   },
@@ -68,6 +70,7 @@
    "grade": 1,
    "status": "FORMING",
    "score": 40.0,
+   "pivot": null,
    "pivot_distance_pct": null,
    "eligible": false
   },
@@ -88,6 +91,7 @@
    "grade": null,
    "status": null,
    "score": null,
+   "pivot": null,
    "pivot_distance_pct": null,
    "eligible": null
   }

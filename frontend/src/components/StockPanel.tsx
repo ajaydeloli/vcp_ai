@@ -6,7 +6,7 @@ import type { RangeId } from "@/lib/chartData";
 import { DASH, fmtDay, fmtInt, fmtNum, fmtPct, fmtPrice, strategyLabel, tone } from "@/lib/fmt";
 import { WatchStar } from "./WatchStar";
 import { ChartView } from "./ChartView";
-import type { Selection } from "./SetupsTable";
+import type { Selection } from "@/lib/selection";
 import { Card, Empty, ErrorBox, GradeBadge, Loading, StatusPill } from "./ui";
 
 export function StockPanel({

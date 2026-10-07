@@ -264,6 +264,7 @@ export const screenerRow = z.object({
   grade: z.number().nullable(),
   status: z.string().nullable(),
   score: num,
+  pivot: num,
   pivot_distance_pct: num,
   eligible: z.boolean().nullable(),
 });

@@ -2417,3 +2417,13 @@ Owner request: design the watch list page. FRONTEND_SPECIFICATION §67.15.
 **Tests.** API: `symbols` filter. Frontend: empty list, add from the Screener, show with scan result, remove, damaged stored list.
 
 **Not changed:** the main DB, any strategy, rule, scan, score, label or the ledger.
+
+## Dashboard: page roles changed (2026-10-07)
+
+Owner request after the mockup sheet. FRONTEND_SPECIFICATION §67.16.
+
+**Change.** Dashboard rebuilt as a market overview; the dashboard watch list (SetupsTable) removed and covered by Screener presets and filters; several user-made watch lists (browser storage, no server write); screener API `classification`, `min_strategies`, `pivot`.
+
+**Tests.** API: class filter, several-strategies filter, contract sample. Frontend: dashboard without watch list/chart/setup info, market stage counts, top-setup links, error and contract cases, screener strategy and presets, lists made/renamed/deleted, damaged store, migration of the first design's list. The dashboard watch-list component tests were removed with the component.
+
+**Not changed:** the main DB, any strategy, rule, scan, score, label or the ledger.

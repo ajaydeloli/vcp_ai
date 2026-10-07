@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { useScreener } from "@/lib/api";
-import { DASH, fmtDay, fmtInt, fmtNum, fmtPct, fmtPrice, tone } from "@/lib/fmt";
+import { useScreener, useStrategies } from "@/lib/api";
+import { DASH, fmtDay, fmtInt, fmtNum, fmtPct, fmtPrice, strategyLabel, tone } from "@/lib/fmt";
 import { pageNumbers } from "@/lib/lists";
 import { DEFAULT_QUERY, PRESETS, presetQuery, STAGES, type ScreenerQuery } from "@/lib/screener";
 import type { ScreenerRow } from "@/lib/schemas";
@@ -65,7 +65,7 @@ export const COLS: Col[] = [
   },
   {
     key: "grade",
-    label: "VCP setup",
+    label: "Setup",
     render: (r) =>
       r.classification && r.grade !== null ? (
         <GradeBadge classification={r.classification} grade={r.grade} />
@@ -74,6 +74,7 @@ export const COLS: Col[] = [
       ),
   },
   { key: "score", label: "Score", align: "right", render: (r) => fmtNum(r.score, 0) },
+  { key: "pivot", label: "Pivot", align: "right", render: (r) => fmtPrice(r.pivot) },
   {
     key: "status",
     label: "Status",
@@ -99,8 +100,10 @@ const numOrUndef = (v: string): number | undefined => (v === "" ? undefined : Nu
 function Filters({
   q,
   stageCounts,
+  strategyIds,
   onChange,
 }: {
+  strategyIds: string[];
   q: ScreenerQuery;
   stageCounts: Record<string, number>;
   onChange: (next: Partial<ScreenerQuery>) => void;
@@ -202,6 +205,39 @@ function Filters({
               className={field}
             />
           </div>
+        </div>
+        <div>
+          <label className={label} htmlFor="scr-strategy">
+            Strategy
+          </label>
+          <select
+            id="scr-strategy"
+            value={q.strategy}
+            onChange={(e) => onChange({ strategy: e.target.value })}
+            className={field}
+          >
+            {strategyIds.map((id) => (
+              <option key={id} value={id}>
+                {strategyLabel(id)}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className={label} htmlFor="scr-class">
+            Setup class
+          </label>
+          <select
+            id="scr-class"
+            value={q.classification ?? ""}
+            onChange={(e) => onChange({ classification: e.target.value || undefined })}
+            className={field}
+          >
+            <option value="">Any</option>
+            <option value="A_PLUS_VCP">A+ VCP</option>
+            <option value="VCP">VCP</option>
+            <option value="VCP_LIKE">VCP like</option>
+          </select>
         </div>
         <div>
           <label className={label} htmlFor="scr-setup">
@@ -315,11 +351,13 @@ function Pages({ page, total, size, onPage }: { page: number; total: number; siz
 
 export function Screener() {
   const [query, setQuery] = useState<ScreenerQuery>(DEFAULT_QUERY);
+  const strategies = useStrategies();
+  const strategyIds = strategies.data?.strategies.map((x) => x.strategy_id) ?? ["vcp"];
   const result = useScreener(query);
   const data = result.data;
   const change = (next: Partial<ScreenerQuery>) => setQuery((q) => ({ ...q, ...next, page: 1 }));
   const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
-  const active = PRESETS.find((p) => same({ ...presetQuery(p, query.q), page: 1 }, { ...query, page: 1 }));
+  const active = PRESETS.find((p) => same({ ...presetQuery(p, query.q, query.strategy), page: 1 }, { ...query, page: 1 }));
 
   return (
     <div className="flex min-h-screen">
@@ -331,7 +369,7 @@ export function Screener() {
           title="Screener"
           subtitle={
             data
-              ? `${fmtInt(data.scanned)} stocks scanned on ${fmtDay(data.as_of)} · VCP setups from the ${data.strategy_id.replace("_", " ")} scan`
+              ? `${fmtInt(data.scanned)} stocks scanned on ${fmtDay(data.as_of)} · setups of the ${strategyLabel(data.strategy_id)} strategy`
               : "Every stock of the daily scan"
           }
         >
@@ -342,7 +380,7 @@ export function Screener() {
                 type="button"
                 title={p.hint}
                 aria-pressed={active?.id === p.id}
-                onClick={() => setQuery(presetQuery(p, query.q))}
+                onClick={() => setQuery(presetQuery(p, query.q, query.strategy))}
                 className={`rounded-full border px-3 py-1 text-xs ${
                   active?.id === p.id ? "border-accent bg-accent text-white" : "border-line text-mute hover:text-ink"
                 }`}
@@ -354,7 +392,7 @@ export function Screener() {
         </Card>
         <div className="grid gap-4 xl:grid-cols-12">
           <div className="min-w-0 xl:col-span-3">
-            <Filters q={query} stageCounts={data?.stage_counts ?? {}} onChange={change} />
+            <Filters q={query} stageCounts={data?.stage_counts ?? {}} strategyIds={strategyIds} onChange={change} />
           </div>
           <div className="min-w-0 xl:col-span-9">
             <Card

@@ -245,12 +245,17 @@ def screener(
                 rs_rank=None if r[5] is None else int(r[5]), trend_score=_f(r[6]), close=close,
                 change_pct=change, classification=s.classification if s else None,
                 grade=s.grade if s else None, status=s.status if s else None,
-                score=s.score if s else None,
+                score=s.score if s else None, pivot=s.pivot if s else None,
                 pivot_distance_pct=s.pivot_distance_pct if s else None,
                 eligible=s.eligible if s else None,
             )
         )  # fmt: skip
     needle = (f.q or "").strip().upper()
+    several = (
+        {r.instrument_id for r in overlap(cur, ctx, day) if len(r.strategies) >= f.min_strategies}
+        if f.min_strategies
+        else None
+    )
 
     def keep(x: m.ScreenerRow) -> bool:
         checks = (
@@ -265,6 +270,9 @@ def screener(
             not f.has_setup or x.eligible is True,
             f.min_grade is None or (x.grade is not None and x.grade >= f.min_grade),
             f.status is None or (x.status or "").upper() == f.status.upper(),
+            f.classification is None
+            or (x.classification or "").upper() == f.classification.upper(),
+            several is None or x.instrument_id in several,
         )
         return all(checks)
 

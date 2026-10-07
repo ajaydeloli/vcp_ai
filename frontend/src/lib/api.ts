@@ -61,9 +61,10 @@ export const paths = {
   screener: (f: ScreenerQuery) => {
     const stages = f.stages.map((x) => `&stage=${encodeURIComponent(x)}`).join("");
     return `screener${query({
-        q: f.q, symbols: f.symbols?.join(","), tt_pass: f.ttPass, near_high: f.nearHigh, min_rs: f.minRs,
+        strategy: f.strategy, q: f.q, symbols: f.symbols?.join(","), tt_pass: f.ttPass, near_high: f.nearHigh, min_rs: f.minRs,
         min_conditions: f.minConditions, has_setup: f.hasSetup || undefined,
-        min_grade: f.minGrade, status: f.status, sort: f.sort, direction: f.direction,
+        min_grade: f.minGrade, status: f.status, classification: f.classification,
+        min_strategies: f.minStrategies, sort: f.sort, direction: f.direction,
         page: f.page, page_size: f.pageSize,
       })}${stages}`;
   },

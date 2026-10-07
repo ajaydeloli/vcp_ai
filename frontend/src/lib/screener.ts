@@ -1,6 +1,7 @@
 // What the Screener page asks the API for: the filter state, and the built-in presets (fixed
 // combinations of filters, nothing saved or stored). Every filter runs on the server.
 export type ScreenerQuery = {
+  strategy: string;
   q: string;
   symbols?: string[];
   stages: string[];
@@ -11,6 +12,8 @@ export type ScreenerQuery = {
   hasSetup: boolean;
   minGrade?: number;
   status?: string;
+  classification?: string;
+  minStrategies?: number;
   sort: string;
   direction: "asc" | "desc";
   page: number;
@@ -20,6 +23,7 @@ export type ScreenerQuery = {
 export const PAGE_SIZE_SCREENER = 25;
 
 export const DEFAULT_QUERY: ScreenerQuery = {
+  strategy: "vcp",
   q: "",
   stages: [],
   hasSetup: false,
@@ -52,30 +56,61 @@ export const PRESETS: Preset[] = [
     query: { ttPass: true, nearHigh: true },
   },
   {
+    id: "top",
+    label: "Top setups",
+    hint: "Ranked setups of the chosen strategy, best score first",
+    query: { hasSetup: true, sort: "score" },
+  },
+  {
+    id: "aplus",
+    label: "A+ VCP",
+    hint: "Grade 3 setups",
+    query: { hasSetup: true, classification: "A_PLUS_VCP", sort: "score" },
+  },
+  {
+    id: "vcp",
+    label: "VCP",
+    hint: "Ranked setups classed VCP",
+    query: { hasSetup: true, classification: "VCP", sort: "score" },
+  },
+  {
+    id: "vcp_like",
+    label: "VCP like",
+    hint: "Ranked setups classed VCP like",
+    query: { hasSetup: true, classification: "VCP_LIKE", sort: "score" },
+  },
+  {
+    id: "forming",
+    label: "Forming",
+    hint: "Ranked setups whose pivot is not reached yet",
+    query: { hasSetup: true, status: "FORMING", sort: "score" },
+  },
+  {
     id: "pivot",
-    label: "Pivot-ready setups",
-    hint: "Ranked VCP setups sitting at their pivot",
+    label: "Pivot ready",
+    hint: "Ranked setups sitting at their pivot",
     query: { hasSetup: true, status: "PIVOT_READY", sort: "score" },
   },
   {
     id: "breakout",
     label: "Breakouts",
-    hint: "Ranked VCP setups that have broken out",
+    hint: "Ranked setups that have broken out",
     query: { hasSetup: true, status: "BREAKOUT", sort: "score" },
   },
   {
-    id: "top-vcp",
-    label: "Top VCP setups",
-    hint: "Ranked VCP setups, best score first",
-    query: { hasSetup: true, sort: "score" },
+    id: "several",
+    label: "On several strategies",
+    hint: "Ranked by two or more strategies",
+    query: { minStrategies: 2, sort: "score" },
   },
 ];
 
 export const STAGES = ["STAGE_1", "STAGE_2", "STAGE_3", "STAGE_4", "TRANSITION"];
 
 /** The query of a preset: defaults plus the preset's filters (keeps the search text). */
-export const presetQuery = (p: Preset, q: string): ScreenerQuery => ({
+export const presetQuery = (p: Preset, q: string, strategy = "vcp"): ScreenerQuery => ({
   ...DEFAULT_QUERY,
   ...p.query,
   q,
+  strategy,
 });

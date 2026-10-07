@@ -4,7 +4,7 @@ import { useSetups, useStockSetups } from "@/lib/api";
 import { DASH, daysBetween, fmtDay, fmtInt, fmtNum, fmtPct, fmtPrice, sentence } from "@/lib/fmt";
 import type { StockSetup, StockSetups } from "@/lib/schemas";
 import { ScoreRing, type Arc } from "./Rings";
-import type { Selection } from "./SetupsTable";
+import type { Selection } from "@/lib/selection";
 import { Card, ErrorBox, Loading } from "./ui";
 
 function Row({ k, v }: { k: string; v: React.ReactNode }) {
