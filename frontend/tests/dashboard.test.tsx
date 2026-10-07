@@ -69,6 +69,8 @@ describe("dashboard page (market view)", () => {
     for (const c of ["index-price-chart", "highs-lows-chart", "breadth-chart", "ad-line-chart"])
       expect(await screen.findByTestId(`mini-${c}`)).toBeInTheDocument();
     expect(screen.getByTestId("mini-trades-chart")).toBeInTheDocument();
+    expect(await screen.findByTestId("mini-paper-progress")).toHaveTextContent("1 / 30");
+    expect(await screen.findByTestId("mini-open-positions")).toHaveTextContent("BETA");
   });
 
   it("reports an unreachable API instead of an empty page", async () => {

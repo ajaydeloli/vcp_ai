@@ -2147,3 +2147,7 @@ The Market overview card no longer repeats the index and breadth charts (they ar
 ### 67.17c Market overview merged into Market health (2026-10-07)
 
 The Market overview card is gone. Its Regime, Breadth and "On, last 20" figures and the regime rule sit at the top of the Breadth card in Market health, above the breadth chart whose dashed line is the 40% switch. The dashboard rows are now Market stage + Paper trading, then Recent activity. No data or rule changed.
+
+### 67.17d Feedback loop filled; stage order (2026-10-07)
+
+The Feedback loop card also shows, from the paper ledger already served: closed trades toward the review per strategy (of 30), and the open paper positions with their gain or loss since entry. Market stage lists Stage 1, 2, 3, 4, then Transition. Display only.

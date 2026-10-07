@@ -6,8 +6,8 @@ import { DEFAULT_QUERY } from "@/lib/screener";
 import { Card, Empty, ErrorBox, Loading } from "./ui";
 
 const ROWS: { id: string; label: string; color: string }[] = [
-  { id: "STAGE_2", label: "Stage 2: uptrend", color: "bg-up" },
   { id: "STAGE_1", label: "Stage 1: base", color: "bg-accent" },
+  { id: "STAGE_2", label: "Stage 2: uptrend", color: "bg-up" },
   { id: "STAGE_3", label: "Stage 3: top", color: "bg-warn" },
   { id: "STAGE_4", label: "Stage 4: downtrend", color: "bg-down" },
   { id: "TRANSITION", label: "Transition", color: "bg-violet" },

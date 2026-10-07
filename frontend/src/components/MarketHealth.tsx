@@ -1,8 +1,8 @@
 "use client";
 
 import { useMemo, type ReactNode } from "react";
-import { useMarket, useMarketHealth } from "@/lib/api";
-import { fmtDay, fmtPct } from "@/lib/fmt";
+import { useMarket, useMarketHealth, usePaper } from "@/lib/api";
+import { fmtDay, fmtPct, strategyLabel } from "@/lib/fmt";
 import type { MarketHealth as Health } from "@/lib/schemas";
 import { MiniLineChart, type MiniSeries } from "./MiniLineChart";
 import { Card, Empty, ErrorBox, Loading } from "./ui";
@@ -64,6 +64,69 @@ function Regime() {
         The regime is {m.regime_rule}: on when at least {m.breadth_threshold_pct}% of the universe closes above its
         50-day average (the dashed line below).
       </p>
+    </div>
+  );
+}
+
+/** Where each strategy stands on the way to its review, and how the open paper positions are doing. */
+function PaperProgress() {
+  const paper = usePaper();
+  const p = paper.data;
+  if (!p) return null;
+  const open = p.strategies.flatMap((s) => s.open.map((o) => ({ ...o, strategy: s.strategy_id })));
+  const max = Math.max(...open.map((o) => Math.abs(o.open_pct ?? 0)), 1);
+  return (
+    <div className="mt-4 space-y-4 text-xs">
+      <div data-testid="mini-paper-progress">
+        <p className="mb-2 text-mute">
+          Closed trades toward the review (needs {p.min_closed_trades} each, from {fmtDay(p.review_from)})
+        </p>
+        <ul className="space-y-1.5">
+          {p.strategies.map((s) => (
+            <li key={s.strategy_id} className="grid grid-cols-[6.5rem_1fr_3.5rem] items-center gap-2">
+              <span className="text-ink">{strategyLabel(s.strategy_id)}</span>
+              <span className="h-2 overflow-hidden rounded bg-bg">
+                <span
+                  className="block h-full bg-accent"
+                  style={{ width: `${Math.min(100, (s.closed / p.min_closed_trades) * 100)}%` }}
+                />
+              </span>
+              <span className="text-right tabular-nums text-mute">
+                {s.closed} / {p.min_closed_trades}
+              </span>
+            </li>
+          ))}
+        </ul>
+      </div>
+      <div data-testid="mini-open-positions">
+        <p className="mb-2 text-mute">Open paper positions now (gain or loss since entry)</p>
+        {open.length === 0 ? (
+          <p className="text-mute">No open positions.</p>
+        ) : (
+          <ul className="space-y-1.5">
+            {open.map((o) => {
+              const v = o.open_pct ?? 0;
+              return (
+                <li key={`${o.strategy}:${o.instrument_id}`} className="grid grid-cols-[6.5rem_1fr_3.5rem] items-center gap-2">
+                  <span className="truncate text-ink">
+                    {o.symbol} <span className="text-mute">· {strategyLabel(o.strategy)}</span>
+                  </span>
+                  <span className="relative h-2 rounded bg-bg">
+                    <span className="absolute inset-y-0 left-1/2 w-px bg-line" />
+                    <span
+                      className={`absolute inset-y-0 ${v >= 0 ? "left-1/2 bg-up" : "right-1/2 bg-down"}`}
+                      style={{ width: `${(Math.abs(v) / max) * 50}%` }}
+                    />
+                  </span>
+                  <span className={`text-right tabular-nums ${v >= 0 ? "text-up" : "text-down"}`}>
+                    {o.open_pct === null ? "—" : `${v >= 0 ? "+" : ""}${v.toFixed(1)}%`}
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </div>
     </div>
   );
 }
@@ -148,7 +211,12 @@ function Charts({ d, id }: { d: Health; id: string }) {
         <Legend items={[["Advance/decline line", C.ink], ["its 50-day average", C.warn]]} />
       </>
     );
-  return <Trades trades={d.trades} />;
+  return (
+    <>
+      <Trades trades={d.trades} />
+      <PaperProgress />
+    </>
+  );
 }
 
 /** The market read the way Minervini reads it: price action, leadership, breadth, our own trades. */
