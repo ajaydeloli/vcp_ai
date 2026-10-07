@@ -26,10 +26,11 @@ describe("dashboard page", () => {
     expect(screen.getByText(/A watch list for research, not buy signals/)).toBeInTheDocument();
     expect(screen.getByText(/No real money/)).toBeInTheDocument();
 
-    // navigation: only the dashboard exists yet
+    // navigation: the dashboard and the screener exist
     const nav = screen.getByRole("navigation", { name: "Main" });
     expect(within(nav).getByRole("link", { name: "Dashboard" })).toHaveAttribute("aria-current", "page");
-    for (const name of ["Screener", "Watchlist", "Backtest", "Reports"]) {
+    expect(within(nav).getByRole("link", { name: "Screener" })).toHaveAttribute("href", "/screener");
+    for (const name of ["Watchlist", "Backtest", "Reports"]) {
       expect(within(nav).getByText(name).closest("[aria-disabled]")).toHaveAttribute("aria-disabled", "true");
     }
   });

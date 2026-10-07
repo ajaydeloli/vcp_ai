@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from datetime import date, datetime
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Annotated
 
 from fastapi import FastAPI, HTTPException, Query, Request
@@ -129,6 +130,37 @@ def create_app(
             )  # fmt: skip
             return m.SetupsResponse(as_of=day, data_time=db.data_time(), strategy_id=strategy,
                                     rows=rows)  # fmt: skip
+
+    @app.get(f"{api}/screener", response_model=m.ScreenerResponse)
+    def screener(
+        strategy: str = "vcp", on: DateParam = None,
+        q_: Annotated[str | None, Query(alias="q", max_length=40)] = None,
+        stage: Annotated[list[str] | None, Query()] = None,
+        tt_pass: bool | None = None, near_high: bool | None = None,
+        min_rs: Annotated[int | None, Query(ge=0, le=99)] = None,
+        min_conditions: Annotated[int | None, Query(ge=0, le=10)] = None,
+        has_setup: bool = False, min_grade: Annotated[int | None, Query(ge=0, le=3)] = None,
+        status: Annotated[str | None, Query(max_length=40)] = None,
+        sort: Annotated[str, Query(pattern="^(" + "|".join(q.SCREENER_SORTS) + ")$")] = "rs_rank",
+        direction: Annotated[str, Query(pattern="^(asc|desc)$")] = "desc",
+        page: Annotated[int, Query(ge=1, le=1000)] = 1,
+        page_size: Annotated[int, Query(ge=1, le=100)] = 25,
+    ) -> m.ScreenerResponse:  # fmt: skip
+        spec = spec_or_404(strategy)
+        f = SimpleNamespace(
+            q=q_, stages=stage or [], tt_pass=tt_pass, near_high=near_high, min_rs=min_rs,
+            min_conditions=min_conditions, has_setup=has_setup, min_grade=min_grade,
+            status=status, sort=sort, descending=direction == "desc", page=page,
+            page_size=page_size,
+        )  # fmt: skip
+        with db.cursor() as cur:
+            day = on or q.screener_day(cur, ctx)
+            if day is None:
+                return m.ScreenerResponse(
+                    as_of=None, data_time=db.data_time(), strategy_id=strategy, scanned=0,
+                    total=0, page=page, page_size=page_size, stage_counts={}, rows=[],
+                )  # fmt: skip
+            return q.screener(cur, ctx, spec, day, f, db.data_time())
 
     @app.get(f"{api}/search", response_model=m.SearchResponse)
     def search(

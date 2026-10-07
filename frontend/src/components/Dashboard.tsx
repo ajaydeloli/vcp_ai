@@ -16,7 +16,12 @@ import { ErrorBox, Loading } from "./ui";
 
 export function Dashboard() {
   const strategies = useStrategies();
-  const [picked, setPicked] = useState<Selection | null>(null);
+  // /dashboard?symbol=X (a link from the screener) opens that stock; read once, in the browser
+  const [picked, setPicked] = useState<Selection | null>(() => {
+    const symbol =
+      typeof window === "undefined" ? null : new URLSearchParams(window.location.search).get("symbol");
+    return symbol ? { symbol, strategy: "vcp" } : null;
+  });
 
   // until the user picks something, show the best-ranked VCP setup (same query as the table)
   const firstVcp = useSetups("vcp");

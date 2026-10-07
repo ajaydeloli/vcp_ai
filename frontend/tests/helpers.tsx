@@ -9,6 +9,7 @@ import bars from "./fixtures/api/bars.json";
 import market from "./fixtures/api/market.json";
 import overlap from "./fixtures/api/overlap.json";
 import paper from "./fixtures/api/paper.json";
+import screener from "./fixtures/api/screener.json";
 import search from "./fixtures/api/search.json";
 import setupsFlat from "./fixtures/api/setups_flat_base.json";
 import setupsVcp from "./fixtures/api/setups_vcp.json";
@@ -18,7 +19,7 @@ import strategies from "./fixtures/api/strategies.json";
 import summary from "./fixtures/api/summary.json";
 
 export const fx = {
-  activity, bars, market, overlap, paper, search, setupsFlat, setupsVcp, status,
+  activity, bars, market, overlap, paper, search, screener, setupsFlat, setupsVcp, status,
   stockSetups, strategies, summary,
 }; // fmt: skip
 
@@ -34,6 +35,7 @@ export function sample(rel: string): unknown {
     case "activity": return fx.activity;
     case "paper": return fx.paper;
     case "search": return fx.search;
+    case "screener": return fx.screener;
     case "setups/overlap": return fx.overlap;
     case "setups": {
       const id = p.get("strategy") ?? "vcp";

@@ -145,6 +145,37 @@ class SearchResponse(Stamped):
     results: list[SearchHit]
 
 
+class ScreenerRow(BaseModel):
+    instrument_id: str
+    symbol: str
+    company: str | None
+    stage: str | None
+    trend_template_pass: bool | None
+    conditions_passed: int | None
+    conditions_total: int | None
+    near_52w_high: bool | None
+    rs_rank: int | None
+    trend_score: float | None
+    close: float | None
+    change_pct: float | None
+    classification: str | None
+    grade: int | None
+    status: str | None
+    score: float | None
+    pivot_distance_pct: float | None
+    eligible: bool | None
+
+
+class ScreenerResponse(Stamped):
+    strategy_id: str
+    scanned: int
+    total: int
+    page: int
+    page_size: int
+    stage_counts: dict[str, int]
+    rows: list[ScreenerRow]
+
+
 class Bar(BaseModel):
     day: date
     open: float | None

@@ -4,7 +4,6 @@ import { useStatus } from "@/lib/api";
 import { DASH, fmtDay, fmtStamp } from "@/lib/fmt";
 
 const LATER = [
-  "Screener",
   "Watchlist",
   "Market Overview",
   "Stock Analysis",
@@ -48,7 +47,7 @@ function DataStatus() {
   );
 }
 
-export function Nav() {
+export function Nav({ active = "Dashboard" }: { active?: "Dashboard" | "Screener" }) {
   return (
     <nav
       aria-label="Main"
@@ -66,15 +65,26 @@ export function Nav() {
         </div>
       </div>
       <ul className="space-y-0.5 text-sm">
-        <li>
-          <a
-            href="/dashboard"
-            aria-current="page"
-            className="block rounded-lg bg-accent px-3 py-2 font-medium text-white"
-          >
-            Dashboard
-          </a>
-        </li>
+        {(
+          [
+            ["Dashboard", "/dashboard"],
+            ["Screener", "/screener"],
+          ] as const
+        ).map(([label, href]) => (
+          <li key={label}>
+            <a
+              href={href}
+              aria-current={active === label ? "page" : undefined}
+              className={
+                active === label
+                  ? "block rounded-lg bg-accent px-3 py-2 font-medium text-white"
+                  : "block rounded-lg px-3 py-2 text-ink hover:bg-panel2"
+              }
+            >
+              {label}
+            </a>
+          </li>
+        ))}
         {LATER.map((label) => (
           <li key={label}>
             <span

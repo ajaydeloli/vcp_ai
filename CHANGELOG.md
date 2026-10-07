@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (Dashboard: Screener)
+- `/screener` page and `GET /api/v1/screener`: every scanned stock with its Trend Template result and VCP setup; filters, seven built-in presets, sortable columns, 25 rows a page; a symbol opens on the dashboard (`/dashboard?symbol=X`). Read-only.
+
 ### Changed (Dashboard: serving copy on)
 - The scheduled daily run (`scripts/daily_run.sh`) now refreshes the dashboard's serving copy as its last step (`--serving-copy`), so the page shows each evening's scan without a manual refresh.
 

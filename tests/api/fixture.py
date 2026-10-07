@@ -129,6 +129,11 @@ def build_main_db(db: Path, ctx: Context) -> None:
                 weekly_stage="STAGE_2", weekly_stage2_pass=True, rs_rank=rank,
                 calculation_version="1", config_hash=ctx.scan_hash,
                 data_snapshot_id="LIVE")  # fmt: skip
+        put(c, "trend_template_results", scan_id=f"tt-{AS_OF}", instrument_id=iid("F00"),
+            as_of_date=AS_OF, status="PASS", trend_template_pass=False,
+            weekly_stage="STAGE_4", weekly_stage2_pass=False, rs_rank=20,
+            calculation_version="1", config_hash=ctx.scan_hash,
+            data_snapshot_id="LIVE")  # fmt: skip
         for k, (name, ok) in enumerate((("close_above_sma150", True), ("sma200_rising", True),
                                         ("rs_rank_min", True)), 1):  # fmt: skip
             put(c, "trend_template_conditions", instrument_id=iid("ALPHA"), as_of_date=AS_OF,

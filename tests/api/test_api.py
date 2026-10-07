@@ -102,7 +102,7 @@ def test_overlap_lists_stocks_on_several_lists(ro_env: Env) -> None:
 
 def test_summary_counts(ro_env: Env) -> None:
     body = get(ro_env, "/api/v1/summary")
-    assert (body["universe_size"], body["scanned"], body["trend_template_pass"]) == (63, 3, 3)
+    assert (body["universe_size"], body["scanned"], body["trend_template_pass"]) == (63, 4, 3)
     by = {s["strategy_id"]: s for s in body["strategies"]}
     assert by["vcp"] == {"strategy_id": "vcp", "ranked": 2, "grade2_plus": 2, "breakouts": 1,
                          "mean_top10_score": 88.5}  # fmt: skip
@@ -267,3 +267,31 @@ def test_a_replaced_serving_copy_is_picked_up_without_restart(env: Env) -> None:
     refresh_serving_copy(env.db)
     assert get(env, "/api/v1/summary")["strategies"][0]["ranked"] == before + 1
     assert len(get(env, "/api/v1/market?days=60")["days"]) == 60
+
+
+def test_screener_lists_every_scanned_stock_with_its_setup(ro_env: Env) -> None:
+    body = get(ro_env, "/api/v1/screener")
+    assert body["scanned"] == body["total"] == 4
+    assert body["stage_counts"] == {"STAGE_2": 3, "STAGE_4": 1}
+    assert [r["symbol"] for r in body["rows"]] == ["ALPHA", "BETA", "GAMMA", "F00"]
+    alpha = body["rows"][0]
+    assert alpha["trend_template_pass"] is True and alpha["classification"] == "A_PLUS_VCP"
+    assert (alpha["conditions_passed"], alpha["conditions_total"]) == (3, 3)
+    assert body["rows"][3]["classification"] is None and body["rows"][3]["close"] is not None
+
+
+def test_screener_filters_sorts_and_pages(ro_env: Env) -> None:
+    def syms(query: str) -> list[str]:
+        return [r["symbol"] for r in get(ro_env, f"/api/v1/screener?{query}")["rows"]]
+
+    assert syms("tt_pass=true") == ["ALPHA", "BETA", "GAMMA"]
+    assert syms("tt_pass=false") == ["F00"]
+    assert syms("stage=STAGE_4") == ["F00"]
+    assert syms("min_rs=80") == ["ALPHA", "BETA"]
+    assert syms("has_setup=true&sort=symbol&direction=asc") == ["ALPHA", "BETA"]
+    assert syms("q=alp") == ["ALPHA"]
+    assert syms("sort=rs_rank&direction=asc") == ["F00", "GAMMA", "BETA", "ALPHA"]
+    page = get(ro_env, "/api/v1/screener?page=2&page_size=3")
+    assert page["total"] == 4 and [r["symbol"] for r in page["rows"]] == ["F00"]
+    get(ro_env, "/api/v1/screener?sort=bogus", 422)
+    get(ro_env, "/api/v1/screener?strategy=nope", 404)

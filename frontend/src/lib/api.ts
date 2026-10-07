@@ -2,6 +2,7 @@
 // /api/v1/* path, which next.config.mjs forwards to `vcp api serve`.
 import { useQuery } from "@tanstack/react-query";
 import type { z } from "zod";
+import type { ScreenerQuery } from "./screener";
 import * as s from "./schemas";
 
 export class ApiError extends Error {
@@ -55,6 +56,15 @@ export const paths = {
   stockSetups: (symbol: string) => `stocks/${encodeURIComponent(symbol)}/setups`,
   activity: (days: number) => `activity${query({ days })}`,
   paper: () => "paper",
+  screener: (f: ScreenerQuery) => {
+    const stages = f.stages.map((x) => `&stage=${encodeURIComponent(x)}`).join("");
+    return `screener${query({
+        q: f.q, tt_pass: f.ttPass, near_high: f.nearHigh, min_rs: f.minRs,
+        min_conditions: f.minConditions, has_setup: f.hasSetup || undefined,
+        min_grade: f.minGrade, status: f.status, sort: f.sort, direction: f.direction,
+        page: f.page, page_size: f.pageSize,
+      })}${stages}`;
+  },
   search: (text: string) => `search${query({ q: text, limit: 8 })}`,
 };
 
@@ -121,4 +131,11 @@ export const useSearch = (text: string) =>
     queryFn: () => getJson(paths.search(text), s.search),
     enabled: text.trim().length > 0,
     staleTime: 60_000,
+  });
+export const useScreener = (f: ScreenerQuery) =>
+  useQuery({
+    queryKey: ["screener", f],
+    queryFn: () => getJson(paths.screener(f), s.screener),
+    placeholderData: (prev) => prev,
+    ...opts,
   });

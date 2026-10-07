@@ -23,6 +23,7 @@ const CASES: Record<string, z.ZodTypeAny> = {
   activity: s.activity,
   paper: s.paper,
   search: s.search,
+  screener: s.screener,
 };
 
 /** The same schema, but an unknown key anywhere is an error (a new API field must be noticed). */

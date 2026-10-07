@@ -247,6 +247,38 @@ export const search = z.object({
   ),
 });
 
+export const screenerRow = z.object({
+  instrument_id: z.string(),
+  symbol: z.string(),
+  company: z.string().nullable(),
+  stage: z.string().nullable(),
+  trend_template_pass: z.boolean().nullable(),
+  conditions_passed: z.number().nullable(),
+  conditions_total: z.number().nullable(),
+  near_52w_high: z.boolean().nullable(),
+  rs_rank: z.number().nullable(),
+  trend_score: num,
+  close: num,
+  change_pct: num,
+  classification: z.string().nullable(),
+  grade: z.number().nullable(),
+  status: z.string().nullable(),
+  score: num,
+  pivot_distance_pct: num,
+  eligible: z.boolean().nullable(),
+});
+
+export const screener = z.object({
+  ...stamp,
+  strategy_id: z.string(),
+  scanned: z.number(),
+  total: z.number(),
+  page: z.number(),
+  page_size: z.number(),
+  stage_counts: z.record(z.string(), z.number()),
+  rows: z.array(screenerRow),
+});
+
 export type Strategies = z.infer<typeof strategies>;
 export type Status = z.infer<typeof status>;
 export type Summary = z.infer<typeof summary>;
@@ -263,3 +295,5 @@ export type Activity = z.infer<typeof activity>;
 export type PaperStrategy = z.infer<typeof paperStrategy>;
 export type Paper = z.infer<typeof paper>;
 export type Search = z.infer<typeof search>;
+export type ScreenerRow = z.infer<typeof screenerRow>;
+export type Screener = z.infer<typeof screener>;

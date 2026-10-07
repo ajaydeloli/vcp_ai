@@ -13,7 +13,7 @@ from tests.api.conftest import Env
 PATHS = [
     "status", "strategies", "summary", "market?days=60", "setups", "setups?strategy=flat_base",
     "setups/overlap", "stocks/ALPHA/bars", "stocks/ALPHA/setups", "activity", "paper",
-    "search?q=alp",
+    "search?q=alp", "screener?stage=STAGE_2&min_rs=80",
 ]  # fmt: skip
 
 

@@ -193,6 +193,105 @@ def overlap(cur: Cur, ctx: Context, day: date) -> list[m.OverlapRow]:
     return rows
 
 
+# --- screener -------------------------------------------------------------------------------
+
+SCREENER_SORTS = (
+    "symbol", "rs_rank", "trend_score", "conditions_passed", "close", "change_pct", "score",
+    "grade", "pivot_distance_pct",
+)  # fmt: skip
+
+_SCREENER_SQL = """
+SELECT t.instrument_id, coalesce(i.symbol, t.instrument_id), i.company_name, t.weekly_stage,
+       t.trend_template_pass, t.rs_rank, t.trend_score, c.passed, c.total, c.near_high
+FROM trend_template_results t
+LEFT JOIN instruments i ON i.instrument_id = t.instrument_id
+LEFT JOIN (
+    SELECT instrument_id,
+           count(DISTINCT condition_id) FILTER (WHERE passed) AS passed,
+           count(DISTINCT condition_id) AS total,
+           bool_or(passed) FILTER (WHERE condition_name = 'near_52w_high') AS near_high
+    FROM trend_template_conditions
+    WHERE as_of_date = ? AND config_hash = ? AND data_snapshot_id = ?
+    GROUP BY instrument_id
+) c ON c.instrument_id = t.instrument_id
+WHERE t.as_of_date = ? AND t.config_hash = ? AND t.data_snapshot_id = ?
+"""
+
+
+def screener(
+    cur: Cur, ctx: Context, spec: StrategySpec, day: date, f: SimpleNamespace,
+    data_time: datetime,
+) -> m.ScreenerResponse:  # fmt: skip
+    """Every stock of the Trend Template scan on ``day`` with its strategy setup (if any),
+    filtered, sorted and paged on the server. ``f`` carries the query parameters."""
+    base = cur.execute(
+        _SCREENER_SQL, [day, ctx.scan_hash, LIVE, day, ctx.scan_hash, LIVE]
+    ).fetchall()
+    ids = [str(r[0]) for r in base]
+    closes = _closes(cur, ids, day)
+    setups = {r.instrument_id: r for r in setup_rows(cur, ctx, spec, day, eligible=False)}
+    stage_counts: dict[str, int] = defaultdict(int)
+    rows: list[m.ScreenerRow] = []
+    for r in base:
+        iid = str(r[0])
+        close, change = closes[iid]
+        s = setups.get(iid)
+        stage_counts[str(r[3] or "UNKNOWN")] += 1
+        rows.append(
+            m.ScreenerRow(
+                instrument_id=iid, symbol=str(r[1]), company=r[2], stage=r[3],
+                trend_template_pass=r[4], conditions_passed=None if r[7] is None else int(r[7]),
+                conditions_total=None if r[8] is None else int(r[8]), near_52w_high=r[9],
+                rs_rank=None if r[5] is None else int(r[5]), trend_score=_f(r[6]), close=close,
+                change_pct=change, classification=s.classification if s else None,
+                grade=s.grade if s else None, status=s.status if s else None,
+                score=s.score if s else None,
+                pivot_distance_pct=s.pivot_distance_pct if s else None,
+                eligible=s.eligible if s else None,
+            )
+        )  # fmt: skip
+    needle = (f.q or "").strip().upper()
+
+    def keep(x: m.ScreenerRow) -> bool:
+        checks = (
+            not needle or needle in x.symbol.upper() or needle in (x.company or "").upper(),
+            not f.stages or x.stage in f.stages,
+            f.tt_pass is None or x.trend_template_pass == f.tt_pass,
+            f.near_high is None or x.near_52w_high == f.near_high,
+            f.min_rs is None or (x.rs_rank is not None and x.rs_rank >= f.min_rs),
+            f.min_conditions is None
+            or (x.conditions_passed is not None and x.conditions_passed >= f.min_conditions),
+            not f.has_setup or x.eligible is True,
+            f.min_grade is None or (x.grade is not None and x.grade >= f.min_grade),
+            f.status is None or (x.status or "").upper() == f.status.upper(),
+        )
+        return all(checks)
+
+    kept = [x for x in rows if keep(x)]
+    key = f.sort
+    present = [x for x in kept if getattr(x, key) is not None]
+    absent = [x for x in kept if getattr(x, key) is None]
+    present.sort(key=lambda x: (getattr(x, key), x.symbol), reverse=f.descending)
+    if key == "symbol":
+        present.sort(key=lambda x: x.symbol, reverse=f.descending)
+    ordered = present + sorted(absent, key=lambda x: x.symbol)
+    start = (f.page - 1) * f.page_size
+    return m.ScreenerResponse(
+        as_of=day, data_time=data_time, strategy_id=spec.strategy_id, scanned=len(rows),
+        total=len(ordered), page=f.page, page_size=f.page_size,
+        stage_counts=dict(sorted(stage_counts.items())), rows=ordered[start : start + f.page_size],
+    )  # fmt: skip
+
+
+def screener_day(cur: Cur, ctx: Context) -> date | None:
+    row = cur.execute(
+        "SELECT max(as_of_date) FROM trend_template_results WHERE config_hash = ?"
+        " AND data_snapshot_id = ?",
+        [ctx.scan_hash, LIVE],
+    ).fetchone()
+    return row[0] if row else None
+
+
 def summary(cur: Cur, ctx: Context, day: date, data_time: datetime) -> m.SummaryResponse:
     universe = cur.execute(
         """

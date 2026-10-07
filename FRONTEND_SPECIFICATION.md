@@ -2067,3 +2067,13 @@ The owner's second mockup (nine panels in a fixed grid) replaced the first layou
 
 Owner go (2026-10-07): `scripts/daily_run.sh` now passes `--serving-copy`, so every scheduled run (19:15 and 22:00 IST) and every manual run of the script ends by refreshing `data/serving/vcp_serving.duckdb`. The copy is atomic: the previous copy stays in place if the refresh fails, and a failed refresh marks the run `FAILED: dashboard serving copy` in `data/logs/daily_runs.log` (the data steps are unaffected). Cost: about 9 seconds and 2.3 GB (4.6 GB for a moment during the swap). `vcp run daily` called by hand without the flag still writes no copy.
 
+
+## 67.13 As built: Screener page (2026-10-07)
+
+Owner go: "go with screener"; own design, built-in presets only (no CSV export). Route `/screener`, API `GET /api/v1/screener`.
+
+**API.** One row per stock of the newest Trend Template scan (1,275 on 2026-10-06): weekly stage, Trend Template pass, conditions passed of 10, near-52-week-high, RS rank, trend score, close and day change, and the stock's VCP setup (class, grade, status, score, distance to pivot, eligible) where it has one. Filters (all optional, combined with AND): `q`, repeated `stage`, `tt_pass`, `near_high`, `min_rs`, `min_conditions`, `has_setup` (ranked setups only), `min_grade`, `status`; `sort` (9 columns) with `direction`; `page` and `page_size` (default 25, max 100); `strategy` (default `vcp`) and `date`. Values the database lacks are `null` and sort last. The response also gives `scanned`, `total` and the stage counts of the whole scan. GET only; the serving copy is opened read-only.
+
+**Page.** Preset buttons (All scanned stocks, Trend Template passers, Stage 2 RS 80+, Near 52-week high, Pivot-ready setups, Breakouts, Top VCP setups) set a fixed combination of filters; nothing is saved. Filter panel on the left, sortable results table with page numbers on the right; a symbol links to `/dashboard?symbol=X`, which opens that stock in the chart and overview. Not available: sector, market cap, fundamentals, index membership (no data).
+
+**Rule kept.** Screening only reads the scan; it changes no strategy, rule, scan, score, label or ledger.

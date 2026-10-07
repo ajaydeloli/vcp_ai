@@ -2385,3 +2385,15 @@ Owner go: "Go ahead with serving copy in the daily run". FRONTEND_SPECIFICATION 
 
 **Not changed:** the main DB's data, any strategy, rule, scan, score, label or the ledger; `vcp run daily` without the flag.
 
+
+## Dashboard: Screener page (2026-10-07)
+
+Owner go: "go with screener"; own design, built-in presets. FRONTEND_SPECIFICATION §67.13.
+
+**Change.** `GET /api/v1/screener` (filters, sort, paging on the server, GET only) and the `/screener` page; Nav link enabled; `/dashboard?symbol=X` opens a stock.
+
+**Tests.** API: rows and stage counts, each filter, sorts, paging, 422/404 cases, read-only digest and contract sample. Frontend: schema contract, page render and link, preset query, query string. Full suites run before the merge.
+
+**Real-data check.** 1,275 stocks, 183 match "Trend Template pass, near 52-week high, RS 80+", answered in about 0.1 s.
+
+**Not changed:** the main DB, any strategy, rule, scan, score, label or the ledger.

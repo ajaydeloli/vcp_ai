@@ -29,6 +29,7 @@ CASES = {
     "activity": "activity?days=7",
     "paper": "paper",
     "search": "search?q=alp",
+    "screener": "screener?page_size=10",
 }
 
 
