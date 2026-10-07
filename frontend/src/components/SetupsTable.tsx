@@ -191,25 +191,50 @@ export function SetupsTable({ strategies, selected, onSelect }: Props) {
       subtitle={`Ranked by setup score${asOf ? `, scan of ${fmtDay(asOf)}` : ""}. A watch list for research, not buy signals.`}
       className="min-w-0"
     >
-      <div role="tablist" aria-label="Setup lists" className="mb-3 flex flex-wrap gap-x-1 gap-y-1 border-b border-line pb-2">
-        {tabs.map((t) => (
-          <button
-            key={t.id}
-            role="tab"
-            type="button"
-            aria-selected={tab === t.id}
-            onClick={() => {
-              setTab(t.id);
-              setPage(0);
-            }}
-            className={`rounded px-2.5 py-1 text-xs ${
-              tab === t.id ? "bg-accent/15 text-accent underline decoration-accent decoration-2 underline-offset-8" : "text-mute hover:text-ink"
-            }`}
-          >
-            {t.label}
-            {t.n !== undefined ? <span className="ml-1 opacity-70">{t.n}</span> : null}
-          </button>
-        ))}
+      <div className="mb-3 flex flex-wrap items-center gap-3 border-b border-line pb-3">
+        <label htmlFor="setup-list" className="text-xs text-mute">
+          List
+        </label>
+        <select
+          id="setup-list"
+          aria-label="Setup list"
+          value={tab}
+          onChange={(e) => {
+            setTab(e.target.value);
+            setPage(0);
+          }}
+          className="min-w-52 rounded-lg border border-line bg-panel2 px-3 py-1.5 text-sm text-ink focus:border-accent focus:outline-none"
+        >
+          <optgroup label="VCP lists">
+            {tabs
+              .filter((t) => t.id.startsWith(LIST))
+              .map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.label}
+                  {t.n !== undefined ? ` (${t.n})` : ""}
+                </option>
+              ))}
+          </optgroup>
+          <optgroup label="Other strategies">
+            {tabs
+              .filter((t) => !t.id.startsWith(LIST) && t.id !== OVERLAP)
+              .map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.label}
+                </option>
+              ))}
+          </optgroup>
+          <optgroup label="Across strategies">
+            {tabs
+              .filter((t) => t.id === OVERLAP)
+              .map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.label}
+                  {t.n !== undefined ? ` (${t.n})` : ""}
+                </option>
+              ))}
+          </optgroup>
+        </select>
       </div>
 
       {error ? (

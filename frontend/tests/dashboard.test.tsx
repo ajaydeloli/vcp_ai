@@ -53,7 +53,7 @@ describe("dashboard page", () => {
     await screen.findByText("Watch list");
     await userEvent.type(screen.getByRole("searchbox"), "gamm");
     // the sample search answers ALPHA for any text; the panel opens whatever was picked
-    await userEvent.click(within(await screen.findByRole("option")).getByRole("button"));
+    await userEvent.click(within(await within(await screen.findByRole("listbox", { name: "Search results" })).findByRole("option")).getByRole("button"));
     await waitFor(() => expect(screen.getAllByText("ALPHA", { selector: "span.text-2xl" })).toHaveLength(1));
   });
 

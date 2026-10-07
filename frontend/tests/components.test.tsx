@@ -55,26 +55,27 @@ describe("setups table", () => {
   const strategies = fx.strategies.strategies;
   const setup = (onSelect = vi.fn(), selected = null as { symbol: string; strategy: string } | null) =>
     renderApp(<SetupsTable strategies={strategies} selected={selected} onSelect={onSelect} />);
+  const pick = (value: string) =>
+    userEvent.selectOptions(screen.getByRole("combobox", { name: "Setup list" }), value);
   const symbols = () =>
     within(screen.getByRole("table"))
       .getAllByRole("row")
       .slice(1)
       .map((r) => r.querySelector("td:nth-child(2) span")?.textContent ?? "");
 
-  it("is a watch list, ranked best score first, with the VCP lists and a tab per other strategy", async () => {
+  it("is a watch list, ranked best score first, with the VCP lists and an entry per other strategy, in a dropdown", async () => {
     mockApi();
     setup();
     await screen.findByText("ALPHA");
     expect(screen.getByText(/A watch list for research, not buy signals/)).toBeInTheDocument();
     expect(symbols()).toEqual(["ALPHA", "BETA"]);
-    const tabs = screen.getAllByRole("tab").map((t) => t.textContent);
-    expect(tabs).toEqual(
-      expect.arrayContaining([
-        "Top setups2", "A+ VCP1", "VCP1", "VCP like0", "Forming0", "Breakout watch2",
-        "Flat base", "3 weeks tight", "Cup & handle", "Double bottom", "On several lists",
-      ]),
-    ); // fmt: skip
-    expect(screen.getByRole("tab", { name: /Top setups/ })).toHaveAttribute("aria-selected", "true");
+    const list = screen.getByRole("combobox", { name: "Setup list" });
+    const options = within(list).getAllByRole("option").map((o) => o.textContent);
+    expect(options).toEqual([
+      "Top setups (2)", "A+ VCP (1)", "VCP (1)", "VCP like (0)", "Forming (0)", "Breakout watch (2)",
+      "Flat base", "3 weeks tight", "Cup & handle", "Double bottom", "On several lists",
+    ]); // fmt: skip
+    expect(list).toHaveValue("list:top");
   });
 
   it("shows grade, status, pivot and the company name; a missing pivot is a dash", async () => {
@@ -98,7 +99,7 @@ describe("setups table", () => {
     mockApi();
     setup();
     await screen.findByText("ALPHA");
-    await userEvent.click(screen.getByRole("tab", { name: /Flat base/ }));
+    await pick("flat_base");
     await waitFor(() => expect(symbols()).toEqual(["GAMMA", "ALPHA"]));
   });
 
@@ -137,15 +138,13 @@ describe("setups table", () => {
     mockApi();
     setup();
     await screen.findByText("ALPHA");
-    const tab = (label: string, n: number) =>
-      screen.getByRole("tab", { name: new RegExp(`^${label.replace("+", "\\+")}\\s*${n}$`) });
-    await userEvent.click(tab("A+ VCP", 1));
+    await pick("list:aplus");
     await waitFor(() => expect(symbols()).toEqual(["ALPHA"]));
-    await userEvent.click(tab("VCP", 1));
+    await pick("list:vcp");
     await waitFor(() => expect(symbols()).toEqual(["BETA"]));
-    await userEvent.click(tab("Breakout watch", 2));
+    await pick("list:watch");
     await waitFor(() => expect(symbols()).toEqual(["ALPHA", "BETA"]));
-    await userEvent.click(tab("Forming", 0));
+    await pick("list:forming");
     expect(await screen.findByText(/No setups in this list/)).toBeInTheDocument();
   });
 
@@ -170,9 +169,9 @@ describe("setups table", () => {
     expect(screen.getByRole("button", { name: "Next page" })).toBeDisabled();
     await userEvent.click(screen.getByRole("button", { name: "Previous page" }));
     expect(symbols()[0]).toBe("S11");
-    await userEvent.click(screen.getByRole("tab", { name: /Flat base/ }));
+    await pick("flat_base");
     await waitFor(() => expect(screen.getByText(/Showing 1–2 of 2/)).toBeInTheDocument());
-    await userEvent.click(screen.getByRole("tab", { name: /Top setups/ }));
+    await pick("list:top");
     await waitFor(() => expect(symbols()[0]).toBe("S01")); // back on page 1
   });
 
@@ -180,7 +179,7 @@ describe("setups table", () => {
     mockApi();
     setup();
     await screen.findByText("ALPHA");
-    await userEvent.click(screen.getByRole("tab", { name: /On several lists/ }));
+    await pick("overlap");
     const item = (await screen.findByText("ALPHA")).closest("li")!;
     expect(item).toHaveTextContent("VCP · 91.0");
     expect(item).toHaveTextContent("Flat base");
@@ -191,7 +190,7 @@ describe("setups table", () => {
     mockApi();
     setup();
     await screen.findByText("ALPHA");
-    await userEvent.click(screen.getByRole("tab", { name: /3 weeks tight/ }));
+    await pick("three_weeks_tight");
     expect(await screen.findByText(/No setups in this list/)).toBeInTheDocument();
   });
 

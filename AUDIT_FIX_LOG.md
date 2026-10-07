@@ -2363,3 +2363,13 @@ Owner request: build the page as in the new mockup image: chart in a separate ca
 
 **Not changed:** the API, data, any strategy, rule, scan, score, label or the ledger.
 
+## Dashboard D2.3 — watch list lists in a dropdown (2026-10-07)
+
+Owner request: the several list names above the watch list should be a dropdown.
+
+**Change (frontend only).** `SetupsTable`: the row of tabs is now one dropdown ("Setup list") with three groups: VCP lists (Top setups, A+ VCP, VCP, VCP like, Forming, Breakout watch, each with its count), Other strategies (Flat base, 3 weeks tight, Cup & handle, Double bottom) and Across strategies (On several lists). Choosing a list starts on page 1, as the tabs did.
+
+**Tests:** 73 frontend tests (tab tests changed to the dropdown; the search test waits for its results inside the search list); `npm run check` clean. Real data in the browser pane: Flat base lists 26 rows on 3 pages.
+
+**Not changed:** the API, data, any strategy, rule, scan, score, label or the ledger.
+

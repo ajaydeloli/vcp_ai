@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed (Dashboard D2.3)
+- The lists above the watch list (Top setups, A+ VCP, VCP, Forming, Breakout watch, the other strategies, On several lists) are chosen from one dropdown.
+
 ### Changed (Dashboard D2.2: layout after the second mockup)
 - Watch list (ten rows a page, page numbers) and the chart in separate cards side by side; setup overview in four cards (VCP pattern, Trend Template, Fundamentals marked not available, score ring); six KPI tiles with a breadth donut; our own universe index in the top bar; data status in the navigation. Frontend only.
 
