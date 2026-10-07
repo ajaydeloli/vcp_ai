@@ -16,7 +16,7 @@ describe("dashboard page (market overview)", () => {
     expect(await screen.findByText("Recent activity")).toBeInTheDocument();
     expect(await screen.findByText("Market overview")).toBeInTheDocument();
     expect(await screen.findByText("Paper trading")).toBeInTheDocument();
-    await waitFor(() => expect(liveCharts().length).toBeGreaterThanOrEqual(6)); // market charts and the market health charts
+    await waitFor(() => expect(liveCharts().length).toBeGreaterThanOrEqual(4)); // the four market health charts
 
     // moved to other pages
     expect(screen.queryByText("Watch list")).not.toBeInTheDocument();

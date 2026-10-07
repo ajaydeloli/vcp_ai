@@ -1,35 +1,12 @@
 "use client";
 
-import { useMemo } from "react";
 import { useMarket } from "@/lib/api";
 import { fmtPct } from "@/lib/fmt";
-import { MiniLineChart, type MiniSeries } from "./MiniLineChart";
 import { Card, Empty, ErrorBox, Loading } from "./ui";
 
 export function MarketOverview() {
   const market = useMarket(250);
   const m = market.data;
-
-  const index = useMemo<MiniSeries[]>(() => {
-    if (!m) return [];
-    const pick = (key: "index" | "index_ma50") =>
-      m.days.flatMap((d) => (d[key] === null ? [] : [{ time: d.day, value: d[key] as number }]));
-    return [
-      { name: "Index", color: "#4aa3ff", data: pick("index") },
-      { name: "50-day average", color: "#f5a524", data: pick("index_ma50") },
-    ];
-  }, [m]);
-
-  const breadth = useMemo<MiniSeries[]>(() => {
-    if (!m) return [];
-    return [
-      {
-        name: "Breadth %",
-        color: "#26c281",
-        data: m.days.flatMap((d) => (d.breadth_pct === null ? [] : [{ time: d.day, value: d.breadth_pct }])),
-      },
-    ];
-  }, [m]);
 
   const last = m?.days[m.days.length - 1];
 
@@ -59,22 +36,10 @@ export function MarketOverview() {
               <p className="text-base font-semibold">{m.regime_days_on_last_20} / 20</p>
             </div>
           </div>
-          <div>
-            <p className="mb-1 text-mute">VCP Universe Index vs its 50-day average (100 = first day shown)</p>
-            <MiniLineChart series={index} label="universe-index" />
-          </div>
-          <div>
-            <p className="mb-1 text-mute">
-              Share of the universe above its 50-day average (rule {m.regime_rule}: on at ≥{" "}
-              {m.breadth_threshold_pct}%, dashed line)
-            </p>
-            <MiniLineChart
-              series={breadth}
-              height={90}
-              threshold={{ value: m.breadth_threshold_pct, title: `${m.breadth_threshold_pct}%` }}
-              label="breadth"
-            />
-          </div>
+          <p className="text-mute">
+            The regime is {m.regime_rule}: on when at least {m.breadth_threshold_pct}% of the universe closes above
+            its 50-day average. The index and breadth charts are in Market health below.
+          </p>
         </div>
       )}
     </Card>

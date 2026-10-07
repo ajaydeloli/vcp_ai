@@ -293,7 +293,6 @@ def _points(rows: list[tuple[Any, ...]], index: list[float]) -> list[m.HealthPoi
                 day=r[0],
                 index=index[i] / base * 100.0,
                 ma50=None if (v := _sma(index, 50, i)) is None else v / base * 100.0,
-                ma150=None if (v := _sma(index, 150, i)) is None else v / base * 100.0,
                 ma200=None if (v := _sma(index, 200, i)) is None else v / base * 100.0,
                 highs=int(r[9]),
                 lows=int(r[10]),

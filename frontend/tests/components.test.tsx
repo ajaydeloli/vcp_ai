@@ -201,11 +201,8 @@ describe("market overview", () => {
     expect(await screen.findByText(/not NIFTY/)).toBeInTheDocument();
     expect(screen.getByText("OFF")).toBeInTheDocument();
     expect(screen.getByText("31.7%")).toBeInTheDocument();
-    await waitFor(() => expect(liveCharts()).toHaveLength(2));
-    const [index, breadth] = liveCharts();
-    expect(index!.of("line").map((s) => s.options.title)).toEqual(["Index", "50-day average"]);
-    const line = breadth!.of("line")[0]!;
-    expect(line.priceLines[0]?.price).toBe(fx.market.breadth_threshold_pct);
+    expect(screen.getByText(/at least 40% of the universe/)).toBeInTheDocument();
+    expect(liveCharts()).toHaveLength(0); // the charts live in Market health
   });
 });
 

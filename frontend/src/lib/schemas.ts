@@ -296,7 +296,6 @@ export const marketHealth = z.object({
       day: z.string(),
       index: z.number(),
       ma50: num,
-      ma150: num,
       ma200: num,
       highs: z.number(),
       lows: z.number(),

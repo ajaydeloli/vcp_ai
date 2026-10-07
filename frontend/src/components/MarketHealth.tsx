@@ -88,7 +88,7 @@ function Inner({ g, children }: { g: Health["groups"][number]; children: ReactNo
 function Charts({ d, id }: { d: Health; id: string }) {
   const pts = d.points;
   const index = useMemo(
-    () => [series("Index", C.ink, pts, (p) => p.index), series("50-day", C.warn, pts, (p) => p.ma50), series("150-day", C.violet, pts, (p) => p.ma150), series("200-day", C.down, pts, (p) => p.ma200)],
+    () => [series("Index", C.ink, pts, (p) => p.index), series("50-day", C.warn, pts, (p) => p.ma50), series("200-day", C.down, pts, (p) => p.ma200)],
     [pts],
   );
   const highs = useMemo(() => [series("New highs", C.up, pts, (p) => p.highs), series("New lows", C.down, pts, (p) => p.lows)], [pts]);
@@ -98,7 +98,7 @@ function Charts({ d, id }: { d: Health; id: string }) {
     return (
       <>
         <MiniLineChart series={index} height={150} plain label="index-price-chart" />
-        <Legend items={[["VCP Universe Index", C.ink], ["50-day", C.warn], ["150-day", C.violet], ["200-day", C.down]]} />
+        <Legend items={[["VCP Universe Index", C.ink], ["50-day", C.warn], ["200-day", C.down]]} />
       </>
     );
   if (id === "leadership")
@@ -111,8 +111,8 @@ function Charts({ d, id }: { d: Health; id: string }) {
   if (id === "breadth")
     return (
       <>
-        <MiniLineChart series={breadth} height={110} plain label="breadth-chart" />
-        <Legend items={[["% above 50-day", C.blue], ["% above 200-day", C.violet]]} />
+        <MiniLineChart series={breadth} height={110} plain threshold={{ value: 40, title: "40%" }} label="breadth-chart" />
+        <Legend items={[["% above 50-day", C.blue], ["% above 200-day", C.violet], ["dashed: regime on at 40%", C.warn]]} />
         <MiniLineChart series={ad} height={90} plain label="ad-line-chart" />
         <Legend items={[["Advance/decline line", C.ink], ["its 50-day average", C.warn]]} />
       </>
