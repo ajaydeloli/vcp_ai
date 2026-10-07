@@ -1,17 +1,12 @@
 "use client";
 
 import { useStatus } from "@/lib/api";
-import { fmtDay, fmtStamp } from "@/lib/fmt";
 
 export const DISCLAIMER = "Research tool, not financial advice";
 
 export function StatusBar() {
   const status = useStatus();
   const s = status.data;
-  const scan = s?.strategies.reduce<string | null>(
-    (a, x) => (x.latest_scan && (!a || x.latest_scan > a) ? x.latest_scan : a),
-    null,
-  );
   const warnings = s?.warnings ?? [];
 
   return (
@@ -23,15 +18,6 @@ export function StatusBar() {
           </span>
         ) : s ? (
           <>
-            <span className="text-mute">
-              Prices to <span className="text-ink">{fmtDay(s.prices_date)}</span>
-            </span>
-            <span className="text-mute">
-              Scans to <span className="text-ink">{fmtDay(scan)}</span>
-            </span>
-            <span className="text-mute">
-              Data copy written <span className="text-ink">{fmtStamp(s.data_time)}</span>
-            </span>
             {warnings.length === 0 ? (
               <span className="text-up">No warnings</span>
             ) : (

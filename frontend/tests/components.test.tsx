@@ -389,12 +389,10 @@ describe("paper panel", () => {
 });
 
 describe("status bar", () => {
-  it("shows the data dates, the copy time and the disclaimer", async () => {
+  it("shows the warnings state and the disclaimer (data dates are in the navigation box)", async () => {
     mockApi();
     renderApp(<StatusBar />);
     expect(await screen.findByText("No warnings")).toBeInTheDocument();
-    expect(screen.getAllByText("5 Oct 2026", { selector: "span.text-ink" })).toHaveLength(2); // prices, scans
-    expect(screen.getByText("6 Oct, 14:00 IST")).toBeInTheDocument();
     expect(screen.getByText("Research tool, not financial advice")).toBeInTheDocument();
   });
 
