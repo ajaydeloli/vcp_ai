@@ -4,7 +4,6 @@ import { useStatus } from "@/lib/api";
 import { DASH, fmtDay, fmtStamp } from "@/lib/fmt";
 
 const LATER = [
-  "Watchlist",
   "Market Overview",
   "VCP Scanner",
   "Trend Template",
@@ -46,7 +45,7 @@ function DataStatus() {
   );
 }
 
-export function Nav({ active = "Dashboard" }: { active?: "Dashboard" | "Screener" | "Stock Analysis" }) {
+export function Nav({ active = "Dashboard" }: { active?: "Dashboard" | "Screener" | "Stock Analysis" | "Watchlist" }) {
   return (
     <nav
       aria-label="Main"
@@ -69,6 +68,7 @@ export function Nav({ active = "Dashboard" }: { active?: "Dashboard" | "Screener
             ["Dashboard", "/dashboard"],
             ["Screener", "/screener"],
             ["Stock Analysis", "/stocks"],
+            ["Watchlist", "/watchlist"],
           ] as const
         ).map(([label, href]) => (
           <li key={label}>

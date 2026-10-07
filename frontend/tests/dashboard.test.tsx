@@ -30,7 +30,7 @@ describe("dashboard page", () => {
     const nav = screen.getByRole("navigation", { name: "Main" });
     expect(within(nav).getByRole("link", { name: "Dashboard" })).toHaveAttribute("aria-current", "page");
     expect(within(nav).getByRole("link", { name: "Screener" })).toHaveAttribute("href", "/screener");
-    for (const name of ["Watchlist", "Backtest", "Reports"]) {
+    for (const name of ["Backtest", "Reports"]) {
       expect(within(nav).getByText(name).closest("[aria-disabled]")).toHaveAttribute("aria-disabled", "true");
     }
   });

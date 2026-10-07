@@ -2,6 +2,7 @@
 // combinations of filters, nothing saved or stored). Every filter runs on the server.
 export type ScreenerQuery = {
   q: string;
+  symbols?: string[];
   stages: string[];
   ttPass?: boolean;
   nearHigh?: boolean;

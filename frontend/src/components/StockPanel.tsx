@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useBars, useSetups, useStockSetups } from "@/lib/api";
 import type { RangeId } from "@/lib/chartData";
 import { DASH, fmtDay, fmtInt, fmtNum, fmtPct, fmtPrice, strategyLabel, tone } from "@/lib/fmt";
+import { WatchStar } from "./WatchStar";
 import { ChartView } from "./ChartView";
 import type { Selection } from "./SetupsTable";
 import { Card, Empty, ErrorBox, GradeBadge, Loading, StatusPill } from "./ui";
@@ -71,6 +72,7 @@ function StockView({
         <div>
           <div className="flex flex-wrap items-baseline gap-x-3">
             <span className="text-2xl font-semibold text-ink">{selection.symbol}</span>
+            <WatchStar symbol={selection.symbol} />
             {company ? <span className="text-sm text-mute">{company}</span> : null}
             {onStockPage ? null : (
               <a href={`/stocks/${encodeURIComponent(selection.symbol)}`} className="text-xs text-accent hover:underline">

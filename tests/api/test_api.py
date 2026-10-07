@@ -290,6 +290,7 @@ def test_screener_filters_sorts_and_pages(ro_env: Env) -> None:
     assert syms("min_rs=80") == ["ALPHA", "BETA"]
     assert syms("has_setup=true&sort=symbol&direction=asc") == ["ALPHA", "BETA"]
     assert syms("q=alp") == ["ALPHA"]
+    assert syms("symbols=gamma, alpha,NOPE&sort=symbol&direction=asc") == ["ALPHA", "GAMMA"]
     assert syms("sort=rs_rank&direction=asc") == ["F00", "GAMMA", "BETA", "ALPHA"]
     page = get(ro_env, "/api/v1/screener?page=2&page_size=3")
     assert page["total"] == 4 and [r["symbol"] for r in page["rows"]] == ["F00"]

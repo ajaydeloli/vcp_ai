@@ -7,6 +7,7 @@ import { pageNumbers } from "@/lib/lists";
 import { DEFAULT_QUERY, PRESETS, presetQuery, STAGES, type ScreenerQuery } from "@/lib/screener";
 import type { ScreenerRow } from "@/lib/schemas";
 import { Nav } from "./Nav";
+import { WatchStar } from "./WatchStar";
 import { StatusBar } from "./StatusBar";
 import { TopBar } from "./TopBar";
 import { Card, Empty, ErrorBox, GradeBadge, Loading, StatusPill } from "./ui";
@@ -14,7 +15,7 @@ import { Card, Empty, ErrorBox, GradeBadge, Loading, StatusPill } from "./ui";
 const field = "w-full rounded border border-line bg-panel2 px-2 py-1.5 text-xs text-ink";
 const stageLabel = (s: string): string => s.replace("STAGE_", "Stage ").replace("TRANSITION", "Transition");
 
-type Col = {
+export type Col = {
   key: string;
   label: string;
   align?: "right";
@@ -24,7 +25,12 @@ type Col = {
 const yesNo = (v: boolean | null) =>
   v === null ? <span className="text-mute">{DASH}</span> : v ? <span className="text-up">Yes</span> : <span className="text-mute">No</span>;
 
-const COLS: Col[] = [
+export const COLS: Col[] = [
+  {
+    key: "watch",
+    label: "",
+    render: (r) => <WatchStar symbol={r.symbol} />,
+  },
   {
     key: "symbol",
     label: "Symbol",

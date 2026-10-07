@@ -255,6 +255,7 @@ def screener(
     def keep(x: m.ScreenerRow) -> bool:
         checks = (
             not needle or needle in x.symbol.upper() or needle in (x.company or "").upper(),
+            not f.symbols or x.symbol.upper() in f.symbols,
             not f.stages or x.stage in f.stages,
             f.tt_pass is None or x.trend_template_pass == f.tt_pass,
             f.near_high is None or x.near_52w_high == f.near_high,

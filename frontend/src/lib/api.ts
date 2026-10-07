@@ -61,7 +61,7 @@ export const paths = {
   screener: (f: ScreenerQuery) => {
     const stages = f.stages.map((x) => `&stage=${encodeURIComponent(x)}`).join("");
     return `screener${query({
-        q: f.q, tt_pass: f.ttPass, near_high: f.nearHigh, min_rs: f.minRs,
+        q: f.q, symbols: f.symbols?.join(","), tt_pass: f.ttPass, near_high: f.nearHigh, min_rs: f.minRs,
         min_conditions: f.minConditions, has_setup: f.hasSetup || undefined,
         min_grade: f.minGrade, status: f.status, sort: f.sort, direction: f.direction,
         page: f.page, page_size: f.pageSize,
@@ -134,11 +134,12 @@ export const useSearch = (text: string) =>
     enabled: text.trim().length > 0,
     staleTime: 60_000,
   });
-export const useScreener = (f: ScreenerQuery) =>
+export const useScreener = (f: ScreenerQuery, enabled = true) =>
   useQuery({
     queryKey: ["screener", f],
     queryFn: () => getJson(paths.screener(f), s.screener),
     placeholderData: (prev) => prev,
+    enabled,
     ...opts,
   });
 export const useStockHistory = (symbol: string | null, days = 180) =>

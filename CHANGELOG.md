@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (Dashboard: Watchlist, first design)
+- `/watchlist` page and a ★ button on the Screener and Stock Analysis pages. The list is kept in the browser only (no write to any database); `GET /api/v1/screener` takes `symbols`.
+
 ### Changed (Dashboard: Screener links)
 - A symbol in the Screener, and a search from the Screener page, opens the Stock Analysis page (`/stocks/SYMBOL`) instead of the dashboard. Frontend only.
 

@@ -2407,3 +2407,13 @@ Owner request: build the design first, review, then change as proposed. FRONTEND
 **Tests.** API: history of one stock, empty list, 404, 422, read-only digest, contract sample. Frontend: schema contract, page cards and requests, empty history, strategy switch, no-symbol page.
 
 **Not changed:** the main DB, any strategy, rule, scan, score, label or the ledger.
+
+## Dashboard: Watchlist page, first design (2026-10-07)
+
+Owner request: design the watch list page. FRONTEND_SPECIFICATION §67.15.
+
+**Change.** `/watchlist`, ★ buttons, browser-stored list (no server write); Screener `symbols` filter (GET only).
+
+**Tests.** API: `symbols` filter. Frontend: empty list, add from the Screener, show with scan result, remove, damaged stored list.
+
+**Not changed:** the main DB, any strategy, rule, scan, score, label or the ledger.

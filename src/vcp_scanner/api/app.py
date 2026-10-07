@@ -135,6 +135,7 @@ def create_app(
     def screener(
         strategy: str = "vcp", on: DateParam = None,
         q_: Annotated[str | None, Query(alias="q", max_length=40)] = None,
+        symbols: Annotated[str | None, Query(max_length=2000)] = None,
         stage: Annotated[list[str] | None, Query()] = None,
         tt_pass: bool | None = None, near_high: bool | None = None,
         min_rs: Annotated[int | None, Query(ge=0, le=99)] = None,
@@ -148,7 +149,8 @@ def create_app(
     ) -> m.ScreenerResponse:  # fmt: skip
         spec = spec_or_404(strategy)
         f = SimpleNamespace(
-            q=q_, stages=stage or [], tt_pass=tt_pass, near_high=near_high, min_rs=min_rs,
+            q=q_, symbols={x.strip().upper() for x in (symbols or "").split(",") if x.strip()},
+            stages=stage or [], tt_pass=tt_pass, near_high=near_high, min_rs=min_rs,
             min_conditions=min_conditions, has_setup=has_setup, min_grade=min_grade,
             status=status, sort=sort, descending=direction == "desc", page=page,
             page_size=page_size,

@@ -2089,3 +2089,13 @@ Owner request: "first design the page, then I will review ... then update as I p
 **Not on the page:** sector, market cap, news, live prices (no data yet); anything that writes. First design: layout is open to the owner's review.
 
 **Default stock (2026-10-07).** `/stocks` without a symbol opens the best-ranked VCP setup (the first row of the VCP list, as on the dashboard); a search shows the page for any other stock.
+
+## 67.15 As built: Watchlist page, first design (2026-10-07)
+
+Owner request: design the watch list page. Route `/watchlist`.
+
+**Decision taken for the first design (open to review):** "my watch list" is kept in the browser (localStorage), not on the server. Nothing is written to the main or serving database and no API call writes, so the read-only rule of §67 holds; the cost is that the list belongs to one browser and is lost if its site data is cleared. A server-side list would need a write path and an owner decision.
+
+**Page.** A ★ button (Screener rows, the Stock Analysis header) adds or removes a stock; the page also has an add box (search by symbol or company). The table shows each listed stock with its latest scan result in the Screener's columns (stage, Trend Template, RS, price, change, VCP setup, score, status, distance to pivot). A listed symbol missing from the latest scan is named under the table.
+
+**API.** The Screener endpoint takes `symbols` (comma-separated, case-insensitive) to return only those stocks.
