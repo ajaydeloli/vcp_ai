@@ -15,7 +15,7 @@ function UniverseIndexTile() {
     last?.index != null && prev?.index != null && prev.index !== 0 ? (last.index / prev.index - 1) * 100 : null;
   return (
     <div
-      className="flex h-full items-center gap-3 rounded-lg border border-line bg-panel px-3 py-2"
+      className="flex h-[76px] items-center gap-3 rounded-lg border border-line bg-panel px-4 py-2"
       title="Equal-weight index of the stocks we scan, 100 on the first day shown. Not NIFTY."
     >
       <div>
@@ -98,7 +98,7 @@ export function TopBar({ onPick }: { onPick: (symbol: string) => void }) {
       </div>
       <div className="flex flex-wrap items-stretch gap-3">
         <UniverseIndexTile />
-        <div className="flex flex-col justify-center whitespace-nowrap rounded-lg border border-line bg-panel px-3 py-2">
+        <div className="flex h-[76px] flex-col justify-center whitespace-nowrap rounded-lg border border-line bg-panel px-4 py-2">
           <p className="text-[10px] uppercase tracking-wide text-mute">Data of</p>
           <p className="text-lg font-semibold leading-tight tabular-nums text-ink">
             {fmtDay(status.data?.prices_date)}

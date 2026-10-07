@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed (Dashboard D2.4)
-- The universe index tile and the "Data of" tile in the top bar have the same height and type sizes. The data dates appear once (navigation box); the bottom bar keeps the warnings and the disclaimer. Frontend only.
+- The universe index tile and the "Data of" tile in the top bar have the same fixed height (76 px), padding and type sizes. The data dates appear once (navigation box); the bottom bar keeps the warnings and the disclaimer. Frontend only.
 
 ### Added (Dashboard: Screener)
 - `/screener` page and `GET /api/v1/screener`: every scanned stock with its Trend Template result and VCP setup; filters, seven built-in presets, sortable columns, 25 rows a page; a symbol opens on the dashboard (`/dashboard?symbol=X`). Read-only.
