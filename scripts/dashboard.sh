@@ -3,7 +3,7 @@
 # Usage: scripts/dashboard.sh   (stop with Ctrl-C)
 set -euo pipefail
 cd "$(dirname "$0")/.."
-(vcp api serve) &
+(.venv/bin/vcp api serve) &
 API=$!
 trap 'kill $API 2>/dev/null || true' EXIT
 cd frontend

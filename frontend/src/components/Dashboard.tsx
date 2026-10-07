@@ -37,7 +37,7 @@ export function Dashboard() {
           <Loading what="strategies" />
         ) : (
           <div className="grid gap-4 xl:grid-cols-12">
-            <div className="min-w-0 xl:col-span-5">
+            <div className="min-w-0 xl:relative xl:col-span-5 xl:min-h-[640px]">
               <SetupsTable
                 strategies={strategies.data.strategies}
                 summary={summary.data}
@@ -51,13 +51,13 @@ export function Dashboard() {
           </div>
         )}
         <div className="grid gap-4 xl:grid-cols-12">
-          <div className="xl:col-span-3">
+          <div className="xl:relative xl:col-span-3 xl:min-h-[420px]">
             <ActivityPanel />
           </div>
-          <div className="xl:col-span-4">
+          <div className="xl:col-span-4 [&>section]:h-full">
             <MarketOverview />
           </div>
-          <div className="xl:col-span-5">
+          <div className="xl:col-span-5 [&>section]:h-full">
             <PaperPanel />
           </div>
         </div>

@@ -15,8 +15,8 @@ export function Card({
   className?: string;
 }) {
   return (
-    <section className={`rounded-lg border border-line bg-panel p-4 ${className}`}>
-      <header className="mb-3 flex items-start justify-between gap-3">
+    <section className={`flex flex-col rounded-lg border border-line bg-panel p-4 ${className}`}>
+      <header className="mb-3 flex shrink-0 items-start justify-between gap-3">
         <div>
           <h2 className="text-sm font-semibold text-ink">{title}</h2>
           {subtitle ? <p className="mt-0.5 text-xs text-mute">{subtitle}</p> : null}

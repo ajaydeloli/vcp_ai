@@ -138,7 +138,7 @@ export function SetupsTable({ strategies, summary, selected, onSelect }: Props) 
     <Card
       title="Setups: watch list"
       subtitle={`Ranked by setup score${asOf ? `, scan of ${fmtDay(asOf)}` : ""}. A watch list for research, not buy signals.`}
-      className="min-w-0"
+      className="min-w-0 xl:absolute xl:inset-0"
     >
       <div role="tablist" aria-label="Setup lists" className="mb-3 flex flex-wrap gap-1 border-b border-line pb-2">
         {tabs.map((t) => (
@@ -167,7 +167,7 @@ export function SetupsTable({ strategies, summary, selected, onSelect }: Props) 
       ) : rows.length === 0 ? (
         <Empty>No setups in this list on this scan date.</Empty>
       ) : (
-        <div className="max-h-[520px] overflow-auto">
+        <div className="min-h-0 max-h-[520px] flex-1 overflow-auto xl:max-h-none">
           <table className="w-full text-left text-xs">
             <thead className="sticky top-0 bg-panel text-[11px] uppercase text-mute">
               <tr>
@@ -233,7 +233,7 @@ function OverlapList({
 }) {
   if (rows.length === 0) return <Empty>No stock is on more than one list on this scan date.</Empty>;
   return (
-    <ul className="max-h-[520px] divide-y divide-line/60 overflow-auto text-xs">
+    <ul className="min-h-0 max-h-[520px] flex-1 divide-y xl:max-h-none divide-line/60 overflow-auto text-xs">
       {rows.map((r) => (
         <li key={r.symbol}>
           <button

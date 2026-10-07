@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed (Dashboard D2.1)
+- The setups and chart cards, and the recent activity, market overview and paper trading cards, now have equal heights. `scripts/dashboard.sh` starts the API with the project's own `vcp` (it did not start before).
+
 ### Added (Dashboard D2: the web page)
 - `frontend/` (Next.js, TypeScript, Tailwind, Lightweight Charts): the `/dashboard` page of the read-only dashboard: KPI cards, ranked setups per strategy, candlestick chart with pivot and stop, setup details, recent activity, market overview, paper panel and status bar. `scripts/dashboard.sh` starts the API and the page (`http://localhost:3000/dashboard`).
 - API: `GET /api/v1/search` (symbol or company name) for the page's search box.

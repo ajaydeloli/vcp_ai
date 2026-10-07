@@ -30,7 +30,7 @@ export function ActivityPanel() {
           Show scans
         </label>
       }
-      className="min-w-0"
+      className="min-w-0 xl:absolute xl:inset-0"
     >
       {activity.isError ? (
         <ErrorBox error={activity.error} />
@@ -39,7 +39,7 @@ export function ActivityPanel() {
       ) : events.length === 0 ? (
         <Empty>Nothing to show in the last 7 days.</Empty>
       ) : (
-        <ul className="max-h-72 space-y-2 overflow-auto pr-1 text-xs">
+        <ul className="min-h-0 max-h-72 flex-1 space-y-2 overflow-auto pr-1 text-xs xl:max-h-none">
           {events.map((e, i) => {
             const icon = ICON[e.kind] ?? { sym: "•", cls: "text-mute" };
             return (

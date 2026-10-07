@@ -2343,3 +2343,13 @@ Owner go "start D2. you can do some minor changes if needed." FRONTEND_SPECIFICA
 
 **Not changed:** the main and research databases, every strategy, rule, scan, score, label and the ledger; the daily run (the serving copy stays off until the owner agrees).
 
+## Dashboard D2.1 — equal card heights and launcher fix (2026-10-07)
+
+Owner review of the page: the setups card was much shorter than the chart card, and the three bottom cards (recent activity, market overview, paper trading) had different heights.
+
+**Fix.** `ui.tsx` `Card` is a flex column. At xl width the setups card and the activity card fill their grid cell (absolute inset-0, list scrolls inside) so the chart card and the market card set the row height; the market and paper cards stretch. Below xl the layout is unchanged (stacked, lists limited to 520 / 288 px). Measured in the browser pane at 1536 px: setups and chart 1,198 px each; activity, market and paper 420 px each.
+
+**Also fixed:** `scripts/dashboard.sh` started `vcp` without the project's venv on PATH, so the API did not start ("vcp: command not found"); it now calls `.venv/bin/vcp`.
+
+**Tests:** frontend 62 passed (no logic changed). **Not changed:** any data, strategy, rule, scan, score, label or the ledger.
+

@@ -34,7 +34,7 @@ export function MarketOverview() {
   const last = m?.days[m.days.length - 1];
 
   return (
-    <Card title="Market overview" subtitle={m?.label} className="min-w-0">
+    <Card title="Market overview" subtitle={m?.label} className="h-full min-w-0">
       {market.isError ? (
         <ErrorBox error={market.error} />
       ) : market.isPending ? (
