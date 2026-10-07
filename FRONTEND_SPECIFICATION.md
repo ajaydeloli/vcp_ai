@@ -2063,3 +2063,7 @@ The owner's second mockup (nine panels in a fixed grid) replaced the first layou
 - **Below:** Recent activity, Market overview, Paper trading, as before. Navigation items other than Dashboard stay disabled ("later"); the Data status box shows prices, last scan and the data copy time.
 - No API change; all numbers come from the endpoints of §67.3.
 
+## 67.12 Serving copy switched on (2026-10-07)
+
+Owner go (2026-10-07): `scripts/daily_run.sh` now passes `--serving-copy`, so every scheduled run (19:15 and 22:00 IST) and every manual run of the script ends by refreshing `data/serving/vcp_serving.duckdb`. The copy is atomic: the previous copy stays in place if the refresh fails, and a failed refresh marks the run `FAILED: dashboard serving copy` in `data/logs/daily_runs.log` (the data steps are unaffected). Cost: about 9 seconds and 2.3 GB (4.6 GB for a moment during the swap). `vcp run daily` called by hand without the flag still writes no copy.
+

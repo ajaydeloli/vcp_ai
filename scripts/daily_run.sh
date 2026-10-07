@@ -13,7 +13,7 @@ if ! flock -n 9; then
     exit 0
 fi
 echo "=== start $(TZ=Asia/Kolkata date '+%Y-%m-%d %H:%M') IST"
-.venv/bin/vcp run daily --db data/vcp_scanner.duckdb --config-dir config --env-file .env
+.venv/bin/vcp run daily --db data/vcp_scanner.duckdb --config-dir config --env-file .env --serving-copy
 code=$?
 echo "=== end $(TZ=Asia/Kolkata date '+%Y-%m-%d %H:%M') IST, exit $code"
 exit $code

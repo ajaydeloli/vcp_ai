@@ -2373,3 +2373,15 @@ Owner request: the several list names above the watch list should be a dropdown.
 
 **Not changed:** the API, data, any strategy, rule, scan, score, label or the ledger.
 
+## Dashboard: serving copy in the scheduled daily run (2026-10-07)
+
+Owner go: "Go ahead with serving copy in the daily run". FRONTEND_SPECIFICATION §67.12.
+
+**Change.** `scripts/daily_run.sh` (what Task Scheduler runs) calls `vcp run daily ... --serving-copy`. No code change: the option, its atomic refresh and its failure handling were built and tested in D1. The copy is made after all data steps, inside the daily-run lock.
+
+**Test.** `test_the_scheduled_launcher_asks_for_the_serving_copy` (the launcher's one `vcp run daily` line carries the flag); the D1 tests of the step stay green.
+
+**Real-data check.** A manual refresh on 2026-10-07 took 8.8 s and wrote 2.3 GB; 891 GB are free on the disk. The first scheduled run with the flag is today's 19:15 IST.
+
+**Not changed:** the main DB's data, any strategy, rule, scan, score, label or the ledger; `vcp run daily` without the flag.
+

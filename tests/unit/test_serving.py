@@ -109,3 +109,11 @@ def test_a_failed_serving_copy_fails_the_run_and_is_named(
     monkeypatch.setattr(daily, "refresh_serving_copy", boom)
     assert run_daily(_args(db, serving_copy=True), lambda argv: 0) == 1
     assert "FAILED: serving copy" in (tmp_path / "logs" / "daily_runs.log").read_text()
+
+
+def test_the_scheduled_launcher_asks_for_the_serving_copy() -> None:
+    """scripts/daily_run.sh is what Task Scheduler runs; the dashboard's data copy depends on it."""
+    script = (Path(__file__).resolve().parents[2] / "scripts" / "daily_run.sh").read_text()
+    runs = [ln for ln in script.splitlines() if ln.startswith(".venv/bin/vcp run daily")]
+    assert len(runs) == 1
+    assert "--serving-copy" in runs[0]

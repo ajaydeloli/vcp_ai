@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed (Dashboard: serving copy on)
+- The scheduled daily run (`scripts/daily_run.sh`) now refreshes the dashboard's serving copy as its last step (`--serving-copy`), so the page shows each evening's scan without a manual refresh.
+
 ### Changed (Dashboard D2.3)
 - The lists above the watch list (Top setups, A+ VCP, VCP, Forming, Breakout watch, the other strategies, On several lists) are chosen from one dropdown.
 
