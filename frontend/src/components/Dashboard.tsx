@@ -27,7 +27,9 @@ export function Dashboard() {
             <PaperPanel />
           </div>
         </div>
-        <ActivityPanel />
+        <div className="xl:relative xl:min-h-[360px]">
+          <ActivityPanel />
+        </div>
       </main>
       <StatusBar />
     </div>
