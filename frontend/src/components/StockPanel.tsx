@@ -11,9 +11,12 @@ import { Card, Empty, ErrorBox, GradeBadge, Loading, StatusPill } from "./ui";
 export function StockPanel({
   selection,
   onSelect,
+  onStockPage = false,
 }: {
   selection: Selection | null;
   onSelect: (s: Selection) => void;
+  /** true on the Stock Analysis page itself, which needs no link to itself */
+  onStockPage?: boolean;
 }) {
   if (!selection) {
     return (
@@ -22,7 +25,7 @@ export function StockPanel({
       </Card>
     );
   }
-  return <StockView key={selection.symbol} selection={selection} onSelect={onSelect} />;
+  return <StockView key={selection.symbol} selection={selection} onSelect={onSelect} onStockPage={onStockPage} />;
 }
 
 function Figure({ label, value }: { label: string; value: string }) {
@@ -34,7 +37,15 @@ function Figure({ label, value }: { label: string; value: string }) {
   );
 }
 
-function StockView({ selection, onSelect }: { selection: Selection; onSelect: (s: Selection) => void }) {
+function StockView({
+  selection,
+  onSelect,
+  onStockPage,
+}: {
+  selection: Selection;
+  onSelect: (s: Selection) => void;
+  onStockPage: boolean;
+}) {
   const bars = useBars(selection.symbol);
   const stock = useStockSetups(selection.symbol);
   const ranked = useSetups(selection.strategy);
@@ -61,6 +72,11 @@ function StockView({ selection, onSelect }: { selection: Selection; onSelect: (s
           <div className="flex flex-wrap items-baseline gap-x-3">
             <span className="text-2xl font-semibold text-ink">{selection.symbol}</span>
             {company ? <span className="text-sm text-mute">{company}</span> : null}
+            {onStockPage ? null : (
+              <a href={`/stocks/${encodeURIComponent(selection.symbol)}`} className="text-xs text-accent hover:underline">
+                Full analysis →
+              </a>
+            )}
           </div>
           <div className="mt-2 flex flex-wrap items-baseline gap-x-3">
             <span className="text-3xl font-semibold tabular-nums text-ink">{fmtPrice(last?.close)}</span>

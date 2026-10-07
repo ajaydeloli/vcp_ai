@@ -2077,3 +2077,13 @@ Owner go: "go with screener"; own design, built-in presets only (no CSV export).
 **Page.** Preset buttons (All scanned stocks, Trend Template passers, Stage 2 RS 80+, Near 52-week high, Pivot-ready setups, Breakouts, Top VCP setups) set a fixed combination of filters; nothing is saved. Filter panel on the left, sortable results table with page numbers on the right; a symbol links to `/dashboard?symbol=X`, which opens that stock in the chart and overview. Not available: sector, market cap, fundamentals, index membership (no data).
 
 **Rule kept.** Screening only reads the scan; it changes no strategy, rule, scan, score, label or ledger.
+
+## 67.14 As built: Stock Analysis page, first design (2026-10-07)
+
+Owner request: "first design the page, then I will review ... then update as I propose". Route `/stocks/SYMBOL` (`/stocks` asks for a search). Reached from the new navigation entry, the top-bar search, and a "Full analysis" link in the dashboard chart card.
+
+**Layout.** Chart card with the stock's header (price, change, grade, status, score, RS rank, pivot) and the strategy buttons; the four overview cards of the dashboard (VCP pattern, Trend Template with the 10 conditions, Fundamentals marked not available, score ring); then two cards: Setups across strategies (one line per strategy: grade, status, score, pivot, stop; a click shows that strategy on the chart) and History and paper trades (breakouts and paper-ledger events of the stock over 180 days).
+
+**API.** One addition, `GET /api/v1/stocks/{symbol}/history?days=180` (1-400): the activity feed cut to the symbol, scan events left out. No other new query.
+
+**Not on the page:** sector, market cap, news, live prices (no data yet); anything that writes. First design: layout is open to the owner's review.

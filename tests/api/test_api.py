@@ -295,3 +295,12 @@ def test_screener_filters_sorts_and_pages(ro_env: Env) -> None:
     assert page["total"] == 4 and [r["symbol"] for r in page["rows"]] == ["F00"]
     get(ro_env, "/api/v1/screener?sort=bogus", 422)
     get(ro_env, "/api/v1/screener?strategy=nope", 404)
+
+
+def test_stock_history_is_the_activity_feed_cut_to_one_stock(ro_env: Env) -> None:
+    body = get(ro_env, "/api/v1/stocks/BETA/history")
+    assert body["events"] and {e["symbol"] for e in body["events"]} == {"BETA"}
+    assert all(e["kind"] != "SCAN" for e in body["events"])
+    assert get(ro_env, "/api/v1/stocks/F10/history")["events"] == []
+    get(ro_env, "/api/v1/stocks/NOPE/history", 404)
+    get(ro_env, "/api/v1/stocks/BETA/history?days=0", 422)

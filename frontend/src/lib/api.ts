@@ -56,6 +56,8 @@ export const paths = {
   stockSetups: (symbol: string) => `stocks/${encodeURIComponent(symbol)}/setups`,
   activity: (days: number) => `activity${query({ days })}`,
   paper: () => "paper",
+  stockHistory: (symbol: string, days: number) =>
+    `stocks/${encodeURIComponent(symbol)}/history${query({ days })}`,
   screener: (f: ScreenerQuery) => {
     const stages = f.stages.map((x) => `&stage=${encodeURIComponent(x)}`).join("");
     return `screener${query({
@@ -137,5 +139,12 @@ export const useScreener = (f: ScreenerQuery) =>
     queryKey: ["screener", f],
     queryFn: () => getJson(paths.screener(f), s.screener),
     placeholderData: (prev) => prev,
+    ...opts,
+  });
+export const useStockHistory = (symbol: string | null, days = 180) =>
+  useQuery({
+    queryKey: ["stockHistory", symbol, days],
+    queryFn: () => getJson(paths.stockHistory(symbol ?? "", days), s.activity),
+    enabled: symbol !== null,
     ...opts,
   });

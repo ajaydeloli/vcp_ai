@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (Dashboard: Stock Analysis, first design)
+- `/stocks/SYMBOL` page: chart, setup and Trend Template cards, setups across strategies, history and paper trades of the stock; `GET /api/v1/stocks/{symbol}/history`. Read-only.
+
 ### Fixed (Dashboard D2.4)
 - The universe index tile and the "Data of" tile in the top bar have the same fixed height (76 px), padding and type sizes. The data dates appear once (navigation box); the bottom bar keeps the warnings and the disclaimer. Frontend only.
 

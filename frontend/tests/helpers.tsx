@@ -6,6 +6,7 @@ import type { ReactElement } from "react";
 import { vi } from "vitest";
 import activity from "./fixtures/api/activity.json";
 import bars from "./fixtures/api/bars.json";
+import history from "./fixtures/api/stock_history.json";
 import market from "./fixtures/api/market.json";
 import overlap from "./fixtures/api/overlap.json";
 import paper from "./fixtures/api/paper.json";
@@ -19,7 +20,7 @@ import strategies from "./fixtures/api/strategies.json";
 import summary from "./fixtures/api/summary.json";
 
 export const fx = {
-  activity, bars, market, overlap, paper, search, screener, setupsFlat, setupsVcp, status,
+  activity, bars, history, market, overlap, paper, search, screener, setupsFlat, setupsVcp, status,
   stockSetups, strategies, summary,
 }; // fmt: skip
 
@@ -44,10 +45,11 @@ export function sample(rel: string): unknown {
       return { ...base, strategy_id: id, rows: id === "vcp" || id === "flat_base" ? rows : [] };
     }
   }
-  const m = /^stocks\/([^/]+)\/(bars|setups)$/.exec(path);
+  const m = /^stocks\/([^/]+)\/(bars|setups|history)$/.exec(path);
   if (m) {
     const symbol = decodeURIComponent(m[1] ?? "");
     if (m[2] === "bars") return { ...fx.bars, symbol };
+    if (m[2] === "history") return { ...fx.history, events: symbol === "BETA" ? fx.history.events : [] };
     // ALPHA has setups in three strategies; any other symbol only the VCP one
     const setups = symbol === "ALPHA" ? fx.stockSetups.setups : fx.stockSetups.setups.slice(0, 1);
     return { ...fx.stockSetups, symbol, setups };

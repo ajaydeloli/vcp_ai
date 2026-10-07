@@ -6,7 +6,6 @@ import { DASH, fmtDay, fmtStamp } from "@/lib/fmt";
 const LATER = [
   "Watchlist",
   "Market Overview",
-  "Stock Analysis",
   "VCP Scanner",
   "Trend Template",
   "Fundamentals",
@@ -47,7 +46,7 @@ function DataStatus() {
   );
 }
 
-export function Nav({ active = "Dashboard" }: { active?: "Dashboard" | "Screener" }) {
+export function Nav({ active = "Dashboard" }: { active?: "Dashboard" | "Screener" | "Stock Analysis" }) {
   return (
     <nav
       aria-label="Main"
@@ -69,6 +68,7 @@ export function Nav({ active = "Dashboard" }: { active?: "Dashboard" | "Screener
           [
             ["Dashboard", "/dashboard"],
             ["Screener", "/screener"],
+            ["Stock Analysis", "/stocks"],
           ] as const
         ).map(([label, href]) => (
           <li key={label}>

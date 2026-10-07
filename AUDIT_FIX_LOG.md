@@ -2397,3 +2397,13 @@ Owner go: "go with screener"; own design, built-in presets. FRONTEND_SPECIFICATI
 **Real-data check.** 1,275 stocks, 183 match "Trend Template pass, near 52-week high, RS 80+", answered in about 0.1 s.
 
 **Not changed:** the main DB, any strategy, rule, scan, score, label or the ledger.
+
+## Dashboard: Stock Analysis page, first design (2026-10-07)
+
+Owner request: build the design first, review, then change as proposed. FRONTEND_SPECIFICATION §67.14.
+
+**Change.** `/stocks/[symbol]` page (existing chart and overview cards plus two new cards); `GET /api/v1/stocks/{symbol}/history` (the activity feed cut to one symbol, GET only); navigation entry and links.
+
+**Tests.** API: history of one stock, empty list, 404, 422, read-only digest, contract sample. Frontend: schema contract, page cards and requests, empty history, strategy switch, no-symbol page.
+
+**Not changed:** the main DB, any strategy, rule, scan, score, label or the ledger.

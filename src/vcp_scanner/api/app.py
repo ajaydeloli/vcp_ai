@@ -197,6 +197,18 @@ def create_app(
                 )  # fmt: skip
             return q.stock_setups(cur, ctx, iid, sym, company, day, db.data_time())
 
+    @app.get(f"{api}/stocks/{{symbol}}/history", response_model=m.ActivityResponse)
+    def stock_history(
+        symbol: str, days: Annotated[int, Query(ge=1, le=400)] = 180
+    ) -> m.ActivityResponse:
+        """Breakouts and paper-ledger events of one stock (the activity feed cut to a symbol)."""
+        with db.cursor() as cur:
+            _iid, sym, _company = stock_or_404(cur, symbol)
+            end = q.latest_prices_date(cur) or clock().date()
+            feed = reports.activity(cur, ctx, end, days, db.data_time())
+            mine = [e for e in feed.events if e.symbol == sym]
+            return m.ActivityResponse(as_of=feed.as_of, data_time=feed.data_time, events=mine)
+
     @app.get(f"{api}/activity", response_model=m.ActivityResponse)
     def activity(days: Annotated[int, Query(ge=1, le=60)] = 7) -> m.ActivityResponse:
         with db.cursor() as cur:

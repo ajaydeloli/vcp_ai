@@ -1,0 +1,22 @@
+{
+ "as_of": "2026-10-05",
+ "data_time": "2026-10-06T14:00:00+05:30",
+ "events": [
+  {
+   "day": "2026-10-05",
+   "time": null,
+   "kind": "BREAKOUT",
+   "strategy_id": "vcp",
+   "symbol": "BETA",
+   "text": "Breakout above pivot 140.00, volume 1.8x average"
+  },
+  {
+   "day": "2026-10-01",
+   "time": null,
+   "kind": "PAPER_ENTRY",
+   "strategy_id": "vcp",
+   "symbol": "BETA",
+   "text": "Paper entry at 100.00, stop 92.00"
+  }
+ ]
+}

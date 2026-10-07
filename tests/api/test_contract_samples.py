@@ -29,6 +29,7 @@ CASES = {
     "activity": "activity?days=7",
     "paper": "paper",
     "search": "search?q=alp",
+    "stock_history": "stocks/BETA/history",
     "screener": "screener?page_size=10",
 }
 
