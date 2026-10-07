@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed (Dashboard: Screener links)
+- A symbol in the Screener, and a search from the Screener page, opens the Stock Analysis page (`/stocks/SYMBOL`) instead of the dashboard. Frontend only.
+
 ### Changed (Dashboard: Stock Analysis default)
 - `/stocks` opens the best-ranked VCP setup instead of an empty page. Frontend only.
 

@@ -29,7 +29,7 @@ const COLS: Col[] = [
     key: "symbol",
     label: "Symbol",
     render: (r) => (
-      <a href={`/dashboard?symbol=${encodeURIComponent(r.symbol)}`} className="font-medium text-accent hover:underline">
+      <a href={`/stocks/${encodeURIComponent(r.symbol)}`} className="font-medium text-accent hover:underline">
         {r.symbol}
       </a>
     ),
@@ -320,7 +320,7 @@ export function Screener() {
       <Nav active="Screener" />
       <main className="min-w-0 flex-1 space-y-4 p-4 pb-16">
         <h1 className="sr-only">Screener</h1>
-        <TopBar onPick={(symbol) => window.location.assign(`/dashboard?symbol=${encodeURIComponent(symbol)}`)} />
+        <TopBar onPick={(symbol) => window.location.assign(`/stocks/${encodeURIComponent(symbol)}`)} />
         <Card
           title="Screener"
           subtitle={

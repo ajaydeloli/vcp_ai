@@ -7,12 +7,12 @@ import { DEFAULT_QUERY, PRESETS, presetQuery } from "@/lib/screener";
 import { mockApi, renderApp } from "./helpers";
 
 describe("screener page", () => {
-  it("lists every scanned stock with a link to its dashboard view", async () => {
+  it("lists every scanned stock with a link to its stock analysis page", async () => {
     mockApi();
     renderApp(<Screener />);
     expect(await screen.findByText(/stocks match/)).toBeInTheDocument();
     const link = await screen.findByRole("link", { name: "ALPHA" });
-    expect(link).toHaveAttribute("href", "/dashboard?symbol=ALPHA");
+    expect(link).toHaveAttribute("href", "/stocks/ALPHA");
     const nav = screen.getByRole("navigation", { name: "Main" });
     expect(within(nav).getByRole("link", { name: "Screener" })).toHaveAttribute("aria-current", "page");
     expect(screen.getByText(/not buy signals/)).toBeInTheDocument();
