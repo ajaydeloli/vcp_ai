@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed (Dashboard: market charts)
+- The VCP Universe Index and breadth charts show the latest value on the price axis again. Frontend only.
+
 ### Changed (Dashboard: index name, breadth chart)
 - Our equal-weight index is named "VCP Universe Index". The breadth chart no longer prints the 40 % label over the latest value.
 

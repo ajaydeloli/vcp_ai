@@ -54,7 +54,9 @@ export function MiniLineChart({ series, height = 120, threshold, label }: Props)
       const line = chart.addLineSeries({
         color: s.color,
         lineWidth: 2,
-        lastValueVisible: false,
+        // the first series shows its latest value on the axis; a second line next to it would
+        // print over it
+        lastValueVisible: i === 0,
         priceLineVisible: false,
         title: s.name,
       });
