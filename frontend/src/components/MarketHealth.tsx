@@ -1,8 +1,8 @@
 "use client";
 
 import { useMemo, type ReactNode } from "react";
-import { useMarketHealth } from "@/lib/api";
-import { fmtDay } from "@/lib/fmt";
+import { useMarket, useMarketHealth } from "@/lib/api";
+import { fmtDay, fmtPct } from "@/lib/fmt";
 import type { MarketHealth as Health } from "@/lib/schemas";
 import { MiniLineChart, type MiniSeries } from "./MiniLineChart";
 import { Card, Empty, ErrorBox, Loading } from "./ui";
@@ -35,6 +35,36 @@ function Legend({ items }: { items: [string, string][] }) {
         </span>
       ))}
     </p>
+  );
+}
+
+/** The regime (the breadth rule the scanner already uses), shown with the breadth it is made from. */
+function Regime() {
+  const market = useMarket(250);
+  const m = market.data;
+  const last = m?.days[m.days.length - 1];
+  if (!m || !last) return null;
+  return (
+    <div className="mb-3 grid grid-cols-3 gap-2 text-xs">
+      <div>
+        <p className="text-mute">Regime</p>
+        <p className={`text-base font-semibold ${last.regime_on ? "text-up" : "text-down"}`}>
+          {last.regime_on ? "ON" : "OFF"}
+        </p>
+      </div>
+      <div>
+        <p className="text-mute">Breadth</p>
+        <p className="text-base font-semibold">{fmtPct(last.breadth_pct)}</p>
+      </div>
+      <div>
+        <p className="text-mute">On, last 20</p>
+        <p className="text-base font-semibold">{m.regime_days_on_last_20} / 20</p>
+      </div>
+      <p className="col-span-3 text-mute">
+        The regime is {m.regime_rule}: on when at least {m.breadth_threshold_pct}% of the universe closes above its
+        50-day average (the dashed line below).
+      </p>
+    </div>
   );
 }
 
@@ -111,6 +141,7 @@ function Charts({ d, id }: { d: Health; id: string }) {
   if (id === "breadth")
     return (
       <>
+        <Regime />
         <MiniLineChart series={breadth} height={110} plain threshold={{ value: 40, title: "40%" }} label="breadth-chart" />
         <Legend items={[["% above 50-day", C.blue], ["% above 200-day", C.violet], ["dashed: regime on at 40%", C.warn]]} />
         <MiniLineChart series={ad} height={90} plain label="ad-line-chart" />

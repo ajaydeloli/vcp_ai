@@ -4,7 +4,6 @@ import { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { ChartView } from "@/components/ChartView";
 import { KpiCards } from "@/components/KpiCards";
-import { MarketOverview } from "@/components/MarketOverview";
 import { PaperPanel } from "@/components/PaperPanel";
 import { SetupOverview } from "@/components/SetupOverview";
 import { StatusBar } from "@/components/StatusBar";
@@ -191,18 +190,6 @@ describe("chart range buttons", () => {
     const bars = many.map((b, i) => ({ ...b, day: `2025-${String(1 + Math.floor(i / 28)).padStart(2, "0")}-${String((i % 28) + 1).padStart(2, "0")}` }));
     renderApp(<ChartView bars={bars} setup={null} range="3M" onRange={() => {}} />);
     expect(liveCharts()[0]!.visibleRange).toEqual({ from: bars[300 - 63]!.day, to: bars[299]!.day });
-  });
-});
-
-describe("market overview", () => {
-  it("states the regime and labels the index as our universe, not NIFTY", async () => {
-    mockApi();
-    renderApp(<MarketOverview />);
-    expect(await screen.findByText(/not NIFTY/)).toBeInTheDocument();
-    expect(screen.getByText("OFF")).toBeInTheDocument();
-    expect(screen.getByText("31.7%")).toBeInTheDocument();
-    expect(screen.getByText(/at least 40% of the universe/)).toBeInTheDocument();
-    expect(liveCharts()).toHaveLength(0); // the charts live in Market health
   });
 });
 

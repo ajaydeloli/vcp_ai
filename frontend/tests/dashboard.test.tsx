@@ -4,7 +4,7 @@ import { Dashboard } from "@/components/Dashboard";
 import { liveCharts } from "./chartMock";
 import { mockApi, renderApp } from "./helpers";
 
-describe("dashboard page (market overview)", () => {
+describe("dashboard page (market view)", () => {
   it("shows the market panels and no watch list, stock chart or setup details", async () => {
     const calls = mockApi();
     renderApp(<Dashboard />);
@@ -14,7 +14,10 @@ describe("dashboard page (market overview)", () => {
     expect(screen.queryByText("Top VCP setups")).not.toBeInTheDocument();
     await waitFor(() => expect(screen.getByText("symbols").previousElementSibling).toHaveTextContent("63"));
     expect(await screen.findByText("Recent activity")).toBeInTheDocument();
-    expect(await screen.findByText("Market overview")).toBeInTheDocument();
+    const breadthCard = await screen.findByRole("region", { name: "Breadth" });
+    expect(await within(breadthCard).findByText("OFF")).toBeInTheDocument(); // the regime
+    expect(within(breadthCard).getByText("31.7%")).toBeInTheDocument();
+    expect(screen.queryByText("Market overview")).not.toBeInTheDocument();
     expect(await screen.findByText("Paper trading")).toBeInTheDocument();
     await waitFor(() => expect(liveCharts().length).toBeGreaterThanOrEqual(4)); // the four market health charts
 
@@ -25,7 +28,7 @@ describe("dashboard page (market overview)", () => {
 
     // honest labels
     expect(screen.getByText("Research tool, not financial advice")).toBeInTheDocument();
-    expect(screen.getAllByText(/not NIFTY/).length).toBeGreaterThanOrEqual(2); // market health and market overview
+    expect(screen.getAllByText(/not NIFTY/).length).toBeGreaterThanOrEqual(2); // market health and the top bar
     expect(screen.getByText(/No real money/)).toBeInTheDocument();
 
     // navigation
@@ -44,7 +47,7 @@ describe("dashboard page (market overview)", () => {
     renderApp(<Dashboard />);
     const card = (await screen.findByText("Market health")).closest("section") as HTMLElement;
     for (const title of ["Index price action", "Leadership", "Breadth", "Feedback loop"]) {
-      expect(await within(card).findByText(title)).toBeInTheDocument();
+      expect(await within(card).findByRole("region", { name: title })).toBeInTheDocument();
     }
     expect(within(card).getAllByRole("img", { name: /^(green|amber|red|grey)$/ }).length).toBeGreaterThanOrEqual(8);
     expect(within(card).getByText(/changes no rule, scan or score/)).toBeInTheDocument();

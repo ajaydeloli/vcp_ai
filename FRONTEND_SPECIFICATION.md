@@ -2143,3 +2143,7 @@ Owner request: the Top VCP setups card leaves the dashboard (the Screener holds 
 ### 67.17b Market health charts trimmed (2026-10-07)
 
 The Market overview card no longer repeats the index and breadth charts (they are in Market health); it keeps the regime, breadth and days-on figures. The index chart shows only the 50- and 200-day averages (the 150-day line was dropped from the chart and the API `points`; the status reading is unchanged). The breadth chart carries the regime's 40% dashed line. Chart lines carry no names; the legend below each chart names them and the axis shows each value in the line's colour.
+
+### 67.17c Market overview merged into Market health (2026-10-07)
+
+The Market overview card is gone. Its Regime, Breadth and "On, last 20" figures and the regime rule sit at the top of the Breadth card in Market health, above the breadth chart whose dashed line is the 40% switch. The dashboard rows are now Market stage + Paper trading, then Recent activity. No data or rule changed.

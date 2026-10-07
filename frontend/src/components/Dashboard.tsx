@@ -3,7 +3,6 @@
 import { ActivityPanel } from "./ActivityPanel";
 import { KpiCards } from "./KpiCards";
 import { MarketHealth } from "./MarketHealth";
-import { MarketOverview } from "./MarketOverview";
 import { MarketStage } from "./MarketStage";
 import { Nav } from "./Nav";
 import { PaperPanel } from "./PaperPanel";
@@ -21,21 +20,14 @@ export function Dashboard() {
         <KpiCards />
         <MarketHealth />
         <div className="grid gap-4 xl:grid-cols-12">
-          <div className="min-w-0 xl:col-span-4 [&>section]:h-full">
+          <div className="min-w-0 xl:col-span-5 [&>section]:h-full">
             <MarketStage />
-          </div>
-          <div className="min-w-0 xl:col-span-8 [&>section]:h-full">
-            <MarketOverview />
-          </div>
-        </div>
-        <div className="grid gap-4 xl:grid-cols-12">
-          <div className="xl:relative xl:col-span-5 xl:min-h-[360px]">
-            <ActivityPanel />
           </div>
           <div className="xl:col-span-7 [&>section]:h-full">
             <PaperPanel />
           </div>
         </div>
+        <ActivityPanel />
       </main>
       <StatusBar />
     </div>

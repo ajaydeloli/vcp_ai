@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed (Dashboard: Market health charts)
+- Market overview card merged into the Breadth card of Market health (regime, breadth, days on, rule).
+
 - Top VCP setups card removed from the dashboard. Market health is four separate cards (Index price action, Leadership, Breadth, Feedback loop) with charts; `/api/v1/market/health` adds `points` and `trades`. Display only.
 
 ### Added (Dashboard: Market health)
