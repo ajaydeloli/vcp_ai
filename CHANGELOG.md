@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed (Dashboard: Stock Analysis default)
+- `/stocks` opens the best-ranked VCP setup instead of an empty page. Frontend only.
+
 ### Added (Dashboard: Stock Analysis, first design)
 - `/stocks/SYMBOL` page: chart, setup and Trend Template cards, setups across strategies, history and paper trades of the stock; `GET /api/v1/stocks/{symbol}/history`. Read-only.
 

@@ -2087,3 +2087,5 @@ Owner request: "first design the page, then I will review ... then update as I p
 **API.** One addition, `GET /api/v1/stocks/{symbol}/history?days=180` (1-400): the activity feed cut to the symbol, scan events left out. No other new query.
 
 **Not on the page:** sector, market cap, news, live prices (no data yet); anything that writes. First design: layout is open to the owner's review.
+
+**Default stock (2026-10-07).** `/stocks` without a symbol opens the best-ranked VCP setup (the first row of the VCP list, as on the dashboard); a search shows the page for any other stock.
