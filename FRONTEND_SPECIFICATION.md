@@ -2135,3 +2135,7 @@ Owner request: read the market the way Minervini does (price action first, then 
 | Feedback loop | Winners among the last 10 closed paper trades (all strategies) | 6+ | 4-5 | 0-3 |
 
 Grey means too little data to read (fewer than 5 judged breakouts, fewer than 10 closed paper trades, not enough index history). The thresholds are display conventions, not strategy parameters, and may be changed here without a strategy-version bump.
+
+### 67.17a Market health: four cards with charts (2026-10-07)
+
+Owner request: the Top VCP setups card leaves the dashboard (the Screener holds that list), and Market health shows four separate cards, each with a chart. `GET /api/v1/market/health` now also returns `points` (last 250 sessions: index rescaled to 100, its 50/150/200-day averages, new 52-week highs and lows, % above the 50- and 200-day averages, advance/decline line and its 50-day average) and `trades` (return of the last 10 closed paper trades). Cards: Index price action (index with its three averages), Leadership (new 52-week highs vs lows), Breadth (% above 50/200-day; A/D line with its average), Feedback loop (bars of the last paper trades). A line with too little history for its average is not drawn. The readings and thresholds of 67.17 are unchanged; display only.

@@ -291,6 +291,22 @@ export const healthItem = z.object({
 export const marketHealth = z.object({
   ...stamp,
   groups: z.array(z.object({ id: z.string(), title: z.string(), items: z.array(healthItem) })),
+  points: z.array(
+    z.object({
+      day: z.string(),
+      index: z.number(),
+      ma50: num,
+      ma150: num,
+      ma200: num,
+      highs: z.number(),
+      lows: z.number(),
+      above50: num,
+      above200: num,
+      ad_line: z.number(),
+      ad_ma50: num,
+    }),
+  ),
+  trades: z.array(z.object({ day: z.string(), ret_pct: z.number() })),
 });
 
 export type Strategies = z.infer<typeof strategies>;

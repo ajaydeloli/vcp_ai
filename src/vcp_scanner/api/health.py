@@ -16,7 +16,8 @@ from vcp_scanner.domain.features import FEATURES_CALCULATION_VERSION
 from vcp_scanner.domain.snapshot import LIVE_SNAPSHOT_ID as LIVE
 from vcp_scanner.paper.ledger import RULE_SET
 
-SESSIONS_SHOWN = 260  # history needed for a 200-day average of the index plus a slope
+SESSIONS_SHOWN = 470  # a 200-day average of the index plus a slope, for a year of chart
+CHART_DAYS = 250  # sessions drawn in the charts
 DIST_WINDOW = 25  # sessions looked at for distribution days
 DIST_DROP = -0.002  # an index fall of 0.2 % or more on higher volume is a distribution day
 DIST_AMBER, DIST_RED = 4, 6
@@ -276,6 +277,51 @@ def _leaders(cur: Cur, ctx: Context, sessions: list[date], index: list[float]) -
     )  # fmt: skip
 
 
+def _points(rows: list[tuple[Any, ...]], index: list[float]) -> list[m.HealthPoint]:
+    line: list[float] = []
+    total = 0.0
+    for r in rows:
+        total += float(r[7]) - float(r[8])
+        line.append(total)
+    first = len(rows) - CHART_DAYS if len(rows) > CHART_DAYS else 0
+    base = index[first] or 1.0
+    out: list[m.HealthPoint] = []
+    for i in range(first, len(rows)):
+        r = rows[i]
+        out.append(
+            m.HealthPoint(
+                day=r[0],
+                index=index[i] / base * 100.0,
+                ma50=None if (v := _sma(index, 50, i)) is None else v / base * 100.0,
+                ma150=None if (v := _sma(index, 150, i)) is None else v / base * 100.0,
+                ma200=None if (v := _sma(index, 200, i)) is None else v / base * 100.0,
+                highs=int(r[9]),
+                lows=int(r[10]),
+                above50=100.0 * int(r[2]) / int(r[1]) if r[1] else None,
+                above200=100.0 * int(r[4]) / int(r[3]) if r[3] else None,
+                ad_line=line[i],
+                ad_ma50=_sma(line, 50, i),
+            )
+        )
+    return out
+
+
+def _trades(cur: Cur, ctx: Context) -> list[m.HealthTrade]:
+    rows = cur.execute(
+        "SELECT event_date, metadata_json FROM paper_events WHERE rule_set = ?"
+        " AND event_type = 'EXIT' AND config_hash IN (SELECT unnest(?))"
+        " ORDER BY event_date DESC, recorded_at DESC",
+        [RULE_SET, [s.config_hash for s in ctx.strategies]],
+    ).fetchall()
+    out: list[m.HealthTrade] = []
+    for d, meta in rows[:TRADES_JUDGED]:
+        try:
+            out.append(m.HealthTrade(day=d, ret_pct=float(json.loads(meta or "{}")["ret_pct"])))
+        except (KeyError, ValueError, TypeError):
+            continue
+    return out[::-1]
+
+
 def _paper(cur: Cur, ctx: Context) -> m.HealthGroup:
     rows = cur.execute(
         "SELECT event_date, metadata_json FROM paper_events WHERE rule_set = ?"
@@ -319,7 +365,9 @@ def market_health(cur: Cur, ctx: Context, end: date, data_time: datetime) -> m.M
     ]  # fmt: skip
     rows = rows[-SESSIONS_SHOWN:]
     if len(rows) < 2:
-        return m.MarketHealthResponse(as_of=None, data_time=data_time, groups=[])
+        return m.MarketHealthResponse(
+            as_of=None, data_time=data_time, groups=[], points=[], trades=[]
+        )
     level, index = 1.0, []
     for r in rows:
         if r[5] is not None:
@@ -344,4 +392,7 @@ def market_health(cur: Cur, ctx: Context, end: date, data_time: datetime) -> m.M
         _breadth_group(rows),
         _paper(cur, ctx),
     ]
-    return m.MarketHealthResponse(as_of=sessions[-1], data_time=data_time, groups=groups)
+    return m.MarketHealthResponse(
+        as_of=sessions[-1], data_time=data_time, groups=groups,
+        points=_points(rows, index), trades=_trades(cur, ctx),
+    )  # fmt: skip

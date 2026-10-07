@@ -323,3 +323,7 @@ def test_market_health_reads_the_four_groups_and_says_when_data_is_too_thin(ro_e
             "ad"} <= set(items)  # fmt: skip
     assert items["above50"]["value"] is not None
     assert items["above200"]["status"] == "grey"
+    pts = body["points"]
+    assert pts and pts[0]["index"] == 100.0 and pts[-1]["day"] == body["as_of"]
+    assert pts[-1]["ma200"] is None and pts[-1]["ma50"] is not None  # short history: no line
+    assert [t["ret_pct"] for t in body["trades"]] == [-5.15]

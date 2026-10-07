@@ -11,12 +11,12 @@ describe("dashboard page (market overview)", () => {
 
     expect(await screen.findByText("Market health")).toBeInTheDocument();
     expect(await screen.findByText("Market stage")).toBeInTheDocument();
-    expect(await screen.findByText("Top VCP setups")).toBeInTheDocument();
+    expect(screen.queryByText("Top VCP setups")).not.toBeInTheDocument();
     await waitFor(() => expect(screen.getByText("symbols").previousElementSibling).toHaveTextContent("63"));
     expect(await screen.findByText("Recent activity")).toBeInTheDocument();
     expect(await screen.findByText("Market overview")).toBeInTheDocument();
     expect(await screen.findByText("Paper trading")).toBeInTheDocument();
-    await waitFor(() => expect(liveCharts().length).toBeGreaterThanOrEqual(2)); // the two market charts
+    await waitFor(() => expect(liveCharts().length).toBeGreaterThanOrEqual(6)); // market charts and the market health charts
 
     // moved to other pages
     expect(screen.queryByText("Watch list")).not.toBeInTheDocument();
@@ -58,12 +58,14 @@ describe("dashboard page (market overview)", () => {
     expect(within(card).getByText(/Most stocks are in Stage 2/)).toBeInTheDocument();
   });
 
-  it("the top setups link to the Stock Analysis page", async () => {
+  it("market health has four inner cards with charts", async () => {
     mockApi();
     renderApp(<Dashboard />);
-    const card = (await screen.findByText("Top VCP setups")).closest("section") as HTMLElement;
-    expect(await within(card).findByRole("link", { name: "ALPHA" })).toHaveAttribute("href", "/stocks/ALPHA");
-    expect(within(card).getByRole("link", { name: /Open the Screener/ })).toHaveAttribute("href", "/screener");
+    for (const t of ["Index price action", "Leadership", "Breadth", "Feedback loop"])
+      expect(await screen.findByRole("region", { name: t })).toBeInTheDocument();
+    for (const c of ["index-price-chart", "highs-lows-chart", "breadth-chart", "ad-line-chart"])
+      expect(await screen.findByTestId(`mini-${c}`)).toBeInTheDocument();
+    expect(screen.getByTestId("mini-trades-chart")).toBeInTheDocument();
   });
 
   it("reports an unreachable API instead of an empty page", async () => {

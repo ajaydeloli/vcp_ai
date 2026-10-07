@@ -148,8 +148,29 @@ class HealthGroup(BaseModel):
     items: list[HealthItem]
 
 
+class HealthPoint(BaseModel):
+    day: date
+    index: float  # VCP Universe Index, 100 at the first chart day
+    ma50: float | None
+    ma150: float | None
+    ma200: float | None
+    highs: int
+    lows: int
+    above50: float | None
+    above200: float | None
+    ad_line: float
+    ad_ma50: float | None
+
+
+class HealthTrade(BaseModel):
+    day: date
+    ret_pct: float
+
+
 class MarketHealthResponse(Stamped):
     groups: list[HealthGroup]
+    points: list[HealthPoint]
+    trades: list[HealthTrade]
 
 
 class SearchHit(BaseModel):

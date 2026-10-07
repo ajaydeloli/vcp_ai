@@ -9,7 +9,6 @@ import { Nav } from "./Nav";
 import { PaperPanel } from "./PaperPanel";
 import { StatusBar } from "./StatusBar";
 import { TopBar } from "./TopBar";
-import { TopSetups } from "./TopSetups";
 
 /** The overall market view: counts, market health, breadth, stage cycle, our index, best setups, activity, paper. */
 export function Dashboard() {
@@ -29,7 +28,6 @@ export function Dashboard() {
             <MarketOverview />
           </div>
         </div>
-        <TopSetups />
         <div className="grid gap-4 xl:grid-cols-12">
           <div className="xl:relative xl:col-span-5 xl:min-h-[360px]">
             <ActivityPanel />

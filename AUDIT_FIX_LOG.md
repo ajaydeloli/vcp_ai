@@ -2437,3 +2437,9 @@ Owner request after the Minervini market-reading outline: build steps 1 and 2. F
 **Tests.** API: four groups, statuses, grey on thin data, read-only digest, contract sample. Frontend: schema contract, four groups with coloured readings, error case.
 
 **Real-data check (6 Oct 2026).** Index above its 150- and 200-day averages and not the 50-day (amber), 6 distribution days (red), 25 highs vs 25 lows (amber), 73 of 150 breakouts failed (49 %, amber), leaders +7.0 % vs index -2.3 % (green), 31.6 % above the 50-day (red), 48.6 % above the 200-day (amber), A/D line below its average (red), no closed paper trade yet (grey).
+
+## Dashboard: Market health charts (2026-10-07)
+
+**Change.** Top VCP setups card removed from the dashboard; Market health split into four cards with charts; `/api/v1/market/health` returns `points` and `trades`. Display only; the regime rule, scans, scores, strategies and the ledger are untouched.
+
+**Tests.** API: chart series and trades; contract sample regenerated. Frontend: four cards and five charts; dashboard test no longer expects the top setups card.
