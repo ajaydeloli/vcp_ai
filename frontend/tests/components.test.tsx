@@ -266,7 +266,7 @@ describe("top bar", () => {
     mockApi();
     renderApp(<TopBar onPick={() => {}} />);
     expect(await screen.findByText("106.07")).toBeInTheDocument();
-    expect(screen.getByText("Our NSE universe index")).toBeInTheDocument();
+    expect(screen.getByText("VCP Universe Index")).toBeInTheDocument();
     expect(screen.getByText("+0.10%")).toBeInTheDocument();
     expect(screen.queryByText(/NIFTY/i)).not.toBeInTheDocument();
   });

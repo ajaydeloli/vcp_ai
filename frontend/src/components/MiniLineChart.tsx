@@ -65,8 +65,10 @@ export function MiniLineChart({ series, height = 120, threshold, label }: Props)
           color: "#f5a524",
           lineWidth: 1,
           lineStyle: LineStyle.Dashed,
-          axisLabelVisible: true,
-          title: threshold.title,
+          // no label on the line or the axis: it covered the latest value; the card's caption
+          // names the threshold
+          axisLabelVisible: false,
+          title: "",
         });
       }
       return line;

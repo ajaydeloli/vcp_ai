@@ -2113,3 +2113,5 @@ Owner request, after the multi-page mockup sheet: the dashboard shows the overal
 **Watchlist.** Several named lists made by the owner (tabs, + New watchlist, rename, delete with a confirmation step). A ★ on the Screener and Stock Analysis pages opens a small menu to put the stock in any list or in a new one. Lists stay in this browser only (§67.15); the first design's single list is carried over as "My watch list".
 
 **From the mockup sheet, not built (no data or a later phase):** NIFTY/SENSEX/BANK NIFTY tiles and the index chart switch (live data, D4), sector strength, Alerts, Fundamentals, Backtest, Research, Reports, Data Quality and Settings pages.
+
+**Index name and regime label (2026-10-07).** Our equal-weight index of the scanned stocks is shown as "VCP Universe Index" (still not NIFTY). On the breadth chart the 40 % threshold is a dashed line without its own label, because the label covered the latest value; the caption above the chart names the rule and the threshold.

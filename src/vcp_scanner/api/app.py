@@ -20,7 +20,7 @@ from vcp_scanner.api.db import ServingCopyMissing, ServingDb
 from vcp_scanner.data.providers._time import IST
 from vcp_scanner.serving import default_serving_path
 
-MARKET_LABEL = "Our NSE universe (equal-weight index of the stocks we scan), not NIFTY"
+MARKET_LABEL = "VCP Universe Index (equal-weight index of the stocks we scan), not NIFTY"
 #: ``?date=YYYY-MM-DD`` (module level: FastAPI resolves annotations in the module namespace).
 DateParam = Annotated[date | None, Query(alias="date")]
 ORIGINS = ("http://localhost:3000", "http://127.0.0.1:3000")

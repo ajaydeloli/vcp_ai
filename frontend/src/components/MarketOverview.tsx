@@ -60,13 +60,13 @@ export function MarketOverview() {
             </div>
           </div>
           <div>
-            <p className="mb-1 text-mute">Universe index vs its 50-day average (100 = first day shown)</p>
+            <p className="mb-1 text-mute">VCP Universe Index vs its 50-day average (100 = first day shown)</p>
             <MiniLineChart series={index} label="universe-index" />
           </div>
           <div>
             <p className="mb-1 text-mute">
               Share of the universe above its 50-day average (rule {m.regime_rule}: on at ≥{" "}
-              {m.breadth_threshold_pct}%)
+              {m.breadth_threshold_pct}%, dashed line)
             </p>
             <MiniLineChart
               series={breadth}

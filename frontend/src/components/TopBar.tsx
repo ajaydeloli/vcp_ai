@@ -19,7 +19,7 @@ function UniverseIndexTile() {
       title="Equal-weight index of the stocks we scan, 100 on the first day shown. Not NIFTY."
     >
       <div>
-        <p className="text-[10px] uppercase tracking-wide text-mute">Our NSE universe index</p>
+        <p className="text-[10px] uppercase tracking-wide text-mute">VCP Universe Index</p>
         <p className="text-lg font-semibold leading-tight tabular-nums text-ink">
           {fmtNum(last?.index, 2)}
           <span className={`ml-2 text-xs font-normal ${tone(change)}`}>{fmtPct(change, 2, true)}</span>

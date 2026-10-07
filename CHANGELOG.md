@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed (Dashboard: index name, breadth chart)
+- Our equal-weight index is named "VCP Universe Index". The breadth chart no longer prints the 40 % label over the latest value.
+
 ### Changed (Dashboard: page roles)
 - Dashboard is now a market overview (market stage, our index, breadth, top VCP setups, activity, paper); its watch list is the Screener (strategy selector, A+ VCP / VCP / VCP like / Forming / Pivot ready / Breakouts / On several strategies presets, setup class filter, pivot column); chart and setup details are on the Stock Analysis page; the Watchlist page holds several user-made lists (kept in the browser). `GET /api/v1/screener` gains `classification`, `min_strategies` and `pivot`.
 
