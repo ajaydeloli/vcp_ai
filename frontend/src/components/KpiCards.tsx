@@ -73,8 +73,8 @@ export function KpiCards() {
         titleClass="text-warn"
       />
 
-      <div className="rounded-lg border border-line bg-panel p-4">
-        <p className="text-[11px] font-medium uppercase tracking-wide text-mute">Today&apos;s scan</p>
+      <div className="rounded-lg border border-[#22d3ee]/40 bg-gradient-to-br from-[#22d3ee]/20 to-panel p-4">
+        <p className="text-[11px] font-medium uppercase tracking-wide text-[#22d3ee]">Today&apos;s scan</p>
         <div className="mt-3 grid grid-cols-3 gap-3">
           {[
             ["symbols", s?.universe_size],
@@ -91,10 +91,10 @@ export function KpiCards() {
       </div>
 
       <div
-        className="rounded-lg border border-line bg-panel p-4"
+        className="rounded-lg border border-[#f472b6]/40 bg-gradient-to-br from-[#f472b6]/20 to-panel p-4"
         title="Paper rule breadth50: new paper entries only while enough of our universe is above its 50-day average"
       >
-        <p className="text-[11px] font-medium uppercase tracking-wide text-mute">Market breadth</p>
+        <p className="text-[11px] font-medium uppercase tracking-wide text-[#f472b6]">Market breadth</p>
         <div className="mt-2 flex items-center gap-3">
           <Donut
             label="Share of our universe above and below its 50-day average"
