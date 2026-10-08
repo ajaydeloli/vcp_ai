@@ -14,7 +14,7 @@ export function Dashboard() {
     <div className="flex min-h-screen flex-col">
       <Nav />
       <main className="min-w-0 flex-1 space-y-4 p-4 pb-16">
-        <h1 className="sr-only">Dashboard</h1>
+        <h1 className="sr-only">Market Overview</h1>
         <LiveNotice />
         <Tiles />
         <MarketHealth />

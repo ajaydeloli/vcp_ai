@@ -34,7 +34,7 @@ describe("dashboard page (market view)", () => {
 
     // navigation
     const nav = screen.getByRole("navigation", { name: "Main" });
-    expect(within(nav).getByRole("link", { name: "Dashboard" })).toHaveAttribute("aria-current", "page");
+    expect(within(nav).getByRole("link", { name: "Market Overview" })).toHaveAttribute("aria-current", "page");
     for (const [name, href] of [["Screener", "/screener"], ["Stock Analysis", "/stocks"], ["Watchlist", "/watchlist"]] as const) {
       expect(within(nav).getByRole("link", { name })).toHaveAttribute("href", href);
     }

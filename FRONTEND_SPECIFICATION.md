@@ -2254,3 +2254,10 @@ The Company and Trend columns are removed. Company: the instrument table holds n
 ## 67.21 Stock Analysis: chart and details side by side (2026-10-08)
 
 The chart card now starts with the symbol (watch star, company name where known, and the Full analysis link when not on the stock page). Below it the card is two columns on a wide screen: the **chart on the left** (with the strategy buttons above it when the stock has setups in more than one strategy) and a **details panel on the right**, top to bottom: the stored **Close** (price, day change, "Close <date>, adjusted prices"); the **Live** box (last price, change, "Live, delayed N s" or "Close of <date>", source, and the day's open, high, low and volume where the feed has them, a dash where it does not); the strategy's **setup** (grade and status); and **Score, RS rank and Pivot**. On a narrow screen the panel goes below the chart. Nothing is added to the data: a missing value is a dash or "not available", never 0, and live values stay display only.
+
+### 67.21a Stock Analysis layout, second pass; page renamed (2026-10-08)
+
+The symbol (with the star, company name and Full analysis link) and the strategy buttons are now at the top of the left column, above the range buttons and the chart. The chart fills the height of the row (at least 380 px), so it grows to match the details on the right. The right side has no boxes: Close, Live, setup, and Score / RS rank / Pivot are separated by horizontal lines, as on the Leadership and Index price action cards of the market page.
+
+The **Dashboard** page is now called **Market Overview** (menu entry and page heading); its address stays `/dashboard`. Earlier sections of this specification call it the dashboard page.
+

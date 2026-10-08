@@ -68,22 +68,21 @@ function StockView({
   const money = last?.close != null && prev?.close != null ? last.close - prev.close : null;
   const company = bars.data?.company ?? stock.data?.company ?? null;
 
-  const side = "rounded-lg border border-line bg-panel2 p-3";
+  const side = "py-3 first:pt-0 last:pb-0";
   return (
     <Card label={`Chart of ${selection.symbol}`} className="min-w-0">
-      <div className="mb-3 flex flex-wrap items-baseline gap-x-3">
-        <span className="text-2xl font-semibold text-ink">{selection.symbol}</span>
-        <WatchStar symbol={selection.symbol} />
-        {company ? <span className="text-sm text-mute">{company}</span> : null}
-        {onStockPage ? null : (
-          <a href={`/stocks/${encodeURIComponent(selection.symbol)}`} className="text-xs text-accent hover:underline">
-            Full analysis →
-          </a>
-        )}
-      </div>
-
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_21rem]">
-        <div className="min-w-0">
+        <div className="flex min-w-0 flex-col">
+          <div className="mb-3 flex flex-wrap items-baseline gap-x-3">
+            <span className="text-2xl font-semibold text-ink">{selection.symbol}</span>
+            <WatchStar symbol={selection.symbol} />
+            {company ? <span className="text-sm text-mute">{company}</span> : null}
+            {onStockPage ? null : (
+              <a href={`/stocks/${encodeURIComponent(selection.symbol)}`} className="text-xs text-accent hover:underline">
+                Full analysis →
+              </a>
+            )}
+          </div>
           {setups.length > 1 ? (
             <div className="mb-3 flex flex-wrap items-center gap-2 text-xs" role="group" aria-label="Setup shown on the chart">
               {setups.map((s) => (
@@ -115,7 +114,7 @@ function StockView({
           {stock.isError ? <ErrorBox error={stock.error} /> : null}
         </div>
 
-        <aside aria-label={`Details of ${selection.symbol}`} className="flex min-w-0 flex-col gap-3">
+        <aside aria-label={`Details of ${selection.symbol}`} className="flex min-w-0 flex-col divide-y divide-line">
           <div className={side}>
             <p className="text-[11px] uppercase tracking-wide text-mute">Close</p>
             <div className="mt-1 flex flex-wrap items-baseline gap-x-3">
