@@ -95,7 +95,7 @@ describe("stock panel", () => {
     const chart = liveCharts()[0]!;
     const candles = chart.of("candles")[0]!;
     await waitFor(() => expect(candles.data).toHaveLength(fx.bars.bars.length));
-    expect(chart.of("line").map((l) => l.options.color)).toHaveLength(3);
+    expect(chart.of("line").map((l) => l.options.color)).toHaveLength(4); // three averages and the line chart
     await waitFor(() => expect(candles.markers.length).toBeGreaterThan(0));
     // marks on days without a bar are dropped: the sample's base start (a Saturday) and T2
     expect(candles.markers.map((m) => m.text)).toEqual(["P1", "P2", "T1 9.2%"]);

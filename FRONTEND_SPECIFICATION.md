@@ -2270,3 +2270,8 @@ On a wide screen a vertical line separates the chart from the details panel (67.
 ### 67.21c Chart: average toggles and OHLC bars (2026-10-08)
 
 Above the chart, next to "Adjusted prices", each moving average (SMA 20, SMA 50, SMA 200) has a check box in its line colour; unticking hides that line and ticking shows it again (all three are shown at first). A **Candles / OHLC** switch changes the price series between candlesticks and OHLC bars (a bar with the open as a tick on the left and the close as a tick on the right). The base start, contraction marks, breakout, pivot and stop lines show in both. The choices are kept while the page is open and are not saved.
+
+### 67.21d Chart toolbar (2026-10-08)
+
+The chart toolbar has three groups separated by vertical lines. Left, in order: the **range** buttons (3M, 6M, 1Y, All), then the **chart type** buttons, which are icons with a tooltip and an accessible name instead of words: Candlesticks, OHLC bars and Line (the closing price). Right-aligned: the **SMA 20 / SMA 50 / SMA 200** check boxes, then the note "Adjusted prices". The base start, contraction marks, breakout, pivot and stop lines show in all three chart types. This replaces the Candles / OHLC text switch of 67.21c.
+

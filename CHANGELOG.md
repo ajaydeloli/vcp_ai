@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed (Stock Analysis layout)
+- Stock chart toolbar: range group, then chart type icons (candlesticks, OHLC bars, line), with the SMA check boxes on the right; groups separated by vertical lines (spec 67.21d).
 - Stock chart: check boxes to show or hide SMA 20, SMA 50 and SMA 200, and a Candles / OHLC switch (spec 67.21c).
 - Stock Analysis: a vertical line between the chart and the details panel.
 - Stock Analysis: the symbol and strategy buttons are the first section of the right-hand panel; the left column is the chart alone (spec 67.21b).

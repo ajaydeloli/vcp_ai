@@ -91,11 +91,19 @@ describe("live prices on the pages", () => {
     expect(s20!.options.visible).toBe(true);
     await userEvent.click(screen.getByLabelText("SMA 200"));
     expect(s200!.options.visible).toBe(false);
-    await userEvent.click(screen.getByRole("button", { name: "OHLC" }));
+    await userEvent.click(screen.getByRole("button", { name: "OHLC bars" }));
     expect(chart.of("bars")[0]!.options.visible).toBe(true);
     expect(chart.of("candles")[0]!.options.visible).toBe(false);
-    await userEvent.click(screen.getByRole("button", { name: "Candles" }));
+    await userEvent.click(screen.getByRole("button", { name: "Line" }));
+    expect(chart.of("line")[3]!.options.visible).toBe(true);
+    expect(chart.of("bars")[0]!.options.visible).toBe(false);
+    expect(chart.of("line")[3]!.data.length).toBeGreaterThan(0);
+    await userEvent.click(screen.getByRole("button", { name: "Candlesticks" }));
     expect(chart.of("candles")[0]!.options.visible).toBe(true);
+    expect(chart.of("line")[3]!.options.visible).toBe(false);
+    expect(screen.getByRole("group", { name: "Chart range" })).toBeInTheDocument();
+    expect(screen.getByRole("group", { name: "Chart type" })).toBeInTheDocument();
+    expect(screen.getByRole("group", { name: "Moving averages" })).toBeInTheDocument();
   });
 
   it("a stock without a live price says not available", async () => {
