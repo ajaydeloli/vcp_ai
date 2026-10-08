@@ -20,7 +20,7 @@ export type ScreenerQuery = {
   pageSize: number;
 };
 
-export const PAGE_SIZE_SCREENER = 25;
+export const PAGE_SIZE_SCREENER = 15;
 
 export const DEFAULT_QUERY: ScreenerQuery = {
   strategy: "vcp",

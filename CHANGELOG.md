@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed (Screener filter bar)
+- Screener: 15 stocks per page instead of 25.
 - Screener: the "X of Y stocks match" count sits at the far right of the Results title line.
 - Screener: filters in a set order with Reset filters at the end of the single row; the card is collapsed by default and a More button shows the weekly stage row.
 - Screener: all filters in one row on wide screens; weekly stage and Reset filters on a second row.
