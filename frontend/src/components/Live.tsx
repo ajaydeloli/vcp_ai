@@ -49,7 +49,7 @@ export function LiveLine({ q }: { q: LiveQuote | undefined }) {
     <div className={box} data-testid="live-line">
       <p className="text-[11px] uppercase tracking-wide text-live">{q.mode === "closed" ? "Last" : "Live"}</p>
       <div className="mt-1 flex flex-wrap items-baseline gap-x-3">
-        <span className="text-2xl font-semibold tabular-nums text-ink">{fmtPrice(q.last_price)}</span>
+        <span className="text-base font-semibold tabular-nums text-ink">{fmtPrice(q.last_price)}</span>
         <span className={`text-sm tabular-nums ${tone(q.change)}`}>
           {q.change === null ? DASH : `${q.change > 0 ? "+" : ""}${fmtNum(q.change, 2)}`} ({fmtPct(q.change_pct, 2, true)})
         </span>
@@ -57,11 +57,11 @@ export function LiveLine({ q }: { q: LiveQuote | undefined }) {
       <p className="mt-1 text-[11px] text-mute">
         {liveLabel(q)} · {q.source ?? DASH} · display only
       </p>
-      <dl className="mt-3 grid grid-cols-4 gap-2 border-t border-line pt-2 text-center">
+      <dl className="mt-3 grid grid-cols-4 divide-x divide-line border-t border-line pt-2 text-center">
         {day.map(([k, v]) => (
-          <div key={k}>
+          <div key={k} className="px-1">
             <dt className="text-[11px] text-mute">{k}</dt>
-            <dd className="text-xs tabular-nums text-ink">{v}</dd>
+            <dd className="text-base font-semibold tabular-nums text-ink">{v}</dd>
           </div>
         ))}
       </dl>

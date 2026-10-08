@@ -2282,3 +2282,7 @@ The range group is labelled "Range :" and the chart type group "Chart :"; the SM
 The four cards under the chart (VCP pattern, Trend Template, Fundamentals, Score breakdown) are the same width (a quarter of the row each on a wide screen, two per row on a tablet) and the same height (the tallest of them).
 
 On a wide screen the chart takes three quarters of the card and the details panel one quarter (the vertical line sits at the three-quarter mark, in line with the edge of the fourth overview card below); this replaces the fixed 21 rem panel of 67.21b.
+
+### 67.21f Details panel polish (2026-10-08)
+
+Every figure in the details panel (Close, Live price, Open, High, Low, Volume, Score, RS rank, Pivot) is the same size and weight; the day change next to Close and Live is one smaller size. Open, High, Low and Volume are separated by vertical lines. The order is now: symbol and strategies, Close, Live, Score / RS rank / Pivot, and last the setup (grade and status).
