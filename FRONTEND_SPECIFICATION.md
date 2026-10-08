@@ -2249,3 +2249,4 @@ The Company and Trend columns are removed. Company: the instrument table holds n
 - The Results title and the count ("X of Y stocks match") are on one line, the count at the far right.
 - The screener shows 15 stocks per page (was 25), so the results card fits the screen without scrolling.
 - The note under the results table ("A filter on the daily scan for research, not buy signals...") is removed. The status bar still carries "Research tool, not financial advice".
+- A **#** column (the first column, before the watch star) numbers the rows in the current list; the number carries on across pages (page 2 of 15 per page starts at 16). It is not sortable and is not stored.

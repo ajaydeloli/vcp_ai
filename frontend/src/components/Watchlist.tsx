@@ -211,11 +211,11 @@ export function Watchlist() {
                   </tr>
                 </thead>
                 <tbody>
-                  {rows.map((r) => (
+                  {rows.map((r, i) => (
                     <tr key={r.instrument_id} className="border-t border-line">
                       {cols.map((c) => (
                         <td key={c.key} className={`px-3 py-1.5 ${alignClass(c)}`}>
-                          {c.render(r, live.bySymbol.get(r.symbol))}
+                          {c.render(r, live.bySymbol.get(r.symbol), i + 1)}
                         </td>
                       ))}
                       <td className="px-2 py-1.5 text-right">

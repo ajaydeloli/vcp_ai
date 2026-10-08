@@ -13,6 +13,8 @@ describe("screener page", () => {
     expect(await screen.findByText(/stocks match/)).toBeInTheDocument();
     const link = await screen.findByRole("link", { name: "ALPHA" });
     expect(link).toHaveAttribute("href", "/stocks/ALPHA");
+    expect(screen.getByRole("columnheader", { name: "#" })).toBeInTheDocument();
+    expect(link.closest("tr")?.querySelector("td:nth-child(1)")).toHaveTextContent("1");
     const nav = screen.getByRole("navigation", { name: "Main" });
     expect(within(nav).getByRole("link", { name: "Screener" })).toHaveAttribute("aria-current", "page");
   });
