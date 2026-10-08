@@ -136,7 +136,7 @@ describe("dashboard page (market view)", () => {
     expect(paper.className).toMatch(/border-\[#fb923c\]/);
     expect(act.className).toMatch(/border-\[#a3e635\]/);
     for (const card of [paper, act, await screen.findByRole("region", { name: "Setups today" })])
-      expect(card.className).toMatch(/lg:h-\[22rem\]/);
+      expect(card.className).toMatch(/lg:h-\[25rem\]/);
   });
 
   it("market health states a verdict with a 0 to 100 score", async () => {
@@ -161,7 +161,7 @@ describe("dashboard page (market view)", () => {
     for (const t of ["New 52-week highs", "New 52-week lows", "Failed breakouts", "Leaders vs index"])
       expect(fig.getByText(t)).toBeInTheDocument();
     const bf = within(await screen.findByRole("complementary", { name: "Breadth figures" }));
-    for (const t of ["Regime", "Above 50-day average", "Above 200-day average", "Advancers minus decliners"])
+    for (const t of ["Regime", "Above 50-day average", "Above 200-day average", "Net advancers"])
       expect(bf.getByText(t)).toBeInTheDocument();
     expect(screen.getByTestId("mini-trades-chart")).toBeInTheDocument();
     expect(await screen.findByTestId("mini-paper-progress")).toHaveTextContent("1 / 30");

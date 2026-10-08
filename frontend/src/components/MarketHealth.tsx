@@ -125,7 +125,7 @@ function Trades({ trades }: { trades: Health["trades"] }) {
 }
 
 /** All eight dashboard cards are the same height; what does not fit scrolls inside the card. */
-const SIZE = "lg:h-[22rem] lg:overflow-y-auto";
+const SIZE = "lg:h-[25rem] lg:overflow-y-auto";
 
 /** Each card has its own border colour, with a faint tint of it in the background. */
 export const BOX = {
@@ -274,7 +274,7 @@ function BreadthFigures({ group }: { group: Health["groups"][number] }) {
       </div>
       <div className="border-t border-line pt-3">
         <Figure
-          label="Advancers minus decliners"
+          label="Net advancers"
           value={net === null ? "—" : `${net >= 0 ? "+" : ""}${net.toFixed(0)}`}
           sub="today"
           color={net === null ? "text-ink" : net >= 0 ? "text-up" : "text-down"}
