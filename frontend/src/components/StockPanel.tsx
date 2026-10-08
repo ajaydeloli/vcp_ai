@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useBars, useLiveQuotes, useSetups, useStockSetups } from "@/lib/api";
 import type { RangeId } from "@/lib/chartData";
-import { DASH, fmtDay, fmtInt, fmtNum, fmtPct, fmtPrice, strategyLabel, tone } from "@/lib/fmt";
+import { DASH, fmtDay, fmtInt, fmtNum, fmtPct, fmtPrice, sentence, strategyLabel, tone } from "@/lib/fmt";
 import { LiveLine } from "./Live";
 import { WatchStar } from "./WatchStar";
 import { ChartView } from "./ChartView";
@@ -130,10 +130,11 @@ function StockView({
             </p>
           </div>
           <LiveLine q={live.bySymbol.get(selection.symbol.toUpperCase())} />
-          <div className={`${side} grid grid-cols-3 divide-x divide-line`}>
+          <div className={`${side} grid grid-cols-4 divide-x divide-line`}>
             <Figure label="Score" value={fmtNum(active?.score, 0)} />
             <Figure label="RS rank" value={fmtInt(rsRank)} />
             <Figure label="Pivot" value={fmtPrice(active?.pivot)} />
+            <Figure label="Stage" value={stock.data?.weekly_stage ? sentence(stock.data.weekly_stage) : DASH} />
           </div>
           {active ? (
             <div className={side}>

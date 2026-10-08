@@ -2286,3 +2286,5 @@ On a wide screen the chart takes three quarters of the card and the details pane
 ### 67.21f Details panel polish (2026-10-08)
 
 Every figure in the details panel (Close, Live price, Open, High, Low, Volume, Score, RS rank, Pivot) is the same size and weight; the day change next to Close and Live is one smaller size. Open, High, Low and Volume are separated by vertical lines. The order is now: symbol and strategies, Close, Live, Score / RS rank / Pivot, and last the setup (grade and status).
+
+The figures row of the details panel has a fourth element, **Stage**, after Pivot: the stock's weekly stage from the latest scan (Stage 1 to 4 or Transition), the same value as "Weekly stage" on the Trend Template card; a dash when the scan has none (67.21f).

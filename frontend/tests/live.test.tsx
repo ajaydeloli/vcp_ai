@@ -71,10 +71,11 @@ describe("live prices on the pages", () => {
     renderApp(<StockPanel selection={{ symbol: "ALPHA", strategy: "vcp" }} onSelect={() => {}} onStockPage />);
     const side = await screen.findByRole("complementary", { name: "Details of ALPHA" });
     await waitFor(() => expect(within(side).getByTestId("live-line")).toHaveTextContent("102"));
-    for (const label of ["Close", "Score", "RS rank", "Pivot", "Open", "High", "Low", "Volume"]) {
+    for (const label of ["Close", "Score", "RS rank", "Pivot", "Stage", "Open", "High", "Low", "Volume"]) {
       expect(within(side).getByText(label)).toBeInTheDocument();
     }
     expect(within(side).getByText(/adjusted prices/)).toBeInTheDocument();
+    expect(within(side).getByText("Stage").nextElementSibling).toHaveTextContent(/Stage \d|Transition/);
   });
 
   it("the chart can hide each average and switch to OHLC bars", async () => {

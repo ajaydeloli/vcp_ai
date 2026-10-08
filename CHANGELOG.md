@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed (Stock Analysis layout)
+- Details panel: Stage (weekly stage) added after Pivot.
 - Details panel: one font size for all figures, vertical lines between open, high, low and volume, and the setup section moved below Score / RS rank / Pivot.
 - Stock Analysis: chart three quarters, details one quarter of the card.
 - Stock Analysis: the VCP pattern, Trend Template, Fundamentals and Score breakdown cards are equal in width and height.
