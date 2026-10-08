@@ -125,7 +125,7 @@ function Trades({ trades }: { trades: Health["trades"] }) {
 }
 
 /** All eight dashboard cards are the same height; what does not fit scrolls inside the card. */
-const SIZE = "lg:h-[32rem] lg:overflow-y-auto";
+const SIZE = "lg:h-[22rem] lg:overflow-y-auto";
 
 /** Each card has its own border colour, with a faint tint of it in the background. */
 export const BOX = {
@@ -311,7 +311,7 @@ function StageCard({ stages, box }: { stages: Health["stages"]; box: string }) {
         <>
           <div className="flex gap-4">
             <div className="min-w-0 flex-1">
-              <MiniLineChart series={lines} height={270} plain label="stage-chart" />
+              <MiniLineChart series={lines} height={200} plain label="stage-chart" />
               <Legend items={STAGES.map((st) => [st.label, st.color])} />
             </div>
             <aside aria-label="Stage figures" className="w-40 shrink-0 space-y-3 border-l border-line pl-4">
@@ -350,23 +350,23 @@ function Charts({ d, id }: { d: Health; id: string }) {
   if (id === "index")
     return (
       <>
-        <MiniLineChart series={index} height={270} plain label="index-price-chart" />
+        <MiniLineChart series={index} height={200} plain label="index-price-chart" />
         <Legend items={[["VQI", C.ink], ["50-day", C.warn], ["200-day", C.down]]} />
       </>
     );
   if (id === "leadership")
     return (
       <>
-        <MiniLineChart series={highs} height={270} plain whole label="highs-lows-chart" />
+        <MiniLineChart series={highs} height={200} plain whole label="highs-lows-chart" />
         <Legend items={[["New 52-week highs", C.up], ["New 52-week lows", C.down]]} />
       </>
     );
   if (id === "breadth")
     return (
       <>
-        <MiniLineChart series={breadth} height={150} plain threshold={{ value: 40, title: "40%" }} label="breadth-chart" />
+        <MiniLineChart series={breadth} height={110} plain threshold={{ value: 40, title: "40%" }} label="breadth-chart" />
         <Legend items={[["% above 50-day", C.blue], ["% above 200-day", C.violet], ["dashed: regime on at 40%", C.warn]]} />
-        <MiniLineChart series={ad} height={100} plain label="ad-line-chart" />
+        <MiniLineChart series={ad} height={80} plain label="ad-line-chart" />
         <Legend items={[["Advance/decline line", C.ink], ["its 50-day average", C.warn]]} />
       </>
     );

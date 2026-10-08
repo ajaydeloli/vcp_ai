@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed (Dashboard redesign)
-- Recent activity rows are larger (text and spacing) so about six show at a time.
+- Cards are shorter (22 rem, charts 200 px): Recent activity shows about six rows at a time; Recent activity rows keep their original size.
 - All eight dashboard cards are one height; Paper trading and Recent activity have their own colours; Recent activity lists the stocks that joined or left the universe with the reason (spec 67.18g).
 - Market stage card: chart of the share of scanned stocks in Stage 1-4 over 52 weeks (rebuilt with the scan's own stage rule, read-only) with today's share and count of each stage on the right (spec 67.18f).
 - Market stage and Feedback loop cards swapped (Market stage now sits beside Breadth).

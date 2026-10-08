@@ -136,7 +136,7 @@ describe("dashboard page (market view)", () => {
     expect(paper.className).toMatch(/border-\[#fb923c\]/);
     expect(act.className).toMatch(/border-\[#a3e635\]/);
     for (const card of [paper, act, await screen.findByRole("region", { name: "Setups today" })])
-      expect(card.className).toMatch(/lg:h-\[32rem\]/);
+      expect(card.className).toMatch(/lg:h-\[22rem\]/);
   });
 
   it("market health states a verdict with a 0 to 100 score", async () => {

@@ -44,7 +44,7 @@ export function ActivityPanel() {
       ) : events.length === 0 ? (
         <Empty>Nothing to show in the last 7 days.</Empty>
       ) : (
-        <ul className="min-h-0 max-h-72 flex-1 space-y-4 overflow-auto pr-1 text-sm lg:max-h-none">
+        <ul className="min-h-0 max-h-72 flex-1 space-y-2 overflow-auto pr-1 text-xs lg:max-h-none">
           {events.map((e, i) => {
             const icon = ICON[e.kind] ?? { sym: "•", cls: "text-mute" };
             return (
@@ -58,7 +58,7 @@ export function ActivityPanel() {
                     {e.kind === "DAILY_RUN" ? "Daily run: " : ""}
                     {e.text}
                   </span>
-                  <span className="mt-0.5 block text-xs text-mute">
+                  <span className="block text-[11px] text-mute">
                     {fmtDay(e.day)}
                     {e.strategy_id ? ` · ${strategyLabel(e.strategy_id)}` : ""}
                   </span>
