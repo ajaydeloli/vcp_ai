@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useScreener, useSearch } from "@/lib/api";
+import { useLiveQuotes, useScreener, useSearch } from "@/lib/api";
 import { fmtDay } from "@/lib/fmt";
 import { DEFAULT_QUERY } from "@/lib/screener";
 import { useWatchlists } from "@/lib/watchlist";
@@ -166,6 +166,7 @@ export function Watchlist() {
   const symbols = active.symbols;
   const result = useScreener({ ...DEFAULT_QUERY, symbols, pageSize: 100 }, symbols.length > 0);
   const rows = result.data?.rows ?? [];
+  const live = useLiveQuotes(rows.map((r) => r.symbol), rows.length > 0);
   const found = new Set(rows.map((r) => r.symbol));
   const missing = result.data ? symbols.filter((s) => !found.has(s)) : [];
   const cols = COLS.filter((c) => c.key !== "watch");
@@ -214,7 +215,7 @@ export function Watchlist() {
                     <tr key={r.instrument_id} className="border-t border-line">
                       {cols.map((c) => (
                         <td key={c.key} className={`px-2 py-1.5 ${c.align === "right" ? "text-right" : ""}`}>
-                          {c.render(r)}
+                          {c.render(r, live.bySymbol.get(r.symbol))}
                         </td>
                       ))}
                       <td className="px-2 py-1.5 text-right">

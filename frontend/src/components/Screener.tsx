@@ -1,11 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { useScreener, useStrategies } from "@/lib/api";
+import { useLiveQuotes, useScreener, useStrategies } from "@/lib/api";
 import { DASH, fmtDay, fmtInt, fmtNum, fmtPct, fmtPrice, strategyLabel, tone } from "@/lib/fmt";
 import { pageNumbers } from "@/lib/lists";
 import { DEFAULT_QUERY, PRESETS, presetQuery, STAGES, type ScreenerQuery } from "@/lib/screener";
-import type { ScreenerRow } from "@/lib/schemas";
+import type { LiveQuote, ScreenerRow } from "@/lib/schemas";
+import { LiveCell, LiveNotice } from "./Live";
 import { Nav } from "./Nav";
 import { WatchStar } from "./WatchStar";
 import { StatusBar } from "./StatusBar";
@@ -18,7 +19,7 @@ export type Col = {
   key: string;
   label: string;
   align?: "right";
-  render: (r: ScreenerRow) => React.ReactNode;
+  render: (r: ScreenerRow, live?: LiveQuote) => React.ReactNode;
 };
 
 const yesNo = (v: boolean | null) =>
@@ -55,7 +56,8 @@ export const COLS: Col[] = [
   },
   { key: "near_high", label: "Near high", render: (r) => yesNo(r.near_52w_high) },
   { key: "rs_rank", label: "RS", align: "right", render: (r) => fmtInt(r.rs_rank) },
-  { key: "close", label: "Price", align: "right", render: (r) => fmtPrice(r.close) },
+  { key: "close", label: "Close", align: "right", render: (r) => fmtPrice(r.close) },
+  { key: "live", label: "Live", align: "right", render: (_r, live) => <LiveCell q={live} /> },
   {
     key: "change_pct",
     label: "Change",
@@ -354,6 +356,7 @@ export function Screener() {
   const strategyIds = strategies.data?.strategies.map((x) => x.strategy_id) ?? ["vcp"];
   const result = useScreener(query);
   const data = result.data;
+  const live = useLiveQuotes(data?.rows.map((r) => r.symbol) ?? [], !!data);
   const change = (next: Partial<ScreenerQuery>) => setQuery((q) => ({ ...q, ...next, page: 1 }));
   const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
   const active = PRESETS.find((p) => same({ ...presetQuery(p, query.q, query.strategy), page: 1 }, { ...query, page: 1 }));
@@ -392,7 +395,8 @@ export function Screener() {
           <div className="min-w-0 xl:col-span-3">
             <Filters q={query} stageCounts={data?.stage_counts ?? {}} strategyIds={strategyIds} onChange={change} />
           </div>
-          <div className="min-w-0 xl:col-span-9">
+          <div className="min-w-0 space-y-3 xl:col-span-9">
+            <LiveNotice />
             <Card
               title="Results"
               subtitle={data ? `${fmtInt(data.total)} of ${fmtInt(data.scanned)} stocks match` : undefined}
@@ -449,7 +453,7 @@ export function Screener() {
                           <tr key={r.instrument_id} className="border-t border-line">
                             {COLS.map((c) => (
                               <td key={c.key} className={`px-2 py-1.5 ${c.align === "right" ? "text-right" : ""}`}>
-                                {c.render(r)}
+                                {c.render(r, live.bySymbol.get(r.symbol))}
                               </td>
                             ))}
                           </tr>

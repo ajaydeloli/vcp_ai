@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (D4: live prices, display only)
+- `src/vcp_scanner/live/`: in-memory live quote cache with an Upstox feed (default) and a Kite feed (one `provider` setting in `config/live.yaml`), refreshed only during NSE hours, with clear states for a missing token, rate limit, error and stale data. No automatic provider switch; no writes to any database or file; the daily run does not import it.
+- API: `GET /api/v1/live/quotes`, `/live/indices`, `/live/status` (cache only, stamped live or closed).
+- Dashboard: NIFTY 50 and SENSEX tiles with live value, change and intraday line; a Live column beside the stored Close on the screener and watch list; a live line on the stock page; a feed banner and status-bar chip. Stored values and rankings are unchanged.
+- Provider additions (additive): `UpstoxProvider.get_full_quotes/get_intraday_candles`, `KiteProvider.get_live_quotes`, `ProviderRateLimited`.
+- Tests: fake-provider unit tests, isolation test, contract samples; spec 67.19.
+
 ### Changed (Dashboard redesign)
 - Removed the Details link from the Feedback loop card (the sentence stays as the tooltip of each reading).
 - Removed the explanatory footnotes under the Market stage chart and under the market cards (the spec keeps the explanation).

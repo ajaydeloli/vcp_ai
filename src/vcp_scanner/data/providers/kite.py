@@ -7,11 +7,12 @@ from __future__ import annotations
 
 import logging
 from datetime import UTC, date, datetime
+from typing import Any
 
 from vcp_scanner.data.identity import mint_instrument_id
 from vcp_scanner.data.providers._time import daily_bar_timestamp
 from vcp_scanner.domain.enums import Timeframe
-from vcp_scanner.domain.errors import ProviderError
+from vcp_scanner.domain.errors import ProviderAuthError, ProviderError, ProviderRateLimited
 from vcp_scanner.domain.market import (
     Candle,
     Instrument,
@@ -238,3 +239,22 @@ class KiteProvider:
 
     def get_quotes(self, instruments: list[Instrument]) -> list[Quote]:
         raise NotImplementedError("Quotes not implemented yet")
+
+    def get_live_quotes(self, keys: list[str]) -> dict[str, dict[str, Any]]:
+        """Raw ``quote`` entries keyed ``EXCHANGE:TRADINGSYMBOL`` (``NSE:INFY``,
+        ``NSE:NIFTY 50``) for the live display feed (FRONTEND_SPECIFICATION 67.19). A key Kite
+        does not return is absent. Raises ``ProviderAuthError`` (no or rejected token),
+        ``ProviderRateLimited`` or ``ProviderError``; messages never carry the token."""
+        if not keys:
+            return {}
+        if not self._access_token:
+            raise ProviderAuthError("Kite access token is not set")
+        try:
+            data: dict[str, dict[str, Any]] = self._kite.quote(keys)
+        except TokenException as e:
+            raise ProviderAuthError(f"Kite quote: {type(e).__name__}") from e
+        except Exception as e:
+            if "too many requests" in str(e).lower():
+                raise ProviderRateLimited("Kite quote: too many requests") from e
+            raise ProviderError(f"Kite quote error: {type(e).__name__}") from e
+        return data

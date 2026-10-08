@@ -4,6 +4,7 @@ import { ActivityPanel } from "./ActivityPanel";
 import { MarketHealth } from "./MarketHealth";
 import { Nav } from "./Nav";
 import { PaperPanel } from "./PaperPanel";
+import { LiveNotice } from "./Live";
 import { StatusBar } from "./StatusBar";
 import { Tiles } from "./Tiles";
 
@@ -14,6 +15,7 @@ export function Dashboard() {
       <Nav />
       <main className="min-w-0 flex-1 space-y-4 p-4 pb-16">
         <h1 className="sr-only">Dashboard</h1>
+        <LiveNotice />
         <Tiles />
         <MarketHealth />
         <div className="grid gap-4 lg:grid-cols-2">

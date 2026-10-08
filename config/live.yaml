@@ -1,0 +1,15 @@
+# Live prices for the read-only dashboard (FRONTEND_SPECIFICATION 67.19). DISPLAY ONLY:
+# nothing here reaches a scan, score, label, regime, universe, strategy or the paper ledger.
+# Credentials come from .env (UPSTOX_ACCESS_TOKEN / KITE_API_KEY + KITE_ACCESS_TOKEN), never here.
+enabled: true
+provider: upstox            # upstox | kite  (one setting; there is no automatic switch)
+poll_interval_seconds: 15   # while a page is open and the market is open
+stale_after_seconds: 120    # older than this shows as "stale"
+idle_after_seconds: 120     # stop polling when no page has asked for this long
+auth_retry_seconds: 60      # re-read .env and retry this often after "needs a fresh token"
+max_backoff_seconds: 300
+kite_batch: 200             # instruments per Kite quote call (Kite allows 1 call per second)
+indices:                    # the keys are the provider's own; a key it rejects shows "not available"
+  - {id: NIFTY50, label: NIFTY 50, upstox_key: "NSE_INDEX|Nifty 50", kite_key: "NSE:NIFTY 50"}
+  - {id: SENSEX, label: SENSEX, upstox_key: "BSE_INDEX|SENSEX", kite_key: "BSE:SENSEX"}
+  - {id: NIFTY500, label: NIFTY 500, upstox_key: "NSE_INDEX|Nifty 500", kite_key: "NSE:NIFTY 500"}

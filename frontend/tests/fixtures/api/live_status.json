@@ -1,0 +1,16 @@
+{
+ "as_of": null,
+ "data_time": "2026-10-06T14:00:00+05:30",
+ "mode": "unavailable",
+ "feed": {
+  "state": "live",
+  "message": "2 of 5 stocks have no price",
+  "provider": "UPSTOX",
+  "market": "open",
+  "last_success_at": "2026-10-06T14:00:00+05:30",
+  "retry_at": null,
+  "stocks_covered": 3,
+  "stocks_total": 5,
+  "holidays_known": false
+ }
+}

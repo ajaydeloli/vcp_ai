@@ -1,7 +1,8 @@
 "use client";
 
-import { useStatus } from "@/lib/api";
+import { useLiveStatus, useStatus } from "@/lib/api";
 import { fmtDay, fmtStamp } from "@/lib/fmt";
+import { feedState } from "@/lib/live";
 
 export const DISCLAIMER = "Research tool, not financial advice";
 
@@ -17,6 +18,8 @@ function Chip({ label, value, ok }: { label: string; value: string; ok: boolean 
 
 export function StatusBar() {
   const status = useStatus();
+  const liveStatus = useLiveStatus();
+  const feed = liveStatus.data?.feed;
   const s = status.data;
   const warnings = s?.warnings ?? [];
   const scan = s?.strategies.reduce<string | null>(
@@ -51,6 +54,7 @@ export function StatusBar() {
               <Chip label="Prices to" value={fmtDay(s.prices_date)} ok />
               <Chip label="Last scan" value={fmtDay(scan)} ok />
               <Chip label="Data copy" value={fmtStamp(s.data_time)} ok />
+              <Chip label="Live feed" value={feedState(feed)} ok={feed?.state === "live"} />
             </span>
           </>
         ) : (

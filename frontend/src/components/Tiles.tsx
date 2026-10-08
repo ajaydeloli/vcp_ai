@@ -1,7 +1,8 @@
 "use client";
 
-import { useMarket, useMarketHealth, useSummary } from "@/lib/api";
-import { DASH, fmtDay, fmtInt, fmtNum, fmtPct, tone } from "@/lib/fmt";
+import { useLiveIndices, useMarket, useMarketHealth, useSummary } from "@/lib/api";
+import { DASH, fmtDay, fmtInt, fmtNum, fmtPct, fmtPrice, tone } from "@/lib/fmt";
+import { feedNotice, liveLabel, unavailable } from "@/lib/live";
 import { Sparkline } from "./Rings";
 
 const BOX = "flex min-h-[116px] flex-col justify-between rounded-lg border bg-gradient-to-br to-panel p-4";
@@ -29,7 +30,9 @@ function UniverseIndexTile() {
         </p>
         <Sparkline values={days.slice(-60).flatMap((d) => (d.index === null ? [] : [d.index]))} color="#4aa3ff" />
       </div>
-      <p className="text-xs text-mute">Equal weight, the stocks we scan, not NIFTY</p>
+      <p className="text-xs text-mute">
+        {last ? `Close of ${fmtDay(last.day)} · ` : ""}equal weight, the stocks we scan, not NIFTY
+      </p>
     </div>
   );
 }
@@ -58,17 +61,46 @@ function ScanTile() {
   );
 }
 
-/** NIFTY 50 and SENSEX: no index data is stored yet, so the tile says so rather than show a number. */
-function IndexFeedTile({ name, color, box }: { name: string; color: string; box: string }) {
+/** NIFTY 50 and SENSEX from the live feed (display only; nothing stored, nothing in any rule).
+ *  Labelled "Live, delayed N s" or "Close of <date>"; with no price it says why, never 0. */
+function IndexLiveTile({ id, name, color, box }: { id: string; name: string; color: string; box: string }) {
+  const live = useLiveIndices();
+  const idx = live.data?.indices.find((i) => i.id === id);
+  const price = idx?.available ? idx.last_price : null;
+  const notice = feedNotice(live.data?.feed);
+  const note =
+    price !== null && idx
+      ? liveLabel(idx)
+      : live.isError
+        ? "Live prices are not reachable"
+        : !idx
+          ? "Loading live prices"
+          : (notice ?? unavailable(idx));
+  const line = (idx?.points ?? []).map((p) => p.v);
   return (
-    <div className={`${BOX} ${box}`} title={`${name} needs an index data feed, not added yet`}>
+    <div
+      className={`${BOX} ${box}`}
+      title={`${name} from the live feed${idx?.source ? ` (${idx.source})` : ""}. Display only: it feeds no scan, score or rule.`}
+    >
       <p className="text-[11px] font-medium uppercase tracking-wide" style={{ color }}>
         {name}
       </p>
-      <p className="text-3xl font-semibold tabular-nums text-ink" data-testid={`index-${name}`}>
-        {DASH}
+      <div className="flex items-end justify-between gap-3">
+        <div>
+          <p className="text-3xl font-semibold leading-tight tabular-nums text-ink" data-testid={`index-${name}`}>
+            {fmtPrice(price)}
+          </p>
+          {price !== null && idx ? (
+            <p className={`text-xs tabular-nums ${tone(idx.change)}`} data-testid={`index-change-${name}`}>
+              {idx.change === null ? DASH : `${idx.change > 0 ? "+" : ""}${fmtNum(idx.change, 2)}`} ({fmtPct(idx.change_pct, 2, true)})
+            </p>
+          ) : null}
+        </div>
+        {price !== null ? <Sparkline values={line} color={color} /> : null}
+      </div>
+      <p className="text-xs text-mute" data-testid={`index-note-${name}`}>
+        {note}
       </p>
-      <p className="text-xs text-mute">Needs an index feed</p>
     </div>
   );
 }
@@ -131,8 +163,8 @@ export function Tiles() {
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
       <UniverseIndexTile />
       <ScanTile />
-      <IndexFeedTile name="NIFTY 50" color="#8b5cf6" box="border-violet/40 from-violet/20" />
-      <IndexFeedTile name="SENSEX" color={ORANGE} box="border-[#fb923c]/40 from-[#fb923c]/20" />
+      <IndexLiveTile id="NIFTY50" name="NIFTY 50" color="#8b5cf6" box="border-violet/40 from-violet/20" />
+      <IndexLiveTile id="SENSEX" name="SENSEX" color={ORANGE} box="border-[#fb923c]/40 from-[#fb923c]/20" />
       <ScoreTile />
     </div>
   );

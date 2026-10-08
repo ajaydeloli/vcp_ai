@@ -10,6 +10,7 @@ internal ``instrument_id`` comes from the NSE security master / Kite (see ``iden
 from __future__ import annotations
 
 import logging
+from collections.abc import Sequence
 from datetime import UTC, date, datetime
 from typing import Any
 from urllib.parse import quote
@@ -20,7 +21,7 @@ from urllib3.util.retry import Retry
 
 from vcp_scanner.data.providers._time import daily_bar_timestamp
 from vcp_scanner.domain.enums import Timeframe
-from vcp_scanner.domain.errors import ProviderError
+from vcp_scanner.domain.errors import ProviderAuthError, ProviderError, ProviderRateLimited
 from vcp_scanner.domain.market import (
     Candle,
     Instrument,
@@ -62,6 +63,9 @@ class UpstoxProvider:
         if access_token:
             headers["Authorization"] = f"Bearer {access_token}"
         self._session.headers.update(headers)
+        # A second session for the live feed: same auth headers, no automatic retries, so a
+        # 429 is reported to the caller instead of being waited out.
+        self._live_session: requests.Session | None = None
 
     def get_instruments(self) -> list[Instrument]:
         """Not implemented: Upstox publishes a gzip CSV that this adapter does not parse."""
@@ -205,3 +209,57 @@ class UpstoxProvider:
                 )
             )
         return quotes
+
+    # -- live display feed (FRONTEND_SPECIFICATION 67.19); additive, nothing above changed --
+
+    def _live(self) -> requests.Session:
+        if self._live_session is None:
+            session = requests.Session()
+            session.headers.update(self._session.headers)
+            self._live_session = session
+        return self._live_session
+
+    def _live_get(self, url: str, params: dict[str, str] | None, what: str) -> Any:
+        """GET for the live feed. Raises ``ProviderAuthError`` (no token, 401, 403),
+        ``ProviderRateLimited`` (429) or ``ProviderError``. Messages never carry the token."""
+        if not self._access_token:
+            raise ProviderAuthError("Upstox access token is not set")
+        try:
+            response = self._live().get(url, params=params, timeout=10)
+        except requests.RequestException as e:
+            raise ProviderError(f"Upstox {what} error: {type(e).__name__}") from e
+        if response.status_code in (401, 403):
+            raise ProviderAuthError(f"Upstox {what}: HTTP {response.status_code}")
+        if response.status_code == 429:
+            raw = response.headers.get("Retry-After", "")
+            wait = float(raw) if raw.replace(".", "", 1).isdigit() else None
+            raise ProviderRateLimited(f"Upstox {what}: HTTP 429", wait)
+        if response.status_code != 200:
+            raise ProviderError(f"Upstox {what}: HTTP {response.status_code}")
+        try:
+            return response.json()
+        except ValueError as e:
+            raise ProviderError(f"Upstox {what}: response is not JSON") from e
+
+    def get_full_quotes(self, keys: Sequence[str]) -> dict[str, dict[str, Any]]:
+        """Raw ``/market-quote/quotes`` entries keyed by their instrument key
+        (``NSE_EQ|<ISIN>``, ``NSE_INDEX|Nifty 50``). At most 500 keys per call (Upstox limit).
+        A key the provider does not return is simply absent."""
+        if not keys:
+            return {}
+        body = self._live_get(
+            f"{self.BASE_URL}/market-quote/quotes", {"instrument_key": ",".join(keys)}, "quotes"
+        )
+        data: dict[str, dict[str, Any]] = (body or {}).get("data") or {}
+        return {str(v.get("instrument_token") or k): v for k, v in data.items()}
+
+    def get_intraday_candles(self, key: str, interval: str = "1minute") -> list[list[Any]]:
+        """Today's candles for one instrument key, oldest first:
+        ``[timestamp, open, high, low, close, volume, oi]``."""
+        body = self._live_get(
+            f"{self.BASE_URL}/historical-candle/intraday/{quote(key, safe='')}/{interval}",
+            None,
+            "intraday candles",
+        )
+        rows: list[list[Any]] = ((body or {}).get("data") or {}).get("candles") or []
+        return list(reversed(rows))  # Upstox returns newest first

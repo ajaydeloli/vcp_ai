@@ -6,6 +6,9 @@ import type { ReactElement } from "react";
 import { vi } from "vitest";
 import activity from "./fixtures/api/activity.json";
 import bars from "./fixtures/api/bars.json";
+import liveIndices from "./fixtures/api/live_indices.json";
+import liveQuotes from "./fixtures/api/live_quotes.json";
+import liveStatus from "./fixtures/api/live_status.json";
 import history from "./fixtures/api/stock_history.json";
 import marketHealth from "./fixtures/api/market_health.json";
 import market from "./fixtures/api/market.json";
@@ -21,7 +24,7 @@ import strategies from "./fixtures/api/strategies.json";
 import summary from "./fixtures/api/summary.json";
 
 export const fx = {
-  activity, bars, history, market, marketHealth, overlap, paper, search, screener, setupsFlat, setupsVcp, status,
+  activity, bars, history, liveIndices, liveQuotes, liveStatus, market, marketHealth, overlap, paper, search, screener, setupsFlat, setupsVcp, status,
   stockSetups, strategies, summary,
 }; // fmt: skip
 
@@ -39,6 +42,12 @@ export function sample(rel: string): unknown {
     case "paper": return fx.paper;
     case "search": return fx.search;
     case "screener": return fx.screener;
+    case "live/indices": return fx.liveIndices;
+    case "live/status": return fx.liveStatus;
+    case "live/quotes": {
+      const want = (p.get("symbols") ?? "").split(",").filter(Boolean);
+      return { ...fx.liveQuotes, quotes: fx.liveQuotes.quotes.filter((q) => want.includes(q.symbol)) };
+    }
     case "setups/overlap": return fx.overlap;
     case "setups": {
       const id = p.get("strategy") ?? "vcp";

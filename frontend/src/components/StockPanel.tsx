@@ -1,9 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { useBars, useSetups, useStockSetups } from "@/lib/api";
+import { useBars, useLiveQuotes, useSetups, useStockSetups } from "@/lib/api";
 import type { RangeId } from "@/lib/chartData";
 import { DASH, fmtDay, fmtInt, fmtNum, fmtPct, fmtPrice, strategyLabel, tone } from "@/lib/fmt";
+import { LiveLine } from "./Live";
 import { WatchStar } from "./WatchStar";
 import { ChartView } from "./ChartView";
 import type { Selection } from "@/lib/selection";
@@ -48,6 +49,7 @@ function StockView({
   onStockPage: boolean;
 }) {
   const bars = useBars(selection.symbol);
+  const live = useLiveQuotes([selection.symbol]);
   const stock = useStockSetups(selection.symbol);
   const ranked = useSetups(selection.strategy);
   const [range, setRange] = useState<RangeId>("1Y");
@@ -89,6 +91,7 @@ function StockView({
           <p className="mt-1 text-[11px] text-mute">
             {last ? `Close ${fmtDay(last.day)}, adjusted prices` : bars.isPending ? "" : "No price data"}
           </p>
+          <LiveLine q={live.bySymbol.get(selection.symbol.toUpperCase())} />
         </div>
         <div className="flex flex-col items-end gap-3">
           {active ? (

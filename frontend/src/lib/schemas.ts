@@ -357,3 +357,62 @@ export type Search = z.infer<typeof search>;
 export type ScreenerRow = z.infer<typeof screenerRow>;
 export type Screener = z.infer<typeof screener>;
 export type MarketHealth = z.infer<typeof marketHealth>;
+
+// ---- Live prices (display only), src/vcp_scanner/api/live_routes.py ----------------------------
+// `as_of` is the session the prices belong to, `data_time` when the newest was received, `mode`
+// whether they are live, stale or the close. A price the feed does not have is null with a reason.
+export const liveFeed = z.object({
+  state: z.enum(["disabled", "starting", "live", "stale", "closed", "token_needed", "rate_limited", "error"]),
+  message: z.string().nullable(),
+  provider: z.string(),
+  market: z.enum(["open", "pre_open", "closed"]),
+  last_success_at: z.string().nullable(),
+  retry_at: z.string().nullable(),
+  stocks_covered: num,
+  stocks_total: num,
+  holidays_known: z.boolean(),
+});
+
+const liveStamp = {
+  ...stamp,
+  mode: z.enum(["live", "stale", "closed", "unavailable"]),
+  feed: liveFeed,
+};
+
+export const liveQuote = z.object({
+  symbol: z.string(),
+  available: z.boolean(),
+  reason: z.string().nullable(),
+  mode: z.enum(["live", "stale", "closed"]).nullable(),
+  session_date: dayN,
+  source: z.string().nullable(),
+  last_price: num,
+  prev_close: num,
+  change: num,
+  change_pct: num,
+  open: num,
+  high: num,
+  low: num,
+  volume: num,
+  exchange_time: z.string().nullable(),
+  fetched_at: z.string().nullable(),
+  delay_seconds: num,
+});
+
+export const liveQuotes = z.object({ ...liveStamp, quotes: z.array(liveQuote) });
+
+export const liveIndex = liveQuote.extend({
+  id: z.string(),
+  label: z.string(),
+  points: z.array(z.object({ t: z.string(), v: z.number() })),
+});
+
+export const liveIndices = z.object({ ...liveStamp, indices: z.array(liveIndex) });
+export const liveStatus = z.object(liveStamp);
+
+export type LiveFeed = z.infer<typeof liveFeed>;
+export type LiveQuote = z.infer<typeof liveQuote>;
+export type LiveQuotes = z.infer<typeof liveQuotes>;
+export type LiveIndex = z.infer<typeof liveIndex>;
+export type LiveIndices = z.infer<typeof liveIndices>;
+export type LiveStatus = z.infer<typeof liveStatus>;
