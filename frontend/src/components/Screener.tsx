@@ -126,10 +126,8 @@ function Filters({
     q.nearHigh !== undefined ||
     q.minRs !== undefined ||
     q.minConditions !== undefined ||
-    q.hasSetup ||
     q.minGrade !== undefined ||
     q.status !== undefined ||
-    q.classification !== undefined ||
     q.minStrategies !== undefined ||
     q.strategy !== DEFAULT_QUERY.strategy;
   return (
@@ -191,30 +189,6 @@ function Filters({
             className={field}
           />
         </Field>
-        <Field id="scr-setup" label="VCP setup">
-          <select
-            id="scr-setup"
-            value={q.hasSetup ? "ranked" : ""}
-            onChange={(e) => onChange({ hasSetup: e.target.value === "ranked" })}
-            className={field}
-          >
-            <option value="">Any</option>
-            <option value="ranked">Only ranked setups</option>
-          </select>
-        </Field>
-        <Field id="scr-class" label="Setup class">
-          <select
-            id="scr-class"
-            value={q.classification ?? ""}
-            onChange={(e) => onChange({ classification: e.target.value || undefined })}
-            className={field}
-          >
-            <option value="">Any</option>
-            <option value="A_PLUS_VCP">A+ VCP</option>
-            <option value="VCP">VCP</option>
-            <option value="VCP_LIKE">VCP like</option>
-          </select>
-        </Field>
         <Field id="scr-grade" label="Min setup grade">
           <select id="scr-grade" value={q.minGrade ?? ""} onChange={(e) => onChange({ minGrade: numOrUndef(e.target.value) })} className={field}>
             <option value="">Any</option>
@@ -243,7 +217,7 @@ function Filters({
             <option value="3">3 or more</option>
           </select>
         </Field>
-        <fieldset className="col-span-2 md:col-span-4 xl:col-span-3">
+        <fieldset className="col-span-2 md:col-span-4 xl:col-span-4">
           <legend className="mb-1 block text-[11px] uppercase text-mute">Weekly stage</legend>
           <div className="flex flex-wrap gap-1.5">
             {STAGES.map((s) => {

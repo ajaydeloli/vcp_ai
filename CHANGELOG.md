@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed (Screener filter bar)
+- Screener: removed the VCP setup and Setup class filters; Strategy and Min setup grade cover them.
 - Screener: equal column widths; titles and values centred except Symbol (left).
 - Screener: removed the always-empty Company and Trend columns; fixed column widths and alignment so the gaps are even (spec 67.20a).
 - Screener: removed the header card; the filter bar is the first thing on the page.

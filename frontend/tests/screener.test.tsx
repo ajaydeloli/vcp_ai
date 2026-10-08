@@ -36,9 +36,10 @@ describe("screener page", () => {
     renderApp(<Screener />);
     await screen.findByRole("link", { name: "ALPHA" });
     await userEvent.selectOptions(screen.getByLabelText("Strategy"), "flat_base");
-    await userEvent.selectOptions(screen.getByLabelText("Setup class"), "A_PLUS_VCP");
-    await userEvent.selectOptions(screen.getByLabelText("VCP setup"), "ranked");
-    await waitFor(() => expect(calls.some((c) => c.includes("strategy=flat_base") && c.includes("classification=A_PLUS_VCP") && c.includes("has_setup=true"))).toBe(true));
+    await userEvent.selectOptions(screen.getByLabelText("Min setup grade"), "3");
+    await waitFor(() => expect(calls.some((c) => c.includes("strategy=flat_base") && c.includes("min_grade=3"))).toBe(true));
+    expect(screen.queryByLabelText("Setup class")).toBeNull();
+    expect(screen.queryByLabelText("VCP setup")).toBeNull();
     await userEvent.selectOptions(screen.getByLabelText("On strategies"), "2");
     await waitFor(() => expect(calls.some((c) => c.includes("min_strategies=2"))).toBe(true));
     await userEvent.selectOptions(screen.getByLabelText("Trend Template"), "yes");
