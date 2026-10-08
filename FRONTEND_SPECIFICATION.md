@@ -2241,7 +2241,7 @@ The preset buttons (All scanned stocks, Trend Template passers, Top setups, A+ V
 - **Filters:** symbol or company, strategy, Trend Template (any, passes all 10, does not pass), near 52-week high, min RS rank, min conditions, min setup grade (Grade 1+, 2+, 3 = A+; this takes the place of the earlier setup class and VCP setup filters), setup status, on strategies (any, 2 or more, 3 or more), and weekly stage as toggle chips with the count of stocks in each stage. Every filter runs on the server, exactly as before; the API is unchanged.
 - **Reset filters** clears every filter (including those the old reset missed: Trend Template, near high, RS, conditions, grade, status, class) and is disabled when nothing is set.
 - **Sorting** stays in the table headers (for example sort by Score for the best setups).
-- Layout: on a wide screen all the dropdowns and boxes are in one row (the symbol box is wider than the rest), with the weekly stage chips and the Reset button on a second row, Reset under the last column. On a tablet the fields wrap to four columns, on a phone two.
+- Layout: one row on a wide screen, in this order: symbol or company, strategy, min setup grade, setup status, on strategies, Trend Template, near 52-week high, min RS rank, min conditions, then the Reset filters button. The card is collapsed by default; **More** (top right of the card) expands it and shows the weekly stage chips on a second row, **Less** collapses it. A stage that is ticked keeps filtering while the card is collapsed. On a tablet the fields wrap to four columns, on a phone two.
 
 ### 67.20a Screener columns (2026-10-08)
 

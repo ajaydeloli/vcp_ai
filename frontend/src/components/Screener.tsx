@@ -119,6 +119,7 @@ function Filters({
   onChange: (next: Partial<ScreenerQuery>) => void;
   onReset: () => void;
 }) {
+  const [open, setOpen] = useState(false);
   const changed =
     q.q !== "" ||
     q.stages.length > 0 ||
@@ -131,8 +132,21 @@ function Filters({
     q.minStrategies !== undefined ||
     q.strategy !== DEFAULT_QUERY.strategy;
   return (
-    <Card title="Filters" label="Filters">
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-[minmax(0,1.6fr)_repeat(8,minmax(0,1fr))]">
+    <Card
+      title="Filters"
+      label="Filters"
+      right={
+        <button
+          type="button"
+          aria-expanded={open}
+          onClick={() => setOpen((v) => !v)}
+          className="rounded border border-line px-2 py-1 text-xs text-mute hover:text-ink"
+        >
+          {open ? "Less" : "More"}
+        </button>
+      }
+    >
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-[minmax(0,1.4fr)_repeat(8,minmax(0,1fr))_auto]">
         <Field id="scr-q" label="Symbol or company" className="col-span-2 xl:col-span-1">
           <input
             id="scr-q"
@@ -151,6 +165,34 @@ function Filters({
                 {strategyLabel(id)}
               </option>
             ))}
+          </select>
+        </Field>
+        <Field id="scr-grade" label="Min setup grade">
+          <select id="scr-grade" value={q.minGrade ?? ""} onChange={(e) => onChange({ minGrade: numOrUndef(e.target.value) })} className={field}>
+            <option value="">Any</option>
+            <option value="1">Grade 1+</option>
+            <option value="2">Grade 2+</option>
+            <option value="3">Grade 3 (A+)</option>
+          </select>
+        </Field>
+        <Field id="scr-status" label="Setup status">
+          <select id="scr-status" value={q.status ?? ""} onChange={(e) => onChange({ status: e.target.value || undefined })} className={field}>
+            <option value="">Any</option>
+            <option value="FORMING">Forming</option>
+            <option value="PIVOT_READY">Pivot ready</option>
+            <option value="BREAKOUT">Breakout</option>
+          </select>
+        </Field>
+        <Field id="scr-several" label="On strategies">
+          <select
+            id="scr-several"
+            value={q.minStrategies ?? ""}
+            onChange={(e) => onChange({ minStrategies: numOrUndef(e.target.value) })}
+            className={field}
+          >
+            <option value="">Any</option>
+            <option value="2">2 or more</option>
+            <option value="3">3 or more</option>
           </select>
         </Field>
         <Field id="scr-tt" label="Trend Template">
@@ -189,69 +231,43 @@ function Filters({
             className={field}
           />
         </Field>
-        <Field id="scr-grade" label="Min setup grade">
-          <select id="scr-grade" value={q.minGrade ?? ""} onChange={(e) => onChange({ minGrade: numOrUndef(e.target.value) })} className={field}>
-            <option value="">Any</option>
-            <option value="1">Grade 1+</option>
-            <option value="2">Grade 2+</option>
-            <option value="3">Grade 3 (A+)</option>
-          </select>
-        </Field>
-        <Field id="scr-status" label="Setup status">
-          <select id="scr-status" value={q.status ?? ""} onChange={(e) => onChange({ status: e.target.value || undefined })} className={field}>
-            <option value="">Any</option>
-            <option value="FORMING">Forming</option>
-            <option value="PIVOT_READY">Pivot ready</option>
-            <option value="BREAKOUT">Breakout</option>
-          </select>
-        </Field>
-        <Field id="scr-several" label="On strategies">
-          <select
-            id="scr-several"
-            value={q.minStrategies ?? ""}
-            onChange={(e) => onChange({ minStrategies: numOrUndef(e.target.value) })}
-            className={field}
-          >
-            <option value="">Any</option>
-            <option value="2">2 or more</option>
-            <option value="3">3 or more</option>
-          </select>
-        </Field>
-        <fieldset className="col-span-2 md:col-span-3 xl:col-span-8">
-          <legend className="mb-1 block text-[11px] uppercase text-mute">Weekly stage</legend>
-          <div className="flex flex-wrap gap-1.5">
-            {STAGES.map((s) => {
-              const on = q.stages.includes(s);
-              return (
-                <label
-                  key={s}
-                  className={`flex cursor-pointer items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs ${
-                    on ? "border-accent bg-accent/20 text-ink" : "border-line text-mute hover:text-ink"
-                  }`}
-                >
-                  <input
-                    type="checkbox"
-                    className="sr-only"
-                    checked={on}
-                    onChange={(e) => onChange({ stages: e.target.checked ? [...q.stages, s] : q.stages.filter((x) => x !== s) })}
-                  />
-                  {stageLabel(s)}
-                  <span className="text-mute">{fmtInt(stageCounts[s] ?? 0)}</span>
-                </label>
-              );
-            })}
-          </div>
-        </fieldset>
         <div className="col-span-2 flex items-end md:col-span-1">
           <button
             type="button"
             disabled={!changed}
             onClick={onReset}
-            className="w-full rounded border border-line px-2 py-1.5 text-xs text-mute enabled:hover:text-ink disabled:opacity-40"
+            className="w-full whitespace-nowrap rounded border border-line px-2 py-1.5 text-xs text-mute enabled:hover:text-ink disabled:opacity-40"
           >
             Reset filters
           </button>
         </div>
+        {open ? (
+          <fieldset className="col-span-full">
+            <legend className="mb-1 block text-[11px] uppercase text-mute">Weekly stage</legend>
+            <div className="flex flex-wrap gap-1.5">
+              {STAGES.map((s) => {
+                const on = q.stages.includes(s);
+                return (
+                  <label
+                    key={s}
+                    className={`flex cursor-pointer items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs ${
+                      on ? "border-accent bg-accent/20 text-ink" : "border-line text-mute hover:text-ink"
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      className="sr-only"
+                      checked={on}
+                      onChange={(e) => onChange({ stages: e.target.checked ? [...q.stages, s] : q.stages.filter((x) => x !== s) })}
+                    />
+                    {stageLabel(s)}
+                    <span className="text-mute">{fmtInt(stageCounts[s] ?? 0)}</span>
+                  </label>
+                );
+              })}
+            </div>
+          </fieldset>
+        ) : null}
       </div>
     </Card>
   );
