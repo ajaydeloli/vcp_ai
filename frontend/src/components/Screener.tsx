@@ -344,7 +344,11 @@ export function Screener() {
           <LiveNotice />
             <Card
               title="Results"
-              subtitle={data ? `${fmtInt(data.total)} of ${fmtInt(data.scanned)} stocks match` : undefined}
+              right={
+                data ? (
+                  <span className="text-xs text-mute">{`${fmtInt(data.total)} of ${fmtInt(data.scanned)} stocks match`}</span>
+                ) : undefined
+              }
             >
               {result.isError ? (
                 <ErrorBox error={result.error} />
