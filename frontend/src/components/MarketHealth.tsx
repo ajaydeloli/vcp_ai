@@ -40,35 +40,6 @@ function Legend({ items }: { items: [string, string][] }) {
   );
 }
 
-/** The regime (the breadth rule the scanner already uses), shown with the breadth it is made from. */
-function Regime() {
-  const market = useMarket(250);
-  const m = market.data;
-  const last = m?.days[m.days.length - 1];
-  if (!m || !last) return null;
-  return (
-    <div
-      className="mb-3 grid grid-cols-3 gap-2 text-xs"
-      title={`The regime is ${m.regime_rule}: on when at least ${m.breadth_threshold_pct}% of the universe closes above its 50-day average (the dashed line below).`}
-    >
-      <div>
-        <p className="text-mute">Regime</p>
-        <p className={`text-base font-semibold ${last.regime_on ? "text-up" : "text-down"}`}>
-          {last.regime_on ? "ON" : "OFF"}
-        </p>
-      </div>
-      <div>
-        <p className="text-mute">Breadth</p>
-        <p className="text-base font-semibold">{fmtPct(last.breadth_pct)}</p>
-      </div>
-      <div>
-        <p className="text-mute">On, last 20</p>
-        <p className="text-base font-semibold">{m.regime_days_on_last_20} / 20</p>
-      </div>
-    </div>
-  );
-}
-
 /** Where each strategy stands on the way to its review, and how the open paper positions are doing. */
 function PaperProgress() {
   const paper = usePaper();
@@ -268,6 +239,47 @@ function LeadershipFigures({ group, highs, lows }: { group: Health["groups"][num
   );
 }
 
+/** The figures beside the breadth charts: the scanner's regime, the two breadth shares, net advancers. */
+function BreadthFigures({ group }: { group: Health["groups"][number] }) {
+  const market = useMarket(250);
+  const m = market.data;
+  const last = m?.days[m.days.length - 1];
+  const num = (id: string) => group.items.find((i) => i.id === id)?.value ?? null;
+  const pct = (v: number | null) => (v === null ? "—" : `${v.toFixed(1)}%`);
+  const above = (v: number | null) => (v === null ? "text-ink" : v >= 50 ? "text-up" : v >= 40 ? "text-warn" : "text-down");
+  const a50 = num("above50");
+  const a200 = num("above200");
+  const net = num("ad");
+  return (
+    <aside aria-label="Breadth figures" className="w-40 shrink-0 space-y-3 border-l border-line pl-4">
+      <div
+        title={m ? `The regime is ${m.regime_rule}: on when at least ${m.breadth_threshold_pct}% of the universe closes above its 50-day average (the dashed line).` : undefined}
+      >
+        <Figure
+          label="Regime"
+          value={last ? (last.regime_on ? "ON" : "OFF") : "—"}
+          sub={m ? `(${m.regime_days_on_last_20}/20 days on)` : undefined}
+          color={last ? (last.regime_on ? "text-up" : "text-down") : "text-ink"}
+        />
+      </div>
+      <div className="border-t border-line pt-3">
+        <Figure label="Above 50-day average" value={pct(a50)} color={above(a50)} />
+      </div>
+      <div className="border-t border-line pt-3">
+        <Figure label="Above 200-day average" value={pct(a200)} color={above(a200)} />
+      </div>
+      <div className="border-t border-line pt-3">
+        <Figure
+          label="Advancers minus decliners"
+          value={net === null ? "—" : `${net >= 0 ? "+" : ""}${net.toFixed(0)}`}
+          sub="today"
+          color={net === null ? "text-ink" : net >= 0 ? "text-up" : "text-down"}
+        />
+      </div>
+    </aside>
+  );
+}
+
 function Charts({ d, id }: { d: Health; id: string }) {
   const pts = d.points;
   const index = useMemo(
@@ -294,10 +306,9 @@ function Charts({ d, id }: { d: Health; id: string }) {
   if (id === "breadth")
     return (
       <>
-        <Regime />
-        <MiniLineChart series={breadth} height={100} plain threshold={{ value: 40, title: "40%" }} label="breadth-chart" />
+        <MiniLineChart series={breadth} height={150} plain threshold={{ value: 40, title: "40%" }} label="breadth-chart" />
         <Legend items={[["% above 50-day", C.blue], ["% above 200-day", C.violet], ["dashed: regime on at 40%", C.warn]]} />
-        <MiniLineChart series={ad} height={80} plain label="ad-line-chart" />
+        <MiniLineChart series={ad} height={100} plain label="ad-line-chart" />
         <Legend items={[["Advance/decline line", C.ink], ["its 50-day average", C.warn]]} />
       </>
     );
@@ -355,8 +366,12 @@ export function MarketHealth() {
             )}
             {br && (
               <Inner title={br.title} box={BOX.breadth}>
-                <Charts d={d} id="breadth" />
-                <Readings group={br} />
+                <div className="flex gap-4">
+                  <div className="min-w-0 flex-1">
+                    <Charts d={d} id="breadth" />
+                  </div>
+                  <BreadthFigures group={br} />
+                </div>
               </Inner>
             )}
             {fb && (

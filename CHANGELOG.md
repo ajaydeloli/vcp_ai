@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed (Dashboard redesign)
+- Breadth card laid out like the Index and Leadership cards: the two charts on the left; regime, % above 50-day, % above 200-day and advancers minus decliners as figures on the right (readings list and Details removed).
 - Leadership chart shows whole numbers on the axis; the cross on the market charts snaps to the nearest point of a line.
 - Index and Leadership figures: the small note (last 25 sessions, today, points) now sits beside the number; the Failed breakouts note was removed.
 - Leadership card laid out like Index price action: chart on the left; new 52-week highs, new lows, failed breakouts and leaders vs index as figures on the right (readings list and Details removed).

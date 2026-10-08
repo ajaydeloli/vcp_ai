@@ -74,7 +74,7 @@ describe("dashboard page (market view)", () => {
     for (const title of ["Index price action", "Leadership", "Breadth", "Feedback loop"]) {
       expect(await within(card).findByRole("region", { name: title })).toBeInTheDocument();
     }
-    expect(within(card).getAllByRole("img", { name: /^(green|amber|red|grey)$/ }).length).toBeGreaterThanOrEqual(4); // the index card shows figures, not dots
+    expect(within(card).getAllByRole("img", { name: /^(green|amber|red|grey)$/ }).length).toBeGreaterThanOrEqual(1); // the index, leadership and breadth cards show figures, not dots
     expect(within(card).getByText(/changes no rule, scan or score/)).toBeInTheDocument();
   });
 
@@ -139,6 +139,9 @@ describe("dashboard page (market view)", () => {
     const fig = within(await screen.findByRole("complementary", { name: "Leadership figures" }));
     for (const t of ["New 52-week highs", "New 52-week lows", "Failed breakouts", "Leaders vs index"])
       expect(fig.getByText(t)).toBeInTheDocument();
+    const bf = within(await screen.findByRole("complementary", { name: "Breadth figures" }));
+    for (const t of ["Regime", "Above 50-day average", "Above 200-day average", "Advancers minus decliners"])
+      expect(bf.getByText(t)).toBeInTheDocument();
     expect(screen.getByTestId("mini-trades-chart")).toBeInTheDocument();
     expect(await screen.findByTestId("mini-paper-progress")).toHaveTextContent("1 / 30");
     expect(await screen.findByTestId("mini-open-positions")).toHaveTextContent("BETA");
