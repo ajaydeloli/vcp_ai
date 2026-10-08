@@ -30,7 +30,7 @@ export function LiveCell({ q }: { q: LiveQuote | undefined }) {
  *  day's open, high, low and volume where the feed has them (a dash where it does not). */
 export function LiveLine({ q }: { q: LiveQuote | undefined }) {
   if (!q) return null;
-  const box = "rounded-lg border border-line bg-panel2 p-3";
+  const box = "py-3";
   if (!q.available || q.last_price === null) {
     return (
       <div className={box} data-testid="live-line">

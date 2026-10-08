@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed (Stock Analysis layout)
+- Stock Analysis: symbol and strategy buttons in the left column, taller chart, right details separated by lines instead of boxes (spec 67.21a).
+- The Dashboard page is renamed Market Overview (address unchanged).
 - Stock Analysis: symbol first, then the chart on the left and a details panel on the right (close, live with day open/high/low/volume, setup, score, RS rank, pivot) (spec 67.21).
 
 ### Changed (Screener filter bar)

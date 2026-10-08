@@ -15,7 +15,7 @@ const LATER = [
 ];
 
 const PAGES = [
-  ["Dashboard", "/dashboard"],
+  ["Market Overview", "/dashboard"],
   ["Screener", "/screener"],
   ["Stock Analysis", "/stocks"],
   ["Watchlist", "/watchlist"],
@@ -62,7 +62,7 @@ function Today() {
 
 /** The top navigation bar. The logo opens a side bar with every page, including those still to come. */
 export function Nav({
-  active = "Dashboard",
+  active = "Market Overview",
   onPick = (symbol) => window.location.assign(`/stocks/${encodeURIComponent(symbol)}`),
 }: {
   active?: Page;

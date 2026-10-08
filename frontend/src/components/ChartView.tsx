@@ -61,7 +61,7 @@ export function ChartView({ bars, setup, range, onRange }: Props) {
   useEffect(() => {
     const el = box.current;
     if (!el) return;
-    const chart = createChart(el, { ...CHART_THEME, width: el.clientWidth, height: 340 });
+    const chart = createChart(el, { ...CHART_THEME, width: el.clientWidth, height: el.clientHeight || 340 });
     const candles = chart.addCandlestickSeries({
       upColor: COLORS.up,
       downColor: COLORS.down,
@@ -93,7 +93,7 @@ export function ChartView({ bars, setup, range, onRange }: Props) {
       sma200: line(COLORS.sma200),
       lines: [],
     };
-    const ro = new ResizeObserver(() => chart.applyOptions({ width: el.clientWidth }));
+    const ro = new ResizeObserver(() => chart.applyOptions({ width: el.clientWidth, height: el.clientHeight || 340 }));
     ro.observe(el);
     return () => {
       ro.disconnect();
@@ -132,7 +132,7 @@ export function ChartView({ bars, setup, range, onRange }: Props) {
   }, [bars, setup, range]);
 
   return (
-    <div>
+    <div className="flex min-h-0 flex-1 flex-col">
       <div className="mb-2 flex items-center justify-between text-xs">
         <div className="flex gap-1" role="group" aria-label="Chart range">
           {RANGES.map((r) => (
@@ -156,7 +156,9 @@ export function ChartView({ bars, setup, range, onRange }: Props) {
           <span>Adjusted prices</span>
         </div>
       </div>
-      <div ref={box} data-testid="price-chart" className="w-full" />
+      <div className="relative min-h-[380px] flex-1">
+        <div ref={box} data-testid="price-chart" className="absolute inset-0" />
+      </div>
     </div>
   );
 }
