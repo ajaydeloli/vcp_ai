@@ -308,6 +308,9 @@ export const marketHealth = z.object({
     }),
   ),
   trades: z.array(z.object({ day: z.string(), ret_pct: z.number() })),
+  index_days: z
+    .object({ pct_from_200: num, accumulation: z.number(), distribution: z.number(), window: z.number() })
+    .nullable(),
   verdict: z
     .object({
       score: z.number(),

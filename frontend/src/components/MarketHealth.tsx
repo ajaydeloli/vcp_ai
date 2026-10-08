@@ -205,6 +205,37 @@ function Readings({ group }: { group: Health["groups"][number] }) {
   );
 }
 
+function Figure({ label, value, sub, color }: { label: string; value: string; sub?: string; color: string }) {
+  return (
+    <div>
+      <p className="text-sm text-ink">{label}</p>
+      <p className={`text-3xl font-semibold tabular-nums ${color}`}>{value}</p>
+      {sub ? <p className="text-xs text-mute">{sub}</p> : null}
+    </div>
+  );
+}
+
+/** The three figures beside the index chart: distance from the 200-day, accumulation days, distribution days. */
+function IndexFigures({ days }: { days: NonNullable<Health["index_days"]> }) {
+  const from = days.pct_from_200;
+  const last = `(last ${days.window} sessions)`;
+  return (
+    <aside aria-label="Index figures" className="w-40 shrink-0 space-y-3 border-l border-line pl-4">
+      <Figure
+        label="Index vs 200-day average"
+        value={from === null ? "—" : `${from >= 0 ? "+" : ""}${from.toFixed(1)}%`}
+        color={from === null ? "text-ink" : from >= 0 ? "text-up" : "text-down"}
+      />
+      <div className="border-t border-line pt-3">
+        <Figure label="Accumulation days" value={String(days.accumulation)} sub={last} color="text-up" />
+      </div>
+      <div className="border-t border-line pt-3">
+        <Figure label="Distribution days" value={String(days.distribution)} sub={last} color="text-down" />
+      </div>
+    </aside>
+  );
+}
+
 function Charts({ d, id }: { d: Health; id: string }) {
   const pts = d.points;
   const index = useMemo(
@@ -268,8 +299,12 @@ export function MarketHealth() {
           <div className="grid gap-4 lg:grid-cols-2">
             {idx && (
               <Inner title={idx.title} box={BOX.index}>
-                <Charts d={d} id="index" />
-                <Readings group={idx} />
+                <div className="flex gap-4">
+                  <div className="min-w-0 flex-1">
+                    <Charts d={d} id="index" />
+                  </div>
+                  {d.index_days && <IndexFigures days={d.index_days} />}
+                </div>
               </Inner>
             )}
             {lead && (

@@ -2199,3 +2199,7 @@ Paper trading and Recent activity sit side by side in two columns. Today's date 
 ### 67.18d Index renamed (2026-10-08)
 
 Our equal-weight index of the scanned stocks is now called **VCP Quality Index (VQI)** (was "VCP Universe Index"). Charts and legends label it "VQI"; the tile and the API label say "VCP Quality Index, VQI". It is still the equal-weight index of the stocks we scan, not NIFTY; the name does not mean a quality filter is applied.
+
+### 67.18e Index price action card (2026-10-08)
+
+The chart (VQI with its 50- and 200-day averages) is on the left; on the right, in the style of the owner's price-and-volume mock-up: Index vs 200-day average (x %, green above, red below), Accumulation days and Distribution days, each with "(last 25 sessions)". No score and no Details toggle on this card. An accumulation day is a session where the index rose 0.2 % or more on higher total volume than the day before (the mirror of a distribution day); volume is that of our scanned stocks, not NIFTY. API: `/market/health` gains `index_days` (`pct_from_200`, `accumulation`, `distribution`, `window`). The distribution reading and its score in the verdict are unchanged; accumulation days do not enter the verdict.

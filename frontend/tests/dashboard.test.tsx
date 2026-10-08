@@ -74,7 +74,7 @@ describe("dashboard page (market view)", () => {
     for (const title of ["Index price action", "Leadership", "Breadth", "Feedback loop"]) {
       expect(await within(card).findByRole("region", { name: title })).toBeInTheDocument();
     }
-    expect(within(card).getAllByRole("img", { name: /^(green|amber|red|grey)$/ }).length).toBeGreaterThanOrEqual(8);
+    expect(within(card).getAllByRole("img", { name: /^(green|amber|red|grey)$/ }).length).toBeGreaterThanOrEqual(7); // the index card shows figures, not dots
     expect(within(card).getByText(/changes no rule, scan or score/)).toBeInTheDocument();
   });
 
@@ -94,6 +94,20 @@ describe("dashboard page (market view)", () => {
       "Index price action", "Leadership", "Breadth", "Feedback loop", "Market stage", "Setups today",
     ]);
     expect(await within(overview).findByText(/Most setups are/)).toBeInTheDocument();
+  });
+
+  it("the index card has the chart on the left and three figures on the right, no score or details", async () => {
+    mockApi();
+    renderApp(<Dashboard />);
+    const card = await screen.findByRole("region", { name: "Index price action" });
+    const figures = await within(card).findByLabelText("Index figures");
+    expect(within(figures).getByText("Index vs 200-day average")).toBeInTheDocument();
+    expect(within(figures).getByText("Accumulation days")).toBeInTheDocument();
+    expect(within(figures).getByText("Distribution days")).toBeInTheDocument();
+    expect(within(figures).getAllByText("(last 25 sessions)")).toHaveLength(2);
+    expect(within(card).queryByText("Details")).not.toBeInTheDocument();
+    expect(within(card).queryByTitle("score out of 100")).not.toBeInTheDocument();
+    expect(within(card).getByTestId("mini-index-price-chart")).toBeInTheDocument();
   });
 
   it("the market stage card counts the scanned stocks by weekly stage", async () => {

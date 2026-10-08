@@ -301,6 +301,24 @@ def _leaders(cur: Cur, ctx: Context, sessions: list[date], index: list[float]) -
     )  # fmt: skip
 
 
+def _index_days(
+    index: list[float], mean_ret: list[float | None], volume: list[float]
+) -> m.HealthIndexDays:
+    start = max(1, len(index) - DIST_WINDOW)
+    days = range(start, len(index))
+    ma200 = _sma(index, 200, len(index) - 1)
+    return m.HealthIndexDays(
+        pct_from_200=None if ma200 is None else _pct(index[-1], ma200),
+        accumulation=sum(
+            1 for i in days if (mean_ret[i] or 0.0) >= -DIST_DROP and volume[i] > volume[i - 1]
+        ),
+        distribution=sum(
+            1 for i in days if (mean_ret[i] or 0.0) <= DIST_DROP and volume[i] > volume[i - 1]
+        ),
+        window=DIST_WINDOW,
+    )
+
+
 def _points(rows: list[tuple[Any, ...]], index: list[float]) -> list[m.HealthPoint]:
     line: list[float] = []
     total = 0.0
@@ -446,7 +464,13 @@ def market_health(cur: Cur, ctx: Context, end: date, data_time: datetime) -> m.M
     rows = rows[-SESSIONS_SHOWN:]
     if len(rows) < 2:
         return m.MarketHealthResponse(
-            as_of=None, data_time=data_time, groups=[], points=[], trades=[], verdict=None
+            as_of=None,
+            data_time=data_time,
+            groups=[],
+            points=[],
+            trades=[],
+            verdict=None,
+            index_days=None,
         )
     level, index = 1.0, []
     for r in rows:
@@ -477,4 +501,5 @@ def market_health(cur: Cur, ctx: Context, end: date, data_time: datetime) -> m.M
     return m.MarketHealthResponse(
         as_of=sessions[-1], data_time=data_time, groups=groups,
         points=_points(rows, index), trades=_trades(cur, ctx), verdict=_verdict(groups),
+        index_days=_index_days(index, mean_ret, volume),
     )  # fmt: skip

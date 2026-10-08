@@ -1681,5 +1681,11 @@
    "Advance / decline line",
    "Distribution days"
   ]
+ },
+ "index_days": {
+  "pct_from_200": null,
+  "accumulation": 0,
+  "distribution": 0,
+  "window": 25
  }
 }

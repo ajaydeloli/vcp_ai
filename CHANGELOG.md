@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed (Dashboard redesign)
+- Index price action card: chart on the left, figures on the right (index vs 200-day average, accumulation days, distribution days, last 25 sessions); no score or Details. `/api/v1/market/health` adds `index_days`.
+
 - Our index is renamed "VCP Quality Index (VQI)" (was VCP Universe Index); charts label it VQI. Same index, still not NIFTY.
 
 - Paper trading and Recent activity side by side; today's date at the far right of the top bar (not in the bottom bar); search is an icon that opens the search box.

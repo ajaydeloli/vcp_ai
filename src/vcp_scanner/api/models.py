@@ -181,11 +181,21 @@ class HealthTrade(BaseModel):
     ret_pct: float
 
 
+class HealthIndexDays(BaseModel):
+    """The index card: how far the index is from its 200-day average, and the heavy-volume days."""
+
+    pct_from_200: float | None
+    accumulation: int  # index up 0.2 % or more on higher volume than the day before
+    distribution: int  # index down 0.2 % or more on higher volume than the day before
+    window: int  # sessions counted
+
+
 class MarketHealthResponse(Stamped):
     groups: list[HealthGroup]
     points: list[HealthPoint]
     trades: list[HealthTrade]
     verdict: HealthVerdict | None
+    index_days: HealthIndexDays | None
 
 
 class SearchHit(BaseModel):
