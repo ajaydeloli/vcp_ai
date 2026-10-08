@@ -43,6 +43,9 @@ describe("screener page", () => {
     await userEvent.selectOptions(screen.getByLabelText("On strategies"), "2");
     await waitFor(() => expect(calls.some((c) => c.includes("min_strategies=2"))).toBe(true));
     await userEvent.selectOptions(screen.getByLabelText("Trend Template"), "yes");
+    expect(screen.queryByLabelText(/Stage 2/)).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: "More" }));
+    expect(screen.getByRole("button", { name: "Less" })).toHaveAttribute("aria-expanded", "true");
     await userEvent.click(screen.getByLabelText(/Stage 2/));
     await userEvent.type(screen.getByLabelText("Min RS rank"), "80");
     await waitFor(() => expect(calls.some((c) => c.includes("tt_pass=true") && c.includes("stage=STAGE_2") && c.includes("min_rs=80"))).toBe(true));
