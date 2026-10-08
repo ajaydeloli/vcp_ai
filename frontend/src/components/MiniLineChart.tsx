@@ -2,7 +2,7 @@
 
 // A small line chart for the market overview (index vs its 50-day average; breadth with the
 // regime threshold).
-import { createChart, LineStyle, type IChartApi, type ISeriesApi, type Time } from "lightweight-charts";
+import { createChart, CrosshairMode, LineStyle, type IChartApi, type ISeriesApi, type Time } from "lightweight-charts";
 import { useEffect, useRef } from "react";
 import { CHART_THEME } from "./ChartView";
 
@@ -20,9 +20,11 @@ type Props = {
   label: string;
   /** the legend sits below the chart: no names on the lines, each line's value on the axis in its colour */
   plain?: boolean;
+  /** whole numbers on the axis (counts), no decimals */
+  whole?: boolean;
 };
 
-export function MiniLineChart({ series, height = 120, threshold, label, plain }: Props) {
+export function MiniLineChart({ series, height = 120, threshold, label, plain, whole }: Props) {
   const box = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const linesRef = useRef<ISeriesApi<"Line">[]>([]);
@@ -36,6 +38,8 @@ export function MiniLineChart({ series, height = 120, threshold, label, plain }:
       height,
       handleScroll: false,
       handleScale: false,
+      // the cross snaps to the nearest point of a line, so the exact value can be read
+      crosshair: { mode: CrosshairMode.Magnet },
     });
     chartRef.current = chart;
     const ro = new ResizeObserver(() => chart.applyOptions({ width: el.clientWidth }));
@@ -61,6 +65,7 @@ export function MiniLineChart({ series, height = 120, threshold, label, plain }:
         lastValueVisible: plain || i === 0,
         priceLineVisible: false,
         title: plain ? "" : s.name,
+        ...(whole ? { priceFormat: { type: "price" as const, precision: 0, minMove: 1 } } : {}),
       });
       line.setData(s.data.map((p) => ({ time: p.time as Time, value: p.value })));
       if (i === 0 && threshold) {
@@ -78,7 +83,7 @@ export function MiniLineChart({ series, height = 120, threshold, label, plain }:
       return line;
     });
     chart.timeScale().fitContent();
-  }, [series, threshold, plain]);
+  }, [series, threshold, plain, whole]);
 
   return <div ref={box} role="img" aria-label={label} data-testid={`mini-${label}`} className="w-full" />;
 }

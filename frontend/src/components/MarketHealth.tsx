@@ -287,7 +287,7 @@ function Charts({ d, id }: { d: Health; id: string }) {
   if (id === "leadership")
     return (
       <>
-        <MiniLineChart series={highs} height={270} plain label="highs-lows-chart" />
+        <MiniLineChart series={highs} height={270} plain whole label="highs-lows-chart" />
         <Legend items={[["New 52-week highs", C.up], ["New 52-week lows", C.down]]} />
       </>
     );
