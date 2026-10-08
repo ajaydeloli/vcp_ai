@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Tests: fake-provider unit tests, isolation test, contract samples; spec 67.19.
 
 ### Changed (Dashboard redesign)
+- Index price action and Leadership charts are taller (262 px) so they fill their cards.
 - Index figures are titled VQI vs 50-day MA and VQI vs 200-day MA.
 - Index price action card shows the index against its 50-day average as well as its 200-day average (index_days.pct_from_50).
 - Removed the Details link from the Feedback loop card (the sentence stays as the tooltip of each reading).
