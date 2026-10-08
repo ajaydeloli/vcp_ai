@@ -198,8 +198,8 @@ function IndexFigures({ days }: { days: NonNullable<Health["index_days"]> }) {
   );
   return (
     <aside aria-label="Index figures" className="w-40 shrink-0 space-y-3 border-l border-line pl-4">
-      {away("Index vs 50-day average", days.pct_from_50, true)}
-      {away("Index vs 200-day average", days.pct_from_200)}
+      {away("VQI vs 50-day MA", days.pct_from_50, true)}
+      {away("VQI vs 200-day MA", days.pct_from_200)}
       <div className="border-t border-line pt-3">
         <Figure label="Accumulation days" value={String(days.accumulation)} sub={last} color="text-up" />
       </div>

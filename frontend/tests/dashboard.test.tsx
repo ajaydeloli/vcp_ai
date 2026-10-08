@@ -101,8 +101,8 @@ describe("dashboard page (market view)", () => {
     renderApp(<Dashboard />);
     const card = await screen.findByRole("region", { name: "Index price action" });
     const figures = await within(card).findByLabelText("Index figures");
-    expect(within(figures).getByText("Index vs 200-day average")).toBeInTheDocument();
-    expect(within(figures).getByText("Index vs 50-day average")).toBeInTheDocument();
+    expect(within(figures).getByText("VQI vs 200-day MA")).toBeInTheDocument();
+    expect(within(figures).getByText("VQI vs 50-day MA")).toBeInTheDocument();
     expect(within(figures).getByText("Accumulation days")).toBeInTheDocument();
     expect(within(figures).getByText("Distribution days")).toBeInTheDocument();
     expect(within(figures).getAllByText("(last 25 sessions)")).toHaveLength(2);
