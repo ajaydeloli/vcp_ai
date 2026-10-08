@@ -210,7 +210,7 @@ function Figure({ label, value, sub, color }: { label: string; value: string; su
     <div>
       <p className="text-sm text-ink">{label}</p>
       <p className="flex flex-wrap items-baseline gap-x-1.5">
-        <span className={`text-3xl font-semibold tabular-nums ${color}`}>{value}</span>
+        <span className={`text-2xl font-semibold tabular-nums ${color}`}>{value}</span>
         {sub ? <span className="text-xs text-mute">{sub}</span> : null}
       </p>
     </div>
