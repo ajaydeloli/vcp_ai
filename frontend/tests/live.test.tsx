@@ -1,4 +1,4 @@
-import { screen, waitFor } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { LiveNotice } from "@/components/Live";
 import { Screener } from "@/components/Screener";
@@ -62,6 +62,17 @@ describe("live prices on the pages", () => {
     await waitFor(() => expect(screen.getByTestId("live-line")).toHaveTextContent("102"));
     expect(screen.getByTestId("live-line")).toHaveTextContent("Live, delayed 0 s");
     expect(screen.getByText(/adjusted prices/)).toBeInTheDocument();
+  });
+
+  it("the stock page keeps the chart on the left and the figures in a side panel", async () => {
+    mockApi();
+    renderApp(<StockPanel selection={{ symbol: "ALPHA", strategy: "vcp" }} onSelect={() => {}} onStockPage />);
+    const side = await screen.findByRole("complementary", { name: "Details of ALPHA" });
+    await waitFor(() => expect(within(side).getByTestId("live-line")).toHaveTextContent("102"));
+    for (const label of ["Close", "Score", "RS rank", "Pivot", "Open", "High", "Low", "Volume"]) {
+      expect(within(side).getByText(label)).toBeInTheDocument();
+    }
+    expect(within(side).getByText(/adjusted prices/)).toBeInTheDocument();
   });
 
   it("a stock without a live price says not available", async () => {

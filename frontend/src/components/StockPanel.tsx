@@ -32,7 +32,7 @@ export function StockPanel({
 
 function Figure({ label, value }: { label: string; value: string }) {
   return (
-    <div className="px-4 text-center first:pl-0 last:pr-0">
+    <div className="px-2 text-center">
       <p className="text-[11px] text-mute">{label}</p>
       <p className="text-xl font-semibold tabular-nums text-ink">{value}</p>
     </div>
@@ -68,76 +68,83 @@ function StockView({
   const money = last?.close != null && prev?.close != null ? last.close - prev.close : null;
   const company = bars.data?.company ?? stock.data?.company ?? null;
 
+  const side = "rounded-lg border border-line bg-panel2 p-3";
   return (
     <Card label={`Chart of ${selection.symbol}`} className="min-w-0">
-      <div className="mb-3 flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <div className="flex flex-wrap items-baseline gap-x-3">
-            <span className="text-2xl font-semibold text-ink">{selection.symbol}</span>
-            <WatchStar symbol={selection.symbol} />
-            {company ? <span className="text-sm text-mute">{company}</span> : null}
-            {onStockPage ? null : (
-              <a href={`/stocks/${encodeURIComponent(selection.symbol)}`} className="text-xs text-accent hover:underline">
-                Full analysis →
-              </a>
-            )}
-          </div>
-          <div className="mt-2 flex flex-wrap items-baseline gap-x-3">
-            <span className="text-3xl font-semibold tabular-nums text-ink">{fmtPrice(last?.close)}</span>
-            <span className={`text-sm tabular-nums ${tone(change)}`}>
-              {money === null ? DASH : `${money > 0 ? "+" : ""}${fmtNum(money, 2)}`} ({fmtPct(change, 2, true)})
-            </span>
-          </div>
-          <p className="mt-1 text-[11px] text-mute">
-            {last ? `Close ${fmtDay(last.day)}, adjusted prices` : bars.isPending ? "" : "No price data"}
-          </p>
-          <LiveLine q={live.bySymbol.get(selection.symbol.toUpperCase())} />
-        </div>
-        <div className="flex flex-col items-end gap-3">
-          {active ? (
-            <span className="flex items-center gap-2 text-lg">
-              <GradeBadge classification={active.classification} grade={active.grade} />
-              <StatusPill status={active.status} />
-            </span>
+      <div className="mb-3 flex flex-wrap items-baseline gap-x-3">
+        <span className="text-2xl font-semibold text-ink">{selection.symbol}</span>
+        <WatchStar symbol={selection.symbol} />
+        {company ? <span className="text-sm text-mute">{company}</span> : null}
+        {onStockPage ? null : (
+          <a href={`/stocks/${encodeURIComponent(selection.symbol)}`} className="text-xs text-accent hover:underline">
+            Full analysis →
+          </a>
+        )}
+      </div>
+
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_21rem]">
+        <div className="min-w-0">
+          {setups.length > 1 ? (
+            <div className="mb-3 flex flex-wrap items-center gap-2 text-xs" role="group" aria-label="Setup shown on the chart">
+              {setups.map((s) => (
+                <button
+                  key={s.strategy_id}
+                  type="button"
+                  aria-pressed={active?.strategy_id === s.strategy_id}
+                  onClick={() => onSelect({ symbol: selection.symbol, strategy: s.strategy_id })}
+                  className={`rounded border px-2 py-1 ${
+                    active?.strategy_id === s.strategy_id
+                      ? "border-accent bg-accent/10 text-ink"
+                      : "border-line text-mute hover:text-ink"
+                  }`}
+                >
+                  {strategyLabel(s.strategy_id)}
+                </button>
+              ))}
+            </div>
           ) : null}
-          <div className="flex divide-x divide-line rounded-lg border border-line bg-panel2 px-4 py-2">
+          {bars.isError ? (
+            <ErrorBox error={bars.error} />
+          ) : bars.isPending ? (
+            <Loading what="chart" />
+          ) : list.length === 0 ? (
+            <Empty>No price bars for {selection.symbol}.</Empty>
+          ) : (
+            <ChartView bars={list} setup={active} range={range} onRange={setRange} />
+          )}
+          {stock.isError ? <ErrorBox error={stock.error} /> : null}
+        </div>
+
+        <aside aria-label={`Details of ${selection.symbol}`} className="flex min-w-0 flex-col gap-3">
+          <div className={side}>
+            <p className="text-[11px] uppercase tracking-wide text-mute">Close</p>
+            <div className="mt-1 flex flex-wrap items-baseline gap-x-3">
+              <span className="text-3xl font-semibold tabular-nums text-ink">{fmtPrice(last?.close)}</span>
+              <span className={`text-sm tabular-nums ${tone(change)}`}>
+                {money === null ? DASH : `${money > 0 ? "+" : ""}${fmtNum(money, 2)}`} ({fmtPct(change, 2, true)})
+              </span>
+            </div>
+            <p className="mt-1 text-[11px] text-mute">
+              {last ? `Close ${fmtDay(last.day)}, adjusted prices` : bars.isPending ? "" : "No price data"}
+            </p>
+          </div>
+          <LiveLine q={live.bySymbol.get(selection.symbol.toUpperCase())} />
+          {active ? (
+            <div className={side}>
+              <p className="text-[11px] uppercase tracking-wide text-mute">{strategyLabel(active.strategy_id)} setup</p>
+              <span className="mt-2 flex flex-wrap items-center gap-2 text-lg">
+                <GradeBadge classification={active.classification} grade={active.grade} />
+                <StatusPill status={active.status} />
+              </span>
+            </div>
+          ) : null}
+          <div className={`${side} grid grid-cols-3 divide-x divide-line`}>
             <Figure label="Score" value={fmtNum(active?.score, 0)} />
             <Figure label="RS rank" value={fmtInt(rsRank)} />
             <Figure label="Pivot" value={fmtPrice(active?.pivot)} />
           </div>
-        </div>
+        </aside>
       </div>
-
-      {setups.length > 1 ? (
-        <div className="mb-3 flex flex-wrap items-center gap-2 text-xs" role="group" aria-label="Setup shown on the chart">
-          {setups.map((s) => (
-            <button
-              key={s.strategy_id}
-              type="button"
-              aria-pressed={active?.strategy_id === s.strategy_id}
-              onClick={() => onSelect({ symbol: selection.symbol, strategy: s.strategy_id })}
-              className={`rounded border px-2 py-1 ${
-                active?.strategy_id === s.strategy_id
-                  ? "border-accent bg-accent/10 text-ink"
-                  : "border-line text-mute hover:text-ink"
-              }`}
-            >
-              {strategyLabel(s.strategy_id)}
-            </button>
-          ))}
-        </div>
-      ) : null}
-
-      {bars.isError ? (
-        <ErrorBox error={bars.error} />
-      ) : bars.isPending ? (
-        <Loading what="chart" />
-      ) : list.length === 0 ? (
-        <Empty>No price bars for {selection.symbol}.</Empty>
-      ) : (
-        <ChartView bars={list} setup={active} range={range} onRange={setRange} />
-      )}
-      {stock.isError ? <ErrorBox error={stock.error} /> : null}
     </Card>
   );
 }

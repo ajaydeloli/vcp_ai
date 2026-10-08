@@ -1,7 +1,7 @@
 "use client";
 
 import { useLiveStatus } from "@/lib/api";
-import { DASH, fmtNum, fmtPct, fmtPrice, tone } from "@/lib/fmt";
+import { DASH, fmtInt, fmtNum, fmtPct, fmtPrice, tone } from "@/lib/fmt";
 import { feedNotice, liveLabel, unavailable } from "@/lib/live";
 import type { LiveQuote } from "@/lib/schemas";
 
@@ -26,25 +26,45 @@ export function LiveCell({ q }: { q: LiveQuote | undefined }) {
   );
 }
 
-/** The live price beside the stored close on the stock page, labelled "Live, delayed N s" or
- *  "Close of <date>". */
+/** The live price box of the stock page, labelled "Live, delayed N s" or "Close of <date>", with the
+ *  day's open, high, low and volume where the feed has them (a dash where it does not). */
 export function LiveLine({ q }: { q: LiveQuote | undefined }) {
   if (!q) return null;
+  const box = "rounded-lg border border-line bg-panel2 p-3";
   if (!q.available || q.last_price === null) {
     return (
-      <p className="mt-1 text-[11px] text-mute" data-testid="live-line">
-        Live price: {unavailable(q).toLowerCase()}
-      </p>
+      <div className={box} data-testid="live-line">
+        <p className="text-[11px] uppercase tracking-wide text-live">Live</p>
+        <p className="mt-1 text-sm text-mute">Live price: {unavailable(q).toLowerCase()}</p>
+      </div>
     );
   }
+  const day: [string, string][] = [
+    ["Open", fmtPrice(q.open)],
+    ["High", fmtPrice(q.high)],
+    ["Low", fmtPrice(q.low)],
+    ["Volume", fmtInt(q.volume)],
+  ];
   return (
-    <div className="mt-2 flex flex-wrap items-baseline gap-x-3" data-testid="live-line">
-      <span className="text-[11px] uppercase tracking-wide text-live">{q.mode === "closed" ? "Last" : "Live"}</span>
-      <span className="text-xl font-semibold tabular-nums text-ink">{fmtPrice(q.last_price)}</span>
-      <span className={`text-sm tabular-nums ${tone(q.change)}`}>
-        {q.change === null ? DASH : `${q.change > 0 ? "+" : ""}${fmtNum(q.change, 2)}`} ({fmtPct(q.change_pct, 2, true)})
-      </span>
-      <span className="text-[11px] text-mute">{liveLabel(q)} · {q.source ?? DASH} · display only</span>
+    <div className={box} data-testid="live-line">
+      <p className="text-[11px] uppercase tracking-wide text-live">{q.mode === "closed" ? "Last" : "Live"}</p>
+      <div className="mt-1 flex flex-wrap items-baseline gap-x-3">
+        <span className="text-2xl font-semibold tabular-nums text-ink">{fmtPrice(q.last_price)}</span>
+        <span className={`text-sm tabular-nums ${tone(q.change)}`}>
+          {q.change === null ? DASH : `${q.change > 0 ? "+" : ""}${fmtNum(q.change, 2)}`} ({fmtPct(q.change_pct, 2, true)})
+        </span>
+      </div>
+      <p className="mt-1 text-[11px] text-mute">
+        {liveLabel(q)} · {q.source ?? DASH} · display only
+      </p>
+      <dl className="mt-3 grid grid-cols-4 gap-2 border-t border-line pt-2 text-center">
+        {day.map(([k, v]) => (
+          <div key={k}>
+            <dt className="text-[11px] text-mute">{k}</dt>
+            <dd className="text-xs tabular-nums text-ink">{v}</dd>
+          </div>
+        ))}
+      </dl>
     </div>
   );
 }
