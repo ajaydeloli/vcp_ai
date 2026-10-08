@@ -356,9 +356,9 @@ function Charts({ d, id }: { d: Health; id: string }) {
   if (id === "breadth")
     return (
       <>
-        <MiniLineChart series={breadth} height={140} plain threshold={{ value: 40, title: "40%" }} label="breadth-chart" />
+        <MiniLineChart series={breadth} height={119} plain threshold={{ value: 40, title: "40%" }} label="breadth-chart" />
         <Legend items={[["% above 50-day", C.blue], ["% above 200-day", C.violet], ["dashed: regime on at 40%", C.warn]]} />
-        <MiniLineChart series={ad} height={98} plain label="ad-line-chart" />
+        <MiniLineChart series={ad} height={119} plain label="ad-line-chart" />
         <Legend items={[["Advance/decline line", C.ink], ["its 50-day average", C.warn]]} />
       </>
     );
