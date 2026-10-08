@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useLiveQuotes, useScreener, useStrategies } from "@/lib/api";
 import { DASH, fmtDay, fmtInt, fmtNum, fmtPct, fmtPrice, strategyLabel, tone } from "@/lib/fmt";
 import { pageNumbers } from "@/lib/lists";
-import { DEFAULT_QUERY, PRESETS, presetQuery, STAGES, type ScreenerQuery } from "@/lib/screener";
+import { DEFAULT_QUERY, STAGES, type ScreenerQuery } from "@/lib/screener";
 import type { LiveQuote, ScreenerRow } from "@/lib/schemas";
 import { LiveCell, LiveNotice } from "./Live";
 import { Nav } from "./Nav";
@@ -98,25 +98,48 @@ const triState = (v: boolean | undefined): string => (v === undefined ? "" : v ?
 const fromTri = (v: string): boolean | undefined => (v === "" ? undefined : v === "yes");
 const numOrUndef = (v: string): number | undefined => (v === "" ? undefined : Number(v));
 
+function Field({ id, label, children, className = "" }: { id: string; label: string; children: React.ReactNode; className?: string }) {
+  return (
+    <div className={className}>
+      <label className="mb-1 block text-[11px] uppercase text-mute" htmlFor={id}>
+        {label}
+      </label>
+      {children}
+    </div>
+  );
+}
+
+/** The filter bar above the results: every filter in one place, nothing preset. All run on the server. */
 function Filters({
   q,
   stageCounts,
   strategyIds,
   onChange,
+  onReset,
 }: {
   strategyIds: string[];
   q: ScreenerQuery;
   stageCounts: Record<string, number>;
   onChange: (next: Partial<ScreenerQuery>) => void;
+  onReset: () => void;
 }) {
-  const label = "mb-1 block text-[11px] uppercase text-mute";
+  const changed =
+    q.q !== "" ||
+    q.stages.length > 0 ||
+    q.ttPass !== undefined ||
+    q.nearHigh !== undefined ||
+    q.minRs !== undefined ||
+    q.minConditions !== undefined ||
+    q.hasSetup ||
+    q.minGrade !== undefined ||
+    q.status !== undefined ||
+    q.classification !== undefined ||
+    q.minStrategies !== undefined ||
+    q.strategy !== DEFAULT_QUERY.strategy;
   return (
     <Card title="Filters" label="Filters">
-      <div className="space-y-3">
-        <div>
-          <label className={label} htmlFor="scr-q">
-            Symbol or company
-          </label>
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-8">
+        <Field id="scr-q" label="Symbol or company" className="col-span-2">
           <input
             id="scr-q"
             type="search"
@@ -126,108 +149,64 @@ function Filters({
             className={field}
             placeholder="e.g. RELIANCE"
           />
-        </div>
-        <fieldset>
-          <legend className={label}>Weekly stage</legend>
-          <div className="space-y-1">
-            {STAGES.map((s) => (
-              <label key={s} className="flex items-center justify-between gap-2 text-xs text-ink">
-                <span className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    checked={q.stages.includes(s)}
-                    onChange={(e) =>
-                      onChange({ stages: e.target.checked ? [...q.stages, s] : q.stages.filter((x) => x !== s) })
-                    }
-                  />
-                  {stageLabel(s)}
-                </span>
-                <span className="text-mute">{fmtInt(stageCounts[s] ?? 0)}</span>
-              </label>
-            ))}
-          </div>
-        </fieldset>
-        <div>
-          <label className={label} htmlFor="scr-tt">
-            Trend Template
-          </label>
-          <select
-            id="scr-tt"
-            value={triState(q.ttPass)}
-            onChange={(e) => onChange({ ttPass: fromTri(e.target.value) })}
-            className={field}
-          >
-            <option value="">Any</option>
-            <option value="yes">Passes all 10</option>
-            <option value="no">Does not pass</option>
-          </select>
-        </div>
-        <div>
-          <label className={label} htmlFor="scr-high">
-            Near 52-week high
-          </label>
-          <select
-            id="scr-high"
-            value={triState(q.nearHigh)}
-            onChange={(e) => onChange({ nearHigh: fromTri(e.target.value) })}
-            className={field}
-          >
-            <option value="">Any</option>
-            <option value="yes">Yes</option>
-            <option value="no">No</option>
-          </select>
-        </div>
-        <div className="grid grid-cols-2 gap-2">
-          <div>
-            <label className={label} htmlFor="scr-rs">
-              Min RS rank
-            </label>
-            <input
-              id="scr-rs"
-              type="number"
-              min={0}
-              max={99}
-              value={q.minRs ?? ""}
-              onChange={(e) => onChange({ minRs: numOrUndef(e.target.value) })}
-              className={field}
-            />
-          </div>
-          <div>
-            <label className={label} htmlFor="scr-cond">
-              Min conditions
-            </label>
-            <input
-              id="scr-cond"
-              type="number"
-              min={0}
-              max={10}
-              value={q.minConditions ?? ""}
-              onChange={(e) => onChange({ minConditions: numOrUndef(e.target.value) })}
-              className={field}
-            />
-          </div>
-        </div>
-        <div>
-          <label className={label} htmlFor="scr-strategy">
-            Strategy
-          </label>
-          <select
-            id="scr-strategy"
-            value={q.strategy}
-            onChange={(e) => onChange({ strategy: e.target.value })}
-            className={field}
-          >
+        </Field>
+        <Field id="scr-strategy" label="Strategy">
+          <select id="scr-strategy" value={q.strategy} onChange={(e) => onChange({ strategy: e.target.value })} className={field}>
             {strategyIds.map((id) => (
               <option key={id} value={id}>
                 {strategyLabel(id)}
               </option>
             ))}
           </select>
-        </div>
-        <div>
-          <label className={label} htmlFor="scr-class">
-            Setup class
-          </label>
+        </Field>
+        <Field id="scr-tt" label="Trend Template">
+          <select id="scr-tt" value={triState(q.ttPass)} onChange={(e) => onChange({ ttPass: fromTri(e.target.value) })} className={field}>
+            <option value="">Any</option>
+            <option value="yes">Passes all 10</option>
+            <option value="no">Does not pass</option>
+          </select>
+        </Field>
+        <Field id="scr-high" label="Near 52-week high">
+          <select id="scr-high" value={triState(q.nearHigh)} onChange={(e) => onChange({ nearHigh: fromTri(e.target.value) })} className={field}>
+            <option value="">Any</option>
+            <option value="yes">Yes</option>
+            <option value="no">No</option>
+          </select>
+        </Field>
+        <Field id="scr-rs" label="Min RS rank">
+          <input
+            id="scr-rs"
+            type="number"
+            min={0}
+            max={99}
+            value={q.minRs ?? ""}
+            onChange={(e) => onChange({ minRs: numOrUndef(e.target.value) })}
+            className={field}
+          />
+        </Field>
+        <Field id="scr-cond" label="Min conditions">
+          <input
+            id="scr-cond"
+            type="number"
+            min={0}
+            max={10}
+            value={q.minConditions ?? ""}
+            onChange={(e) => onChange({ minConditions: numOrUndef(e.target.value) })}
+            className={field}
+          />
+        </Field>
+        <Field id="scr-setup" label="VCP setup">
+          <select
+            id="scr-setup"
+            value={q.hasSetup ? "ranked" : ""}
+            onChange={(e) => onChange({ hasSetup: e.target.value === "ranked" })}
+            className={field}
+          >
+            <option value="">Any</option>
+            <option value="ranked">Only ranked setups</option>
+          </select>
+        </Field>
+        <Field id="scr-class" label="Setup class">
           <select
             id="scr-class"
             value={q.classification ?? ""}
@@ -239,60 +218,70 @@ function Filters({
             <option value="VCP">VCP</option>
             <option value="VCP_LIKE">VCP like</option>
           </select>
-        </div>
-        <div>
-          <label className={label} htmlFor="scr-setup">
-            VCP setup
-          </label>
-          <select
-            id="scr-setup"
-            value={q.hasSetup ? "ranked" : ""}
-            onChange={(e) => onChange({ hasSetup: e.target.value === "ranked" })}
-            className={field}
-          >
-            <option value="">Any</option>
-            <option value="ranked">Only ranked setups</option>
-          </select>
-        </div>
-        <div>
-          <label className={label} htmlFor="scr-grade">
-            Min setup grade
-          </label>
-          <select
-            id="scr-grade"
-            value={q.minGrade ?? ""}
-            onChange={(e) => onChange({ minGrade: numOrUndef(e.target.value) })}
-            className={field}
-          >
+        </Field>
+        <Field id="scr-grade" label="Min setup grade">
+          <select id="scr-grade" value={q.minGrade ?? ""} onChange={(e) => onChange({ minGrade: numOrUndef(e.target.value) })} className={field}>
             <option value="">Any</option>
             <option value="1">Grade 1+</option>
             <option value="2">Grade 2+</option>
             <option value="3">Grade 3 (A+)</option>
           </select>
-        </div>
-        <div>
-          <label className={label} htmlFor="scr-status">
-            Setup status
-          </label>
-          <select
-            id="scr-status"
-            value={q.status ?? ""}
-            onChange={(e) => onChange({ status: e.target.value || undefined })}
-            className={field}
-          >
+        </Field>
+        <Field id="scr-status" label="Setup status">
+          <select id="scr-status" value={q.status ?? ""} onChange={(e) => onChange({ status: e.target.value || undefined })} className={field}>
             <option value="">Any</option>
             <option value="FORMING">Forming</option>
             <option value="PIVOT_READY">Pivot ready</option>
             <option value="BREAKOUT">Breakout</option>
           </select>
+        </Field>
+        <Field id="scr-several" label="On strategies">
+          <select
+            id="scr-several"
+            value={q.minStrategies ?? ""}
+            onChange={(e) => onChange({ minStrategies: numOrUndef(e.target.value) })}
+            className={field}
+          >
+            <option value="">Any</option>
+            <option value="2">2 or more</option>
+            <option value="3">3 or more</option>
+          </select>
+        </Field>
+        <fieldset className="col-span-2 md:col-span-4 xl:col-span-3">
+          <legend className="mb-1 block text-[11px] uppercase text-mute">Weekly stage</legend>
+          <div className="flex flex-wrap gap-1.5">
+            {STAGES.map((s) => {
+              const on = q.stages.includes(s);
+              return (
+                <label
+                  key={s}
+                  className={`flex cursor-pointer items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs ${
+                    on ? "border-accent bg-accent/20 text-ink" : "border-line text-mute hover:text-ink"
+                  }`}
+                >
+                  <input
+                    type="checkbox"
+                    className="sr-only"
+                    checked={on}
+                    onChange={(e) => onChange({ stages: e.target.checked ? [...q.stages, s] : q.stages.filter((x) => x !== s) })}
+                  />
+                  {stageLabel(s)}
+                  <span className="text-mute">{fmtInt(stageCounts[s] ?? 0)}</span>
+                </label>
+              );
+            })}
+          </div>
+        </fieldset>
+        <div className="col-span-2 flex items-end justify-end md:col-span-4 xl:col-span-1">
+          <button
+            type="button"
+            disabled={!changed}
+            onClick={onReset}
+            className="w-full rounded border border-line px-2 py-1.5 text-xs text-mute enabled:hover:text-ink disabled:opacity-40"
+          >
+            Reset filters
+          </button>
         </div>
-        <button
-          type="button"
-          onClick={() => onChange({ ...DEFAULT_QUERY })}
-          className="w-full rounded border border-line px-2 py-1.5 text-xs text-mute hover:text-ink"
-        >
-          Reset filters
-        </button>
       </div>
     </Card>
   );
@@ -358,8 +347,6 @@ export function Screener() {
   const data = result.data;
   const live = useLiveQuotes(data?.rows.map((r) => r.symbol) ?? [], !!data);
   const change = (next: Partial<ScreenerQuery>) => setQuery((q) => ({ ...q, ...next, page: 1 }));
-  const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
-  const active = PRESETS.find((p) => same({ ...presetQuery(p, query.q, query.strategy), page: 1 }, { ...query, page: 1 }));
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -374,29 +361,11 @@ export function Screener() {
               : "Every stock of the daily scan"
           }
         >
-          <div className="flex flex-wrap gap-2" role="group" aria-label="Presets">
-            {PRESETS.map((p) => (
-              <button
-                key={p.id}
-                type="button"
-                title={p.hint}
-                aria-pressed={active?.id === p.id}
-                onClick={() => setQuery(presetQuery(p, query.q, query.strategy))}
-                className={`rounded-full border px-3 py-1 text-xs ${
-                  active?.id === p.id ? "border-accent bg-accent text-white" : "border-line text-mute hover:text-ink"
-                }`}
-              >
-                {p.label}
-              </button>
-            ))}
-          </div>
+          <p className="text-xs text-mute">Set the filters below; the table updates as you change them.</p>
         </Card>
-        <div className="grid gap-4 xl:grid-cols-12">
-          <div className="min-w-0 xl:col-span-3">
-            <Filters q={query} stageCounts={data?.stage_counts ?? {}} strategyIds={strategyIds} onChange={change} />
-          </div>
-          <div className="min-w-0 space-y-3 xl:col-span-9">
-            <LiveNotice />
+        <Filters q={query} stageCounts={data?.stage_counts ?? {}} strategyIds={strategyIds} onChange={change} onReset={() => setQuery(DEFAULT_QUERY)} />
+        <div className="min-w-0 space-y-3">
+          <LiveNotice />
             <Card
               title="Results"
               subtitle={data ? `${fmtInt(data.total)} of ${fmtInt(data.scanned)} stocks match` : undefined}
@@ -470,7 +439,6 @@ export function Screener() {
                 </>
               )}
             </Card>
-          </div>
         </div>
         <p className="text-[11px] text-mute">
           A filter on the daily scan for research, not buy signals. Stages and conditions come from

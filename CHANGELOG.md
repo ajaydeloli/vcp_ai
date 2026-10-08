@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed (Screener filter bar)
+- Screener: removed the preset buttons and the left filter panel; all filters are one bar above the results table, which now uses the full width (spec 67.20). New "On strategies" filter replaces the "On several strategies" preset.
+- Fixed "Reset filters", which left the Trend Template, near-high, RS, conditions, grade, status and class filters set.
+
 ### Added (D4: live prices, display only)
 - `src/vcp_scanner/live/`: in-memory live quote cache with an Upstox feed (default) and a Kite feed (one `provider` setting in `config/live.yaml`), refreshed only during NSE hours, with clear states for a missing token, rate limit, error and stale data. No automatic provider switch; no writes to any database or file; the daily run does not import it.
 - API: `GET /api/v1/live/quotes`, `/live/indices`, `/live/status` (cache only, stamped live or closed).
