@@ -208,7 +208,7 @@ function Readings({ group }: { group: Health["groups"][number] }) {
 function Charts({ d, id }: { d: Health; id: string }) {
   const pts = d.points;
   const index = useMemo(
-    () => [series("Index", C.ink, pts, (p) => p.index), series("50-day", C.warn, pts, (p) => p.ma50), series("200-day", C.down, pts, (p) => p.ma200)],
+    () => [series("VQI", C.ink, pts, (p) => p.index), series("50-day", C.warn, pts, (p) => p.ma50), series("200-day", C.down, pts, (p) => p.ma200)],
     [pts],
   );
   const highs = useMemo(() => [series("New highs", C.up, pts, (p) => p.highs), series("New lows", C.down, pts, (p) => p.lows)], [pts]);
@@ -218,7 +218,7 @@ function Charts({ d, id }: { d: Health; id: string }) {
     return (
       <>
         <MiniLineChart series={index} height={170} plain label="index-price-chart" />
-        <Legend items={[["VCP Universe Index", C.ink], ["50-day", C.warn], ["200-day", C.down]]} />
+        <Legend items={[["VQI", C.ink], ["50-day", C.warn], ["200-day", C.down]]} />
       </>
     );
   if (id === "leadership")

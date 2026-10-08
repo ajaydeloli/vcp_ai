@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed (Dashboard redesign)
+- Our index is renamed "VCP Quality Index (VQI)" (was VCP Universe Index); charts label it VQI. Same index, still not NIFTY.
+
 - Paper trading and Recent activity side by side; today's date at the far right of the top bar (not in the bottom bar); search is an icon that opens the search box.
 
 - Market health header removed; each card has its own border colour; the gauge tile tooltip names what pulls the score down and holds it up.

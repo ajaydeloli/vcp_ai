@@ -128,7 +128,7 @@ def _index_group(
         names = " and ".join(f"{n}-day" for n in above) or "none"
         items.append(_item(
             "index_ma", "Index vs its averages", status,
-            f"VCP Universe Index is above its: {names} average{'s' if len(above) > 1 else ''}. "
+            f"VQI is above its: {names} average{'s' if len(above) > 1 else ''}. "
             f"The 200-day line is {'rising' if rising else 'not rising'}; the index is "
             f"{_pct(index[last], ma[200] or 1.0):+.1f}% from it.",
             _pct(index[last], ma[200] or 1.0), float(score),

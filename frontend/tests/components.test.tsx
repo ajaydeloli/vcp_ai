@@ -40,7 +40,7 @@ describe("tiles", () => {
     await waitFor(() => expect(screen.getByText("symbols").previousElementSibling).toHaveTextContent("63"));
     expect(screen.getByText("Trend Template").previousElementSibling).toHaveTextContent("3");
     expect(await screen.findByText("106.07")).toBeInTheDocument();
-    expect(screen.getByText("VCP Universe Index")).toBeInTheDocument();
+    expect(screen.getByText("VCP Quality Index (VQI)")).toBeInTheDocument();
     expect(screen.getByText("+0.10%")).toBeInTheDocument();
     await waitFor(() => expect(screen.getByTestId("verdict-score")).not.toHaveTextContent("—"));
     expect(screen.getByTestId("verdict-label").textContent).toMatch(/\w/);

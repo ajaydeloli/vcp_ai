@@ -165,7 +165,7 @@ class HealthGroup(BaseModel):
 
 class HealthPoint(BaseModel):
     day: date
-    index: float  # VCP Universe Index, 100 at the first chart day
+    index: float  # VQI (VCP Quality Index), 100 at the first chart day
     ma50: float | None
     ma200: float | None
     highs: int

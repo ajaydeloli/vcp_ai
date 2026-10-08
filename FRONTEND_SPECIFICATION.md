@@ -2195,3 +2195,7 @@ The "Market health" heading and its line (date, score, what pulls it down) are g
 ### 67.18c Top bar and bottom row (2026-10-08)
 
 Paper trading and Recent activity sit side by side in two columns. Today's date moved from the bottom bar to the far right of the top bar. The search box is now a magnifier icon in the top bar; clicking it opens the search box (Escape or choosing a stock closes it).
+
+### 67.18d Index renamed (2026-10-08)
+
+Our equal-weight index of the scanned stocks is now called **VCP Quality Index (VQI)** (was "VCP Universe Index"). Charts and legends label it "VQI"; the tile and the API label say "VCP Quality Index, VQI". It is still the equal-weight index of the stocks we scan, not NIFTY; the name does not mean a quality filter is applied.

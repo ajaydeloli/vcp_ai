@@ -21,7 +21,7 @@ function UniverseIndexTile() {
       className={`${BOX} border-accent/40 from-accent/20`}
       title="Equal-weight index of the stocks we scan, 100 on the first day shown. Not NIFTY."
     >
-      <p className="text-[11px] font-medium uppercase tracking-wide text-accent">VCP Universe Index</p>
+      <p className="text-[11px] font-medium uppercase tracking-wide text-accent">VCP Quality Index (VQI)</p>
       <div className="flex items-end justify-between gap-3">
         <p className="text-3xl font-semibold leading-tight tabular-nums text-ink">
           {fmtNum(last?.index, 2)}
