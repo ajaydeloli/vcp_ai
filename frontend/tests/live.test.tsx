@@ -1,4 +1,5 @@
 import { screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 import { LiveNotice } from "@/components/Live";
 import { Screener } from "@/components/Screener";
@@ -7,6 +8,7 @@ import { StockPanel } from "@/components/StockPanel";
 import { liveEvery } from "@/lib/api";
 import type { LiveFeed } from "@/lib/schemas";
 import { feedNotice, feedState, fmtAge, liveLabel } from "@/lib/live";
+import { liveCharts } from "./chartMock";
 import { fx, mockApi, renderApp } from "./helpers";
 
 const tokenDown = () => {
@@ -73,6 +75,27 @@ describe("live prices on the pages", () => {
       expect(within(side).getByText(label)).toBeInTheDocument();
     }
     expect(within(side).getByText(/adjusted prices/)).toBeInTheDocument();
+  });
+
+  it("the chart can hide each average and switch to OHLC bars", async () => {
+    mockApi();
+    renderApp(<StockPanel selection={{ symbol: "ALPHA", strategy: "vcp" }} onSelect={() => {}} onStockPage />);
+    const box = await screen.findByLabelText("SMA 20");
+    const chart = liveCharts()[0]!;
+    const [s20, s50, s200] = chart.of("line");
+    expect(chart.of("candles")[0]!.options.visible).not.toBe(false);
+    await userEvent.click(box);
+    expect(s20!.options.visible).toBe(false);
+    expect(s50!.options.visible).not.toBe(false);
+    await userEvent.click(box);
+    expect(s20!.options.visible).toBe(true);
+    await userEvent.click(screen.getByLabelText("SMA 200"));
+    expect(s200!.options.visible).toBe(false);
+    await userEvent.click(screen.getByRole("button", { name: "OHLC" }));
+    expect(chart.of("bars")[0]!.options.visible).toBe(true);
+    expect(chart.of("candles")[0]!.options.visible).toBe(false);
+    await userEvent.click(screen.getByRole("button", { name: "Candles" }));
+    expect(chart.of("candles")[0]!.options.visible).toBe(true);
   });
 
   it("a stock without a live price says not available", async () => {
