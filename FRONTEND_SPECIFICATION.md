@@ -2247,3 +2247,4 @@ The preset buttons (All scanned stocks, Trend Template passers, Top setups, A+ V
 
 The Company and Trend columns are removed. Company: the instrument table holds no company names (the data source gives none), so every cell was "not available". Trend: the stored Trend Template result has no trend score (it is a later-phase placeholder, null for every stock), so every cell was "not available". They can return when the data exists. The table uses a fixed layout: the watch star and Symbol have set widths and every other column gets an equal share of the rest, so the spacing is even. All column titles and values are centred except Symbol, which is left-aligned.
 - The Results title and the count ("X of Y stocks match") are on one line, the count at the far right.
+- The screener shows 15 stocks per page (was 25), so the results card fits the screen without scrolling.
