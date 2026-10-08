@@ -93,6 +93,7 @@ describe("dashboard page (market view)", () => {
       "Index price action", "Leadership", "Breadth", "Market stage", "Feedback loop", "Setups today",
     ]);
     expect(await within(overview).findByText(/Most setups are/)).toBeInTheDocument();
+    expect(within(overview).queryByText("Details")).not.toBeInTheDocument(); // no Details link on any card
   });
 
   it("the index card has the chart on the left and three figures on the right, no score or details", async () => {

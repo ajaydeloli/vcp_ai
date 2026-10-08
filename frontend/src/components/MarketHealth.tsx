@@ -168,14 +168,6 @@ function Readings({ group }: { group: Health["groups"][number] }) {
           </li>
         ))}
       </ul>
-      <details className="mt-2 text-[11px] text-mute">
-        <summary className="cursor-pointer hover:text-ink">Details</summary>
-        <ul className="mt-1 space-y-1.5">
-          {group.items.map((i) => (
-            <li key={i.id}>{i.text}</li>
-          ))}
-        </ul>
-      </details>
     </>
   );
 }

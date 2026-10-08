@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed (Dashboard redesign)
+- Removed the Details link from the Feedback loop card (the sentence stays as the tooltip of each reading).
 - Removed the explanatory footnotes under the Market stage chart and under the market cards (the spec keeps the explanation).
 - All eight cards are 23 rem tall (charts 200 px), the height of the Breadth card, which does not scroll; "Advancers minus decliners" is now "Net advancers".
 - All eight dashboard cards are one height; Paper trading and Recent activity have their own colours; Recent activity lists the stocks that joined or left the universe with the reason (spec 67.18g).
