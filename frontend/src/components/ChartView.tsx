@@ -191,6 +191,8 @@ export function ChartView({ bars, setup, range, onRange }: Props) {
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="mb-2 flex flex-wrap items-center gap-x-3 gap-y-2 text-xs">
+        <div className="flex items-center gap-2">
+          <span className="text-mute">Range :</span>
         <div className="flex gap-1" role="group" aria-label="Chart range">
           {RANGES.map((r) => (
             <button
@@ -206,7 +208,10 @@ export function ChartView({ bars, setup, range, onRange }: Props) {
             </button>
           ))}
         </div>
+        </div>
         <span aria-hidden="true" className="h-5 w-px bg-line" />
+        <div className="flex items-center gap-2">
+          <span className="text-mute">Chart :</span>
         <div className="flex gap-1" role="group" aria-label="Chart type">
           {TYPES.map((k) => (
             <button
@@ -223,6 +228,7 @@ export function ChartView({ bars, setup, range, onRange }: Props) {
               </svg>
             </button>
           ))}
+        </div>
         </div>
         <div className="ml-auto flex flex-wrap items-center gap-x-3 gap-y-2 text-mute">
           <span aria-hidden="true" className="h-5 w-px bg-line" />
