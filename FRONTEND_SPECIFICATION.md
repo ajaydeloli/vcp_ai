@@ -2236,7 +2236,7 @@ Recent activity now says which stocks joined or left the scan universe and why. 
 
 ## 67.20 Screener: filter bar above the results (2026-10-08)
 
-The preset buttons (All scanned stocks, Trend Template passers, Top setups, A+ VCP, Forming, Breakouts and the rest) and the left filter panel are gone. All filters now sit in one bar, full width, between the page heading and the results table; the table uses the full page width. Nothing is preset, saved or stored.
+The preset buttons (All scanned stocks, Trend Template passers, Top setups, A+ VCP, Forming, Breakouts and the rest) and the left filter panel are gone. All filters now sit in one bar, full width, at the top of the page, above the results table (no page header card); the table uses the full page width. Nothing is preset, saved or stored.
 
 - **Filters:** symbol or company, strategy, Trend Template (any, passes all 10, does not pass), near 52-week high, min RS rank, min conditions, VCP setup (any, only ranked), setup class, min setup grade, setup status, on strategies (any, 2 or more, 3 or more), and weekly stage as toggle chips with the count of stocks in each stage. Every filter runs on the server, exactly as before; the API is unchanged.
 - **Reset filters** clears every filter (including those the old reset missed: Trend Template, near high, RS, conditions, grade, status, class) and is disabled when nothing is set.

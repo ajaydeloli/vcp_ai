@@ -353,16 +353,6 @@ export function Screener() {
       <Nav active="Screener" />
       <main className="min-w-0 flex-1 space-y-4 p-4 pb-16">
         <h1 className="sr-only">Screener</h1>
-        <Card
-          title="Screener"
-          subtitle={
-            data
-              ? `${fmtInt(data.scanned)} stocks scanned on ${fmtDay(data.as_of)} · setups of the ${strategyLabel(data.strategy_id)} strategy`
-              : "Every stock of the daily scan"
-          }
-        >
-          <p className="text-xs text-mute">Set the filters below; the table updates as you change them.</p>
-        </Card>
         <Filters q={query} stageCounts={data?.stage_counts ?? {}} strategyIds={strategyIds} onChange={change} onReset={() => setQuery(DEFAULT_QUERY)} />
         <div className="min-w-0 space-y-3">
           <LiveNotice />

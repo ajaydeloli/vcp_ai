@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed (Screener filter bar)
+- Screener: removed the header card; the filter bar is the first thing on the page.
 - Screener: removed the preset buttons and the left filter panel; all filters are one bar above the results table, which now uses the full width (spec 67.20). New "On strategies" filter replaces the "On several strategies" preset.
 - Fixed "Reset filters", which left the Trend Template, near-high, RS, conditions, grade, status and class filters set.
 
