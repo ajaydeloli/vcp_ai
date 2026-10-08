@@ -48,11 +48,12 @@ type Handles = {
   chart: IChartApi;
   candles: ISeriesApi<"Candlestick">;
   ohlc: ISeriesApi<"Bar">;
+  price: ISeriesApi<"Line">;
   volume: ISeriesApi<"Histogram">;
   sma20: ISeriesApi<"Line">;
   sma50: ISeriesApi<"Line">;
   sma200: ISeriesApi<"Line">;
-  lines: [ISeriesApi<"Candlestick" | "Bar">, IPriceLine][];
+  lines: [ISeriesApi<"Candlestick" | "Bar" | "Line">, IPriceLine][];
 };
 
 type Averages = { sma20: boolean; sma50: boolean; sma200: boolean };
@@ -61,7 +62,26 @@ const AVERAGES: { key: keyof Averages; label: string; color: string }[] = [
   { key: "sma50", label: "SMA 50", color: COLORS.sma50 },
   { key: "sma200", label: "SMA 200", color: COLORS.sma200 },
 ];
-type ChartType = "candles" | "ohlc";
+type ChartType = "candles" | "ohlc" | "line";
+const TYPES: { id: ChartType; label: string; icon: React.ReactNode }[] = [
+  {
+    id: "candles",
+    label: "Candlesticks",
+    icon: (
+      <>
+        <path d="M4.5 1.5v13M11.5 1.5v13" />
+        <rect x="3" y="4.5" width="3" height="6" fill="currentColor" />
+        <rect x="10" y="3" width="3" height="7" />
+      </>
+    ),
+  },
+  {
+    id: "ohlc",
+    label: "OHLC bars",
+    icon: <path d="M5 1.5v13M2 5h3M11 1.5v13M11 11h3" />,
+  },
+  { id: "line", label: "Line", icon: <path d="M1.5 12l4-5 3 3 6-8" /> },
+];
 
 export function ChartView({ bars, setup, range, onRange }: Props) {
   const box = useRef<HTMLDivElement>(null);
@@ -104,6 +124,7 @@ export function ChartView({ bars, setup, range, onRange }: Props) {
       sma20: line(COLORS.sma20),
       sma50: line(COLORS.sma50),
       sma200: line(COLORS.sma200),
+      price: chart.addLineSeries({ color: COLORS.line, lineWidth: 2, visible: false, priceLineVisible: false }),
       lines: [],
     };
     const ro = new ResizeObserver(() => chart.applyOptions({ width: el.clientWidth, height: el.clientHeight || 340 }));
@@ -120,6 +141,9 @@ export function ChartView({ bars, setup, range, onRange }: Props) {
     if (!c) return;
     c.candles.setData(toCandles(bars));
     c.ohlc.setData(toCandles(bars));
+    c.price.setData(
+      bars.flatMap((b) => (b.close === null ? [] : [{ time: b.day as Time, value: b.close }])),
+    );
     c.volume.setData(toVolume(bars));
     c.sma20.setData(toSma(bars, "sma20"));
     c.sma50.setData(toSma(bars, "sma50"));
@@ -127,9 +151,10 @@ export function ChartView({ bars, setup, range, onRange }: Props) {
     const markers = buildMarkers(bars, setup);
     c.candles.setMarkers(markers);
     c.ohlc.setMarkers(markers);
+    c.price.setMarkers(markers);
     for (const [s, l] of c.lines) s.removePriceLine(l);
     const specs = buildPriceLines(setup);
-    c.lines = [c.candles, c.ohlc].flatMap((s) =>
+    c.lines = [c.candles, c.ohlc, c.price].flatMap((s) =>
       specs.map((l): [typeof s, IPriceLine] => [
         s,
         s.createPriceLine({
@@ -157,6 +182,7 @@ export function ChartView({ bars, setup, range, onRange }: Props) {
     if (!c) return;
     c.candles.applyOptions({ visible: type === "candles" });
     c.ohlc.applyOptions({ visible: type === "ohlc" });
+    c.price.applyOptions({ visible: type === "line" });
     c.sma20.applyOptions({ visible: shown.sma20 });
     c.sma50.applyOptions({ visible: shown.sma50 });
     c.sma200.applyOptions({ visible: shown.sma200 });
@@ -164,7 +190,7 @@ export function ChartView({ bars, setup, range, onRange }: Props) {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <div className="mb-2 flex items-center justify-between text-xs">
+      <div className="mb-2 flex flex-wrap items-center gap-x-3 gap-y-2 text-xs">
         <div className="flex gap-1" role="group" aria-label="Chart range">
           {RANGES.map((r) => (
             <button
@@ -180,30 +206,39 @@ export function ChartView({ bars, setup, range, onRange }: Props) {
             </button>
           ))}
         </div>
-        <div className="flex flex-wrap items-center gap-3 text-mute">
-          <div className="flex gap-1" role="group" aria-label="Chart type">
-            {(["candles", "ohlc"] as const).map((k) => (
-              <button
-                key={k}
-                type="button"
-                aria-pressed={type === k}
-                onClick={() => setType(k)}
-                className={`rounded px-2 py-1 ${type === k ? "bg-accent text-white" : "bg-panel2 text-mute hover:text-ink"}`}
-              >
-                {k === "candles" ? "Candles" : "OHLC"}
-              </button>
+        <span aria-hidden="true" className="h-5 w-px bg-line" />
+        <div className="flex gap-1" role="group" aria-label="Chart type">
+          {TYPES.map((k) => (
+            <button
+              key={k.id}
+              type="button"
+              aria-pressed={type === k.id}
+              aria-label={k.label}
+              title={k.label}
+              onClick={() => setType(k.id)}
+              className={`rounded px-2 py-1 ${type === k.id ? "bg-accent text-white" : "bg-panel2 text-mute hover:text-ink"}`}
+            >
+              <svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.4" aria-hidden="true">
+                {k.icon}
+              </svg>
+            </button>
+          ))}
+        </div>
+        <div className="ml-auto flex flex-wrap items-center gap-x-3 gap-y-2 text-mute">
+          <span aria-hidden="true" className="h-5 w-px bg-line" />
+          <div className="flex items-center gap-3" role="group" aria-label="Moving averages">
+            {AVERAGES.map((a) => (
+              <label key={a.key} className="flex cursor-pointer items-center gap-1" style={{ color: a.color }}>
+                <input
+                  type="checkbox"
+                  checked={shown[a.key]}
+                  onChange={(e) => setShown((s) => ({ ...s, [a.key]: e.target.checked }))}
+                />
+                {a.label}
+              </label>
             ))}
           </div>
-          {AVERAGES.map((a) => (
-            <label key={a.key} className="flex cursor-pointer items-center gap-1" style={{ color: a.color }}>
-              <input
-                type="checkbox"
-                checked={shown[a.key]}
-                onChange={(e) => setShown((s) => ({ ...s, [a.key]: e.target.checked }))}
-              />
-              {a.label}
-            </label>
-          ))}
+          <span aria-hidden="true" className="h-5 w-px bg-line" />
           <span>Adjusted prices</span>
         </div>
       </div>

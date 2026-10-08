@@ -10,6 +10,7 @@ export const COLORS = {
   sma20: "#f5c542",
   sma50: "#4aa3ff",
   sma200: "#c77dff",
+  line: "#8ab4ff",
   pivot: "#26c281",
   stop: "#ef5350",
   mark: "#e6ecf8",
