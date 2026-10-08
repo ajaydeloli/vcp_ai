@@ -2288,3 +2288,7 @@ On a wide screen the chart takes three quarters of the card and the details pane
 Every figure in the details panel (Close, Live price, Open, High, Low, Volume, Score, RS rank, Pivot) is the same size and weight; the day change next to Close and Live is one smaller size. Open, High, Low and Volume are separated by vertical lines. The order is now: symbol and strategies, Close, Live, Score / RS rank / Pivot, and last the setup (grade and status).
 
 The figures row of the details panel has a fourth element, **Stage**, after Pivot: the stock's weekly stage from the latest scan (Stage 1 to 4 or Transition), the same value as "Weekly stage" on the Trend Template card; a dash when the scan has none (67.21f).
+
+### 67.21g Stock Analysis: coloured cards (2026-10-08)
+
+Every card on the Stock Analysis page has its own border colour and a soft gradient of that colour, as on the Market Overview page, from the same palette: chart and details blue, VCP pattern violet, Trend Template green, Fundamentals amber, Score breakdown cyan, Setups across strategies pink, History and paper trades orange. The colours only decorate; they carry no meaning (up and down figures keep their own green and red).

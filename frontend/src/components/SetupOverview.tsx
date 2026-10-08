@@ -5,7 +5,7 @@ import { DASH, daysBetween, fmtDay, fmtInt, fmtNum, fmtPct, fmtPrice, sentence }
 import type { StockSetup, StockSetups } from "@/lib/schemas";
 import { ScoreRing, type Arc } from "./Rings";
 import type { Selection } from "@/lib/selection";
-import { Card, ErrorBox, Loading } from "./ui";
+import { Card, ErrorBox, Loading, TINT } from "./ui";
 
 function Row({ k, v }: { k: string; v: React.ReactNode }) {
   return (
@@ -61,7 +61,7 @@ function PatternCard({
   const d = setup?.details ?? {};
   const unmet = setup ? unmetByTier(setup.details) : [];
   return (
-    <Card title="VCP pattern" subtitle={setup ? undefined : `No setup stored for this stock on ${fmtDay(stock.as_of)}.`}>
+    <Card title="VCP pattern" box={TINT.violet} subtitle={setup ? undefined : `No setup stored for this stock on ${fmtDay(stock.as_of)}.`}>
       {setup ? (
         <>
           {setup.contractions.length > 0 ? (
@@ -130,6 +130,7 @@ function TrendCard({ stock }: { stock: StockSetups }) {
   return (
     <Card
       title="Trend Template"
+      box={TINT.green}
       right={
         <span className={`text-sm font-medium ${all ? "text-up" : "text-mute"}`}>
           {stock.conditions.length ? `${passed} / ${stock.conditions.length}${all ? " ✓" : ""}` : DASH}
@@ -175,7 +176,7 @@ const FUNDAMENTALS = ["EPS (TTM)", "Sales (TTM)", "ROE", "ROCE", "Debt / Equity"
 
 function FundamentalsCard() {
   return (
-    <Card title="Fundamentals" right={<span className="text-[11px] text-mute">Not available</span>}>
+    <Card title="Fundamentals" box={TINT.amber} right={<span className="text-[11px] text-mute">Not available</span>}>
       <dl className="text-xs">
         {FUNDAMENTALS.map((k) => (
           <Row key={k} k={k} v={DASH} />
@@ -199,7 +200,7 @@ function ScoreCard({ setup }: { setup: StockSetup | null }) {
     color: COMPONENT_COLORS[t.component] ?? EXTRA_COLORS[extra++ % EXTRA_COLORS.length] ?? "#8a97b3",
   }));
   return (
-    <Card title="Score breakdown">
+    <Card title="Score breakdown" box={TINT.cyan}>
       {!setup || arcs.length === 0 ? (
         <p className="text-xs text-mute">No score parts stored.</p>
       ) : (

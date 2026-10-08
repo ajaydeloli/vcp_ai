@@ -94,3 +94,14 @@ export function StatusPill({ status }: { status: string }) {
     </span>
   );
 }
+
+/** A coloured border and a soft gradient for a card (the palette of the Market Overview cards). */
+export const TINT = {
+  blue: "border-2 border-[#4aa3ff]/60 bg-gradient-to-br from-[#4aa3ff]/10 to-panel2",
+  green: "border-2 border-[#26c281]/60 bg-gradient-to-br from-[#26c281]/10 to-panel2",
+  violet: "border-2 border-[#8b5cf6]/60 bg-gradient-to-br from-[#8b5cf6]/10 to-panel2",
+  amber: "border-2 border-[#f5a524]/60 bg-gradient-to-br from-[#f5a524]/10 to-panel2",
+  cyan: "border-2 border-[#22d3ee]/60 bg-gradient-to-br from-[#22d3ee]/10 to-panel2",
+  pink: "border-2 border-[#f472b6]/60 bg-gradient-to-br from-[#f472b6]/10 to-panel2",
+  orange: "border-2 border-[#fb923c]/60 bg-gradient-to-br from-[#fb923c]/10 to-panel2",
+} as const;

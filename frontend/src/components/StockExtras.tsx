@@ -2,7 +2,7 @@
 
 import { useStockHistory, useStockSetups } from "@/lib/api";
 import { fmtDay, fmtNum, fmtPrice, strategyLabel } from "@/lib/fmt";
-import { Card, Empty, ErrorBox, GradeBadge, Loading, StatusPill } from "./ui";
+import { Card, Empty, ErrorBox, GradeBadge, Loading, StatusPill, TINT } from "./ui";
 
 /** One line per strategy that has this stock on its list; a click shows it on the chart. */
 export function StrategiesCard({
@@ -20,6 +20,7 @@ export function StrategiesCard({
   return (
     <Card
       title="Setups across strategies"
+      box={TINT.pink}
       subtitle={stock.data ? `${ranked.length} of ${setups.length} strategies rank this stock` : undefined}
       className="min-w-0"
     >
@@ -86,7 +87,7 @@ export function HistoryCard({ symbol }: { symbol: string }) {
   const history = useStockHistory(symbol, 180);
   const events = history.data?.events ?? [];
   return (
-    <Card title="History and paper trades" subtitle="Last 180 days, newest first" className="min-w-0">
+    <Card title="History and paper trades" box={TINT.orange} subtitle="Last 180 days, newest first" className="min-w-0">
       {history.isError ? (
         <ErrorBox error={history.error} />
       ) : history.isPending ? (
