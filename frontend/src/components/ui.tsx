@@ -8,6 +8,7 @@ export function Card({
   right,
   children,
   className = "",
+  box = "border border-line bg-panel",
 }: {
   title?: ReactNode;
   /** accessible name when the card has no visible title */
@@ -16,11 +17,13 @@ export function Card({
   right?: ReactNode;
   children: ReactNode;
   className?: string;
+  /** the border and background; the dashboard gives each card its own colour */
+  box?: string;
 }) {
   return (
     <section
       aria-label={title ? undefined : label}
-      className={`flex flex-col rounded-lg border border-line bg-panel p-4 ${className}`}
+      className={`flex flex-col rounded-lg p-4 ${box} ${className}`}
     >
       {title ? (
         <header className="mb-3 flex shrink-0 items-start justify-between gap-3">

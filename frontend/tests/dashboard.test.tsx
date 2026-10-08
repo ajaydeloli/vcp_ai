@@ -120,6 +120,25 @@ describe("dashboard page (market view)", () => {
       expect(fig.getByText(t)).toBeInTheDocument();
   });
 
+  it("recent activity says which stocks joined or left the universe and why", async () => {
+    mockApi();
+    renderApp(<Dashboard />);
+    expect(await screen.findByText(/Universe [\d,]+ to [\d,]+ stocks: \d+ joined, \d+ left/)).toBeInTheDocument();
+    expect(await screen.findByText(/Left the universe: no longer in the NSE list/)).toBeInTheDocument();
+    expect(await screen.findByText(/Joined the universe: was out before for price ₹19.8, below the ₹20 minimum/)).toBeInTheDocument();
+  });
+
+  it("paper trading and recent activity have their own colours and all eight cards are one size", async () => {
+    mockApi();
+    renderApp(<Dashboard />);
+    const paper = (await screen.findByText("Paper trading")).closest("section") as HTMLElement;
+    const act = (await screen.findByText("Recent activity")).closest("section") as HTMLElement;
+    expect(paper.className).toMatch(/border-\[#fb923c\]/);
+    expect(act.className).toMatch(/border-\[#a3e635\]/);
+    for (const card of [paper, act, await screen.findByRole("region", { name: "Setups today" })])
+      expect(card.className).toMatch(/lg:h-\[32rem\]/);
+  });
+
   it("market health states a verdict with a 0 to 100 score", async () => {
     mockApi();
     renderApp(<Dashboard />);

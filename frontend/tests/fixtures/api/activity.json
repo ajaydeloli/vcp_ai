@@ -35,6 +35,30 @@
    "text": "Paper exit (STOP), -5.15 % after costs"
   },
   {
+   "day": "2026-10-05",
+   "time": null,
+   "kind": "UNIVERSE",
+   "strategy_id": null,
+   "symbol": null,
+   "text": "Universe 63 to 63 stocks: 1 joined, 1 left"
+  },
+  {
+   "day": "2026-10-05",
+   "time": null,
+   "kind": "UNIVERSE_REMOVED",
+   "strategy_id": null,
+   "symbol": "GONE",
+   "text": "Left the universe: no longer in the NSE list"
+  },
+  {
+   "day": "2026-10-05",
+   "time": null,
+   "kind": "UNIVERSE_ADDED",
+   "strategy_id": null,
+   "symbol": "GAMMA",
+   "text": "Joined the universe: was out before for price \u20b919.8, below the \u20b920 minimum"
+  },
+  {
    "day": "2026-10-01",
    "time": "2026-10-05T20:30:00+05:30",
    "kind": "SCAN",

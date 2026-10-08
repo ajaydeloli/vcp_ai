@@ -116,6 +116,16 @@ def build_main_db(db: Path, ctx: Context) -> None:
         # --- universe and Trend Template scans ---------------------------------------------
         put(c, "universe_snapshots", universe_snapshot_id="U1", universe_name="u",
             as_of_date=AS_OF)  # fmt: skip
+        # the day before: GONE was in and is not listed now; the last member was out for its price
+        put(c, "universe_snapshots", universe_snapshot_id="U0", universe_name="u",
+            as_of_date=PREV)  # fmt: skip
+        put(c, "universe_memberships", universe_snapshot_id="U0", instrument_id="GONE",
+            eligible=True)  # fmt: skip
+        put(c, "universe_memberships", universe_snapshot_id="U0", instrument_id=iid(members[-1]),
+            eligible=False, exclusion_reason="Price 19.8 < 20.0")  # fmt: skip
+        for sym in members[:-1]:
+            put(c, "universe_memberships", universe_snapshot_id="U0", instrument_id=iid(sym),
+                eligible=True)  # fmt: skip
         for sym in members:
             put(c, "universe_memberships", universe_snapshot_id="U1", instrument_id=iid(sym),
                 eligible=True)  # fmt: skip

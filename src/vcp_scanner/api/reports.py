@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 from typing import Any
@@ -201,6 +202,92 @@ def _run_time(line: str) -> tuple[date, datetime] | None:
     return stamp.date(), stamp
 
 
+def _why(reason: str | None) -> str:
+    """One universe exclusion reason, in plain words (the stored text carries raw numbers)."""
+    if not reason:
+        return "no reason recorded"
+    if hit := re.fullmatch(r"Traded value ([\d.]+) < ([\d.]+)", reason):
+        return (
+            f"average traded value ₹{float(hit[1]) / 1e7:.2f} crore, below the "
+            f"₹{float(hit[2]) / 1e7:g} crore minimum"
+        )
+    if hit := re.fullmatch(r"(\d+)d traded value ([\d.]+) < ([\d.]+)", reason):
+        return (
+            f"{hit[1]}-day traded value ₹{float(hit[2]) / 1e7:.2f} crore, below the "
+            f"₹{float(hit[3]) / 1e7:g} crore minimum"
+        )
+    if hit := re.fullmatch(r"Price ([\d.]+) < ([\d.]+)", reason):
+        return f"price ₹{float(hit[1]):g}, below the ₹{float(hit[2]):g} minimum"
+    if reason == "ASM/GSM flag active":
+        return "on the exchange's ASM/GSM surveillance list"
+    if hit := re.fullmatch(r"Data quality blocked: (\w+)", reason):
+        return "data problem (" + hit[1].replace("_", " ").lower() + ")"
+    if hit := re.fullmatch(r"Series (\w+) not in \['EQ'\]", reason):
+        return f"traded in series {hit[1]}, only EQ is scanned"
+    if hit := re.fullmatch(r"History (\d+) bars < (\d+)", reason):
+        return f"only {hit[1]} days of price history, needs {hit[2]}"
+    if reason.startswith("Stale"):
+        return "no recent trades (" + reason.split(": ", 1)[-1] + ")"
+    return reason[0].lower() + reason[1:]
+
+
+def _universe_events(cur: Cur, start: date, end: date) -> list[m.ActivityEvent]:
+    """Stocks that joined or left the scan universe from one day's snapshot to the next, and why.
+
+    The universe of a day is the last snapshot made for that day; a stock is in it when its
+    membership is eligible."""
+    snaps = cur.execute(
+        "SELECT as_of_date, universe_snapshot_id FROM (SELECT as_of_date, universe_snapshot_id,"
+        " row_number() OVER (PARTITION BY as_of_date ORDER BY created_at DESC) AS rn"
+        " FROM universe_snapshots) WHERE rn = 1 ORDER BY as_of_date"
+    ).fetchall()
+    out: list[m.ActivityEvent] = []
+    for (_d0, before), (day, after) in zip(snaps, snaps[1:], strict=False):
+        if not start <= day <= end:
+            continue
+        rows = cur.execute(
+            "SELECT coalesce(i.symbol, x.instrument_id), x.was_in, x.now_in, x.was_why,"
+            " x.now_why, x.was_listed FROM (SELECT coalesce(a.instrument_id, b.instrument_id)"
+            " AS instrument_id, coalesce(a.eligible, false) AS was_in,"
+            " coalesce(b.eligible, false) AS now_in, a.exclusion_reason AS was_why,"
+            " b.exclusion_reason AS now_why, a.instrument_id IS NOT NULL AS was_listed"
+            " FROM (SELECT * FROM universe_memberships WHERE universe_snapshot_id = ?) a"
+            " FULL JOIN (SELECT * FROM universe_memberships WHERE universe_snapshot_id = ?) b"
+            " USING (instrument_id)) x LEFT JOIN instruments i USING (instrument_id)"
+            " WHERE x.was_in <> x.now_in ORDER BY 1",
+            [before, after],
+        ).fetchall()
+        if not rows:
+            continue
+        size_before = cur.execute(
+            "SELECT count(*) FROM universe_memberships WHERE universe_snapshot_id = ? AND eligible",
+            [before],
+        ).fetchone()
+        size_after = cur.execute(
+            "SELECT count(*) FROM universe_memberships WHERE universe_snapshot_id = ? AND eligible",
+            [after],
+        ).fetchone()
+        added = [r for r in rows if r[2]]
+        removed = [r for r in rows if not r[2]]
+        out.append(m.ActivityEvent(
+            day=day, time=None, kind="UNIVERSE", strategy_id=None, symbol=None,
+            text=f"Universe {size_before[0] if size_before else 0:,} to "
+                 f"{size_after[0] if size_after else 0:,} stocks: {len(added)} joined, "
+                 f"{len(removed)} left",
+        ))  # fmt: skip
+        for sym, _was, _now, _was_why, now_why, _listed in removed:
+            why = _why(now_why) if now_why else "no longer in the NSE list"
+            out.append(m.ActivityEvent(day=day, time=None, kind="UNIVERSE_REMOVED",
+                                       strategy_id=None, symbol=str(sym),
+                                       text=f"Left the universe: {why}"))  # fmt: skip
+        for sym, _was, _now, was_why, _now_why, listed in added:
+            why = f"was out before for {_why(was_why)}" if listed else "newly in the NSE list"
+            out.append(m.ActivityEvent(day=day, time=None, kind="UNIVERSE_ADDED",
+                                       strategy_id=None, symbol=str(sym),
+                                       text=f"Joined the universe: {why}"))  # fmt: skip
+    return out
+
+
 def activity(
     cur: Cur, ctx: Context, end: date, days: int, data_time: datetime
 ) -> m.ActivityResponse:
@@ -244,6 +331,7 @@ def activity(
                             strategy_id=sid, symbol=None,
                             text=f"{scan_type.replace('_', ' ').title()} scan for {d} completed")
         )  # fmt: skip
+    events.extend(_universe_events(cur, start, end))
     log = ctx.data_dir / "logs" / "daily_runs.log"
     try:
         lines = log.read_text(encoding="utf-8").splitlines()

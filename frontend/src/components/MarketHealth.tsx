@@ -124,14 +124,19 @@ function Trades({ trades }: { trades: Health["trades"] }) {
   );
 }
 
+/** All eight dashboard cards are the same height; what does not fit scrolls inside the card. */
+const SIZE = "lg:h-[32rem] lg:overflow-y-auto";
+
 /** Each card has its own border colour, with a faint tint of it in the background. */
 export const BOX = {
-  index: "border-2 border-[#4aa3ff]/60 bg-gradient-to-br from-[#4aa3ff]/10 to-panel2",
-  leadership: "border-2 border-[#26c281]/60 bg-gradient-to-br from-[#26c281]/10 to-panel2",
-  breadth: "border-2 border-[#8b5cf6]/60 bg-gradient-to-br from-[#8b5cf6]/10 to-panel2",
-  feedback: "border-2 border-[#f5a524]/60 bg-gradient-to-br from-[#f5a524]/10 to-panel2",
-  stage: "border-2 border-[#22d3ee]/60 bg-gradient-to-br from-[#22d3ee]/10 to-panel2",
-  setups: "border-2 border-[#f472b6]/60 bg-gradient-to-br from-[#f472b6]/10 to-panel2",
+  index: `border-2 border-[#4aa3ff]/60 bg-gradient-to-br from-[#4aa3ff]/10 to-panel2 ${SIZE}`,
+  leadership: `border-2 border-[#26c281]/60 bg-gradient-to-br from-[#26c281]/10 to-panel2 ${SIZE}`,
+  breadth: `border-2 border-[#8b5cf6]/60 bg-gradient-to-br from-[#8b5cf6]/10 to-panel2 ${SIZE}`,
+  feedback: `border-2 border-[#f5a524]/60 bg-gradient-to-br from-[#f5a524]/10 to-panel2 ${SIZE}`,
+  stage: `border-2 border-[#22d3ee]/60 bg-gradient-to-br from-[#22d3ee]/10 to-panel2 ${SIZE}`,
+  setups: `border-2 border-[#f472b6]/60 bg-gradient-to-br from-[#f472b6]/10 to-panel2 ${SIZE}`,
+  paper: `border-2 border-[#fb923c]/60 bg-gradient-to-br from-[#fb923c]/10 to-panel2 ${SIZE}`,
+  activity: `border-2 border-[#a3e635]/60 bg-gradient-to-br from-[#a3e635]/10 to-panel2 ${SIZE}`,
 };
 
 function Inner({ title, box, children }: { title: string; box: string; children: ReactNode }) {

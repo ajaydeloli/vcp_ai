@@ -16,13 +16,9 @@ export function Dashboard() {
         <h1 className="sr-only">Dashboard</h1>
         <Tiles />
         <MarketHealth />
-        <div className="grid gap-4 xl:grid-cols-2">
-          <div className="min-w-0 [&>section]:h-full">
-            <PaperPanel />
-          </div>
-          <div className="min-w-0 xl:relative xl:min-h-[360px]">
-            <ActivityPanel />
-          </div>
+        <div className="grid gap-4 lg:grid-cols-2">
+          <PaperPanel />
+          <ActivityPanel />
         </div>
       </main>
       <StatusBar />

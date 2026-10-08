@@ -2,6 +2,7 @@
 
 import { usePaper } from "@/lib/api";
 import { DASH, fmtDay, fmtNum, fmtPct, fmtPrice, strategyLabel, tone } from "@/lib/fmt";
+import { BOX } from "./MarketHealth";
 import { Card, ErrorBox, Loading } from "./ui";
 
 export function PaperPanel() {
@@ -22,6 +23,7 @@ export function PaperPanel() {
           ? `Rule set ${p.rule_set}, frozen strategies. Review from ${fmtDay(p.review_from)}, at least ${p.min_closed_trades} closed trades each. No real money.`
           : undefined
       }
+      box={BOX.paper}
       className="min-w-0"
     >
       {paper.isError ? (

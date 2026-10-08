@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useActivity } from "@/lib/api";
 import { fmtDay, strategyLabel } from "@/lib/fmt";
+import { BOX } from "./MarketHealth";
 import { Card, Empty, ErrorBox, Loading } from "./ui";
 
 const ICON: Record<string, { sym: string; cls: string }> = {
@@ -13,6 +14,9 @@ const ICON: Record<string, { sym: string; cls: string }> = {
   PAPER_DIVERGENCE: { sym: "!", cls: "text-warn" },
   SCAN: { sym: "◎", cls: "text-mute" },
   DAILY_RUN: { sym: "⟳", cls: "text-mute" },
+  UNIVERSE: { sym: "◇", cls: "text-accent" },
+  UNIVERSE_ADDED: { sym: "+", cls: "text-up" },
+  UNIVERSE_REMOVED: { sym: "−", cls: "text-down" },
 };
 
 export function ActivityPanel() {
@@ -30,7 +34,8 @@ export function ActivityPanel() {
           Show scans
         </label>
       }
-      className="min-w-0 xl:absolute xl:inset-0"
+      box={BOX.activity}
+      className="min-w-0"
     >
       {activity.isError ? (
         <ErrorBox error={activity.error} />
@@ -39,7 +44,7 @@ export function ActivityPanel() {
       ) : events.length === 0 ? (
         <Empty>Nothing to show in the last 7 days.</Empty>
       ) : (
-        <ul className="min-h-0 max-h-72 flex-1 space-y-2 overflow-auto pr-1 text-xs xl:max-h-none">
+        <ul className="min-h-0 max-h-72 flex-1 space-y-2 overflow-auto pr-1 text-xs lg:max-h-none">
           {events.map((e, i) => {
             const icon = ICON[e.kind] ?? { sym: "•", cls: "text-mute" };
             return (

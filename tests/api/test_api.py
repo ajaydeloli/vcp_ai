@@ -191,6 +191,12 @@ def test_activity_is_newest_first_with_every_source(ro_env: Env) -> None:
     assert days == sorted(days, reverse=True)
     run = next(e for e in events if e["kind"] == "DAILY_RUN" and e["day"] == AS_OF.isoformat())
     assert run["time"] is not None and "all steps OK" in run["text"]
+    uni = [e for e in events if e["kind"].startswith("UNIVERSE")]
+    assert uni[0]["kind"] == "UNIVERSE" and "joined" in uni[0]["text"] and "left" in uni[0]["text"]
+    gone = next(e for e in uni if e["kind"] == "UNIVERSE_REMOVED")
+    assert gone["symbol"] == "GONE" and "no longer in the NSE list" in gone["text"]
+    back = next(e for e in uni if e["kind"] == "UNIVERSE_ADDED")
+    assert "price ₹19.8, below the ₹20 minimum" in back["text"]
     assert get(ro_env, "/api/v1/activity?days=1")["as_of"] == AS_OF.isoformat()
 
 
