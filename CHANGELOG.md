@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Dashboard pages VCP Scanner, Strategies, Paper Trading and System Status (first draft, read-only, FRONTEND_SPECIFICATION 67.22).
+
 ### Changed (Stock Analysis layout)
 - Stock Analysis: each card has its own colour, as on Market Overview (spec 67.21g).
 - Details panel: Stage (weekly stage) added after Pivot.

@@ -2292,3 +2292,14 @@ The figures row of the details panel has a fourth element, **Stage**, after Pivo
 ### 67.21g Stock Analysis: coloured cards (2026-10-08)
 
 Every card on the Stock Analysis page has its own border colour and a soft gradient of that colour, as on the Market Overview page, from the same palette: chart and details blue, VCP pattern violet, Trend Template green, Fundamentals amber, Score breakdown cyan, Setups across strategies pink, History and paper trades orange. The colours only decorate; they carry no meaning (up and down figures keep their own green and red).
+
+### 67.22 More pages (first draft, for review)
+
+Four read-only pages, built only from endpoints that already exist (no new API, no new data):
+
+- **VCP Scanner** (`/scanner`): four count cards for the chosen strategy (ranked, grade 2 or better, breakouts, mean score of the top 10), then a table of its setups with a strategy and a status filter. Close and change show the live price when the feed has one, otherwise the stored close. A filter for research, not buy signals.
+- **Strategies** (`/strategies`): one coloured card per frozen strategy (stage, algorithm version, config hash, today's counts, grade tiers) and the stocks that are in more than one strategy.
+- **Paper Trading** (`/paper`): the paper panel of the Market Overview plus the review gates of each strategy (needs / value / met). A gate without a value shows a dash and "not yet judged", never 0.
+- **System Status** (`/system`): data dates, daily run, newest backup and its age, live feed state, warnings and the last 7 days of activity.
+
+Alerts, Fundamentals, Backtest, Research & Notes, Reports, Settings and Trend Template stay "later": there is no stored data behind them yet.

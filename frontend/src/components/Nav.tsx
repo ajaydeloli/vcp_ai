@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import { TopBar } from "./TopBar";
 
 const LATER = [
-  "VCP Scanner",
   "Trend Template",
   "Fundamentals",
   "Alerts",
@@ -18,7 +17,11 @@ const PAGES = [
   ["Market Overview", "/dashboard"],
   ["Screener", "/screener"],
   ["Stock Analysis", "/stocks"],
+  ["VCP Scanner", "/scanner"],
+  ["Strategies", "/strategies"],
+  ["Paper Trading", "/paper"],
   ["Watchlist", "/watchlist"],
+  ["System Status", "/system"],
 ] as const;
 
 type Page = (typeof PAGES)[number][0];
