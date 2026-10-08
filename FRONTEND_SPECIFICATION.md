@@ -2212,6 +2212,6 @@ The history is not stored. `GET /api/v1/market/health` rebuilds it (`stages`, on
 
 ### 67.18g Equal cards, colours for Paper trading and Recent activity, universe changes in the feed
 
-All eight dashboard cards (the six market cards, Paper trading, Recent activity) have the same height on wide screens (25 rem); what does not fit scrolls inside the card. Paper trading (orange) and Recent activity (lime) take their own border colours like the other six.
+All eight dashboard cards (the six market cards, Paper trading, Recent activity) have the same height on wide screens (23 rem, the height of the Breadth card); what does not fit scrolls inside the card. Paper trading (orange) and Recent activity (lime) take their own border colours like the other six.
 
 Recent activity now says which stocks joined or left the scan universe and why. `GET /api/v1/activity` adds three event kinds, read from the stored universe snapshots (the last snapshot of each day, a stock is in when its membership is eligible): `UNIVERSE` (one line a day, e.g. "Universe 1,275 to 1,271 stocks: 4 joined, 8 left"), `UNIVERSE_REMOVED` (the stock and its exclusion reason now, in plain words: traded value below the minimum, price below the minimum, ASM/GSM surveillance list, data problem, wrong series, short history, no recent trades, or no longer in the NSE list) and `UNIVERSE_ADDED` (the stock and the reason it was out before, or newly in the NSE list). Display only; nothing here changes a scan or the universe rules.

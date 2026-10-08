@@ -125,7 +125,7 @@ function Trades({ trades }: { trades: Health["trades"] }) {
 }
 
 /** All eight dashboard cards are the same height; what does not fit scrolls inside the card. */
-const SIZE = "lg:h-[25rem] lg:overflow-y-auto";
+const SIZE = "lg:h-[23rem] lg:overflow-y-auto";
 
 /** Each card has its own border colour, with a faint tint of it in the background. */
 export const BOX = {
