@@ -15,7 +15,6 @@ describe("screener page", () => {
     expect(link).toHaveAttribute("href", "/stocks/ALPHA");
     const nav = screen.getByRole("navigation", { name: "Main" });
     expect(within(nav).getByRole("link", { name: "Screener" })).toHaveAttribute("aria-current", "page");
-    expect(screen.getByText(/not buy signals/)).toBeInTheDocument();
   });
 
   it("has no preset buttons; the filters sit above the results table", async () => {

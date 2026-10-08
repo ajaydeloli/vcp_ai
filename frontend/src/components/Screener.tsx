@@ -425,10 +425,6 @@ export function Screener() {
               )}
             </Card>
         </div>
-        <p className="text-[11px] text-mute">
-          A filter on the daily scan for research, not buy signals. Stages and conditions come from
-          the Trend Template; setups from the VCP scan. Nothing here changes a scan or a score.
-        </p>
       </main>
       <StatusBar />
     </div>
