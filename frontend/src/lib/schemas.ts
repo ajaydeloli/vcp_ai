@@ -320,7 +320,7 @@ export const marketHealth = z.object({
     }),
   ),
   index_days: z
-    .object({ pct_from_200: num, accumulation: z.number(), distribution: z.number(), window: z.number() })
+    .object({ pct_from_50: num, pct_from_200: num, accumulation: z.number(), distribution: z.number(), window: z.number() })
     .nullable(),
   verdict: z
     .object({

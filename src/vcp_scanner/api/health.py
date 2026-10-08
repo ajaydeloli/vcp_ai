@@ -312,7 +312,9 @@ def _index_days(
     start = max(1, len(index) - DIST_WINDOW)
     days = range(start, len(index))
     ma200 = _sma(index, 200, len(index) - 1)
+    ma50 = _sma(index, 50, len(index) - 1)
     return m.HealthIndexDays(
+        pct_from_50=None if ma50 is None else _pct(index[-1], ma50),
         pct_from_200=None if ma200 is None else _pct(index[-1], ma200),
         accumulation=sum(
             1 for i in days if (mean_ret[i] or 0.0) >= -DIST_DROP and volume[i] > volume[i - 1]

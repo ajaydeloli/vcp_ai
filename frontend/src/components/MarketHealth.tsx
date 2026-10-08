@@ -184,17 +184,22 @@ function Figure({ label, value, sub, color }: { label: string; value: string; su
   );
 }
 
-/** The three figures beside the index chart: distance from the 200-day, accumulation days, distribution days. */
+/** The figures beside the index chart: distance from the 50-day and 200-day averages, accumulation days, distribution days. */
 function IndexFigures({ days }: { days: NonNullable<Health["index_days"]> }) {
-  const from = days.pct_from_200;
   const last = `(last ${days.window} sessions)`;
+  const away = (label: string, v: number | null, first = false) => (
+    <div className={first ? "" : "border-t border-line pt-3"}>
+      <Figure
+        label={label}
+        value={v === null ? "—" : `${v >= 0 ? "+" : ""}${v.toFixed(1)}%`}
+        color={v === null ? "text-ink" : v >= 0 ? "text-up" : "text-down"}
+      />
+    </div>
+  );
   return (
     <aside aria-label="Index figures" className="w-40 shrink-0 space-y-3 border-l border-line pl-4">
-      <Figure
-        label="Index vs 200-day average"
-        value={from === null ? "—" : `${from >= 0 ? "+" : ""}${from.toFixed(1)}%`}
-        color={from === null ? "text-ink" : from >= 0 ? "text-up" : "text-down"}
-      />
+      {away("Index vs 50-day average", days.pct_from_50, true)}
+      {away("Index vs 200-day average", days.pct_from_200)}
       <div className="border-t border-line pt-3">
         <Figure label="Accumulation days" value={String(days.accumulation)} sub={last} color="text-up" />
       </div>

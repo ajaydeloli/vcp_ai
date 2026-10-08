@@ -336,6 +336,7 @@ def test_market_health_reads_the_four_groups_and_says_when_data_is_too_thin(ro_e
     assert all(i["short"] for i in items.values())  # every reading has its one-line form
     assert items["highs_lows"]["short"].endswith("lows")
     days = body["index_days"]
+    assert "pct_from_50" in days
     assert days["window"] == 25 and days["accumulation"] >= 0 and days["distribution"] >= 0
     stages = body["stages"]  # the weekly stage of the scanned stocks, one point a week
     assert stages and stages[-1]["day"] == body["as_of"]

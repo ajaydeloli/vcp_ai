@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Tests: fake-provider unit tests, isolation test, contract samples; spec 67.19.
 
 ### Changed (Dashboard redesign)
+- Index price action card shows the index against its 50-day average as well as its 200-day average (index_days.pct_from_50).
 - Removed the Details link from the Feedback loop card (the sentence stays as the tooltip of each reading).
 - Removed the explanatory footnotes under the Market stage chart and under the market cards (the spec keeps the explanation).
 - All eight cards are 23 rem tall (charts 200 px), the height of the Breadth card, which does not scroll; "Advancers minus decliners" is now "Net advancers".

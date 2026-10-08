@@ -194,8 +194,9 @@ class HealthTrade(BaseModel):
 
 
 class HealthIndexDays(BaseModel):
-    """The index card: how far the index is from its 200-day average, and the heavy-volume days."""
+    """The index card: how far the index is from its 50-day and 200-day averages, and the heavy-volume days."""
 
+    pct_from_50: float | None
     pct_from_200: float | None
     accumulation: int  # index up 0.2 % or more on higher volume than the day before
     distribution: int  # index down 0.2 % or more on higher volume than the day before
