@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed (Stock Analysis layout)
+- Stock Analysis: symbol first, then the chart on the left and a details panel on the right (close, live with day open/high/low/volume, setup, score, RS rank, pivot) (spec 67.21).
+
 ### Changed (Screener filter bar)
 - Screener and watch list: a # column numbering the rows.
 - Screener: removed the note under the results table.

@@ -2250,3 +2250,7 @@ The Company and Trend columns are removed. Company: the instrument table holds n
 - The screener shows 15 stocks per page (was 25), so the results card fits the screen without scrolling.
 - The note under the results table ("A filter on the daily scan for research, not buy signals...") is removed. The status bar still carries "Research tool, not financial advice".
 - A **#** column (the first column, before the watch star) numbers the rows in the current list; the number carries on across pages (page 2 of 15 per page starts at 16). It is not sortable and is not stored.
+
+## 67.21 Stock Analysis: chart and details side by side (2026-10-08)
+
+The chart card now starts with the symbol (watch star, company name where known, and the Full analysis link when not on the stock page). Below it the card is two columns on a wide screen: the **chart on the left** (with the strategy buttons above it when the stock has setups in more than one strategy) and a **details panel on the right**, top to bottom: the stored **Close** (price, day change, "Close <date>, adjusted prices"); the **Live** box (last price, change, "Live, delayed N s" or "Close of <date>", source, and the day's open, high, low and volume where the feed has them, a dash where it does not); the strategy's **setup** (grade and status); and **Score, RS rank and Pivot**. On a narrow screen the panel goes below the chart. Nothing is added to the data: a missing value is a dash or "not available", never 0, and live values stay display only.
