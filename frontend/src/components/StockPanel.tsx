@@ -73,35 +73,6 @@ function StockView({
     <Card label={`Chart of ${selection.symbol}`} className="min-w-0">
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_21rem]">
         <div className="flex min-w-0 flex-col">
-          <div className="mb-3 flex flex-wrap items-baseline gap-x-3">
-            <span className="text-2xl font-semibold text-ink">{selection.symbol}</span>
-            <WatchStar symbol={selection.symbol} />
-            {company ? <span className="text-sm text-mute">{company}</span> : null}
-            {onStockPage ? null : (
-              <a href={`/stocks/${encodeURIComponent(selection.symbol)}`} className="text-xs text-accent hover:underline">
-                Full analysis →
-              </a>
-            )}
-          </div>
-          {setups.length > 1 ? (
-            <div className="mb-3 flex flex-wrap items-center gap-2 text-xs" role="group" aria-label="Setup shown on the chart">
-              {setups.map((s) => (
-                <button
-                  key={s.strategy_id}
-                  type="button"
-                  aria-pressed={active?.strategy_id === s.strategy_id}
-                  onClick={() => onSelect({ symbol: selection.symbol, strategy: s.strategy_id })}
-                  className={`rounded border px-2 py-1 ${
-                    active?.strategy_id === s.strategy_id
-                      ? "border-accent bg-accent/10 text-ink"
-                      : "border-line text-mute hover:text-ink"
-                  }`}
-                >
-                  {strategyLabel(s.strategy_id)}
-                </button>
-              ))}
-            </div>
-          ) : null}
           {bars.isError ? (
             <ErrorBox error={bars.error} />
           ) : bars.isPending ? (
@@ -115,6 +86,37 @@ function StockView({
         </div>
 
         <aside aria-label={`Details of ${selection.symbol}`} className="flex min-w-0 flex-col divide-y divide-line">
+          <div className={side}>
+            <div className="flex flex-wrap items-baseline gap-x-3">
+              <span className="text-2xl font-semibold text-ink">{selection.symbol}</span>
+              <WatchStar symbol={selection.symbol} />
+              {company ? <span className="text-sm text-mute">{company}</span> : null}
+              {onStockPage ? null : (
+                <a href={`/stocks/${encodeURIComponent(selection.symbol)}`} className="text-xs text-accent hover:underline">
+                  Full analysis →
+                </a>
+              )}
+            </div>
+            {setups.length > 1 ? (
+              <div className="mt-3 flex flex-wrap items-center gap-2 text-xs" role="group" aria-label="Setup shown on the chart">
+                {setups.map((s) => (
+                  <button
+                    key={s.strategy_id}
+                    type="button"
+                    aria-pressed={active?.strategy_id === s.strategy_id}
+                    onClick={() => onSelect({ symbol: selection.symbol, strategy: s.strategy_id })}
+                    className={`rounded border px-2 py-1 ${
+                      active?.strategy_id === s.strategy_id
+                        ? "border-accent bg-accent/10 text-ink"
+                        : "border-line text-mute hover:text-ink"
+                    }`}
+                  >
+                    {strategyLabel(s.strategy_id)}
+                  </button>
+                ))}
+              </div>
+            ) : null}
+          </div>
           <div className={side}>
             <p className="text-[11px] uppercase tracking-wide text-mute">Close</p>
             <div className="mt-1 flex flex-wrap items-baseline gap-x-3">
