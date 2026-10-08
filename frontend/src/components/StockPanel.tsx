@@ -34,7 +34,7 @@ function Figure({ label, value }: { label: string; value: string }) {
   return (
     <div className="px-2 text-center">
       <p className="text-[11px] text-mute">{label}</p>
-      <p className="text-xl font-semibold tabular-nums text-ink">{value}</p>
+      <p className="text-base font-semibold tabular-nums text-ink">{value}</p>
     </div>
   );
 }
@@ -120,7 +120,7 @@ function StockView({
           <div className={side}>
             <p className="text-[11px] uppercase tracking-wide text-mute">Close</p>
             <div className="mt-1 flex flex-wrap items-baseline gap-x-3">
-              <span className="text-3xl font-semibold tabular-nums text-ink">{fmtPrice(last?.close)}</span>
+              <span className="text-base font-semibold tabular-nums text-ink">{fmtPrice(last?.close)}</span>
               <span className={`text-sm tabular-nums ${tone(change)}`}>
                 {money === null ? DASH : `${money > 0 ? "+" : ""}${fmtNum(money, 2)}`} ({fmtPct(change, 2, true)})
               </span>
@@ -130,6 +130,11 @@ function StockView({
             </p>
           </div>
           <LiveLine q={live.bySymbol.get(selection.symbol.toUpperCase())} />
+          <div className={`${side} grid grid-cols-3 divide-x divide-line`}>
+            <Figure label="Score" value={fmtNum(active?.score, 0)} />
+            <Figure label="RS rank" value={fmtInt(rsRank)} />
+            <Figure label="Pivot" value={fmtPrice(active?.pivot)} />
+          </div>
           {active ? (
             <div className={side}>
               <p className="text-[11px] uppercase tracking-wide text-mute">{strategyLabel(active.strategy_id)} setup</p>
@@ -139,11 +144,6 @@ function StockView({
               </span>
             </div>
           ) : null}
-          <div className={`${side} grid grid-cols-3 divide-x divide-line`}>
-            <Figure label="Score" value={fmtNum(active?.score, 0)} />
-            <Figure label="RS rank" value={fmtInt(rsRank)} />
-            <Figure label="Pivot" value={fmtPrice(active?.pivot)} />
-          </div>
         </aside>
       </div>
     </Card>
