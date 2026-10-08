@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed (Stock Analysis layout)
+- Stock Analysis: the VCP pattern, Trend Template, Fundamentals and Score breakdown cards are equal in width and height.
 - Stock chart toolbar: "Range :" and "Chart :" labels on the two left groups.
 - Stock chart toolbar: range group, then chart type icons (candlesticks, OHLC bars, line), with the SMA check boxes on the right; groups separated by vertical lines (spec 67.21d).
 - Stock chart: check boxes to show or hide SMA 20, SMA 50 and SMA 200, and a Candles / OHLC switch (spec 67.21c).
