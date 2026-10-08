@@ -78,7 +78,7 @@ describe("dashboard page (market view)", () => {
     expect(within(card).getByText(/changes no rule, scan or score/)).toBeInTheDocument();
   });
 
-  it("market health has no outer card; two columns: index and leadership, breadth and feedback, stage and setups", async () => {
+  it("market health has no outer card; two columns: index and leadership, breadth and stage, feedback and setups", async () => {
     mockApi();
     renderApp(<Dashboard />);
     const overview = await screen.findByRole("region", { name: "Market health overview" });
@@ -91,7 +91,7 @@ describe("dashboard page (market view)", () => {
     const colours = within(overview).getAllByRole("region").map((r) => /border-\[(#\w+)\]/.exec(r.className)?.[1]);
     expect(new Set(colours).size).toBe(6); // every card has its own border colour
     expect(names).toEqual([
-      "Index price action", "Leadership", "Breadth", "Feedback loop", "Market stage", "Setups today",
+      "Index price action", "Leadership", "Breadth", "Market stage", "Feedback loop", "Setups today",
     ]);
     expect(await within(overview).findByText(/Most setups are/)).toBeInTheDocument();
   });

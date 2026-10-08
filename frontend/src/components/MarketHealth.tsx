@@ -374,13 +374,13 @@ export function MarketHealth() {
                 </div>
               </Inner>
             )}
+            <MarketStage box={BOX.stage} />
             {fb && (
               <Inner title={fb.title} box={BOX.feedback}>
                 <Charts d={d} id="feedback" />
                 <Readings group={fb} />
               </Inner>
             )}
-            <MarketStage box={BOX.stage} />
             <SetupCounts box={BOX.setups} />
           </div>
           <p className="mt-4 text-[11px] text-mute">
