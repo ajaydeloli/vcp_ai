@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed (Dashboard redesign)
+- Index and Leadership figures: the small note (last 25 sessions, today, points) now sits beside the number; the Failed breakouts note was removed.
 - Leadership card laid out like Index price action: chart on the left; new 52-week highs, new lows, failed breakouts and leaders vs index as figures on the right (readings list and Details removed).
 - Index price action and Leadership charts made taller (270 px) so they fill their cards.
 - Index price action card: chart on the left, figures on the right (index vs 200-day average, accumulation days, distribution days, last 25 sessions); no score or Details. `/api/v1/market/health` adds `index_days`.

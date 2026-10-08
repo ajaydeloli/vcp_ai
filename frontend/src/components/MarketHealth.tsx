@@ -209,8 +209,10 @@ function Figure({ label, value, sub, color }: { label: string; value: string; su
   return (
     <div>
       <p className="text-sm text-ink">{label}</p>
-      <p className={`text-3xl font-semibold tabular-nums ${color}`}>{value}</p>
-      {sub ? <p className="text-xs text-mute">{sub}</p> : null}
+      <p className="flex flex-wrap items-baseline gap-x-1.5">
+        <span className={`text-3xl font-semibold tabular-nums ${color}`}>{value}</span>
+        {sub ? <span className="text-xs text-mute">{sub}</span> : null}
+      </p>
     </div>
   );
 }
@@ -251,7 +253,6 @@ function LeadershipFigures({ group, highs, lows }: { group: Health["groups"][num
         <Figure
           label="Failed breakouts"
           value={failed === null ? "—" : `${failed.toFixed(0)}%`}
-          sub="closed back below pivot"
           color={failed === null ? "text-ink" : failed > 50 ? "text-down" : failed > 25 ? "text-warn" : "text-up"}
         />
       </div>
