@@ -2276,3 +2276,7 @@ Above the chart, next to "Adjusted prices", each moving average (SMA 20, SMA 50,
 The chart toolbar has three groups separated by vertical lines. Left, in order: the **range** buttons (3M, 6M, 1Y, All), then the **chart type** buttons, which are icons with a tooltip and an accessible name instead of words: Candlesticks, OHLC bars and Line (the closing price). Right-aligned: the **SMA 20 / SMA 50 / SMA 200** check boxes, then the note "Adjusted prices". The base start, contraction marks, breakout, pivot and stop lines show in all three chart types. This replaces the Candles / OHLC text switch of 67.21c.
 
 The range group is labelled "Range :" and the chart type group "Chart :"; the SMA check boxes have no label of their own (67.21d).
+
+### 67.21e Stock Analysis: four equal cards (2026-10-08)
+
+The four cards under the chart (VCP pattern, Trend Template, Fundamentals, Score breakdown) are the same width (a quarter of the row each on a wide screen, two per row on a tablet) and the same height (the tallest of them).

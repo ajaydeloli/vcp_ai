@@ -236,7 +236,7 @@ export function SetupOverview({ selection }: { selection: Selection | null }) {
   const row = ranked.data?.rows.find((r) => r.symbol === selection.symbol && r.strategy_id === setup?.strategy_id);
 
   return (
-    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-[1.15fr_1fr_0.85fr_1fr]">
+    <div className="grid auto-rows-fr gap-4 md:grid-cols-2 xl:grid-cols-4 [&>section]:h-full [&>section]:min-w-0">
       <PatternCard stock={stock.data} setup={setup} baseDays={row?.base_days ?? null} distance={row?.pivot_distance_pct ?? null} />
       <TrendCard stock={stock.data} />
       <FundamentalsCard />
