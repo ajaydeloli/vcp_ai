@@ -21,7 +21,8 @@ export type Col = {
   align?: "left";
   /** width in px for the narrow fixed columns; the others share the rest equally */
   w?: number;
-  render: (r: ScreenerRow, live?: LiveQuote) => React.ReactNode;
+  /** n is the row number in the list (1 is the first row of the first page) */
+  render: (r: ScreenerRow, live?: LiveQuote, n?: number) => React.ReactNode;
 };
 
 const yesNo = (v: boolean | null) =>
@@ -31,6 +32,12 @@ export const alignClass = (c: Pick<Col, "align">): string =>
   c.align === "left" ? "text-left" : "text-center";
 
 export const COLS: Col[] = [
+  {
+    key: "no",
+    w: 50,
+    label: "#",
+    render: (_r, _live, n) => <span className="tabular-nums text-mute">{n ?? DASH}</span>,
+  },
   {
     key: "watch",
     w: 40,
@@ -403,11 +410,11 @@ export function Screener() {
                         </tr>
                       </thead>
                       <tbody>
-                        {data.rows.map((r) => (
+                        {data.rows.map((r, i) => (
                           <tr key={r.instrument_id} className="border-t border-line">
                             {COLS.map((c) => (
                               <td key={c.key} className={`px-3 py-1.5 ${alignClass(c)}`}>
-                                {c.render(r, live.bySymbol.get(r.symbol))}
+                                {c.render(r, live.bySymbol.get(r.symbol), (data.page - 1) * data.page_size + i + 1)}
                               </td>
                             ))}
                           </tr>

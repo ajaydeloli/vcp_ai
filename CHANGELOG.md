@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed (Screener filter bar)
+- Screener and watch list: a # column numbering the rows.
 - Screener: removed the note under the results table.
 - Screener: 15 stocks per page instead of 25.
 - Screener: the "X of Y stocks match" count sits at the far right of the Results title line.
