@@ -11,14 +11,16 @@
      "label": "Index vs its averages",
      "status": "grey",
      "text": "Not enough history for the 50-, 150- and 200-day averages.",
-     "value": null
+     "value": null,
+     "score": null
     },
     {
      "id": "distribution",
      "label": "Distribution days",
      "status": "green",
      "text": "0 distribution days in the last 25 sessions (index down 0.2% or more on higher volume; volume of our stocks, not NIFTY).",
-     "value": 0.0
+     "value": 0.0,
+     "score": 100.0
     }
    ]
   },
@@ -31,21 +33,24 @@
      "label": "New 52-week highs vs lows",
      "status": "amber",
      "text": "0 new 52-week highs against 0 new lows today.",
-     "value": 0.0
+     "value": 0.0,
+     "score": null
     },
     {
      "id": "failed_breakouts",
      "label": "Failed breakouts",
      "status": "grey",
      "text": "Too few judged breakouts to read (0; 1 still too recent).",
-     "value": null
+     "value": null,
+     "score": null
     },
     {
      "id": "leaders",
      "label": "Leaders vs the index",
      "status": "amber",
      "text": "2 leaders (Trend Template pass, RS 80+) returned +1.2% over 20 sessions against +2.0% for the index (behind by 0.8 points).",
-     "value": -0.8419514489734325
+     "value": -0.8419514489734325,
+     "score": 41.6
     }
    ]
   },
@@ -58,21 +63,24 @@
      "label": "Above 50-day average",
      "status": "red",
      "text": "31.7% of the universe closes above its 50-day average (the regime switches on at 40%).",
-     "value": 31.746031746031747
+     "value": 31.746031746031747,
+     "score": 29.4
     },
     {
      "id": "above200",
      "label": "Above 200-day average",
      "status": "grey",
      "text": "No stock has a 200-day average yet.",
-     "value": null
+     "value": null,
+     "score": null
     },
     {
      "id": "ad",
      "label": "Advance / decline line",
      "status": "green",
      "text": "63 advancing, 0 declining today; the cumulative line is above its 50-day average.",
-     "value": 63.0
+     "value": 63.0,
+     "score": 100.0
     }
    ]
   },
@@ -85,7 +93,8 @@
      "label": "Our paper trades",
      "status": "grey",
      "text": "1 closed paper trade so far; the last 10 are needed for a read.",
-     "value": null
+     "value": null,
+     "score": null
     }
    ]
   }
@@ -1645,5 +1654,23 @@
    "day": "2026-10-05",
    "ret_pct": -5.15
   }
- ]
+ ],
+ "verdict": {
+  "score": 68,
+  "label": "Uptrend under pressure",
+  "status": "amber",
+  "override": false,
+  "green": 2,
+  "amber": 2,
+  "red": 1,
+  "counted": 4,
+  "weakest": [
+   "Above 50-day average",
+   "Leaders vs the index"
+  ],
+  "strongest": [
+   "Advance / decline line",
+   "Distribution days"
+  ]
+ }
 }

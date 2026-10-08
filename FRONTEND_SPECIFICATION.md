@@ -2151,3 +2151,24 @@ The Market overview card is gone. Its Regime, Breadth and "On, last 20" figures 
 ### 67.17d Feedback loop filled; stage order (2026-10-07)
 
 The Feedback loop card also shows, from the paper ledger already served: closed trades toward the review per strategy (of 30), and the open paper positions with their gain or loss since entry. Market stage lists Stage 1, 2, 3, 4, then Transition. Display only.
+
+### 67.17e Market health verdict (2026-10-08)
+
+A banner at the top of the Market health card: a label and a score from 0 to 100. Display only: it feeds no rule, scan, score, strategy or the regime, and it is not a trading signal. Computed in the API (`health.py`, `_verdict`), returned as `verdict` with a `score` on each reading.
+
+**Reading scores (0 to 100, straight lines, held flat at both ends; grey readings carry no score and are left out).**
+
+| Reading | Score |
+|---|---|
+| Index vs its averages | 35 above the 200-day, 15 the 200-day rising, 20 above the 150-day, 20 above the 50-day, 10 the 50-day above the 150-day |
+| Distribution days | 100 at 3 or fewer, 0 at 8 or more (20 points a day between) |
+| New 52-week highs vs lows | share of highs among highs+lows: 0 at 30%, 100 at 70% |
+| Failed breakouts | failure rate: 100 at 10% or less, 0 at 60% or more |
+| Leaders vs the index | gap in points: 0 at -5, 100 at +5 |
+| Above 50-day / above 200-day | share of the universe: 0 at 20%, 100 at 60% |
+| Advance/decline line | distance from its 50-day average, against the line's range over 50 sessions (50 on the average) |
+| Our paper trades | winners among the last 10 closed trades times 10 |
+
+**Verdict.** Score = average of the scored readings, rounded. 70 or more Confirmed uptrend; 45 to 69 Uptrend under pressure; 25 to 44 Correction; under 25 Downtrend. Override: the index below its 200-day average is Downtrend whatever the score. The banner also lists the readings pulling the score down and holding it up. The colour dots and thresholds of 67.17 are unchanged. The regime figures are not counted (they repeat the 50-day breadth reading).
+
+**Check on real data (2 week steps, 2026).** Downtrend from January to early April, Confirmed uptrend from mid-April to early September, Under pressure in late July and mid-September, Correction early October. The leaders and paper readings use the latest scan, so a back-test of them is not point-in-time.

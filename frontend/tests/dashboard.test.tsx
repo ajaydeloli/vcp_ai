@@ -61,6 +61,16 @@ describe("dashboard page (market view)", () => {
     expect(within(card).getByText(/Most stocks are in Stage 2/)).toBeInTheDocument();
   });
 
+  it("market health states a verdict with a 0 to 100 score", async () => {
+    mockApi();
+    renderApp(<Dashboard />);
+    expect(await screen.findByTestId("verdict-label")).toBeInTheDocument();
+    const score = Number(screen.getByTestId("verdict-score").textContent);
+    expect(score).toBeGreaterThanOrEqual(0);
+    expect(score).toBeLessThanOrEqual(100);
+    expect(screen.getByText(/readings scored/)).toBeInTheDocument();
+  });
+
   it("market health has four inner cards with charts", async () => {
     mockApi();
     renderApp(<Dashboard />);

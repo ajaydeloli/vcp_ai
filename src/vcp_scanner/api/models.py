@@ -140,6 +140,20 @@ class HealthItem(BaseModel):
     status: str  # green | amber | red | grey (grey: not enough data to read)
     text: str
     value: float | None
+    score: float | None  # 0-100, a straight-line score for the verdict; None: not scored (grey)
+
+
+class HealthVerdict(BaseModel):
+    score: int  # 0-100, the average of the scored readings
+    label: str
+    status: str  # green | amber | orange | red
+    override: bool  # the index is below its 200-day average: Downtrend whatever the score
+    green: int
+    amber: int
+    red: int
+    counted: int  # readings that carried a score
+    weakest: list[str]
+    strongest: list[str]
 
 
 class HealthGroup(BaseModel):
@@ -170,6 +184,7 @@ class MarketHealthResponse(Stamped):
     groups: list[HealthGroup]
     points: list[HealthPoint]
     trades: list[HealthTrade]
+    verdict: HealthVerdict | None
 
 
 class SearchHit(BaseModel):

@@ -115,7 +115,12 @@ def create_app(
             end = q.latest_prices_date(cur)
             if end is None:
                 return m.MarketHealthResponse(
-                    as_of=None, data_time=db.data_time(), groups=[], points=[], trades=[]
+                    as_of=None,
+                    data_time=db.data_time(),
+                    groups=[],
+                    points=[],
+                    trades=[],
+                    verdict=None,
                 )
             result: m.MarketHealthResponse = db.cached(
                 ("health", end), lambda: health.market_health(cur, ctx, end, db.data_time())

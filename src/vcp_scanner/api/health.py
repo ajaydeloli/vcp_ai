@@ -69,8 +69,20 @@ GROUP BY ds.trade_date ORDER BY ds.trade_date
 """
 
 
-def _item(id_: str, label: str, status: str, text: str, value: float | None = None) -> m.HealthItem:
-    return m.HealthItem(id=id_, label=label, status=status, text=text, value=value)
+def _item(
+    id_: str, label: str, status: str, text: str, value: float | None = None,
+    score: float | None = None,
+) -> m.HealthItem:  # fmt: skip
+    return m.HealthItem(
+        id=id_, label=label, status=status, text=text, value=value,
+        score=None if score is None else round(score, 1),
+    )  # fmt: skip
+
+
+def _ramp(x: float, zero: float, hundred: float) -> float:
+    """A straight line from 0 (at `zero`) to 100 (at `hundred`), held flat outside: the score of a
+    reading moves a little when the reading moves a little, instead of jumping at a colour edge."""
+    return max(0.0, min(100.0, (x - zero) / (hundred - zero) * 100.0))
 
 
 def _sma(values: list[float], n: int, at: int) -> float | None:
@@ -106,13 +118,20 @@ def _index_group(
             status = "green"
         else:
             status = "amber"
+        score = (
+            (35 if 200 in above else 0)
+            + (15 if rising else 0)
+            + (20 if 150 in above else 0)
+            + (20 if 50 in above else 0)
+            + (10 if (ma[50] or 0.0) > (ma[150] or 0.0) else 0)
+        )
         names = " and ".join(f"{n}-day" for n in above) or "none"
         items.append(_item(
             "index_ma", "Index vs its averages", status,
             f"VCP Universe Index is above its: {names} average{'s' if len(above) > 1 else ''}. "
             f"The 200-day line is {'rising' if rising else 'not rising'}; the index is "
             f"{_pct(index[last], ma[200] or 1.0):+.1f}% from it.",
-            _pct(index[last], ma[200] or 1.0),
+            _pct(index[last], ma[200] or 1.0), float(score),
         ))  # fmt: skip
     start = max(1, len(index) - DIST_WINDOW)
     dist = sum(
@@ -124,7 +143,7 @@ def _index_group(
         "distribution", "Distribution days", status,
         f"{dist} distribution day{'s' if dist != 1 else ''} in the last {DIST_WINDOW} sessions "
         f"(index down {-DIST_DROP * 100:.1f}% or more on higher volume; volume of our stocks, "
-        "not NIFTY).", float(dist),
+        "not NIFTY).", float(dist), _ramp(dist, 8, 3),
     ))  # fmt: skip
     return m.HealthGroup(id="index", title="Index price action", items=items)
 
@@ -138,7 +157,7 @@ def _breadth_group(rows: list[tuple[Any, ...]]) -> m.HealthGroup:
         status = "green" if p >= 50 else "amber" if p >= 40 else "red"
         items.append(_item("above50", "Above 50-day average", status,
                            f"{p:.1f}% of the universe closes above its 50-day average "
-                           "(the regime switches on at 40%).", p))  # fmt: skip
+                           "(the regime switches on at 40%).", p, _ramp(p, 20, 60)))  # fmt: skip
     else:
         items.append(_item("above50", "Above 50-day average", "grey",
                            "No stock has a 50-day average yet."))  # fmt: skip
@@ -152,6 +171,7 @@ def _breadth_group(rows: list[tuple[Any, ...]]) -> m.HealthGroup:
                 status,
                 f"{p:.1f}% of the universe closes above its 200-day average.",
                 p,
+                _ramp(p, 20, 60),
             )
         )
     else:
@@ -175,10 +195,13 @@ def _breadth_group(rows: list[tuple[Any, ...]]) -> m.HealthGroup:
         )
     else:
         up = line[-1] > ma
+        span = max(line[-50:]) - min(line[-50:])  # the distance from the average is judged against
+        # how far the line has moved in 50 sessions
         items.append(_item(
             "ad", "Advance / decline line", "green" if up else "red",
             f"{adv} advancing, {dec} declining today; the cumulative line is "
             f"{'above' if up else 'below'} its 50-day average.", float(adv - dec),
+            _ramp(line[-1] - ma, -0.5 * span, 0.5 * span) if span > 0 else 50.0,
         ))  # fmt: skip
     return m.HealthGroup(id="breadth", title="Breadth", items=items)
 
@@ -233,7 +256,7 @@ def _failed_breakouts(cur: Cur, ctx: Context, sessions: list[date], end: date) -
         "failed_breakouts", "Failed breakouts", status,
         f"{failed} of {judged} breakouts in the last {BREAKOUT_LOOKBACK_DAYS} days closed back "
         f"below their pivot within {FAIL_WITHIN} sessions ({rate:.0f}%); {pending} too recent "
-        "to judge.", rate,
+        "to judge.", rate, _ramp(rate, 60, 10),
     )  # fmt: skip
 
 
@@ -274,6 +297,7 @@ def _leaders(cur: Cur, ctx: Context, sessions: list[date], index: list[float]) -
         f"{len(rets)} leaders (Trend Template pass, RS {LEADER_RS}+) returned {lead:+.1f}% over "
         f"{LEADER_DAYS} sessions against {idx:+.1f}% for the index "
         f"({'ahead' if gap > 0 else 'behind'} by {abs(gap):.1f} points).", gap,
+        _ramp(gap, -5, 5),
     )  # fmt: skip
 
 
@@ -348,8 +372,39 @@ def _paper(cur: Cur, ctx: Context) -> m.HealthGroup:
             "paper", "Our paper trades", status,
             f"{wins} of the last {n} closed paper trades were winners (average "
             f"{sum(rets) / n:+.1f}%), all five strategies together.", float(wins),
+            wins * 10.0,
         )  # fmt: skip
     return m.HealthGroup(id="feedback", title="Feedback loop", items=[item])
+
+
+VERDICT_BANDS = ((70.0, "Confirmed uptrend", "green"), (45.0, "Uptrend under pressure", "amber"),
+                 (25.0, "Correction", "orange"))  # fmt: skip
+
+
+def _verdict(groups: list[m.HealthGroup]) -> m.HealthVerdict | None:
+    items = [i for g in groups for i in g.items]
+    scored = [i for i in items if i.score is not None]
+    if not scored:
+        return None
+    score = round(sum(i.score or 0.0 for i in scored) / len(scored))
+    label, status = "Downtrend", "red"
+    for floor, name, colour in VERDICT_BANDS:
+        if score >= floor:
+            label, status = name, colour
+            break
+    below_200 = any(i.id == "index_ma" and i.status == "red" for i in items)
+    if below_200:
+        label, status = "Downtrend", "red"
+    ranked = sorted(scored, key=lambda i: i.score or 0.0)
+    return m.HealthVerdict(
+        score=score, label=label, status=status, override=below_200,
+        green=sum(i.status == "green" for i in items),
+        amber=sum(i.status == "amber" for i in items),
+        red=sum(i.status == "red" for i in items),
+        counted=len(scored),
+        weakest=[i.label for i in ranked[:3] if (i.score or 0.0) < 50],
+        strongest=[i.label for i in ranked[::-1][:2] if (i.score or 0.0) >= 50],
+    )  # fmt: skip
 
 
 def market_health(cur: Cur, ctx: Context, end: date, data_time: datetime) -> m.MarketHealthResponse:
@@ -365,7 +420,7 @@ def market_health(cur: Cur, ctx: Context, end: date, data_time: datetime) -> m.M
     rows = rows[-SESSIONS_SHOWN:]
     if len(rows) < 2:
         return m.MarketHealthResponse(
-            as_of=None, data_time=data_time, groups=[], points=[], trades=[]
+            as_of=None, data_time=data_time, groups=[], points=[], trades=[], verdict=None
         )
     level, index = 1.0, []
     for r in rows:
@@ -381,7 +436,8 @@ def market_health(cur: Cur, ctx: Context, end: date, data_time: datetime) -> m.M
     status = "green" if hi >= 2 * lo and hi > 0 else "red" if lo > hi else "amber"
     leaders_items = [
         _item("highs_lows", "New 52-week highs vs lows", status,
-              f"{hi} new 52-week highs against {lo} new lows today.", float(hi - lo)),
+              f"{hi} new 52-week highs against {lo} new lows today.", float(hi - lo),
+              _ramp(hi / (hi + lo), 0.3, 0.7) if hi + lo else None),
         _failed_breakouts(cur, ctx, sessions, end),
         _leaders(cur, ctx, sessions, index),
     ]  # fmt: skip
@@ -393,5 +449,5 @@ def market_health(cur: Cur, ctx: Context, end: date, data_time: datetime) -> m.M
     ]
     return m.MarketHealthResponse(
         as_of=sessions[-1], data_time=data_time, groups=groups,
-        points=_points(rows, index), trades=_trades(cur, ctx),
+        points=_points(rows, index), trades=_trades(cur, ctx), verdict=_verdict(groups),
     )  # fmt: skip

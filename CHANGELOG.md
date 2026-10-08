@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (Dashboard: Market health verdict)
+- Market health verdict: a 0 to 100 score and a label (Confirmed uptrend, Uptrend under pressure, Correction, Downtrend) from straight-line scores of the nine readings; `/api/v1/market/health` adds `verdict` and a `score` per reading. Display only.
+
 ### Changed (Dashboard: Market health charts)
 - Market overview card merged into the Breadth card of Market health (regime, breadth, days on, rule).
 

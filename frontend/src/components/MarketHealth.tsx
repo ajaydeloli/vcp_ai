@@ -14,6 +14,59 @@ const DOT: Record<string, string> = {
   grey: "bg-mute/60",
 };
 
+const VERDICT_TEXT: Record<string, string> = {
+  green: "text-up",
+  amber: "text-warn",
+  orange: "text-[#fb923c]",
+  red: "text-down",
+};
+const VERDICT_BAR: Record<string, string> = {
+  green: "bg-up",
+  amber: "bg-warn",
+  orange: "bg-[#fb923c]",
+  red: "bg-down",
+};
+
+/** One line on the whole card: the average of the readings' 0-100 scores, with what pulls it up and down. */
+function Verdict({ v }: { v: NonNullable<Health["verdict"]> }) {
+  return (
+    <section aria-label="Verdict" className="mb-4 rounded-lg border border-line bg-panel2 p-4">
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-mute">Market health verdict</p>
+          <p className={`text-2xl font-semibold ${VERDICT_TEXT[v.status] ?? "text-ink"}`} data-testid="verdict-label">
+            {v.label}
+          </p>
+        </div>
+        <p className="text-right">
+          <span className="text-4xl font-semibold tabular-nums text-ink" data-testid="verdict-score">
+            {v.score}
+          </span>
+          <span className="text-sm text-mute"> / 100</span>
+        </p>
+      </div>
+      <div className="relative mt-3 h-2 rounded bg-bg" role="img" aria-label={`score ${v.score} of 100`}>
+        <span className={`absolute inset-y-0 left-0 rounded ${VERDICT_BAR[v.status] ?? "bg-mute"}`} style={{ width: `${v.score}%` }} />
+        {[25, 45, 70].map((t) => (
+          <span key={t} className="absolute inset-y-0 w-px bg-ink/40" style={{ left: `${t}%` }} />
+        ))}
+      </div>
+      <div className="mt-1 flex justify-between text-[10px] text-mute">
+        <span>Downtrend</span>
+        <span>Correction (25)</span>
+        <span>Under pressure (45)</span>
+        <span>Confirmed uptrend (70)</span>
+      </div>
+      <p className="mt-3 text-xs text-mute">
+        {v.green} green, {v.amber} amber, {v.red} red; {v.counted} readings scored.
+        {v.weakest.length > 0 && <> Pulling it down: {v.weakest.join(", ")}.</>}
+        {v.strongest.length > 0 && <> Holding it up: {v.strongest.join(", ")}.</>}
+        {v.override && <> The index is below its 200-day average, so the verdict is Downtrend whatever the score.</>}
+      </p>
+    </section>
+  );
+}
+
 const C = { ink: "#e6e9ef", up: "#26a69a", down: "#ef5350", warn: "#f5a524", violet: "#a78bfa", blue: "#5b9dff" };
 
 function series(name: string, color: string, pts: Health["points"], pick: (p: Health["points"][number]) => number | null): MiniSeries {
@@ -168,7 +221,14 @@ function Inner({ g, children }: { g: Health["groups"][number]; children: ReactNo
               className={`mt-1 h-2.5 w-2.5 shrink-0 rounded-full ${DOT[i.status] ?? DOT.grey}`}
             />
             <span className="min-w-0">
-              <span className="block font-medium text-ink">{i.label}</span>
+              <span className="flex justify-between gap-2 font-medium text-ink">
+                {i.label}
+                {i.score !== null && (
+                  <span className="font-normal tabular-nums text-mute" title="score out of 100">
+                    {Math.round(i.score)}
+                  </span>
+                )}
+              </span>
               <span className="block text-mute">{i.text}</span>
             </span>
           </li>
@@ -241,6 +301,7 @@ export function MarketHealth() {
         <Empty>No market data to read yet.</Empty>
       ) : (
         <>
+          {d.verdict && <Verdict v={d.verdict} />}
           <div className="grid gap-4 lg:grid-cols-2">
             {d.groups.map((g) => (
               <Inner key={g.id} g={g}>
@@ -249,7 +310,7 @@ export function MarketHealth() {
             ))}
           </div>
           <p className="mt-4 text-[11px] text-mute">
-            A read for research. It changes no rule, scan or score, and does not feed the regime.
+            The verdict is the average of each reading&apos;s 0 to 100 score (grey readings left out). A read for research. It changes no rule, scan or score, and does not feed the regime.
             Colours are display conventions: green healthy, amber mixed, red weak, grey not enough data.
           </p>
         </>

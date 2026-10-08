@@ -286,6 +286,7 @@ export const healthItem = z.object({
   status: z.enum(["green", "amber", "red", "grey"]),
   text: z.string(),
   value: num,
+  score: num,
 });
 
 export const marketHealth = z.object({
@@ -306,6 +307,20 @@ export const marketHealth = z.object({
     }),
   ),
   trades: z.array(z.object({ day: z.string(), ret_pct: z.number() })),
+  verdict: z
+    .object({
+      score: z.number(),
+      label: z.string(),
+      status: z.enum(["green", "amber", "orange", "red"]),
+      override: z.boolean(),
+      green: z.number(),
+      amber: z.number(),
+      red: z.number(),
+      counted: z.number(),
+      weakest: z.array(z.string()),
+      strongest: z.array(z.string()),
+    })
+    .nullable(),
 });
 
 export type Strategies = z.infer<typeof strategies>;

@@ -2443,3 +2443,9 @@ Owner request after the Minervini market-reading outline: build steps 1 and 2. F
 **Change.** Top VCP setups card removed from the dashboard; Market health split into four cards with charts; `/api/v1/market/health` returns `points` and `trades`. Display only; the regime rule, scans, scores, strategies and the ledger are untouched.
 
 **Tests.** API: chart series and trades; contract sample regenerated. Frontend: four cards and five charts; dashboard test no longer expects the top setups card.
+
+## Dashboard: Market health verdict (2026-10-08)
+
+**Change.** `api/health.py` scores each reading 0 to 100 on a straight line and averages them into a verdict; `MarketHealth` banner. Display only; the regime rule, scans, scores, strategies and the ledger are untouched.
+
+**Tests.** `tests/api/test_verdict.py` (ramp, average, grey skipped, bands, 200-day override, no verdict); API and contract sample; frontend banner. Checked against 2026 history on the real data.
