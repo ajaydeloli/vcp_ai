@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { useStatus } from "@/lib/api";
 import { fmtDay, fmtStamp } from "@/lib/fmt";
 
@@ -16,27 +15,10 @@ function Chip({ label, value, ok }: { label: string; value: string; ok: boolean 
   );
 }
 
-/** Today's date in India, set after the page loads so the server and the browser cannot disagree. */
-function useToday(): string | null {
-  const [today, setToday] = useState<string | null>(null);
-  useEffect(() => {
-    const t = new Intl.DateTimeFormat("en-IN", {
-      weekday: "short",
-      day: "numeric",
-      month: "short",
-      year: "numeric",
-      timeZone: "Asia/Kolkata",
-    }).format(new Date());
-    setToday(t);
-  }, []);
-  return today;
-}
-
 export function StatusBar() {
   const status = useStatus();
   const s = status.data;
   const warnings = s?.warnings ?? [];
-  const today = useToday();
   const scan = s?.strategies.reduce<string | null>(
     (a, x) => (x.latest_scan && (!a || x.latest_scan > a) ? x.latest_scan : a),
     null,
@@ -74,11 +56,6 @@ export function StatusBar() {
         ) : (
           <span className="text-mute">Loading status…</span>
         )}
-        {today ? (
-          <span className="rounded border border-line bg-panel2 px-2 py-0.5 text-ink" aria-label="Today">
-            {today}
-          </span>
-        ) : null}
         <span className="ml-auto text-mute">{DISCLAIMER}</span>
       </div>
     </footer>

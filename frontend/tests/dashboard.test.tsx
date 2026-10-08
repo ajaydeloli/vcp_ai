@@ -54,14 +54,16 @@ describe("dashboard page (market view)", () => {
     expect(screen.queryByRole("complementary", { name: "Menu" })).not.toBeInTheDocument();
   });
 
-  it("the bottom bar carries the data status and today's date", async () => {
+  it("the bottom bar carries the data status; today's date is at the far right of the top bar", async () => {
     mockApi();
     renderApp(<Dashboard />);
     const status = await screen.findByLabelText("Data status");
     expect(within(status).getByText("Prices to")).toBeInTheDocument();
     expect(within(status).getByText("Last scan")).toBeInTheDocument();
     expect(within(status).getByText("Data copy")).toBeInTheDocument();
-    expect(await screen.findByLabelText("Today")).toBeInTheDocument();
+    const banner = screen.getAllByRole("banner")[0]!; // the top bar comes first
+    expect(await within(banner).findByLabelText("Today")).toBeInTheDocument();
+    expect(within(status.closest("footer") as HTMLElement).queryByLabelText("Today")).not.toBeInTheDocument();
     expect(screen.queryByText("Data of")).not.toBeInTheDocument();
   });
 

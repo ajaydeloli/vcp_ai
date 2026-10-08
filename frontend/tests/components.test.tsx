@@ -269,6 +269,8 @@ describe("top bar search", () => {
     const onPick = vi.fn();
     const calls = mockApi();
     renderApp(<TopBar onPick={onPick} />);
+    expect(screen.queryByRole("searchbox")).not.toBeInTheDocument(); // an icon until it is clicked
+    await userEvent.click(screen.getByRole("button", { name: "Search symbol or company" }));
     await userEvent.type(screen.getByRole("searchbox"), "alp");
     const option = await screen.findByRole("option", { name: /ALPHA/ });
     await userEvent.click(within(option).getByRole("button"));
@@ -280,6 +282,7 @@ describe("top bar search", () => {
   it("says when nothing matches", async () => {
     mockApi({ "search?q=zzz&limit=8": { ...fx.search, query: "zzz", results: [] } });
     renderApp(<TopBar onPick={() => {}} />);
+    await userEvent.click(screen.getByRole("button", { name: "Search symbol or company" }));
     await userEvent.type(screen.getByRole("searchbox"), "zzz");
     expect(await screen.findByText("No match")).toBeInTheDocument();
   });

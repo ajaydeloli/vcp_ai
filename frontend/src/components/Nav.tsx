@@ -39,6 +39,27 @@ function Logo() {
   );
 }
 
+/** Today's date in India, set after the page loads so the server and the browser cannot disagree. */
+function Today() {
+  const [today, setToday] = useState<string | null>(null);
+  useEffect(() => {
+    setToday(
+      new Intl.DateTimeFormat("en-IN", {
+        weekday: "short",
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+        timeZone: "Asia/Kolkata",
+      }).format(new Date()),
+    );
+  }, []);
+  return today ? (
+    <span aria-label="Today" className="hidden whitespace-nowrap rounded-lg border border-line bg-panel2 px-3 py-1.5 text-xs text-ink sm:block">
+      {today}
+    </span>
+  ) : null;
+}
+
 /** The top navigation bar. The logo opens a side bar with every page, including those still to come. */
 export function Nav({
   active = "Dashboard",
@@ -85,8 +106,9 @@ export function Nav({
             </a>
           ))}
         </nav>
-        <div className="ml-auto flex w-full max-w-xs justify-end">
+        <div className="ml-auto flex items-center gap-3">
           <TopBar onPick={onPick} />
+          <Today />
         </div>
       </header>
       {open ? (

@@ -2191,3 +2191,7 @@ The coloured outer card is gone; the cards stand on their own in two columns: In
 ### 67.18b Market health: no header, a border colour per card (2026-10-08)
 
 The "Market health" heading and its line (date, score, what pulls it down) are gone. The score and label are in the gauge tile, and its tooltip lists what pulls the score down and holds it up. Each of the six cards has its own border colour with a faint tint: Index price action blue, Leadership green, Breadth violet, Feedback loop orange, Market stage cyan, Setups today pink. The note under the cards says the data is from our scanned stocks, not NIFTY.
+
+### 67.18c Top bar and bottom row (2026-10-08)
+
+Paper trading and Recent activity sit side by side in two columns. Today's date moved from the bottom bar to the far right of the top bar. The search box is now a magnifier icon in the top bar; clicking it opens the search box (Escape or choosing a stock closes it).

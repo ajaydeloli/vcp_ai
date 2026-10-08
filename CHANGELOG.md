@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed (Dashboard redesign)
+- Paper trading and Recent activity side by side; today's date at the far right of the top bar (not in the bottom bar); search is an icon that opens the search box.
+
 - Market health header removed; each card has its own border colour; the gauge tile tooltip names what pulls the score down and holds it up.
 
 - Market health: no outer card; two columns (Index price action and Leadership, Breadth and Feedback loop, Market stage and Setups today); Setups today laid out like Market stage.
