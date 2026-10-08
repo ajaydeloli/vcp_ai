@@ -85,7 +85,7 @@ function StockView({
           {stock.isError ? <ErrorBox error={stock.error} /> : null}
         </div>
 
-        <aside aria-label={`Details of ${selection.symbol}`} className="flex min-w-0 flex-col divide-y divide-line">
+        <aside aria-label={`Details of ${selection.symbol}`} className="flex min-w-0 flex-col divide-y divide-line xl:border-l xl:border-line xl:pl-4">
           <div className={side}>
             <div className="flex flex-wrap items-baseline gap-x-3">
               <span className="text-2xl font-semibold text-ink">{selection.symbol}</span>

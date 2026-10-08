@@ -2264,3 +2264,5 @@ The **Dashboard** page is now called **Market Overview** (menu entry and page he
 ### 67.21b Stock Analysis: symbol and strategies in the side panel (2026-10-08)
 
 The left column is the chart alone (range buttons, chart, full height of the card). The symbol (star, company name, Full analysis link) and the strategy buttons are the first section of the right-hand panel, above Close, Live, setup and Score / RS rank / Pivot. This replaces the placement in 67.21a.
+
+On a wide screen a vertical line separates the chart from the details panel (67.21b).
