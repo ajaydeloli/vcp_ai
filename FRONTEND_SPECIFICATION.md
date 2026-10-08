@@ -2074,7 +2074,7 @@ Owner go: "go with screener"; own design, built-in presets only (no CSV export).
 
 **API.** One row per stock of the newest Trend Template scan (1,275 on 2026-10-06): weekly stage, Trend Template pass, conditions passed of 10, near-52-week-high, RS rank, trend score, close and day change, and the stock's VCP setup (class, grade, status, score, distance to pivot, eligible) where it has one. Filters (all optional, combined with AND): `q`, repeated `stage`, `tt_pass`, `near_high`, `min_rs`, `min_conditions`, `has_setup` (ranked setups only), `min_grade`, `status`; `sort` (9 columns) with `direction`; `page` and `page_size` (default 25, max 100); `strategy` (default `vcp`) and `date`. Values the database lacks are `null` and sort last. The response also gives `scanned`, `total` and the stage counts of the whole scan. GET only; the serving copy is opened read-only.
 
-**Page.** Preset buttons (All scanned stocks, Trend Template passers, Stage 2 RS 80+, Near 52-week high, Pivot-ready setups, Breakouts, Top VCP setups) set a fixed combination of filters; nothing is saved. Filter panel on the left, sortable results table with page numbers on the right; a symbol (and the top-bar search) opens `/stocks/X`, the Stock Analysis page (§67.14). Not available: sector, market cap, fundamentals, index membership (no data).
+**Page.** (Redesigned 2026-10-08, see 67.20: no preset buttons; one filter bar above the results.) Sortable results table with page numbers; a symbol (and the top-bar search) opens `/stocks/X`, the Stock Analysis page (§67.14). Not available: sector, market cap, fundamentals, index membership (no data).
 
 **Rule kept.** Screening only reads the scan; it changes no strategy, rule, scan, score, label or ledger.
 
@@ -2233,4 +2233,13 @@ Recent activity now says which stocks joined or left the scan universe and why. 
 - The Upstox index keys for SENSEX and NIFTY 500 and the intraday candle path are not verified against the official documentation; they are configurable in `config/live.yaml`. The Kite adapter (previous close taken from `ohlc.close`) is also unverified.
 - Index volume is not available from Upstox and is shown as not available.
 - There is no separate stored-close source for the live labels: the stored close stays visible beside the live value.
+
+## 67.20 Screener: filter bar above the results (2026-10-08)
+
+The preset buttons (All scanned stocks, Trend Template passers, Top setups, A+ VCP, Forming, Breakouts and the rest) and the left filter panel are gone. All filters now sit in one bar, full width, between the page heading and the results table; the table uses the full page width. Nothing is preset, saved or stored.
+
+- **Filters:** symbol or company, strategy, Trend Template (any, passes all 10, does not pass), near 52-week high, min RS rank, min conditions, VCP setup (any, only ranked), setup class, min setup grade, setup status, on strategies (any, 2 or more, 3 or more), and weekly stage as toggle chips with the count of stocks in each stage. Every filter runs on the server, exactly as before; the API is unchanged.
+- **Reset filters** clears every filter (including those the old reset missed: Trend Template, near high, RS, conditions, grade, status, class) and is disabled when nothing is set.
+- **Sorting** stays in the table headers (for example sort by Score for the best setups).
+- Responsive: two columns on a phone, four on a tablet, one row of eight on a wide screen.
 
