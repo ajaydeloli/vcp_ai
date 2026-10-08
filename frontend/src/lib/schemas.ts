@@ -287,6 +287,7 @@ export const healthItem = z.object({
   text: z.string(),
   value: num,
   score: num,
+  short: z.string(),
 });
 
 export const marketHealth = z.object({

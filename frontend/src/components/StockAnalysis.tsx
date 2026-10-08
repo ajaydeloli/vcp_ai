@@ -7,7 +7,6 @@ import { SetupOverview } from "./SetupOverview";
 import { StatusBar } from "./StatusBar";
 import { StockPanel } from "./StockPanel";
 import { HistoryCard, StrategiesCard } from "./StockExtras";
-import { TopBar } from "./TopBar";
 import { Card, Empty } from "./ui";
 
 const open = (symbol: string) => window.location.assign(`/stocks/${encodeURIComponent(symbol)}`);
@@ -19,11 +18,10 @@ export function StockAnalysis({ symbol: given }: { symbol: string | null }) {
   const top = useSetups("vcp", undefined, given === null);
   const symbol = given ?? top.data?.rows[0]?.symbol ?? null;
   return (
-    <div className="flex min-h-screen">
-      <Nav active="Stock Analysis" />
+    <div className="flex min-h-screen flex-col">
+      <Nav active="Stock Analysis" onPick={open} />
       <main className="min-w-0 flex-1 space-y-4 p-4 pb-16">
         <h1 className="sr-only">Stock analysis{symbol ? `: ${symbol}` : ""}</h1>
-        <TopBar onPick={open} />
         {symbol === null ? (
           <Card title="Stock analysis">
             <Empty>

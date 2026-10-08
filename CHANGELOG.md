@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed (Dashboard redesign)
+- Top navigation bar with a logo side bar; tile row with the Market health score gauge; Market health as one coloured card with five inner cards (Market stage moved in); setup counts in their own card; data status and date in the bottom bar. NIFTY 50 and SENSEX tiles wait for an index feed. `/api/v1/market/health` readings gain `short`.
+
 ### Added (Dashboard: Market health verdict)
 - Market health verdict: a 0 to 100 score and a label (Confirmed uptrend, Uptrend under pressure, Correction, Downtrend) from straight-line scores of the nine readings; `/api/v1/market/health` adds `verdict` and a `score` per reading. Display only.
 

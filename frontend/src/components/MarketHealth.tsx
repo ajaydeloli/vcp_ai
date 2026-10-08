@@ -4,8 +4,9 @@ import { useMemo, type ReactNode } from "react";
 import { useMarket, useMarketHealth, usePaper } from "@/lib/api";
 import { fmtDay, fmtPct, strategyLabel } from "@/lib/fmt";
 import type { MarketHealth as Health } from "@/lib/schemas";
+import { MarketStage } from "./MarketStage";
 import { MiniLineChart, type MiniSeries } from "./MiniLineChart";
-import { Card, Empty, ErrorBox, Loading } from "./ui";
+import { Empty, ErrorBox, Loading } from "./ui";
 
 const DOT: Record<string, string> = {
   green: "bg-up",
@@ -13,59 +14,6 @@ const DOT: Record<string, string> = {
   red: "bg-down",
   grey: "bg-mute/60",
 };
-
-const VERDICT_TEXT: Record<string, string> = {
-  green: "text-up",
-  amber: "text-warn",
-  orange: "text-[#fb923c]",
-  red: "text-down",
-};
-const VERDICT_BAR: Record<string, string> = {
-  green: "bg-up",
-  amber: "bg-warn",
-  orange: "bg-[#fb923c]",
-  red: "bg-down",
-};
-
-/** One line on the whole card: the average of the readings' 0-100 scores, with what pulls it up and down. */
-function Verdict({ v }: { v: NonNullable<Health["verdict"]> }) {
-  return (
-    <section aria-label="Verdict" className="mb-4 rounded-lg border border-line bg-panel2 p-4">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-mute">Market health verdict</p>
-          <p className={`text-2xl font-semibold ${VERDICT_TEXT[v.status] ?? "text-ink"}`} data-testid="verdict-label">
-            {v.label}
-          </p>
-        </div>
-        <p className="text-right">
-          <span className="text-4xl font-semibold tabular-nums text-ink" data-testid="verdict-score">
-            {v.score}
-          </span>
-          <span className="text-sm text-mute"> / 100</span>
-        </p>
-      </div>
-      <div className="relative mt-3 h-2 rounded bg-bg" role="img" aria-label={`score ${v.score} of 100`}>
-        <span className={`absolute inset-y-0 left-0 rounded ${VERDICT_BAR[v.status] ?? "bg-mute"}`} style={{ width: `${v.score}%` }} />
-        {[25, 45, 70].map((t) => (
-          <span key={t} className="absolute inset-y-0 w-px bg-ink/40" style={{ left: `${t}%` }} />
-        ))}
-      </div>
-      <div className="mt-1 flex justify-between text-[10px] text-mute">
-        <span>Downtrend</span>
-        <span>Correction (25)</span>
-        <span>Under pressure (45)</span>
-        <span>Confirmed uptrend (70)</span>
-      </div>
-      <p className="mt-3 text-xs text-mute">
-        {v.green} green, {v.amber} amber, {v.red} red; {v.counted} readings scored.
-        {v.weakest.length > 0 && <> Pulling it down: {v.weakest.join(", ")}.</>}
-        {v.strongest.length > 0 && <> Holding it up: {v.strongest.join(", ")}.</>}
-        {v.override && <> The index is below its 200-day average, so the verdict is Downtrend whatever the score.</>}
-      </p>
-    </section>
-  );
-}
 
 const C = { ink: "#e6e9ef", up: "#26a69a", down: "#ef5350", warn: "#f5a524", violet: "#a78bfa", blue: "#5b9dff" };
 
@@ -98,7 +46,10 @@ function Regime() {
   const last = m?.days[m.days.length - 1];
   if (!m || !last) return null;
   return (
-    <div className="mb-3 grid grid-cols-3 gap-2 text-xs">
+    <div
+      className="mb-3 grid grid-cols-3 gap-2 text-xs"
+      title={`The regime is ${m.regime_rule}: on when at least ${m.breadth_threshold_pct}% of the universe closes above its 50-day average (the dashed line below).`}
+    >
       <div>
         <p className="text-mute">Regime</p>
         <p className={`text-base font-semibold ${last.regime_on ? "text-up" : "text-down"}`}>
@@ -113,10 +64,6 @@ function Regime() {
         <p className="text-mute">On, last 20</p>
         <p className="text-base font-semibold">{m.regime_days_on_last_20} / 20</p>
       </div>
-      <p className="col-span-3 text-mute">
-        The regime is {m.regime_rule}: on when at least {m.breadth_threshold_pct}% of the universe closes above its
-        50-day average (the dashed line below).
-      </p>
     </div>
   );
 }
@@ -206,35 +153,44 @@ function Trades({ trades }: { trades: Health["trades"] }) {
   );
 }
 
-function Inner({ g, children }: { g: Health["groups"][number]; children: ReactNode }) {
+function Inner({ title, children, className = "" }: { title: string; children: ReactNode; className?: string }) {
   return (
-    <section aria-label={g.title} className="min-w-0 rounded-lg border border-line bg-panel2 p-4">
-      <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-mute">{g.title}</h3>
-      <div className="mb-3">{children}</div>
-      <ul className="space-y-3 text-xs">
-        {g.items.map((i) => (
-          <li key={i.id} className="flex gap-2">
+    <section aria-label={title} className={`min-w-0 rounded-lg border border-line bg-panel2 p-4 ${className}`}>
+      <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-mute">{title}</h3>
+      {children}
+    </section>
+  );
+}
+
+/** The readings as one line each: dot, name, the figure, its 0 to 100 score. The sentence is the tooltip. */
+function Readings({ group }: { group: Health["groups"][number] }) {
+  return (
+    <>
+      <ul className="mt-3 divide-y divide-line/60 text-xs">
+        {group.items.map((i) => (
+          <li key={i.id} className="flex items-center gap-2 py-1.5" title={i.text}>
             <span
               role="img"
               aria-label={i.status}
-              title={i.status === "grey" ? "Not enough data to read" : i.status}
-              className={`mt-1 h-2.5 w-2.5 shrink-0 rounded-full ${DOT[i.status] ?? DOT.grey}`}
+              className={`h-2.5 w-2.5 shrink-0 rounded-full ${DOT[i.status] ?? DOT.grey}`}
             />
-            <span className="min-w-0">
-              <span className="flex justify-between gap-2 font-medium text-ink">
-                {i.label}
-                {i.score !== null && (
-                  <span className="font-normal tabular-nums text-mute" title="score out of 100">
-                    {Math.round(i.score)}
-                  </span>
-                )}
-              </span>
-              <span className="block text-mute">{i.text}</span>
+            <span className="min-w-0 flex-1 truncate text-ink">{i.label}</span>
+            <span className="shrink-0 text-right text-mute">{i.short}</span>
+            <span className="w-7 shrink-0 text-right tabular-nums text-ink" title="score out of 100">
+              {i.score === null ? "" : Math.round(i.score)}
             </span>
           </li>
         ))}
       </ul>
-    </section>
+      <details className="mt-2 text-[11px] text-mute">
+        <summary className="cursor-pointer hover:text-ink">Details</summary>
+        <ul className="mt-1 space-y-1.5">
+          {group.items.map((i) => (
+            <li key={i.id}>{i.text}</li>
+          ))}
+        </ul>
+      </details>
+    </>
   );
 }
 
@@ -250,14 +206,14 @@ function Charts({ d, id }: { d: Health; id: string }) {
   if (id === "index")
     return (
       <>
-        <MiniLineChart series={index} height={150} plain label="index-price-chart" />
+        <MiniLineChart series={index} height={170} plain label="index-price-chart" />
         <Legend items={[["VCP Universe Index", C.ink], ["50-day", C.warn], ["200-day", C.down]]} />
       </>
     );
   if (id === "leadership")
     return (
       <>
-        <MiniLineChart series={highs} height={150} plain label="highs-lows-chart" />
+        <MiniLineChart series={highs} height={170} plain label="highs-lows-chart" />
         <Legend items={[["New 52-week highs", C.up], ["New 52-week lows", C.down]]} />
       </>
     );
@@ -265,9 +221,9 @@ function Charts({ d, id }: { d: Health; id: string }) {
     return (
       <>
         <Regime />
-        <MiniLineChart series={breadth} height={110} plain threshold={{ value: 40, title: "40%" }} label="breadth-chart" />
+        <MiniLineChart series={breadth} height={100} plain threshold={{ value: 40, title: "40%" }} label="breadth-chart" />
         <Legend items={[["% above 50-day", C.blue], ["% above 200-day", C.violet], ["dashed: regime on at 40%", C.warn]]} />
-        <MiniLineChart series={ad} height={90} plain label="ad-line-chart" />
+        <MiniLineChart series={ad} height={80} plain label="ad-line-chart" />
         <Legend items={[["Advance/decline line", C.ink], ["its 50-day average", C.warn]]} />
       </>
     );
@@ -279,42 +235,76 @@ function Charts({ d, id }: { d: Health; id: string }) {
   );
 }
 
-/** The market read the way Minervini reads it: price action, leadership, breadth, our own trades. */
+const BORDER = "rounded-xl bg-gradient-to-br from-up via-accent to-violet p-[1.5px]";
+
+/** The market read the way Minervini reads it: price action, leadership, breadth, stages, our own trades. */
 export function MarketHealth() {
   const health = useMarketHealth();
   const d = health.data;
+  const v = d?.verdict;
+  const by = (id: string) => d?.groups.find((g) => g.id === id);
+  const idx = by("index");
+  const lead = by("leadership");
+  const br = by("breadth");
+  const fb = by("feedback");
   return (
-    <Card
-      title="Market health"
-      subtitle={
-        d?.as_of
-          ? `Price action, leadership, breadth and our own paper trades · ${fmtDay(d.as_of)} · from our scanned stocks, not NIFTY`
-          : "Price action, leadership, breadth and our own paper trades"
-      }
-      className="min-w-0"
-    >
-      {health.isError ? (
-        <ErrorBox error={health.error} />
-      ) : !d ? (
-        <Loading what="market health" />
-      ) : d.groups.length === 0 ? (
-        <Empty>No market data to read yet.</Empty>
-      ) : (
-        <>
-          {d.verdict && <Verdict v={d.verdict} />}
-          <div className="grid gap-4 lg:grid-cols-2">
-            {d.groups.map((g) => (
-              <Inner key={g.id} g={g}>
-                <Charts d={d} id={g.id} />
-              </Inner>
-            ))}
-          </div>
-          <p className="mt-4 text-[11px] text-mute">
-            The verdict is the average of each reading&apos;s 0 to 100 score (grey readings left out). A read for research. It changes no rule, scan or score, and does not feed the regime.
-            Colours are display conventions: green healthy, amber mixed, red weak, grey not enough data.
+    <div className={BORDER}>
+      <section className="min-w-0 rounded-[11px] bg-panel p-4">
+        <header className="mb-4">
+          <h2 className="text-sm font-semibold text-ink">Market health</h2>
+          <p className="mt-0.5 text-xs text-mute">
+            {d?.as_of ? `${fmtDay(d.as_of)} · ` : ""}from our scanned stocks, not NIFTY
+            {v ? ` · score ${v.score}, ${v.label}` : ""}
+            {v && v.weakest.length > 0 ? ` · pulling it down: ${v.weakest.join(", ")}` : ""}
+            {v && v.strongest.length > 0 ? ` · holding it up: ${v.strongest.join(", ")}` : ""}
+            {v?.override ? " · index below its 200-day average" : ""}
           </p>
-        </>
-      )}
-    </Card>
+        </header>
+        {health.isError ? (
+          <ErrorBox error={health.error} />
+        ) : !d ? (
+          <Loading what="market health" />
+        ) : d.groups.length === 0 ? (
+          <Empty>No market data to read yet.</Empty>
+        ) : (
+          <>
+            <div className="grid gap-4 lg:grid-cols-2">
+              {idx && (
+                <Inner title={idx.title}>
+                  <Charts d={d} id="index" />
+                  <Readings group={idx} />
+                </Inner>
+              )}
+              {lead && (
+                <Inner title={lead.title}>
+                  <Charts d={d} id="leadership" />
+                  <Readings group={lead} />
+                </Inner>
+              )}
+            </div>
+            <div className="mt-4 grid gap-4 lg:grid-cols-3">
+              {br && (
+                <Inner title={br.title}>
+                  <Charts d={d} id="breadth" />
+                  <Readings group={br} />
+                </Inner>
+              )}
+              <MarketStage />
+              {fb && (
+                <Inner title={fb.title}>
+                  <Charts d={d} id="feedback" />
+                  <Readings group={fb} />
+                </Inner>
+              )}
+            </div>
+            <p className="mt-4 text-[11px] text-mute">
+              The score is the average of each reading&apos;s 0 to 100 score (grey readings left out). A read for
+              research. It changes no rule, scan or score, and does not feed the regime. Hover a reading for its
+              sentence.
+            </p>
+          </>
+        )}
+      </section>
+    </div>
   );
 }

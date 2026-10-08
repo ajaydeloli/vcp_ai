@@ -3,7 +3,8 @@ import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { ChartView } from "@/components/ChartView";
-import { KpiCards } from "@/components/KpiCards";
+import { SetupCounts } from "@/components/SetupCounts";
+import { Tiles } from "@/components/Tiles";
 import { PaperPanel } from "@/components/PaperPanel";
 import { SetupOverview } from "@/components/SetupOverview";
 import { StatusBar } from "@/components/StatusBar";
@@ -14,38 +15,55 @@ import { fx, mockApi, renderApp } from "./helpers";
 
 const kpi = (title: string) => screen.getByTestId(`kpi-${title}`);
 
-describe("KPI tiles", () => {
-  it("count the lists of the VCP ranking and show the scan and the breadth", async () => {
+describe("setup counts", () => {
+  it("count the lists of the VCP ranking", async () => {
     mockApi();
-    renderApp(<KpiCards />);
+    renderApp(<SetupCounts />);
     await waitFor(() => expect(kpi("A+ VCP setups")).toHaveTextContent("1"));
     expect(kpi("VCP setups")).toHaveTextContent("1");
     expect(kpi("Forming bases")).toHaveTextContent("0");
     expect(kpi("Breakout watch")).toHaveTextContent("2"); // ALPHA pivot ready, BETA broken out
-    await waitFor(() => expect(screen.getByText("symbols").previousElementSibling).toHaveTextContent("63"));
-    expect(screen.getByText("Trend Template").previousElementSibling).toHaveTextContent("3");
-    await waitFor(() => expect(screen.getByTestId("kpi-breadth-above")).toHaveTextContent("31.7%"));
-    expect(screen.getByTestId("kpi-regime")).toHaveTextContent("OFF");
-    expect(screen.getByRole("img", { name: /above and below its 50-day average/ })).toBeInTheDocument();
   });
 
   it("a missing value is a dash, not 0", async () => {
-    mockApi({
-      summary: { ...fx.summary, universe_size: null, trend_template_pass: null, strategies: [] },
-    });
-    renderApp(<KpiCards />);
-    await waitFor(() => expect(kpi("A+ VCP setups")).toHaveTextContent("1"));
-    const symbols = screen.getByText("symbols").previousElementSibling!;
-    expect(symbols).toHaveTextContent("—");
-    expect(symbols).not.toHaveTextContent("0");
+    mockApi({ "setups?strategy=vcp": new Error("down") });
+    renderApp(<SetupCounts />);
+    await waitFor(() => expect(kpi("A+ VCP setups")).toHaveTextContent("—"));
+  });
+});
+
+describe("tiles", () => {
+  it("show the scan, our own index (not NIFTY) and the market health score", async () => {
+    mockApi();
+    renderApp(<Tiles />);
+    await waitFor(() => expect(screen.getByText("symbols").previousElementSibling).toHaveTextContent("63"));
+    expect(screen.getByText("Trend Template").previousElementSibling).toHaveTextContent("3");
+    expect(await screen.findByText("106.07")).toBeInTheDocument();
+    expect(screen.getByText("VCP Universe Index")).toBeInTheDocument();
+    expect(screen.getByText("+0.10%")).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByTestId("verdict-score")).not.toHaveTextContent("—"));
+    expect(screen.getByTestId("verdict-label").textContent).toMatch(/\w/);
+  });
+
+  it("NIFTY 50 and SENSEX say they need an index feed instead of showing a number", async () => {
+    mockApi();
+    renderApp(<Tiles />);
+    expect(screen.getByTestId("index-NIFTY 50")).toHaveTextContent("—");
+    expect(screen.getByTestId("index-SENSEX")).toHaveTextContent("—");
+    expect(screen.getAllByText("Needs an index feed")).toHaveLength(2);
+  });
+
+  it("a missing scan is a dash, not 0", async () => {
+    mockApi({ summary: { ...fx.summary, universe_size: null, trend_template_pass: null, strategies: [] } });
+    renderApp(<Tiles />);
+    await waitFor(() => expect(screen.getByText("symbols").previousElementSibling).toHaveTextContent("—"));
+    expect(screen.getByText("symbols").previousElementSibling).not.toHaveTextContent("0");
   });
 
   it("does not crash when the API is down", async () => {
-    mockApi({ summary: new Error("down"), market: new Error("down"), "setups?strategy=vcp": new Error("down") });
-    renderApp(<KpiCards />);
-    await waitFor(() => expect(screen.getByTestId("kpi-regime")).toHaveTextContent("—"));
-    expect(kpi("A+ VCP setups")).toHaveTextContent("—");
-    expect(screen.getByTestId("kpi-breadth-above")).toHaveTextContent("—");
+    mockApi({ summary: new Error("down"), market: new Error("down"), "market/health": new Error("down") });
+    renderApp(<Tiles />);
+    await waitFor(() => expect(screen.getByTestId("verdict-score")).toHaveTextContent("—"));
   });
 });
 
@@ -242,17 +260,6 @@ describe("status bar", () => {
     renderApp(<StatusBar />);
     expect(await screen.findByRole("alert")).toHaveTextContent("vcp api serve");
     expect(screen.getByText("Research tool, not financial advice")).toBeInTheDocument();
-  });
-});
-
-describe("top bar", () => {
-  it("shows our own universe index, not NIFTY, with its day change", async () => {
-    mockApi();
-    renderApp(<TopBar onPick={() => {}} />);
-    expect(await screen.findByText("106.07")).toBeInTheDocument();
-    expect(screen.getByText("VCP Universe Index")).toBeInTheDocument();
-    expect(screen.getByText("+0.10%")).toBeInTheDocument();
-    expect(screen.queryByText(/NIFTY/i)).not.toBeInTheDocument();
   });
 });
 

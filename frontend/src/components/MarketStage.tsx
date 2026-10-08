@@ -3,7 +3,7 @@
 import { useScreener } from "@/lib/api";
 import { fmtInt, fmtPct } from "@/lib/fmt";
 import { DEFAULT_QUERY } from "@/lib/screener";
-import { Card, Empty, ErrorBox, Loading } from "./ui";
+import { Empty, ErrorBox, Loading } from "./ui";
 
 const ROWS: { id: string; label: string; color: string }[] = [
   { id: "STAGE_1", label: "Stage 1: base", color: "bg-accent" },
@@ -21,11 +21,11 @@ export function MarketStage() {
   const total = d?.scanned ?? 0;
   const leader = ROWS.reduce((a, r) => ((counts[r.id] ?? 0) > (counts[a.id] ?? 0) ? r : a), ROWS[0]!);
   return (
-    <Card
-      title="Market stage"
-      subtitle={d ? `${fmtInt(total)} scanned stocks by weekly stage` : "Weekly stage of the scanned stocks"}
-      className="min-w-0"
-    >
+    <section className="min-w-0 rounded-lg border border-line bg-panel2 p-4">
+      <h3 className="text-xs font-semibold uppercase tracking-wide text-mute">Market stage</h3>
+      <p className="mb-3 mt-0.5 text-xs text-mute">
+        {d ? `${fmtInt(total)} scanned stocks by weekly stage` : "Weekly stage of the scanned stocks"}
+      </p>
       {result.isError ? (
         <ErrorBox error={result.error} />
       ) : !d ? (
@@ -42,7 +42,7 @@ export function MarketStage() {
               const n = counts[r.id] ?? 0;
               const pct = total ? (n / total) * 100 : null;
               return (
-                <li key={r.id} className="grid grid-cols-[9rem_1fr_6rem] items-center gap-2">
+                <li key={r.id} className="grid grid-cols-[7.5rem_1fr_5rem] items-center gap-2">
                   <span className="text-ink">{r.label}</span>
                   <span className="h-2 overflow-hidden rounded bg-panel2">
                     <span className={`block h-full ${r.color}`} style={{ width: `${pct ?? 0}%` }} />
@@ -56,6 +56,6 @@ export function MarketStage() {
           </ul>
         </>
       )}
-    </Card>
+    </section>
   );
 }

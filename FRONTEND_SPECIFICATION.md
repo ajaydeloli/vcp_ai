@@ -2172,3 +2172,14 @@ A banner at the top of the Market health card: a label and a score from 0 to 100
 **Verdict.** Score = average of the scored readings, rounded. 70 or more Confirmed uptrend; 45 to 69 Uptrend under pressure; 25 to 44 Correction; under 25 Downtrend. Override: the index below its 200-day average is Downtrend whatever the score. The banner also lists the readings pulling the score down and holding it up. The colour dots and thresholds of 67.17 are unchanged. The regime figures are not counted (they repeat the 50-day breadth reading).
 
 **Check on real data (2 week steps, 2026).** Downtrend from January to early April, Confirmed uptrend from mid-April to early September, Under pressure in late July and mid-September, Correction early October. The leaders and paper readings use the latest scan, so a back-test of them is not point-in-time.
+
+## 67.18 As built: dashboard redesign (2026-10-08)
+
+Owner request: the dashboard looked cluttered; new layout from the owner's mock-up. Display only; no rule, scan, score, strategy or ledger changes.
+
+- **Top navigation, no permanent side panel.** A top bar on every page: the logo, then Dashboard, Screener, Stock Analysis and Watchlist (active page underlined), and the stock search. Clicking the logo opens a side bar with all pages; the pages still to come (VCP Scanner, Trend Template, Fundamentals, Alerts, Backtest, Research & Notes, Reports, Settings) are listed there, disabled. Escape or a click outside closes it.
+- **Tile row** under the bar, each tile coloured: VCP Universe Index (with the day change and a 60-day line), Today's scan, NIFTY 50, SENSEX, and the Market health score as a half-circle gauge (0 to 100, in the colour of the verdict, with the label). NIFTY 50 and SENSEX say "Needs an index feed": no index data is stored, so no number is shown. The date tile, the setup-count tiles and the breadth donut are gone from the top.
+- **Bottom bar** holds the data status (prices to, last scan, data copy), the warnings, and today's date (India time). The data status block left the side bar.
+- **Market health** is one card with a coloured border holding five inner cards: Index price action and Leadership (charts), then Breadth (with the regime), Market stage and Feedback loop. Each reading is one line: dot, name, the figure (`short` from the API), its 0 to 100 score; the full sentence is the tooltip and a "Details" toggle. The verdict is one line under the title (score, label, what pulls it down and holds it up); the gauge is in the tile row.
+- **Setups today**: a separate card with the four counts (A+ VCP setups, VCP setups, Forming bases, Breakout watch), then Paper trading and Recent activity.
+- API: each reading in `/market/health` gains `short`.

@@ -141,6 +141,7 @@ class HealthItem(BaseModel):
     text: str
     value: float | None
     score: float | None  # 0-100, a straight-line score for the verdict; None: not scored (grey)
+    short: str  # the reading in a few words for the card; the full sentence is `text`
 
 
 class HealthVerdict(BaseModel):

@@ -2449,3 +2449,9 @@ Owner request after the Minervini market-reading outline: build steps 1 and 2. F
 **Change.** `api/health.py` scores each reading 0 to 100 on a straight line and averages them into a verdict; `MarketHealth` banner. Display only; the regime rule, scans, scores, strategies and the ledger are untouched.
 
 **Tests.** `tests/api/test_verdict.py` (ramp, average, grey skipped, bands, 200-day override, no verdict); API and contract sample; frontend banner. Checked against 2026 history on the real data.
+
+## Dashboard: redesign (2026-10-08)
+
+**Change.** Top bar and logo side bar, tile row with the score gauge, grouped Market health card, setup-counts card, status in the bottom bar; `short` on each reading. Display only; nothing that decides a trade is touched.
+
+**Tests.** Frontend: side bar opens and closes, coming pages disabled, tiles, NIFTY/SENSEX placeholders, bottom bar, grouped card. API: `short` on every reading.

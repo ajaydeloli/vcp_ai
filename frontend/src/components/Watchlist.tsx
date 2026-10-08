@@ -8,7 +8,6 @@ import { useWatchlists } from "@/lib/watchlist";
 import { COLS } from "./Screener";
 import { Nav } from "./Nav";
 import { StatusBar } from "./StatusBar";
-import { TopBar } from "./TopBar";
 import { Card, Empty, ErrorBox, Loading } from "./ui";
 
 function AddStock() {
@@ -172,11 +171,10 @@ export function Watchlist() {
   const cols = COLS.filter((c) => c.key !== "watch");
 
   return (
-    <div className="flex min-h-screen">
+    <div className="flex min-h-screen flex-col">
       <Nav active="Watchlist" />
       <main className="min-w-0 flex-1 space-y-4 p-4 pb-16">
         <h1 className="sr-only">Watchlist</h1>
-        <TopBar onPick={(symbol) => window.location.assign(`/stocks/${encodeURIComponent(symbol)}`)} />
         <Card
           title="My watch lists"
           subtitle={

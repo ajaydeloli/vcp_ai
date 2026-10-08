@@ -1,4 +1,5 @@
 import { screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 import { Dashboard } from "@/components/Dashboard";
 import { liveCharts } from "./chartMock";
@@ -37,9 +38,31 @@ describe("dashboard page (market view)", () => {
     for (const [name, href] of [["Screener", "/screener"], ["Stock Analysis", "/stocks"], ["Watchlist", "/watchlist"]] as const) {
       expect(within(nav).getByRole("link", { name })).toHaveAttribute("href", href);
     }
-    for (const name of ["Backtest", "Reports"]) {
-      expect(within(nav).getByText(name).closest("[aria-disabled]")).toHaveAttribute("aria-disabled", "true");
+    expect(screen.queryByRole("complementary", { name: "Menu" })).not.toBeInTheDocument();
+  });
+
+  it("the logo opens a side bar with every page, the coming ones disabled, and it closes again", async () => {
+    mockApi();
+    renderApp(<Dashboard />);
+    await userEvent.click(screen.getByRole("button", { name: "Open the menu" }));
+    const menu = screen.getByRole("complementary", { name: "Menu" });
+    expect(within(menu).getByRole("link", { name: "Watchlist" })).toHaveAttribute("href", "/watchlist");
+    for (const name of ["Backtest", "Reports", "Fundamentals"]) {
+      expect(within(menu).getByText(name).closest("[aria-disabled]")).toHaveAttribute("aria-disabled", "true");
     }
+    await userEvent.keyboard("{Escape}");
+    expect(screen.queryByRole("complementary", { name: "Menu" })).not.toBeInTheDocument();
+  });
+
+  it("the bottom bar carries the data status and today's date", async () => {
+    mockApi();
+    renderApp(<Dashboard />);
+    const status = await screen.findByLabelText("Data status");
+    expect(within(status).getByText("Prices to")).toBeInTheDocument();
+    expect(within(status).getByText("Last scan")).toBeInTheDocument();
+    expect(within(status).getByText("Data copy")).toBeInTheDocument();
+    expect(await screen.findByLabelText("Today")).toBeInTheDocument();
+    expect(screen.queryByText("Data of")).not.toBeInTheDocument();
   });
 
   it("the market health card shows four groups, each reading with a colour and a plain sentence", async () => {
@@ -64,11 +87,12 @@ describe("dashboard page (market view)", () => {
   it("market health states a verdict with a 0 to 100 score", async () => {
     mockApi();
     renderApp(<Dashboard />);
-    expect(await screen.findByTestId("verdict-label")).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByTestId("verdict-score")).not.toHaveTextContent("—"));
+    expect(screen.getByTestId("verdict-label")).toBeInTheDocument();
     const score = Number(screen.getByTestId("verdict-score").textContent);
     expect(score).toBeGreaterThanOrEqual(0);
     expect(score).toBeLessThanOrEqual(100);
-    expect(screen.getByText(/readings scored/)).toBeInTheDocument();
+    expect(await screen.findByText(/pulling it down/)).toBeInTheDocument();
   });
 
   it("market health has four inner cards with charts", async () => {

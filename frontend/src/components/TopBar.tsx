@@ -1,40 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useMarket, useSearch, useStatus } from "@/lib/api";
-import { fmtDay, fmtNum, fmtPct, tone } from "@/lib/fmt";
-import { Sparkline } from "./Rings";
-
-/** Our own equal-weight index of the scanned universe (not NIFTY: no index data is stored). */
-function UniverseIndexTile() {
-  const market = useMarket();
-  const days = market.data?.days ?? [];
-  const last = days[days.length - 1];
-  const prev = days[days.length - 2];
-  const change =
-    last?.index != null && prev?.index != null && prev.index !== 0 ? (last.index / prev.index - 1) * 100 : null;
-  return (
-    <div
-      className="flex h-[76px] items-center gap-3 rounded-lg border border-line bg-panel px-4 py-2"
-      title="Equal-weight index of the stocks we scan, 100 on the first day shown. Not NIFTY."
-    >
-      <div>
-        <p className="text-[10px] uppercase tracking-wide text-mute">VCP Universe Index</p>
-        <p className="text-lg font-semibold leading-tight tabular-nums text-ink">
-          {fmtNum(last?.index, 2)}
-          <span className={`ml-2 text-xs font-normal ${tone(change)}`}>{fmtPct(change, 2, true)}</span>
-        </p>
-      </div>
-      <Sparkline values={days.slice(-60).flatMap((d) => (d.index === null ? [] : [d.index]))} color="#26c281" />
-    </div>
-  );
-}
+import { useSearch } from "@/lib/api";
 
 export function TopBar({ onPick }: { onPick: (symbol: string) => void }) {
   const [text, setText] = useState("");
   const [debounced, setDebounced] = useState("");
   const [open, setOpen] = useState(false);
-  const status = useStatus();
   const hits = useSearch(debounced);
 
   useEffect(() => {
@@ -51,8 +23,8 @@ export function TopBar({ onPick }: { onPick: (symbol: string) => void }) {
   };
 
   return (
-    <div className="flex flex-wrap items-center justify-between gap-4">
-      <div className="relative w-full max-w-md">
+    <div className="relative w-full max-w-xs">
+      <div className="relative w-full">
         <input
           type="search"
           value={text}
@@ -95,16 +67,6 @@ export function TopBar({ onPick }: { onPick: (symbol: string) => void }) {
             )}
           </ul>
         ) : null}
-      </div>
-      <div className="flex flex-wrap items-stretch gap-3">
-        <UniverseIndexTile />
-        <div className="flex h-[76px] flex-col justify-center whitespace-nowrap rounded-lg border border-line bg-panel px-4 py-2">
-          <p className="text-[10px] uppercase tracking-wide text-mute">Data of</p>
-          <p className="text-lg font-semibold leading-tight tabular-nums text-ink">
-            {fmtDay(status.data?.prices_date)}
-          </p>
-          <p className="text-xs text-mute">end of day, IST</p>
-        </div>
       </div>
     </div>
   );

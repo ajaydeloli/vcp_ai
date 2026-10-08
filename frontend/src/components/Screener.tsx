@@ -9,7 +9,6 @@ import type { ScreenerRow } from "@/lib/schemas";
 import { Nav } from "./Nav";
 import { WatchStar } from "./WatchStar";
 import { StatusBar } from "./StatusBar";
-import { TopBar } from "./TopBar";
 import { Card, Empty, ErrorBox, GradeBadge, Loading, StatusPill } from "./ui";
 
 const field = "w-full rounded border border-line bg-panel2 px-2 py-1.5 text-xs text-ink";
@@ -360,11 +359,10 @@ export function Screener() {
   const active = PRESETS.find((p) => same({ ...presetQuery(p, query.q, query.strategy), page: 1 }, { ...query, page: 1 }));
 
   return (
-    <div className="flex min-h-screen">
+    <div className="flex min-h-screen flex-col">
       <Nav active="Screener" />
       <main className="min-w-0 flex-1 space-y-4 p-4 pb-16">
         <h1 className="sr-only">Screener</h1>
-        <TopBar onPick={(symbol) => window.location.assign(`/stocks/${encodeURIComponent(symbol)}`)} />
         <Card
           title="Screener"
           subtitle={

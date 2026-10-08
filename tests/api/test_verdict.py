@@ -7,7 +7,9 @@ from vcp_scanner.api import models as m
 
 
 def _item(id_: str, status: str, score: float | None) -> m.HealthItem:
-    return m.HealthItem(id=id_, label=id_, status=status, text="", value=None, score=score)
+    return m.HealthItem(
+        id=id_, label=id_, status=status, text="", value=None, score=score, short=""
+    )
 
 
 def _groups(*items: m.HealthItem) -> list[m.HealthGroup]:

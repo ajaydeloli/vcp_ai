@@ -327,6 +327,8 @@ def test_market_health_reads_the_four_groups_and_says_when_data_is_too_thin(ro_e
     assert pts and pts[0]["index"] == 100.0 and pts[-1]["day"] == body["as_of"]
     assert pts[-1]["ma200"] is None and pts[-1]["ma50"] is not None  # short history: no line
     assert [t["ret_pct"] for t in body["trades"]] == [-5.15]
+    assert all(i["short"] for i in items.values())  # every reading has its one-line form
+    assert items["highs_lows"]["short"].endswith("lows")
     verdict = body["verdict"]
     assert 0 <= verdict["score"] <= 100 and verdict["counted"] >= 1
     assert verdict["status"] in {"green", "amber", "orange", "red"}

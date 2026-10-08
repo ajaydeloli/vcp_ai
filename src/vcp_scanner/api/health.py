@@ -75,7 +75,7 @@ def _item(
 ) -> m.HealthItem:  # fmt: skip
     return m.HealthItem(
         id=id_, label=label, status=status, text=text, value=value,
-        score=None if score is None else round(score, 1),
+        score=None if score is None else round(score, 1), short="",
     )  # fmt: skip
 
 
@@ -377,6 +377,32 @@ def _paper(cur: Cur, ctx: Context) -> m.HealthGroup:
     return m.HealthGroup(id="feedback", title="Feedback loop", items=[item])
 
 
+def _shorts(groups: list[m.HealthGroup], last: tuple[Any, ...]) -> None:
+    """The one-line form of each reading, shown on the card (the sentence is its tooltip)."""
+    adv, dec, hi, lo = int(last[7]), int(last[8]), int(last[9]), int(last[10])
+    for g in groups:
+        for i in g.items:
+            v = i.value
+            if v is None and i.id != "highs_lows" and i.id != "ad":
+                i.short = "not enough data yet"
+            elif i.id == "index_ma":
+                i.short = f"{v:+.1f}% from its 200-day"
+            elif i.id == "distribution":
+                i.short = f"{int(v or 0)} in the last {DIST_WINDOW} sessions"
+            elif i.id == "highs_lows":
+                i.short = f"{hi} highs, {lo} lows"
+            elif i.id == "failed_breakouts":
+                i.short = f"{v:.0f}% failed"
+            elif i.id == "leaders":
+                i.short = f"{v:+.1f} points vs the index"
+            elif i.id in ("above50", "above200"):
+                i.short = f"{v:.1f}% of stocks"
+            elif i.id == "ad":
+                i.short = f"{adv} up, {dec} down"
+            elif i.id == "paper":
+                i.short = f"{int(v or 0)} of the last {TRADES_JUDGED} won"
+
+
 VERDICT_BANDS = ((70.0, "Confirmed uptrend", "green"), (45.0, "Uptrend under pressure", "amber"),
                  (25.0, "Correction", "orange"))  # fmt: skip
 
@@ -447,6 +473,7 @@ def market_health(cur: Cur, ctx: Context, end: date, data_time: datetime) -> m.M
         _breadth_group(rows),
         _paper(cur, ctx),
     ]
+    _shorts(groups, last)
     return m.MarketHealthResponse(
         as_of=sessions[-1], data_time=data_time, groups=groups,
         points=_points(rows, index), trades=_trades(cur, ctx), verdict=_verdict(groups),
