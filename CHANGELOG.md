@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed (Screener filter bar)
+- Screener: equal column widths; titles and values centred except Symbol (left).
 - Screener: removed the always-empty Company and Trend columns; fixed column widths and alignment so the gaps are even (spec 67.20a).
 - Screener: removed the header card; the filter bar is the first thing on the page.
 - Screener: removed the preset buttons and the left filter panel; all filters are one bar above the results table, which now uses the full width (spec 67.20). New "On strategies" filter replaces the "On several strategies" preset.

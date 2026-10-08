@@ -18,9 +18,9 @@ const stageLabel = (s: string): string => s.replace("STAGE_", "Stage ").replace(
 export type Col = {
   key: string;
   label: string;
-  align?: "right" | "center";
-  /** column width in px; the table is fixed-layout so the columns are spread evenly */
-  w: number;
+  align?: "left";
+  /** width in px for the narrow fixed columns; the others share the rest equally */
+  w?: number;
   render: (r: ScreenerRow, live?: LiveQuote) => React.ReactNode;
 };
 
@@ -28,7 +28,7 @@ const yesNo = (v: boolean | null) =>
   v === null ? <span className="text-mute">{DASH}</span> : v ? <span className="text-up">Yes</span> : <span className="text-mute">No</span>;
 
 export const alignClass = (c: Pick<Col, "align">): string =>
-  c.align === "right" ? "text-right" : c.align === "center" ? "text-center" : "";
+  c.align === "left" ? "text-left" : "text-center";
 
 export const COLS: Col[] = [
   {
@@ -39,7 +39,8 @@ export const COLS: Col[] = [
   },
   {
     key: "symbol",
-    w: 130,
+    align: "left",
+    w: 150,
     label: "Symbol",
     render: (r) => (
       <a href={`/stocks/${encodeURIComponent(r.symbol)}`} className="font-medium text-accent hover:underline">
@@ -47,27 +48,22 @@ export const COLS: Col[] = [
       </a>
     ),
   },
-  { key: "stage", w: 90, label: "Stage", render: (r) => (r.stage ? stageLabel(r.stage) : DASH) },
+  { key: "stage", label: "Stage", render: (r) => (r.stage ? stageLabel(r.stage) : DASH) },
   {
     key: "conditions_passed",
-    w: 100,
-    label: "Conditions",
-    align: "center", render: (r) =>
+    label: "Conditions", render: (r) =>
       r.conditions_passed === null ? DASH : `${r.conditions_passed}/${r.conditions_total ?? DASH}`,
   },
-  { key: "near_high", w: 100, label: "Near high", align: "center", render: (r) => yesNo(r.near_52w_high) },
-  { key: "rs_rank", w: 70, label: "RS", align: "right", render: (r) => fmtInt(r.rs_rank) },
-  { key: "close", w: 100, label: "Close", align: "right", render: (r) => fmtPrice(r.close) },
-  { key: "live", w: 160, label: "Live", align: "right", render: (_r, live) => <LiveCell q={live} /> },
+  { key: "near_high", label: "Near high", render: (r) => yesNo(r.near_52w_high) },
+  { key: "rs_rank", label: "RS", render: (r) => fmtInt(r.rs_rank) },
+  { key: "close", label: "Close", render: (r) => fmtPrice(r.close) },
+  { key: "live", label: "Live", render: (_r, live) => <LiveCell q={live} /> },
   {
     key: "change_pct",
-    w: 90,
-    label: "Change",
-    align: "right", render: (r) => <span className={tone(r.change_pct)}>{fmtPct(r.change_pct, 2, true)}</span>,
+    label: "Change", render: (r) => <span className={tone(r.change_pct)}>{fmtPct(r.change_pct, 2, true)}</span>,
   },
   {
     key: "grade",
-    w: 110,
     label: "Setup",
     render: (r) =>
       r.classification && r.grade !== null ? (
@@ -76,19 +72,16 @@ export const COLS: Col[] = [
         <span className="text-mute">{DASH}</span>
       ),
   },
-  { key: "score", w: 80, label: "Score", align: "right", render: (r) => fmtNum(r.score, 0) },
-  { key: "pivot", w: 100, label: "Pivot", align: "right", render: (r) => fmtPrice(r.pivot) },
+  { key: "score", label: "Score", render: (r) => fmtNum(r.score, 0) },
+  { key: "pivot", label: "Pivot", render: (r) => fmtPrice(r.pivot) },
   {
     key: "status",
-    w: 120,
     label: "Status",
     render: (r) => (r.status ? <StatusPill status={r.status} /> : <span className="text-mute">{DASH}</span>),
   },
   {
     key: "pivot_distance_pct",
-    w: 90,
-    label: "To pivot",
-    align: "right", render: (r) => fmtPct(r.pivot_distance_pct, 1, true),
+    label: "To pivot", render: (r) => fmtPct(r.pivot_distance_pct, 1, true),
   },
 ];
 
@@ -375,7 +368,7 @@ export function Screener() {
                     <table className="w-full min-w-[1100px] table-fixed text-left text-xs">
                       <colgroup>
                         {COLS.map((c) => (
-                          <col key={c.key} style={{ width: c.w }} />
+                          <col key={c.key} style={c.w ? { width: c.w } : undefined} />
                         ))}
                       </colgroup>
                       <thead className="text-[11px] uppercase text-mute">
