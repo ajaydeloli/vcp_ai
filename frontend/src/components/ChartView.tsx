@@ -12,7 +12,7 @@ import {
   type ISeriesApi,
   type Time,
 } from "lightweight-charts";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   COLORS,
   RANGES,
@@ -47,16 +47,27 @@ export const CHART_THEME = {
 type Handles = {
   chart: IChartApi;
   candles: ISeriesApi<"Candlestick">;
+  ohlc: ISeriesApi<"Bar">;
   volume: ISeriesApi<"Histogram">;
   sma20: ISeriesApi<"Line">;
   sma50: ISeriesApi<"Line">;
   sma200: ISeriesApi<"Line">;
-  lines: IPriceLine[];
+  lines: [ISeriesApi<"Candlestick" | "Bar">, IPriceLine][];
 };
+
+type Averages = { sma20: boolean; sma50: boolean; sma200: boolean };
+const AVERAGES: { key: keyof Averages; label: string; color: string }[] = [
+  { key: "sma20", label: "SMA 20", color: COLORS.sma20 },
+  { key: "sma50", label: "SMA 50", color: COLORS.sma50 },
+  { key: "sma200", label: "SMA 200", color: COLORS.sma200 },
+];
+type ChartType = "candles" | "ohlc";
 
 export function ChartView({ bars, setup, range, onRange }: Props) {
   const box = useRef<HTMLDivElement>(null);
   const h = useRef<Handles | null>(null);
+  const [type, setType] = useState<ChartType>("candles");
+  const [shown, setShown] = useState<Averages>({ sma20: true, sma50: true, sma200: true });
 
   useEffect(() => {
     const el = box.current;
@@ -69,6 +80,7 @@ export function ChartView({ bars, setup, range, onRange }: Props) {
       wickUpColor: COLORS.up,
       wickDownColor: COLORS.down,
     });
+    const ohlc = chart.addBarSeries({ upColor: COLORS.up, downColor: COLORS.down, visible: false });
     const volume = chart.addHistogramSeries({
       priceFormat: { type: "volume" },
       priceScaleId: "",
@@ -87,6 +99,7 @@ export function ChartView({ bars, setup, range, onRange }: Props) {
     h.current = {
       chart,
       candles,
+      ohlc,
       volume,
       sma20: line(COLORS.sma20),
       sma50: line(COLORS.sma50),
@@ -106,21 +119,28 @@ export function ChartView({ bars, setup, range, onRange }: Props) {
     const c = h.current;
     if (!c) return;
     c.candles.setData(toCandles(bars));
+    c.ohlc.setData(toCandles(bars));
     c.volume.setData(toVolume(bars));
     c.sma20.setData(toSma(bars, "sma20"));
     c.sma50.setData(toSma(bars, "sma50"));
     c.sma200.setData(toSma(bars, "sma200"));
-    c.candles.setMarkers(buildMarkers(bars, setup));
-    for (const l of c.lines) c.candles.removePriceLine(l);
-    c.lines = buildPriceLines(setup).map((l) =>
-      c.candles.createPriceLine({
-        price: l.price,
-        color: l.color,
-        lineWidth: 1,
-        lineStyle: l.dashed ? LineStyle.Dashed : LineStyle.Solid,
-        axisLabelVisible: true,
-        title: l.title,
-      }),
+    const markers = buildMarkers(bars, setup);
+    c.candles.setMarkers(markers);
+    c.ohlc.setMarkers(markers);
+    for (const [s, l] of c.lines) s.removePriceLine(l);
+    const specs = buildPriceLines(setup);
+    c.lines = [c.candles, c.ohlc].flatMap((s) =>
+      specs.map((l): [typeof s, IPriceLine] => [
+        s,
+        s.createPriceLine({
+          price: l.price,
+          color: l.color,
+          lineWidth: 1,
+          lineStyle: l.dashed ? LineStyle.Dashed : LineStyle.Solid,
+          axisLabelVisible: true,
+          title: l.title,
+        }),
+      ]),
     );
     const from = rangeFrom(bars, range);
     const last = bars[bars.length - 1]?.day;
@@ -130,6 +150,17 @@ export function ChartView({ bars, setup, range, onRange }: Props) {
       c.chart.timeScale().fitContent();
     }
   }, [bars, setup, range]);
+
+  // which series is drawn (candles or OHLC bars) and which averages are shown
+  useEffect(() => {
+    const c = h.current;
+    if (!c) return;
+    c.candles.applyOptions({ visible: type === "candles" });
+    c.ohlc.applyOptions({ visible: type === "ohlc" });
+    c.sma20.applyOptions({ visible: shown.sma20 });
+    c.sma50.applyOptions({ visible: shown.sma50 });
+    c.sma200.applyOptions({ visible: shown.sma200 });
+  }, [type, shown]);
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -149,10 +180,30 @@ export function ChartView({ bars, setup, range, onRange }: Props) {
             </button>
           ))}
         </div>
-        <div className="flex gap-3 text-mute">
-          <span style={{ color: COLORS.sma20 }}>SMA 20</span>
-          <span style={{ color: COLORS.sma50 }}>SMA 50</span>
-          <span style={{ color: COLORS.sma200 }}>SMA 200</span>
+        <div className="flex flex-wrap items-center gap-3 text-mute">
+          <div className="flex gap-1" role="group" aria-label="Chart type">
+            {(["candles", "ohlc"] as const).map((k) => (
+              <button
+                key={k}
+                type="button"
+                aria-pressed={type === k}
+                onClick={() => setType(k)}
+                className={`rounded px-2 py-1 ${type === k ? "bg-accent text-white" : "bg-panel2 text-mute hover:text-ink"}`}
+              >
+                {k === "candles" ? "Candles" : "OHLC"}
+              </button>
+            ))}
+          </div>
+          {AVERAGES.map((a) => (
+            <label key={a.key} className="flex cursor-pointer items-center gap-1" style={{ color: a.color }}>
+              <input
+                type="checkbox"
+                checked={shown[a.key]}
+                onChange={(e) => setShown((s) => ({ ...s, [a.key]: e.target.checked }))}
+              />
+              {a.label}
+            </label>
+          ))}
           <span>Adjusted prices</span>
         </div>
       </div>

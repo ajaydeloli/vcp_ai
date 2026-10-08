@@ -2266,3 +2266,7 @@ The **Dashboard** page is now called **Market Overview** (menu entry and page he
 The left column is the chart alone (range buttons, chart, full height of the card). The symbol (star, company name, Full analysis link) and the strategy buttons are the first section of the right-hand panel, above Close, Live, setup and Score / RS rank / Pivot. This replaces the placement in 67.21a.
 
 On a wide screen a vertical line separates the chart from the details panel (67.21b).
+
+### 67.21c Chart: average toggles and OHLC bars (2026-10-08)
+
+Above the chart, next to "Adjusted prices", each moving average (SMA 20, SMA 50, SMA 200) has a check box in its line colour; unticking hides that line and ticking shows it again (all three are shown at first). A **Candles / OHLC** switch changes the price series between candlesticks and OHLC bars (a bar with the open as a tick on the left and the close as a tick on the right). The base start, contraction marks, breakout, pivot and stop lines show in both. The choices are kept while the page is open and are not saved.

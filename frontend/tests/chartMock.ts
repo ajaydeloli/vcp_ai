@@ -27,6 +27,9 @@ export class FakeSeries {
   priceScale() {
     return { applyOptions() {} };
   }
+  applyOptions(o: any) {
+    Object.assign(this.options, o);
+  }
 }
 
 export class FakeChart {
@@ -45,6 +48,9 @@ export class FakeChart {
   }
   addCandlestickSeries(o: any) {
     return this.add("candles", o);
+  }
+  addBarSeries(o: any) {
+    return this.add("bars", o);
   }
   addHistogramSeries(o: any) {
     return this.add("histogram", o);
