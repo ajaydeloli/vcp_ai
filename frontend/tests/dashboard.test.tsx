@@ -76,6 +76,21 @@ describe("dashboard page (market view)", () => {
     expect(within(card).getByText(/changes no rule, scan or score/)).toBeInTheDocument();
   });
 
+  it("market health has no outer card; two columns: index and leadership, breadth and feedback, stage and setups", async () => {
+    mockApi();
+    renderApp(<Dashboard />);
+    const overview = await screen.findByRole("region", { name: "Market health overview" });
+    expect(overview.className).not.toMatch(/border|bg-panel/);
+    await screen.findByRole("region", { name: "Setups today" });
+    const names = within(overview)
+      .getAllByRole("region")
+      .map((r) => r.getAttribute("aria-label") ?? within(r).queryByRole("heading")?.textContent);
+    expect(names).toEqual([
+      "Index price action", "Leadership", "Breadth", "Feedback loop", "Market stage", "Setups today",
+    ]);
+    expect(await within(overview).findByText(/Most setups are/)).toBeInTheDocument();
+  });
+
   it("the market stage card counts the scanned stocks by weekly stage", async () => {
     mockApi();
     renderApp(<Dashboard />);

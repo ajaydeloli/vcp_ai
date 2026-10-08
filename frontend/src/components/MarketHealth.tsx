@@ -5,6 +5,7 @@ import { useMarket, useMarketHealth, usePaper } from "@/lib/api";
 import { fmtDay, fmtPct, strategyLabel } from "@/lib/fmt";
 import type { MarketHealth as Health } from "@/lib/schemas";
 import { MarketStage } from "./MarketStage";
+import { SetupCounts } from "./SetupCounts";
 import { MiniLineChart, type MiniSeries } from "./MiniLineChart";
 import { Empty, ErrorBox, Loading } from "./ui";
 
@@ -235,9 +236,7 @@ function Charts({ d, id }: { d: Health; id: string }) {
   );
 }
 
-const BORDER = "rounded-xl bg-gradient-to-br from-up via-accent to-violet p-[1.5px]";
-
-/** The market read the way Minervini reads it: price action, leadership, breadth, stages, our own trades. */
+/** The market read the way Minervini reads it: price action, leadership, breadth, our own trades, stages, setups. */
 export function MarketHealth() {
   const health = useMarketHealth();
   const d = health.data;
@@ -248,63 +247,60 @@ export function MarketHealth() {
   const br = by("breadth");
   const fb = by("feedback");
   return (
-    <div className={BORDER}>
-      <section className="min-w-0 rounded-[11px] bg-panel p-4">
-        <header className="mb-4">
-          <h2 className="text-sm font-semibold text-ink">Market health</h2>
-          <p className="mt-0.5 text-xs text-mute">
-            {d?.as_of ? `${fmtDay(d.as_of)} · ` : ""}from our scanned stocks, not NIFTY
-            {v ? ` · score ${v.score}, ${v.label}` : ""}
-            {v && v.weakest.length > 0 ? ` · pulling it down: ${v.weakest.join(", ")}` : ""}
-            {v && v.strongest.length > 0 ? ` · holding it up: ${v.strongest.join(", ")}` : ""}
-            {v?.override ? " · index below its 200-day average" : ""}
+    <section className="min-w-0" aria-label="Market health overview">
+      <header className="mb-3">
+        <h2 className="text-sm font-semibold text-ink">Market health</h2>
+        <p className="mt-0.5 text-xs text-mute">
+          {d?.as_of ? `${fmtDay(d.as_of)} · ` : ""}from our scanned stocks, not NIFTY
+          {v ? ` · score ${v.score}, ${v.label}` : ""}
+          {v && v.weakest.length > 0 ? ` · pulling it down: ${v.weakest.join(", ")}` : ""}
+          {v && v.strongest.length > 0 ? ` · holding it up: ${v.strongest.join(", ")}` : ""}
+          {v?.override ? " · index below its 200-day average" : ""}
+        </p>
+      </header>
+      {health.isError ? (
+        <ErrorBox error={health.error} />
+      ) : !d ? (
+        <Loading what="market health" />
+      ) : d.groups.length === 0 ? (
+        <Empty>No market data to read yet.</Empty>
+      ) : (
+        <>
+          <div className="grid gap-4 lg:grid-cols-2">
+            {idx && (
+              <Inner title={idx.title}>
+                <Charts d={d} id="index" />
+                <Readings group={idx} />
+              </Inner>
+            )}
+            {lead && (
+              <Inner title={lead.title}>
+                <Charts d={d} id="leadership" />
+                <Readings group={lead} />
+              </Inner>
+            )}
+            {br && (
+              <Inner title={br.title}>
+                <Charts d={d} id="breadth" />
+                <Readings group={br} />
+              </Inner>
+            )}
+            {fb && (
+              <Inner title={fb.title}>
+                <Charts d={d} id="feedback" />
+                <Readings group={fb} />
+              </Inner>
+            )}
+            <MarketStage />
+            <SetupCounts />
+          </div>
+          <p className="mt-4 text-[11px] text-mute">
+            The score is the average of each reading&apos;s 0 to 100 score (grey readings left out). A read for
+            research. It changes no rule, scan or score, and does not feed the regime. Hover a reading for its
+            sentence.
           </p>
-        </header>
-        {health.isError ? (
-          <ErrorBox error={health.error} />
-        ) : !d ? (
-          <Loading what="market health" />
-        ) : d.groups.length === 0 ? (
-          <Empty>No market data to read yet.</Empty>
-        ) : (
-          <>
-            <div className="grid gap-4 lg:grid-cols-2">
-              {idx && (
-                <Inner title={idx.title}>
-                  <Charts d={d} id="index" />
-                  <Readings group={idx} />
-                </Inner>
-              )}
-              {lead && (
-                <Inner title={lead.title}>
-                  <Charts d={d} id="leadership" />
-                  <Readings group={lead} />
-                </Inner>
-              )}
-            </div>
-            <div className="mt-4 grid gap-4 lg:grid-cols-3">
-              {br && (
-                <Inner title={br.title}>
-                  <Charts d={d} id="breadth" />
-                  <Readings group={br} />
-                </Inner>
-              )}
-              <MarketStage />
-              {fb && (
-                <Inner title={fb.title}>
-                  <Charts d={d} id="feedback" />
-                  <Readings group={fb} />
-                </Inner>
-              )}
-            </div>
-            <p className="mt-4 text-[11px] text-mute">
-              The score is the average of each reading&apos;s 0 to 100 score (grey readings left out). A read for
-              research. It changes no rule, scan or score, and does not feed the regime. Hover a reading for its
-              sentence.
-            </p>
-          </>
-        )}
-      </section>
-    </div>
+        </>
+      )}
+    </section>
   );
 }

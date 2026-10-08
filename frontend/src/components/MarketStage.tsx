@@ -21,7 +21,7 @@ export function MarketStage() {
   const total = d?.scanned ?? 0;
   const leader = ROWS.reduce((a, r) => ((counts[r.id] ?? 0) > (counts[a.id] ?? 0) ? r : a), ROWS[0]!);
   return (
-    <section className="min-w-0 rounded-lg border border-line bg-panel2 p-4">
+    <section className="min-w-0 rounded-lg border border-line bg-panel2 p-4" aria-label="Market stage">
       <h3 className="text-xs font-semibold uppercase tracking-wide text-mute">Market stage</h3>
       <p className="mb-3 mt-0.5 text-xs text-mute">
         {d ? `${fmtInt(total)} scanned stocks by weekly stage` : "Weekly stage of the scanned stocks"}

@@ -2183,3 +2183,7 @@ Owner request: the dashboard looked cluttered; new layout from the owner's mock-
 - **Market health** is one card with a coloured border holding five inner cards: Index price action and Leadership (charts), then Breadth (with the regime), Market stage and Feedback loop. Each reading is one line: dot, name, the figure (`short` from the API), its 0 to 100 score; the full sentence is the tooltip and a "Details" toggle. The verdict is one line under the title (score, label, what pulls it down and holds it up); the gauge is in the tile row.
 - **Setups today**: a separate card with the four counts (A+ VCP setups, VCP setups, Forming bases, Breakout watch), then Paper trading and Recent activity.
 - API: each reading in `/market/health` gains `short`.
+
+### 67.18a Market health without the outer card (2026-10-08)
+
+The coloured outer card is gone; the cards stand on their own in two columns: Index price action and Leadership; Breadth and Feedback loop; Market stage and Setups today. Setups today is laid out like Market stage: a headline ("Most setups are ...") and one bar per list (A+ VCP setups, VCP setups, Forming bases, Breakout watch) with its count, bars scaled to the largest list. The title line (date, score, what pulls it down and holds it up) and the note stay above and below the cards. Paper trading is full width under them.

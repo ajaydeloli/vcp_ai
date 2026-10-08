@@ -25,10 +25,11 @@ describe("setup counts", () => {
     expect(kpi("Breakout watch")).toHaveTextContent("2"); // ALPHA pivot ready, BETA broken out
   });
 
-  it("a missing value is a dash, not 0", async () => {
+  it("an unreachable API is reported, not shown as 0", async () => {
     mockApi({ "setups?strategy=vcp": new Error("down") });
     renderApp(<SetupCounts />);
-    await waitFor(() => expect(kpi("A+ VCP setups")).toHaveTextContent("—"));
+    expect(await screen.findByRole("alert")).toBeInTheDocument();
+    expect(screen.queryByTestId("kpi-A+ VCP setups")).not.toBeInTheDocument();
   });
 });
 

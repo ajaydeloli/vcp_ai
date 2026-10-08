@@ -4,7 +4,6 @@ import { ActivityPanel } from "./ActivityPanel";
 import { MarketHealth } from "./MarketHealth";
 import { Nav } from "./Nav";
 import { PaperPanel } from "./PaperPanel";
-import { SetupCounts } from "./SetupCounts";
 import { StatusBar } from "./StatusBar";
 import { Tiles } from "./Tiles";
 
@@ -17,14 +16,7 @@ export function Dashboard() {
         <h1 className="sr-only">Dashboard</h1>
         <Tiles />
         <MarketHealth />
-        <div className="grid gap-4 xl:grid-cols-12">
-          <div className="min-w-0 xl:col-span-4 [&>section]:h-full">
-            <SetupCounts />
-          </div>
-          <div className="xl:col-span-8 [&>section]:h-full">
-            <PaperPanel />
-          </div>
-        </div>
+        <PaperPanel />
         <div className="xl:relative xl:min-h-[360px]">
           <ActivityPanel />
         </div>

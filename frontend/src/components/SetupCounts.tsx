@@ -3,34 +3,51 @@
 import { useSetups } from "@/lib/api";
 import { DASH, fmtInt } from "@/lib/fmt";
 import { countList } from "@/lib/lists";
-import { Card } from "./ui";
+import { Empty, ErrorBox, Loading } from "./ui";
 
-const TILES = [
-  { id: "aplus", title: "A+ VCP setups", sub: "Grade 3 in the VCP list", box: "border-up/40 from-up/20", text: "text-up" },
-  { id: "vcp", title: "VCP setups", sub: "", box: "border-accent/40 from-accent/20", text: "text-accent" },
-  { id: "forming", title: "Forming bases", sub: "Pivot not reached yet", box: "border-violet/40 from-violet/20", text: "text-violet" },
-  { id: "watch", title: "Breakout watch", sub: "Pivot ready or broken out", box: "border-warn/40 from-warn/20", text: "text-warn" },
+const ROWS: { id: string; label: string; color: string }[] = [
+  { id: "aplus", label: "A+ VCP setups", color: "bg-up" },
+  { id: "vcp", label: "VCP setups", color: "bg-accent" },
+  { id: "forming", label: "Forming bases", color: "bg-violet" },
+  { id: "watch", label: "Breakout watch", color: "bg-warn" },
 ];
 
-/** How many stocks are in each list of the VCP ranking. */
+/** How many stocks are in each list of the VCP ranking, laid out like the market stage card. */
 export function SetupCounts() {
   const vcp = useSetups("vcp");
   const rows = vcp.data?.rows ?? null;
+  const counts = rows ? ROWS.map((r) => countList(rows, r.id)) : null;
+  const max = counts ? Math.max(...counts, 1) : 1;
+  const leader = counts ? ROWS[counts.indexOf(Math.max(...counts))]! : null;
   return (
-    <Card title="Setups today" subtitle="The lists of the VCP ranking" className="h-full min-w-0">
-      <div className="grid flex-1 grid-cols-2 gap-3">
-        {TILES.map((t) => (
-          <div key={t.id} className={`rounded-lg border bg-gradient-to-br to-panel p-3 ${t.box}`}>
-            <p className={`text-[11px] font-medium uppercase tracking-wide ${t.text}`}>{t.title}</p>
-            <p className="mt-1 text-3xl font-semibold text-ink" data-testid={`kpi-${t.title}`}>
-              {rows ? fmtInt(countList(rows, t.id)) : DASH}
-            </p>
-            <p className="mt-0.5 min-h-4 text-xs text-mute">
-              {t.id === "vcp" ? (rows ? `${countList(rows, "vcp_like")} more are VCP like` : "") : t.sub}
-            </p>
-          </div>
-        ))}
-      </div>
-    </Card>
+    <section className="min-w-0 rounded-lg border border-line bg-panel2 p-4" aria-label="Setups today">
+      <h3 className="text-xs font-semibold uppercase tracking-wide text-mute">Setups today</h3>
+      <p className="mb-3 mt-0.5 text-xs text-mute">The lists of the VCP ranking</p>
+      {vcp.isError ? (
+        <ErrorBox error={vcp.error} />
+      ) : !rows || !counts ? (
+        <Loading what="setups" />
+      ) : counts.every((n) => n === 0) ? (
+        <Empty>No setups in the latest scan.</Empty>
+      ) : (
+        <>
+          <p className="mb-3 text-lg font-semibold text-ink">Most setups are {leader?.label}</p>
+          <ul className="space-y-2.5 text-xs">
+            {ROWS.map((r, i) => (
+              <li key={r.id} className="grid grid-cols-[7.5rem_1fr_5rem] items-center gap-2">
+                <span className="text-ink">{r.label}</span>
+                <span className="h-2 overflow-hidden rounded bg-bg">
+                  <span className={`block h-full ${r.color}`} style={{ width: `${((counts[i] ?? 0) / max) * 100}%` }} />
+                </span>
+                <span className="text-right tabular-nums text-mute" data-testid={`kpi-${r.label}`}>
+                  {rows ? fmtInt(counts[i]) : DASH}
+                </span>
+              </li>
+            ))}
+          </ul>
+          <p className="mt-3 text-xs text-mute">{countList(rows, "vcp_like")} more stocks are VCP like.</p>
+        </>
+      )}
+    </section>
   );
 }
