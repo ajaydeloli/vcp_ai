@@ -308,7 +308,7 @@ function StageCard({ stages, box }: { stages: Health["stages"]; box: string }) {
         <>
           <div className="flex gap-4">
             <div className="min-w-0 flex-1">
-              <MiniLineChart series={lines} height={200} plain label="stage-chart" />
+              <MiniLineChart series={lines} height={262} plain label="stage-chart" />
               <Legend items={STAGES.map((st) => [st.label, st.color])} />
             </div>
             <aside aria-label="Stage figures" className="w-40 shrink-0 space-y-3 border-l border-line pl-4">
@@ -356,9 +356,9 @@ function Charts({ d, id }: { d: Health; id: string }) {
   if (id === "breadth")
     return (
       <>
-        <MiniLineChart series={breadth} height={110} plain threshold={{ value: 40, title: "40%" }} label="breadth-chart" />
+        <MiniLineChart series={breadth} height={140} plain threshold={{ value: 40, title: "40%" }} label="breadth-chart" />
         <Legend items={[["% above 50-day", C.blue], ["% above 200-day", C.violet], ["dashed: regime on at 40%", C.warn]]} />
-        <MiniLineChart series={ad} height={80} plain label="ad-line-chart" />
+        <MiniLineChart series={ad} height={98} plain label="ad-line-chart" />
         <Legend items={[["Advance/decline line", C.ink], ["its 50-day average", C.warn]]} />
       </>
     );
