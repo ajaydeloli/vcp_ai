@@ -29,7 +29,7 @@ describe("dashboard page (market view)", () => {
 
     // honest labels
     expect(screen.getByText("Research tool, not financial advice")).toBeInTheDocument();
-    expect(screen.getAllByText(/not NIFTY/).length).toBeGreaterThanOrEqual(2); // the index tile and the market health note
+    expect(screen.getAllByText(/not NIFTY/).length).toBeGreaterThanOrEqual(1); // the index tile
     expect(screen.getByText(/No real money/)).toBeInTheDocument();
 
     // navigation
@@ -75,7 +75,6 @@ describe("dashboard page (market view)", () => {
       expect(await within(card).findByRole("region", { name: title })).toBeInTheDocument();
     }
     expect(within(card).getAllByRole("img", { name: /^(green|amber|red|grey)$/ }).length).toBeGreaterThanOrEqual(1); // the index, leadership and breadth cards show figures, not dots
-    expect(within(card).getByText(/changes no rule, scan or score/)).toBeInTheDocument();
   });
 
   it("market health has no outer card; two columns: index and leadership, breadth and stage, feedback and setups", async () => {

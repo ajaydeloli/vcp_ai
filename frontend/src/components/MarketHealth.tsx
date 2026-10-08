@@ -327,11 +327,6 @@ function StageCard({ stages, box }: { stages: Health["stages"]; box: string }) {
               ))}
             </aside>
           </div>
-          <p className="mt-2 text-[11px] text-mute">
-            Share of {fmtInt(last.total)} scanned stocks in each weekly stage, week by week; {fmtInt(last.transition)} are
-            between stages (not drawn). The stocks are today&apos;s scan list, the stage is worked out for each past week
-            with the scan&apos;s own rule.
-          </p>
         </>
       )}
     </Inner>
@@ -441,11 +436,6 @@ export function MarketHealth() {
             )}
             <SetupCounts box={BOX.setups} />
           </div>
-          <p className="mt-4 text-[11px] text-mute">
-            Everything here is read from our scanned stocks, not NIFTY. The score is the average of each reading&apos;s 0 to 100 score (grey readings left out). A read for
-            research. It changes no rule, scan or score, and does not feed the regime. Hover a reading for its
-            sentence.
-          </p>
         </>
       )}
     </section>
