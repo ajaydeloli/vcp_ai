@@ -2203,3 +2203,9 @@ Our equal-weight index of the scanned stocks is now called **VCP Quality Index (
 ### 67.18e Index price action card (2026-10-08)
 
 The chart (VQI with its 50- and 200-day averages) is on the left; on the right, in the style of the owner's price-and-volume mock-up: Index vs 200-day average (x %, green above, red below), Accumulation days and Distribution days, each with "(last 25 sessions)". No score and no Details toggle on this card. An accumulation day is a session where the index rose 0.2 % or more on higher total volume than the day before (the mirror of a distribution day); volume is that of our scanned stocks, not NIFTY. API: `/market/health` gains `index_days` (`pct_from_200`, `accumulation`, `distribution`, `window`). The distribution reading and its score in the verdict are unchanged; accumulation days do not enter the verdict.
+
+### 67.18f Market stage card: four stages over time
+
+The Market stage card is laid out like Index price action, Leadership and Breadth: a chart on the left and a column of figures on the right. The chart draws, for the last 52 weeks, the share of the scanned stocks in Stage 1, 2, 3 and 4 (four lines). The figures give today's share and count for each stage. Transition (between stages) is not drawn; its count is stated under the chart.
+
+The history is not stored. `GET /api/v1/market/health` rebuilds it (`stages`, one point a week) with the scan's own rule, `classify_weekly_stage` (stage-1.0.0, default StageConfig), from the stored daily adjusted closes: a week's close is the last close of that week, the current week uses the latest close. The stocks are those of the latest scan, so the chart shows how today's scan list moved through the stages, not who was in the scan then. The latest week equals the screener's stage counts exactly. Display only; read-only; nothing feeds a scan, score, label or ledger. The card moved beside Breadth; Feedback loop now sits above Setups today.

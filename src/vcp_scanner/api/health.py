@@ -12,8 +12,11 @@ from typing import Any
 from vcp_scanner.api import models as m
 from vcp_scanner.api.context import Context
 from vcp_scanner.api.queries import Cur, _f
+from vcp_scanner.config.models import StageConfig
+from vcp_scanner.domain.enums import WeeklyStage
 from vcp_scanner.domain.features import FEATURES_CALCULATION_VERSION
 from vcp_scanner.domain.snapshot import LIVE_SNAPSHOT_ID as LIVE
+from vcp_scanner.features.weekly_stage import classify_weekly_stage
 from vcp_scanner.paper.ledger import RULE_SET
 
 SESSIONS_SHOWN = 470  # a 200-day average of the index plus a slope, for a year of chart
@@ -26,6 +29,8 @@ FAIL_WITHIN = 5  # sessions after the breakout in which a close below the pivot 
 MIN_JUDGED = 5  # fewer judged breakouts than this: no colour
 LEADER_RS = 80
 LEADER_DAYS = 20
+STAGE_WEEKS = 52  # weeks drawn in the stage chart
+STAGE_FETCH_WEEKS = 124  # the 30-week average and its own 30-week look-back, on top of the chart
 TRADES_JUDGED = 10  # last closed paper trades looked at; fewer: no colour
 
 _DAILY_SQL = """
@@ -451,6 +456,61 @@ def _verdict(groups: list[m.HealthGroup]) -> m.HealthVerdict | None:
     )  # fmt: skip
 
 
+def _stage_history(cur: Cur, ctx: Context, end: date) -> list[m.HealthStagePoint]:
+    """The weekly stage of the stocks in the latest scan at the end of each of the last weeks.
+
+    Same rule as the scan (``classify_weekly_stage``), read from stored daily prices: a week's
+    close is the last close of that week, the current week uses the latest close. The list of
+    stocks is today's, so the chart shows how today's scanned stocks have moved through the
+    stages, not who was in the scan then."""
+    ids = [
+        str(r[0])
+        for r in cur.execute(
+            "SELECT instrument_id FROM trend_template_results WHERE config_hash = ?"
+            " AND data_snapshot_id = ? AND as_of_date = (SELECT max(as_of_date) FROM"
+            " trend_template_results WHERE config_hash = ? AND data_snapshot_id = ?)",
+            [ctx.scan_hash, LIVE, ctx.scan_hash, LIVE],
+        ).fetchall()
+    ]
+    if not ids:
+        return []
+    since = end - timedelta(weeks=STAGE_FETCH_WEEKS)
+    weekly: dict[str, list[tuple[date, float]]] = defaultdict(list)
+    week_end: dict[date, date] = {}
+    for iid, wk, last_day, c in cur.execute(
+        "SELECT instrument_id, CAST(date_trunc('week', trade_date) AS DATE), max(trade_date),"
+        " arg_max(close_adj, trade_date) FROM daily_prices_adjusted_current"
+        " WHERE computed_from_snapshot_id = ? AND trade_date BETWEEN ? AND ?"
+        " AND close_adj IS NOT NULL AND instrument_id IN (SELECT unnest(?))"
+        " GROUP BY 1, 2 ORDER BY 1, 2",
+        [LIVE, since, end, ids],
+    ).fetchall():
+        weekly[str(iid)].append((wk, float(c)))
+        week_end[wk] = max(week_end.get(wk, last_day), last_day)
+    weeks = sorted({wk for rows in weekly.values() for wk, _ in rows})[-STAGE_WEEKS:]
+    if not weeks:
+        return []
+    cfg = StageConfig()
+    by_week: dict[date, dict[WeeklyStage, int]] = {w: defaultdict(int) for w in weeks}
+    for rows in weekly.values():
+        closes = [c for _, c in rows]
+        for k, (wk, _c) in enumerate(rows):
+            if wk in by_week:
+                by_week[wk][classify_weekly_stage(closes[: k + 1], cfg).stage] += 1
+    out: list[m.HealthStagePoint] = []
+    for w in weeks:
+        n = by_week[w]
+        counts = [
+            n[WeeklyStage.STAGE_1], n[WeeklyStage.STAGE_2], n[WeeklyStage.STAGE_3],
+            n[WeeklyStage.STAGE_4], n[WeeklyStage.TRANSITION],
+        ]  # fmt: skip
+        out.append(m.HealthStagePoint(
+            day=week_end[w], stage1=counts[0], stage2=counts[1], stage3=counts[2], stage4=counts[3],
+            transition=counts[4], total=sum(counts),
+        ))  # fmt: skip
+    return out
+
+
 def market_health(cur: Cur, ctx: Context, end: date, data_time: datetime) -> m.MarketHealthResponse:
     start = end - timedelta(days=int(SESSIONS_SHOWN * 7 / 5) + 10)
     rows = [
@@ -501,5 +561,5 @@ def market_health(cur: Cur, ctx: Context, end: date, data_time: datetime) -> m.M
     return m.MarketHealthResponse(
         as_of=sessions[-1], data_time=data_time, groups=groups,
         points=_points(rows, index), trades=_trades(cur, ctx), verdict=_verdict(groups),
-        index_days=_index_days(index, mean_ret, volume),
+        index_days=_index_days(index, mean_ret, volume), stages=_stage_history(cur, ctx, end),
     )  # fmt: skip

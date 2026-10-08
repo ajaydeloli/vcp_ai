@@ -110,12 +110,14 @@ describe("dashboard page (market view)", () => {
     expect(within(card).getByTestId("mini-index-price-chart")).toBeInTheDocument();
   });
 
-  it("the market stage card counts the scanned stocks by weekly stage", async () => {
+  it("the market stage card charts the four stages and shows today's share of each", async () => {
     mockApi();
     renderApp(<Dashboard />);
-    const card = (await screen.findByText("Market stage")).closest("section") as HTMLElement;
-    expect(await within(card).findByText(/Stage 2: uptrend/)).toBeInTheDocument();
-    expect(within(card).getByText(/Most stocks are in Stage 2/)).toBeInTheDocument();
+    const card = await screen.findByRole("region", { name: "Market stage" });
+    expect(await within(card).findByTestId("mini-stage-chart")).toBeInTheDocument();
+    const fig = within(await within(card).findByRole("complementary", { name: "Stage figures" }));
+    for (const t of ["Stage 1: base", "Stage 2: uptrend", "Stage 3: top", "Stage 4: downtrend"])
+      expect(fig.getByText(t)).toBeInTheDocument();
   });
 
   it("market health states a verdict with a 0 to 100 score", async () => {

@@ -331,6 +331,12 @@ def test_market_health_reads_the_four_groups_and_says_when_data_is_too_thin(ro_e
     assert items["highs_lows"]["short"].endswith("lows")
     days = body["index_days"]
     assert days["window"] == 25 and days["accumulation"] >= 0 and days["distribution"] >= 0
+    stages = body["stages"]  # the weekly stage of the scanned stocks, one point a week
+    assert stages and stages[-1]["day"] == body["as_of"]
+    assert all(
+        s["total"] == s["stage1"] + s["stage2"] + s["stage3"] + s["stage4"] + s["transition"]
+        for s in stages
+    )  # fmt: skip
     verdict = body["verdict"]
     assert 0 <= verdict["score"] <= 100 and verdict["counted"] >= 1
     assert verdict["status"] in {"green", "amber", "orange", "red"}

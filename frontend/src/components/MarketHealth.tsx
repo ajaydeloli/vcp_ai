@@ -2,9 +2,8 @@
 
 import { useMemo, type ReactNode } from "react";
 import { useMarket, useMarketHealth, usePaper } from "@/lib/api";
-import { fmtDay, fmtPct, strategyLabel } from "@/lib/fmt";
+import { fmtDay, fmtInt, fmtPct, strategyLabel } from "@/lib/fmt";
 import type { MarketHealth as Health } from "@/lib/schemas";
-import { MarketStage } from "./MarketStage";
 import { SetupCounts } from "./SetupCounts";
 import { MiniLineChart, type MiniSeries } from "./MiniLineChart";
 import { Empty, ErrorBox, Loading } from "./ui";
@@ -280,6 +279,60 @@ function BreadthFigures({ group }: { group: Health["groups"][number] }) {
   );
 }
 
+const STAGES = [
+  { key: "stage1", label: "Stage 1: base", color: C.blue, text: "text-accent" },
+  { key: "stage2", label: "Stage 2: uptrend", color: C.up, text: "text-up" },
+  { key: "stage3", label: "Stage 3: top", color: C.warn, text: "text-warn" },
+  { key: "stage4", label: "Stage 4: downtrend", color: C.down, text: "text-down" },
+] as const;
+
+/** The scanned stocks by weekly stage: the share in each of the four stages week by week, and today's shares. */
+function StageCard({ stages, box }: { stages: Health["stages"]; box: string }) {
+  const lines = useMemo(
+    () =>
+      STAGES.map((st) => ({
+        name: st.label,
+        color: st.color,
+        data: stages.filter((p) => p.total > 0).map((p) => ({ time: p.day, value: (p[st.key] / p.total) * 100 })),
+      })),
+    [stages],
+  );
+  const last = stages[stages.length - 1];
+  return (
+    <Inner title="Market stage" box={box}>
+      {!last || last.total === 0 ? (
+        <Empty>No stage history to show yet.</Empty>
+      ) : (
+        <>
+          <div className="flex gap-4">
+            <div className="min-w-0 flex-1">
+              <MiniLineChart series={lines} height={270} plain label="stage-chart" />
+              <Legend items={STAGES.map((st) => [st.label, st.color])} />
+            </div>
+            <aside aria-label="Stage figures" className="w-40 shrink-0 space-y-3 border-l border-line pl-4">
+              {STAGES.map((st, i) => (
+                <div key={st.key} className={i ? "border-t border-line pt-3" : ""}>
+                  <Figure
+                    label={st.label}
+                    value={fmtPct((last[st.key] / last.total) * 100, 0)}
+                    sub={`(${fmtInt(last[st.key])} stocks)`}
+                    color={st.text}
+                  />
+                </div>
+              ))}
+            </aside>
+          </div>
+          <p className="mt-2 text-[11px] text-mute">
+            Share of {fmtInt(last.total)} scanned stocks in each weekly stage, week by week; {fmtInt(last.transition)} are
+            between stages (not drawn). The stocks are today&apos;s scan list, the stage is worked out for each past week
+            with the scan&apos;s own rule.
+          </p>
+        </>
+      )}
+    </Inner>
+  );
+}
+
 function Charts({ d, id }: { d: Health; id: string }) {
   const pts = d.points;
   const index = useMemo(
@@ -374,7 +427,7 @@ export function MarketHealth() {
                 </div>
               </Inner>
             )}
-            <MarketStage box={BOX.stage} />
+            <StageCard stages={d.stages} box={BOX.stage} />
             {fb && (
               <Inner title={fb.title} box={BOX.feedback}>
                 <Charts d={d} id="feedback" />

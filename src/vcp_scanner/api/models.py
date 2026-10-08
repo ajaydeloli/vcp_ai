@@ -176,6 +176,18 @@ class HealthPoint(BaseModel):
     ad_ma50: float | None
 
 
+class HealthStagePoint(BaseModel):
+    """Stocks of the latest scan in each weekly stage at the end of one week."""
+
+    day: date
+    stage1: int
+    stage2: int
+    stage3: int
+    stage4: int
+    transition: int
+    total: int  # stocks with a stage that week (the five counts add up to this)
+
+
 class HealthTrade(BaseModel):
     day: date
     ret_pct: float
@@ -196,6 +208,7 @@ class MarketHealthResponse(Stamped):
     trades: list[HealthTrade]
     verdict: HealthVerdict | None
     index_days: HealthIndexDays | None
+    stages: list[HealthStagePoint] = []
 
 
 class SearchHit(BaseModel):
