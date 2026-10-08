@@ -2243,3 +2243,7 @@ The preset buttons (All scanned stocks, Trend Template passers, Top setups, A+ V
 - **Sorting** stays in the table headers (for example sort by Score for the best setups).
 - Responsive: two columns on a phone, four on a tablet, one row of eight on a wide screen.
 
+### 67.20a Screener columns (2026-10-08)
+
+The Company and Trend columns are removed. Company: the instrument table holds no company names (the data source gives none), so every cell was "not available". Trend: the stored Trend Template result has no trend score (it is a later-phase placeholder, null for every stock), so every cell was "not available". They can return when the data exists. The remaining columns use a fixed layout with set widths, so the gaps are even; Conditions and Near high are centred, numbers are right-aligned, text is left-aligned.
+
