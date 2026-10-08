@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useLiveQuotes, useScreener, useStrategies } from "@/lib/api";
-import { DASH, fmtDay, fmtInt, fmtNum, fmtPct, fmtPrice, strategyLabel, tone } from "@/lib/fmt";
+import { DASH, fmtInt, fmtNum, fmtPct, fmtPrice, strategyLabel, tone } from "@/lib/fmt";
 import { pageNumbers } from "@/lib/lists";
 import { DEFAULT_QUERY, STAGES, type ScreenerQuery } from "@/lib/screener";
 import type { LiveQuote, ScreenerRow } from "@/lib/schemas";
@@ -18,21 +18,28 @@ const stageLabel = (s: string): string => s.replace("STAGE_", "Stage ").replace(
 export type Col = {
   key: string;
   label: string;
-  align?: "right";
+  align?: "right" | "center";
+  /** column width in px; the table is fixed-layout so the columns are spread evenly */
+  w: number;
   render: (r: ScreenerRow, live?: LiveQuote) => React.ReactNode;
 };
 
 const yesNo = (v: boolean | null) =>
   v === null ? <span className="text-mute">{DASH}</span> : v ? <span className="text-up">Yes</span> : <span className="text-mute">No</span>;
 
+export const alignClass = (c: Pick<Col, "align">): string =>
+  c.align === "right" ? "text-right" : c.align === "center" ? "text-center" : "";
+
 export const COLS: Col[] = [
   {
     key: "watch",
+    w: 40,
     label: "",
     render: (r) => <WatchStar symbol={r.symbol} />,
   },
   {
     key: "symbol",
+    w: 130,
     label: "Symbol",
     render: (r) => (
       <a href={`/stocks/${encodeURIComponent(r.symbol)}`} className="font-medium text-accent hover:underline">
@@ -40,32 +47,27 @@ export const COLS: Col[] = [
       </a>
     ),
   },
-  {
-    key: "company",
-    label: "Company",
-    render: (r) => <span className="block max-w-44 truncate text-ink">{r.company ?? DASH}</span>,
-  },
-  { key: "stage", label: "Stage", render: (r) => (r.stage ? stageLabel(r.stage) : DASH) },
-  { key: "trend_score", label: "Trend", align: "right", render: (r) => fmtNum(r.trend_score, 0) },
+  { key: "stage", w: 90, label: "Stage", render: (r) => (r.stage ? stageLabel(r.stage) : DASH) },
   {
     key: "conditions_passed",
+    w: 100,
     label: "Conditions",
-    align: "right",
-    render: (r) =>
+    align: "center", render: (r) =>
       r.conditions_passed === null ? DASH : `${r.conditions_passed}/${r.conditions_total ?? DASH}`,
   },
-  { key: "near_high", label: "Near high", render: (r) => yesNo(r.near_52w_high) },
-  { key: "rs_rank", label: "RS", align: "right", render: (r) => fmtInt(r.rs_rank) },
-  { key: "close", label: "Close", align: "right", render: (r) => fmtPrice(r.close) },
-  { key: "live", label: "Live", align: "right", render: (_r, live) => <LiveCell q={live} /> },
+  { key: "near_high", w: 100, label: "Near high", align: "center", render: (r) => yesNo(r.near_52w_high) },
+  { key: "rs_rank", w: 70, label: "RS", align: "right", render: (r) => fmtInt(r.rs_rank) },
+  { key: "close", w: 100, label: "Close", align: "right", render: (r) => fmtPrice(r.close) },
+  { key: "live", w: 160, label: "Live", align: "right", render: (_r, live) => <LiveCell q={live} /> },
   {
     key: "change_pct",
+    w: 90,
     label: "Change",
-    align: "right",
-    render: (r) => <span className={tone(r.change_pct)}>{fmtPct(r.change_pct, 2, true)}</span>,
+    align: "right", render: (r) => <span className={tone(r.change_pct)}>{fmtPct(r.change_pct, 2, true)}</span>,
   },
   {
     key: "grade",
+    w: 110,
     label: "Setup",
     render: (r) =>
       r.classification && r.grade !== null ? (
@@ -74,23 +76,24 @@ export const COLS: Col[] = [
         <span className="text-mute">{DASH}</span>
       ),
   },
-  { key: "score", label: "Score", align: "right", render: (r) => fmtNum(r.score, 0) },
-  { key: "pivot", label: "Pivot", align: "right", render: (r) => fmtPrice(r.pivot) },
+  { key: "score", w: 80, label: "Score", align: "right", render: (r) => fmtNum(r.score, 0) },
+  { key: "pivot", w: 100, label: "Pivot", align: "right", render: (r) => fmtPrice(r.pivot) },
   {
     key: "status",
+    w: 120,
     label: "Status",
     render: (r) => (r.status ? <StatusPill status={r.status} /> : <span className="text-mute">{DASH}</span>),
   },
   {
     key: "pivot_distance_pct",
+    w: 90,
     label: "To pivot",
-    align: "right",
-    render: (r) => fmtPct(r.pivot_distance_pct, 1, true),
+    align: "right", render: (r) => fmtPct(r.pivot_distance_pct, 1, true),
   },
 ];
 
 const SORTABLE = new Set([
-  "symbol", "rs_rank", "trend_score", "conditions_passed", "close", "change_pct", "score", "grade",
+  "symbol", "rs_rank", "conditions_passed", "close", "change_pct", "score", "grade",
   "pivot_distance_pct",
 ]); // fmt: skip
 
@@ -369,7 +372,12 @@ export function Screener() {
               ) : (
                 <>
                   <div className="overflow-x-auto">
-                    <table className="w-full text-left text-xs">
+                    <table className="w-full min-w-[1100px] table-fixed text-left text-xs">
+                      <colgroup>
+                        {COLS.map((c) => (
+                          <col key={c.key} style={{ width: c.w }} />
+                        ))}
+                      </colgroup>
                       <thead className="text-[11px] uppercase text-mute">
                         <tr>
                           {COLS.map((c) => {
@@ -380,7 +388,7 @@ export function Screener() {
                               <th
                                 key={c.key}
                                 scope="col"
-                                className={`px-2 py-1.5 font-medium ${c.align === "right" ? "text-right" : ""}`}
+                                className={`px-3 py-1.5 font-medium ${alignClass(c)}`}
                                 aria-sort={on ? (query.direction === "asc" ? "ascending" : "descending") : "none"}
                               >
                                 {sortable ? (
@@ -411,7 +419,7 @@ export function Screener() {
                         {data.rows.map((r) => (
                           <tr key={r.instrument_id} className="border-t border-line">
                             {COLS.map((c) => (
-                              <td key={c.key} className={`px-2 py-1.5 ${c.align === "right" ? "text-right" : ""}`}>
+                              <td key={c.key} className={`px-3 py-1.5 ${alignClass(c)}`}>
                                 {c.render(r, live.bySymbol.get(r.symbol))}
                               </td>
                             ))}

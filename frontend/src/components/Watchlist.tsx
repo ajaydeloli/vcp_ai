@@ -5,7 +5,7 @@ import { useLiveQuotes, useScreener, useSearch } from "@/lib/api";
 import { fmtDay } from "@/lib/fmt";
 import { DEFAULT_QUERY } from "@/lib/screener";
 import { useWatchlists } from "@/lib/watchlist";
-import { COLS } from "./Screener";
+import { alignClass, COLS } from "./Screener";
 import { Nav } from "./Nav";
 import { StatusBar } from "./StatusBar";
 import { Card, Empty, ErrorBox, Loading } from "./ui";
@@ -201,7 +201,7 @@ export function Watchlist() {
                 <thead className="text-[11px] uppercase text-mute">
                   <tr>
                     {cols.map((c) => (
-                      <th key={c.key} scope="col" className={`px-2 py-1.5 font-medium ${c.align === "right" ? "text-right" : ""}`}>
+                      <th key={c.key} scope="col" className={`px-3 py-1.5 font-medium ${alignClass(c)}`}>
                         {c.label}
                       </th>
                     ))}
@@ -214,7 +214,7 @@ export function Watchlist() {
                   {rows.map((r) => (
                     <tr key={r.instrument_id} className="border-t border-line">
                       {cols.map((c) => (
-                        <td key={c.key} className={`px-2 py-1.5 ${c.align === "right" ? "text-right" : ""}`}>
+                        <td key={c.key} className={`px-3 py-1.5 ${alignClass(c)}`}>
                           {c.render(r, live.bySymbol.get(r.symbol))}
                         </td>
                       ))}
