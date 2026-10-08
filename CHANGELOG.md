@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed (Dashboard redesign)
+- Index price action and Leadership charts made taller (270 px) so they fill their cards.
 - Index price action card: chart on the left, figures on the right (index vs 200-day average, accumulation days, distribution days, last 25 sessions); no score or Details. `/api/v1/market/health` adds `index_days`.
 
 - Our index is renamed "VCP Quality Index (VQI)" (was VCP Universe Index); charts label it VQI. Same index, still not NIFTY.

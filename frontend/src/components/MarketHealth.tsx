@@ -248,14 +248,14 @@ function Charts({ d, id }: { d: Health; id: string }) {
   if (id === "index")
     return (
       <>
-        <MiniLineChart series={index} height={170} plain label="index-price-chart" />
+        <MiniLineChart series={index} height={270} plain label="index-price-chart" />
         <Legend items={[["VQI", C.ink], ["50-day", C.warn], ["200-day", C.down]]} />
       </>
     );
   if (id === "leadership")
     return (
       <>
-        <MiniLineChart series={highs} height={170} plain label="highs-lows-chart" />
+        <MiniLineChart series={highs} height={270} plain label="highs-lows-chart" />
         <Legend items={[["New 52-week highs", C.up], ["New 52-week lows", C.down]]} />
       </>
     );
