@@ -236,6 +236,37 @@ function IndexFigures({ days }: { days: NonNullable<Health["index_days"]> }) {
   );
 }
 
+/** The figures beside the leadership chart: new highs, new lows, failed breakouts, leaders against the index. */
+function LeadershipFigures({ group, highs, lows }: { group: Health["groups"][number]; highs: number | null; lows: number | null }) {
+  const num = (id: string) => group.items.find((i) => i.id === id)?.value ?? null;
+  const failed = num("failed_breakouts");
+  const lead = num("leaders");
+  return (
+    <aside aria-label="Leadership figures" className="w-40 shrink-0 space-y-3 border-l border-line pl-4">
+      <Figure label="New 52-week highs" value={highs === null ? "—" : String(highs)} sub="today" color="text-up" />
+      <div className="border-t border-line pt-3">
+        <Figure label="New 52-week lows" value={lows === null ? "—" : String(lows)} sub="today" color="text-down" />
+      </div>
+      <div className="border-t border-line pt-3">
+        <Figure
+          label="Failed breakouts"
+          value={failed === null ? "—" : `${failed.toFixed(0)}%`}
+          sub="closed back below pivot"
+          color={failed === null ? "text-ink" : failed > 50 ? "text-down" : failed > 25 ? "text-warn" : "text-up"}
+        />
+      </div>
+      <div className="border-t border-line pt-3">
+        <Figure
+          label="Leaders vs index"
+          value={lead === null ? "—" : `${lead >= 0 ? "+" : ""}${lead.toFixed(1)}`}
+          sub="points"
+          color={lead === null ? "text-ink" : lead >= 0 ? "text-up" : "text-down"}
+        />
+      </div>
+    </aside>
+  );
+}
+
 function Charts({ d, id }: { d: Health; id: string }) {
   const pts = d.points;
   const index = useMemo(
@@ -309,8 +340,16 @@ export function MarketHealth() {
             )}
             {lead && (
               <Inner title={lead.title} box={BOX.leadership}>
-                <Charts d={d} id="leadership" />
-                <Readings group={lead} />
+                <div className="flex gap-4">
+                  <div className="min-w-0 flex-1">
+                    <Charts d={d} id="leadership" />
+                  </div>
+                  <LeadershipFigures
+                    group={lead}
+                    highs={d.points.at(-1)?.highs ?? null}
+                    lows={d.points.at(-1)?.lows ?? null}
+                  />
+                </div>
               </Inner>
             )}
             {br && (
