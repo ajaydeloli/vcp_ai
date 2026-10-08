@@ -132,8 +132,8 @@ function Filters({
     q.strategy !== DEFAULT_QUERY.strategy;
   return (
     <Card title="Filters" label="Filters">
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-8">
-        <Field id="scr-q" label="Symbol or company" className="col-span-2">
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-[minmax(0,1.6fr)_repeat(8,minmax(0,1fr))]">
+        <Field id="scr-q" label="Symbol or company" className="col-span-2 xl:col-span-1">
           <input
             id="scr-q"
             type="search"
@@ -217,7 +217,7 @@ function Filters({
             <option value="3">3 or more</option>
           </select>
         </Field>
-        <fieldset className="col-span-2 md:col-span-4 xl:col-span-4">
+        <fieldset className="col-span-2 md:col-span-3 xl:col-span-8">
           <legend className="mb-1 block text-[11px] uppercase text-mute">Weekly stage</legend>
           <div className="flex flex-wrap gap-1.5">
             {STAGES.map((s) => {
@@ -242,7 +242,7 @@ function Filters({
             })}
           </div>
         </fieldset>
-        <div className="col-span-2 flex items-end justify-end md:col-span-4 xl:col-span-1">
+        <div className="col-span-2 flex items-end md:col-span-1">
           <button
             type="button"
             disabled={!changed}
