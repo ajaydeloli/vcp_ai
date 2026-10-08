@@ -2280,3 +2280,5 @@ The range group is labelled "Range :" and the chart type group "Chart :"; the SM
 ### 67.21e Stock Analysis: four equal cards (2026-10-08)
 
 The four cards under the chart (VCP pattern, Trend Template, Fundamentals, Score breakdown) are the same width (a quarter of the row each on a wide screen, two per row on a tablet) and the same height (the tallest of them).
+
+On a wide screen the chart takes three quarters of the card and the details panel one quarter (the vertical line sits at the three-quarter mark, in line with the edge of the fourth overview card below); this replaces the fixed 21 rem panel of 67.21b.

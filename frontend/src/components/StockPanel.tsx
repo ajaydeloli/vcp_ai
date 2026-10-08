@@ -71,7 +71,7 @@ function StockView({
   const side = "py-3 first:pt-0 last:pb-0";
   return (
     <Card label={`Chart of ${selection.symbol}`} className="min-w-0">
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_21rem]">
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,3fr)_minmax(0,1fr)]">
         <div className="flex min-w-0 flex-col">
           {bars.isError ? (
             <ErrorBox error={bars.error} />
