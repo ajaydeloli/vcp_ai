@@ -46,12 +46,25 @@ describe("tiles", () => {
     expect(screen.getByTestId("verdict-label").textContent).toMatch(/\w/);
   });
 
-  it("NIFTY 50 and SENSEX say they need an index feed instead of showing a number", async () => {
+  it("NIFTY 50 and SENSEX show the live value, the change and how old it is", async () => {
     mockApi();
     renderApp(<Tiles />);
+    await waitFor(() => expect(screen.getByTestId("index-NIFTY 50")).toHaveTextContent("25,500"));
+    expect(screen.getByTestId("index-change-NIFTY 50")).toHaveTextContent("+2.00%");
+    expect(screen.getByTestId("index-note-NIFTY 50")).toHaveTextContent("Live, delayed 0 s");
+    expect(screen.getByTestId("index-SENSEX")).toHaveTextContent("83,000");
+  });
+
+  it("without a token the index tiles show a dash and why, never 0", async () => {
+    const down = structuredClone(fx.liveIndices);
+    down.mode = "unavailable";
+    down.feed = { ...down.feed, state: "token_needed", message: "Live feed needs a fresh token" };
+    for (const i of down.indices) Object.assign(i, { available: false, last_price: null, change: null, change_pct: null, mode: null, points: [] });
+    mockApi({ "live/indices": down });
+    renderApp(<Tiles />);
+    await waitFor(() => expect(screen.getByTestId("index-note-NIFTY 50")).toHaveTextContent("fresh token"));
     expect(screen.getByTestId("index-NIFTY 50")).toHaveTextContent("—");
-    expect(screen.getByTestId("index-SENSEX")).toHaveTextContent("—");
-    expect(screen.getAllByText("Needs an index feed")).toHaveLength(2);
+    expect(screen.getByTestId("index-SENSEX")).not.toHaveTextContent("0");
   });
 
   it("a missing scan is a dash, not 0", async () => {

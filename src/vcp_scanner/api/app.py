@@ -17,7 +17,13 @@ from vcp_scanner.api import models as m
 from vcp_scanner.api import queries as q
 from vcp_scanner.api.context import Context, StrategySpec, build_context
 from vcp_scanner.api.db import ServingCopyMissing, ServingDb
+from vcp_scanner.api.live_routes import add_live_routes
 from vcp_scanner.data.providers._time import IST
+from vcp_scanner.live.config import load_live_config
+from vcp_scanner.live.factory import make_feed_factory, nse_holiday_loader
+from vcp_scanner.live.hours import MarketCalendar
+from vcp_scanner.live.models import UniverseEntry
+from vcp_scanner.live.service import LiveService
 from vcp_scanner.serving import default_serving_path
 
 MARKET_LABEL = "VCP Quality Index, VQI (equal-weight index of the stocks we scan), not NIFTY"
@@ -29,10 +35,11 @@ ORIGINS = ("http://localhost:3000", "http://127.0.0.1:3000")
 def create_app(
     serving_path: str | Path | None = None, config_dir: str | Path = "config",
     data_dir: str | Path = "data", now: Callable[[], datetime] | None = None,
-    origins: tuple[str, ...] = ORIGINS,
+    origins: tuple[str, ...] = ORIGINS, live: LiveService | None = None, env_file: str = ".env",
 ) -> FastAPI:  # fmt: skip
     """``serving_path`` defaults to ``<data_dir>/serving/vcp_serving.duckdb``; logs and backups
-    are read from ``data_dir``."""
+    are read from ``data_dir``. ``live`` is the live-price service (display only); by default one
+    is built from ``config/live.yaml`` and reads credentials from ``env_file`` at its first poll."""
     data = Path(data_dir)
     db = ServingDb(serving_path or default_serving_path(data / "vcp_scanner.duckdb"))
     ctx: Context = build_context(config_dir, data)
@@ -55,6 +62,22 @@ def create_app(
         return max((d for s in ctx.strategies if (d := q.latest_scan(cur, s))), default=None)
 
     api = "/api/v1"
+
+    def live_universe() -> list[UniverseEntry]:
+        def read() -> list[UniverseEntry]:
+            with db.cursor() as cur:
+                return [UniverseEntry(sym, isin) for sym, isin in q.live_universe(cur, ctx)]
+
+        result: list[UniverseEntry] = db.cached("live_universe", read)
+        return result
+
+    if live is None:
+        live_cfg = load_live_config(config_dir)
+        live = LiveService(
+            live_cfg, make_feed_factory(live_cfg, env_file), live_universe,
+            MarketCalendar(nse_holiday_loader(data)), clock,
+        )  # fmt: skip
+    add_live_routes(app, live, clock, api)
 
     def stock_or_404(cur: q.Cur, symbol: str) -> tuple[str, str, str | None]:
         found = q.resolve_symbol(cur, symbol)

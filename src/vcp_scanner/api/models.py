@@ -7,7 +7,7 @@ copy was written, IST). A value the database does not have is ``null``, never 0 
 from __future__ import annotations
 
 from datetime import date, datetime
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel
 
@@ -383,3 +383,73 @@ class PaperResponse(Stamped):
     min_closed_trades: int
     open_positions: int
     strategies: list[PaperStrategy]
+
+
+# ---- Live prices (FRONTEND_SPECIFICATION 67.19): display only, from the in-memory feed ----------
+
+
+class LiveFeedInfo(BaseModel):
+    state: Literal[
+        "disabled", "starting", "live", "stale", "closed", "token_needed", "rate_limited", "error"
+    ]
+    message: str | None  # what to tell the person: needs a fresh token, rate limited, ...
+    provider: str  # UPSTOX or KITE, one config setting
+    market: Literal["open", "pre_open", "closed"]
+    last_success_at: datetime | None
+    retry_at: datetime | None
+    stocks_covered: int | None  # stocks that have a price / stocks in the scanned universe
+    stocks_total: int | None
+    holidays_known: bool  # False: the NSE holiday list is not loaded, weekdays only
+
+
+class LiveStamped(BaseModel):
+    """``as_of`` is the session the prices belong to, ``data_time`` when the newest was
+    received (IST); ``mode`` says whether they are live, stale or the close."""
+
+    as_of: date | None
+    data_time: datetime
+    mode: Literal["live", "stale", "closed", "unavailable"]
+    feed: LiveFeedInfo
+
+
+class LiveQuoteOut(BaseModel):
+    symbol: str
+    available: bool
+    reason: str | None  # why there is no price ("not available", never 0)
+    mode: Literal["live", "stale", "closed"] | None
+    session_date: date | None
+    source: str | None  # the provider this price came from
+    last_price: float | None
+    prev_close: float | None
+    change: float | None
+    change_pct: float | None
+    open: float | None
+    high: float | None
+    low: float | None
+    volume: int | None
+    exchange_time: datetime | None
+    fetched_at: datetime | None
+    delay_seconds: int | None  # seconds since the price was received (live and stale only)
+
+
+class LiveQuotesResponse(LiveStamped):
+    quotes: list[LiveQuoteOut]
+
+
+class IndexPoint(BaseModel):
+    t: datetime
+    v: float
+
+
+class LiveIndexOut(LiveQuoteOut):
+    id: str
+    label: str
+    points: list[IndexPoint]  # today's intraday line, empty when there is none
+
+
+class LiveIndicesResponse(LiveStamped):
+    indices: list[LiveIndexOut]
+
+
+class LiveStatusResponse(LiveStamped):
+    pass

@@ -70,6 +70,9 @@ export const paths = {
       })}${stages}`;
   },
   search: (text: string) => `search${query({ q: text, limit: 8 })}`,
+  liveQuotes: (symbols: string[]) => `live/quotes${query({ symbols: symbols.join(",") })}`,
+  liveIndices: () => "live/indices",
+  liveStatus: () => "live/status",
 };
 
 const REFRESH_MS = 5 * 60 * 1000; // the data changes once a day; this only notices a new copy
@@ -157,3 +160,57 @@ export const useMarketHealth = () =>
     queryFn: () => getJson(paths.marketHealth(), s.marketHealth),
     ...opts,
   });
+
+// ---- Live prices (display only). Polled through the API, never from a provider directly. -------
+
+/** How often to ask again, from what the last answer said: quickly while the feed starts or the
+ *  market is open, slowly when it is closed or failing (the server also backs off). */
+export function liveEvery(d: { feed: { state: string } } | undefined): number | false {
+  if (!d) return 30_000; // not loaded, or the API is down
+  switch (d.feed.state) {
+    case "starting":
+      return 3_000;
+    case "live":
+    case "stale":
+      return 15_000;
+    case "disabled":
+      return false;
+    case "closed":
+      return 60_000;
+    default:
+      return 30_000; // token_needed, rate_limited, error
+  }
+}
+
+const liveOpts = { staleTime: 5_000, refetchIntervalInBackground: false } as const;
+
+export const useLiveIndices = () =>
+  useQuery({
+    queryKey: ["live", "indices"],
+    queryFn: () => getJson(paths.liveIndices(), s.liveIndices),
+    refetchInterval: (q) => liveEvery(q.state.data),
+    ...liveOpts,
+  });
+
+export const useLiveStatus = () =>
+  useQuery({
+    queryKey: ["live", "status"],
+    queryFn: () => getJson(paths.liveStatus(), s.liveStatus),
+    refetchInterval: (q) => liveEvery(q.state.data),
+    ...liveOpts,
+  });
+
+/** Live quotes of the symbols on screen (at most 500), as a map by symbol. */
+export function useLiveQuotes(symbols: string[], enabled = true) {
+  const wanted = [...new Set(symbols.map((x) => x.toUpperCase()))].sort().slice(0, 500);
+  const result = useQuery({
+    queryKey: ["live", "quotes", wanted],
+    queryFn: () => getJson(paths.liveQuotes(wanted), s.liveQuotes),
+    enabled: enabled && wanted.length > 0,
+    placeholderData: (prev) => prev,
+    refetchInterval: (q) => liveEvery(q.state.data),
+    ...liveOpts,
+  });
+  const bySymbol = new Map((result.data?.quotes ?? []).map((q) => [q.symbol, q]));
+  return { ...result, bySymbol };
+}

@@ -1,0 +1,94 @@
+{
+ "as_of": "2026-10-06",
+ "data_time": "2026-10-06T14:00:00+05:30",
+ "mode": "live",
+ "feed": {
+  "state": "live",
+  "message": "2 of 5 stocks have no price",
+  "provider": "UPSTOX",
+  "market": "open",
+  "last_success_at": "2026-10-06T14:00:00+05:30",
+  "retry_at": null,
+  "stocks_covered": 3,
+  "stocks_total": 5,
+  "holidays_known": false
+ },
+ "indices": [
+  {
+   "symbol": "NIFTY50",
+   "available": true,
+   "reason": null,
+   "mode": "live",
+   "session_date": "2026-10-06",
+   "source": "UPSTOX",
+   "last_price": 25500.0,
+   "prev_close": 25000.0,
+   "change": 500.0,
+   "change_pct": 2.0,
+   "open": 25000.0,
+   "high": 25501.0,
+   "low": 24999.0,
+   "volume": null,
+   "exchange_time": "2026-10-06T14:00:00+05:30",
+   "fetched_at": "2026-10-06T14:00:00+05:30",
+   "delay_seconds": 0,
+   "id": "NIFTY50",
+   "label": "NIFTY 50",
+   "points": [
+    {
+     "t": "2026-10-06T14:00:00+05:30",
+     "v": 25500.0
+    }
+   ]
+  },
+  {
+   "symbol": "SENSEX",
+   "available": true,
+   "reason": null,
+   "mode": "live",
+   "session_date": "2026-10-06",
+   "source": "UPSTOX",
+   "last_price": 83000.0,
+   "prev_close": 81372.55,
+   "change": 1627.45,
+   "change_pct": 2.0,
+   "open": 81372.55,
+   "high": 83001.0,
+   "low": 81371.55,
+   "volume": null,
+   "exchange_time": "2026-10-06T14:00:00+05:30",
+   "fetched_at": "2026-10-06T14:00:00+05:30",
+   "delay_seconds": 0,
+   "id": "SENSEX",
+   "label": "SENSEX",
+   "points": [
+    {
+     "t": "2026-10-06T14:00:00+05:30",
+     "v": 83000.0
+    }
+   ]
+  },
+  {
+   "symbol": "NIFTY500",
+   "available": false,
+   "reason": "no price from UPSTOX",
+   "mode": null,
+   "session_date": null,
+   "source": null,
+   "last_price": null,
+   "prev_close": null,
+   "change": null,
+   "change_pct": null,
+   "open": null,
+   "high": null,
+   "low": null,
+   "volume": null,
+   "exchange_time": null,
+   "fetched_at": null,
+   "delay_seconds": null,
+   "id": "NIFTY500",
+   "label": "NIFTY 500",
+   "points": []
+  }
+ ]
+}

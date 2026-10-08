@@ -503,3 +503,25 @@ def stock_setups(
         trend_template_pass=None if tt is None or tt[2] is None else bool(tt[2]),
         conditions=conditions, setups=setups,
     )  # fmt: skip
+
+
+def live_universe(cur: Cur, ctx: Context) -> list[tuple[str, str | None]]:
+    """(symbol, ISIN) of the eligible members of the newest Trend Template scan: the stocks the
+    live display covers. Read only; nothing here changes a scan."""
+    day = screener_day(cur, ctx)
+    if day is None:
+        return []
+    rows = cur.execute(
+        """
+        SELECT DISTINCT i.symbol, i.isin FROM (
+            SELECT universe_snapshot_id FROM scan_runs
+            WHERE scan_type = 'TREND_TEMPLATE' AND status = 'COMPLETED' AND as_of_date = ?
+              AND scan_config_hash = ? AND data_snapshot_id = ?
+            ORDER BY completed_at DESC LIMIT 1
+        ) r JOIN universe_memberships u USING (universe_snapshot_id)
+        JOIN instruments i ON i.instrument_id = u.instrument_id
+        WHERE u.eligible ORDER BY i.symbol
+        """,
+        [day, ctx.scan_hash, LIVE],
+    ).fetchall()
+    return [(str(r[0]), None if r[1] is None else str(r[1])) for r in rows]

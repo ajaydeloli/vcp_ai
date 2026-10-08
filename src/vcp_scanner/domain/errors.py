@@ -34,6 +34,15 @@ class ProviderAuthError(ProviderError):
     """
 
 
+class ProviderRateLimited(ProviderError):
+    """The provider answered HTTP 429 (too many requests); ``retry_after`` is the wait in
+    seconds when the provider says so. The live feed reports it instead of retrying blindly."""
+
+    def __init__(self, message: str, retry_after: float | None = None) -> None:
+        super().__init__(message)
+        self.retry_after = retry_after
+
+
 class DataValidationError(VCPScannerError):
     category = ErrorCategory.DATA_VALIDATION_ERROR
 

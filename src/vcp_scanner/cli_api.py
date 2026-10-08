@@ -17,6 +17,8 @@ def add_api_parser(subparsers: argparse._SubParsersAction) -> None:  # type: ign
     s.add_argument("--serving-db", default=None,
                    help="Default: <data-dir>/serving/vcp_serving.duckdb")  # fmt: skip
     s.add_argument("--config-dir", default="config")
+    s.add_argument("--env-file", default=".env",
+                   help="Where live-price credentials are read from (never printed)")  # fmt: skip
 
 
 def run_api(args: argparse.Namespace) -> int:
@@ -28,7 +30,7 @@ def run_api(args: argparse.Namespace) -> int:
 
         from vcp_scanner.api.app import create_app
 
-        app = create_app(args.serving_db, args.config_dir, args.data_dir)
+        app = create_app(args.serving_db, args.config_dir, args.data_dir, env_file=args.env_file)
     except Exception as exc:
         _err(f"Cannot start the API: {exc}")
         return 1
