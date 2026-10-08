@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed (Stock Analysis layout)
+- Stock Analysis: a vertical line between the chart and the details panel.
 - Stock Analysis: the symbol and strategy buttons are the first section of the right-hand panel; the left column is the chart alone (spec 67.21b).
 - Stock Analysis: symbol and strategy buttons in the left column, taller chart, right details separated by lines instead of boxes (spec 67.21a).
 - The Dashboard page is renamed Market Overview (address unchanged).
