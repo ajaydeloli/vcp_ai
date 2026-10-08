@@ -154,9 +154,19 @@ function Trades({ trades }: { trades: Health["trades"] }) {
   );
 }
 
-function Inner({ title, children, className = "" }: { title: string; children: ReactNode; className?: string }) {
+/** Each card has its own border colour, with a faint tint of it in the background. */
+export const BOX = {
+  index: "border-2 border-[#4aa3ff]/60 bg-gradient-to-br from-[#4aa3ff]/10 to-panel2",
+  leadership: "border-2 border-[#26c281]/60 bg-gradient-to-br from-[#26c281]/10 to-panel2",
+  breadth: "border-2 border-[#8b5cf6]/60 bg-gradient-to-br from-[#8b5cf6]/10 to-panel2",
+  feedback: "border-2 border-[#f5a524]/60 bg-gradient-to-br from-[#f5a524]/10 to-panel2",
+  stage: "border-2 border-[#22d3ee]/60 bg-gradient-to-br from-[#22d3ee]/10 to-panel2",
+  setups: "border-2 border-[#f472b6]/60 bg-gradient-to-br from-[#f472b6]/10 to-panel2",
+};
+
+function Inner({ title, box, children }: { title: string; box: string; children: ReactNode }) {
   return (
-    <section aria-label={title} className={`min-w-0 rounded-lg border border-line bg-panel2 p-4 ${className}`}>
+    <section aria-label={title} className={`min-w-0 rounded-lg p-4 ${box}`}>
       <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-mute">{title}</h3>
       {children}
     </section>
@@ -240,7 +250,6 @@ function Charts({ d, id }: { d: Health; id: string }) {
 export function MarketHealth() {
   const health = useMarketHealth();
   const d = health.data;
-  const v = d?.verdict;
   const by = (id: string) => d?.groups.find((g) => g.id === id);
   const idx = by("index");
   const lead = by("leadership");
@@ -248,16 +257,6 @@ export function MarketHealth() {
   const fb = by("feedback");
   return (
     <section className="min-w-0" aria-label="Market health overview">
-      <header className="mb-3">
-        <h2 className="text-sm font-semibold text-ink">Market health</h2>
-        <p className="mt-0.5 text-xs text-mute">
-          {d?.as_of ? `${fmtDay(d.as_of)} · ` : ""}from our scanned stocks, not NIFTY
-          {v ? ` · score ${v.score}, ${v.label}` : ""}
-          {v && v.weakest.length > 0 ? ` · pulling it down: ${v.weakest.join(", ")}` : ""}
-          {v && v.strongest.length > 0 ? ` · holding it up: ${v.strongest.join(", ")}` : ""}
-          {v?.override ? " · index below its 200-day average" : ""}
-        </p>
-      </header>
       {health.isError ? (
         <ErrorBox error={health.error} />
       ) : !d ? (
@@ -268,34 +267,34 @@ export function MarketHealth() {
         <>
           <div className="grid gap-4 lg:grid-cols-2">
             {idx && (
-              <Inner title={idx.title}>
+              <Inner title={idx.title} box={BOX.index}>
                 <Charts d={d} id="index" />
                 <Readings group={idx} />
               </Inner>
             )}
             {lead && (
-              <Inner title={lead.title}>
+              <Inner title={lead.title} box={BOX.leadership}>
                 <Charts d={d} id="leadership" />
                 <Readings group={lead} />
               </Inner>
             )}
             {br && (
-              <Inner title={br.title}>
+              <Inner title={br.title} box={BOX.breadth}>
                 <Charts d={d} id="breadth" />
                 <Readings group={br} />
               </Inner>
             )}
             {fb && (
-              <Inner title={fb.title}>
+              <Inner title={fb.title} box={BOX.feedback}>
                 <Charts d={d} id="feedback" />
                 <Readings group={fb} />
               </Inner>
             )}
-            <MarketStage />
-            <SetupCounts />
+            <MarketStage box={BOX.stage} />
+            <SetupCounts box={BOX.setups} />
           </div>
           <p className="mt-4 text-[11px] text-mute">
-            The score is the average of each reading&apos;s 0 to 100 score (grey readings left out). A read for
+            Everything here is read from our scanned stocks, not NIFTY. The score is the average of each reading&apos;s 0 to 100 score (grey readings left out). A read for
             research. It changes no rule, scan or score, and does not feed the regime. Hover a reading for its
             sentence.
           </p>

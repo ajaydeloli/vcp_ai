@@ -10,7 +10,7 @@ describe("dashboard page (market view)", () => {
     const calls = mockApi();
     renderApp(<Dashboard />);
 
-    expect(await screen.findByText("Market health")).toBeInTheDocument();
+    expect(await screen.findByRole("region", { name: "Market health overview" })).toBeInTheDocument();
     expect(await screen.findByText("Market stage")).toBeInTheDocument();
     expect(screen.queryByText("Top VCP setups")).not.toBeInTheDocument();
     await waitFor(() => expect(screen.getByText("symbols").previousElementSibling).toHaveTextContent("63"));
@@ -29,7 +29,7 @@ describe("dashboard page (market view)", () => {
 
     // honest labels
     expect(screen.getByText("Research tool, not financial advice")).toBeInTheDocument();
-    expect(screen.getAllByText(/not NIFTY/).length).toBeGreaterThanOrEqual(2); // market health and the top bar
+    expect(screen.getAllByText(/not NIFTY/).length).toBeGreaterThanOrEqual(2); // the index tile and the market health note
     expect(screen.getByText(/No real money/)).toBeInTheDocument();
 
     // navigation
@@ -68,7 +68,7 @@ describe("dashboard page (market view)", () => {
   it("the market health card shows four groups, each reading with a colour and a plain sentence", async () => {
     mockApi();
     renderApp(<Dashboard />);
-    const card = (await screen.findByText("Market health")).closest("section") as HTMLElement;
+    const card = await screen.findByRole("region", { name: "Market health overview" });
     for (const title of ["Index price action", "Leadership", "Breadth", "Feedback loop"]) {
       expect(await within(card).findByRole("region", { name: title })).toBeInTheDocument();
     }
@@ -81,10 +81,13 @@ describe("dashboard page (market view)", () => {
     renderApp(<Dashboard />);
     const overview = await screen.findByRole("region", { name: "Market health overview" });
     expect(overview.className).not.toMatch(/border|bg-panel/);
+    expect(within(overview).queryByRole("heading", { name: "Market health" })).not.toBeInTheDocument();
     await screen.findByRole("region", { name: "Setups today" });
     const names = within(overview)
       .getAllByRole("region")
       .map((r) => r.getAttribute("aria-label") ?? within(r).queryByRole("heading")?.textContent);
+    const colours = within(overview).getAllByRole("region").map((r) => /border-\[(#\w+)\]/.exec(r.className)?.[1]);
+    expect(new Set(colours).size).toBe(6); // every card has its own border colour
     expect(names).toEqual([
       "Index price action", "Leadership", "Breadth", "Feedback loop", "Market stage", "Setups today",
     ]);
@@ -107,7 +110,7 @@ describe("dashboard page (market view)", () => {
     const score = Number(screen.getByTestId("verdict-score").textContent);
     expect(score).toBeGreaterThanOrEqual(0);
     expect(score).toBeLessThanOrEqual(100);
-    expect(await screen.findByText(/pulling it down/)).toBeInTheDocument();
+    expect(screen.getByTitle(/Pulling it down/)).toBeInTheDocument();
   });
 
   it("market health has four inner cards with charts", async () => {

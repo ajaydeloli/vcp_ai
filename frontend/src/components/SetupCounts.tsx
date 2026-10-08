@@ -13,14 +13,14 @@ const ROWS: { id: string; label: string; color: string }[] = [
 ];
 
 /** How many stocks are in each list of the VCP ranking, laid out like the market stage card. */
-export function SetupCounts() {
+export function SetupCounts({ box = "border border-line bg-panel2" }: { box?: string }) {
   const vcp = useSetups("vcp");
   const rows = vcp.data?.rows ?? null;
   const counts = rows ? ROWS.map((r) => countList(rows, r.id)) : null;
   const max = counts ? Math.max(...counts, 1) : 1;
   const leader = counts ? ROWS[counts.indexOf(Math.max(...counts))]! : null;
   return (
-    <section className="min-w-0 rounded-lg border border-line bg-panel2 p-4" aria-label="Setups today">
+    <section className={`min-w-0 rounded-lg p-4 ${box}`} aria-label="Setups today">
       <h3 className="text-xs font-semibold uppercase tracking-wide text-mute">Setups today</h3>
       <p className="mb-3 mt-0.5 text-xs text-mute">The lists of the VCP ranking</p>
       {vcp.isError ? (

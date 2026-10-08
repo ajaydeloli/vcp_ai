@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed (Dashboard redesign)
+- Market health header removed; each card has its own border colour; the gauge tile tooltip names what pulls the score down and holds it up.
+
 - Market health: no outer card; two columns (Index price action and Leadership, Breadth and Feedback loop, Market stage and Setups today); Setups today laid out like Market stage.
 
 - Top navigation bar with a logo side bar; tile row with the Market health score gauge; Market health as one coloured card with five inner cards (Market stage moved in); setup counts in their own card; data status and date in the bottom bar. NIFTY 50 and SENSEX tiles wait for an index feed. `/api/v1/market/health` readings gain `short`.

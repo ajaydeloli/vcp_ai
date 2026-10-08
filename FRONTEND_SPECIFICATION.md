@@ -2187,3 +2187,7 @@ Owner request: the dashboard looked cluttered; new layout from the owner's mock-
 ### 67.18a Market health without the outer card (2026-10-08)
 
 The coloured outer card is gone; the cards stand on their own in two columns: Index price action and Leadership; Breadth and Feedback loop; Market stage and Setups today. Setups today is laid out like Market stage: a headline ("Most setups are ...") and one bar per list (A+ VCP setups, VCP setups, Forming bases, Breakout watch) with its count, bars scaled to the largest list. The title line (date, score, what pulls it down and holds it up) and the note stay above and below the cards. Paper trading is full width under them.
+
+### 67.18b Market health: no header, a border colour per card (2026-10-08)
+
+The "Market health" heading and its line (date, score, what pulls it down) are gone. The score and label are in the gauge tile, and its tooltip lists what pulls the score down and holds it up. Each of the six cards has its own border colour with a faint tint: Index price action blue, Leadership green, Breadth violet, Feedback loop orange, Market stage cyan, Setups today pink. The note under the cards says the data is from our scanned stocks, not NIFTY.

@@ -29,7 +29,7 @@ function UniverseIndexTile() {
         </p>
         <Sparkline values={days.slice(-60).flatMap((d) => (d.index === null ? [] : [d.index]))} color="#4aa3ff" />
       </div>
-      <p className="text-xs text-mute">Equal weight, the stocks we scan</p>
+      <p className="text-xs text-mute">Equal weight, the stocks we scan, not NIFTY</p>
     </div>
   );
 }
@@ -91,7 +91,12 @@ function ScoreTile() {
     <div
       className={`${BOX} items-center`}
       style={{ borderColor: `${color}66`, backgroundImage: `linear-gradient(135deg, ${color}33, transparent 70%)` }}
-      title="Average of the Market health readings, each scored 0 to 100. A research read, not a signal."
+      title={
+        "Average of the Market health readings, each scored 0 to 100. A research read, not a signal." +
+        (v && v.weakest.length > 0 ? ` Pulling it down: ${v.weakest.join(", ")}.` : "") +
+        (v && v.strongest.length > 0 ? ` Holding it up: ${v.strongest.join(", ")}.` : "") +
+        (v?.override ? " The index is below its 200-day average." : "")
+      }
     >
       <p className="self-start text-[11px] font-medium uppercase tracking-wide" style={{ color }}>
         Market health score
