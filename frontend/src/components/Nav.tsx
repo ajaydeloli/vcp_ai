@@ -18,9 +18,9 @@ const PAGES = [
   ["Screener", "/screener"],
   ["Stock Analysis", "/stocks"],
   ["Recent IPOs", "/ipos"],
+  ["Watchlist", "/watchlist"],
   ["Strategies", "/strategies"],
   ["Paper Trading", "/paper"],
-  ["Watchlist", "/watchlist"],
   ["System Status", "/system"],
 ] as const;
 
