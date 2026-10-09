@@ -57,6 +57,7 @@ export const paths = {
   stockSetups: (symbol: string) => `stocks/${encodeURIComponent(symbol)}/setups`,
   activity: (days: number) => `activity${query({ days })}`,
   paper: () => "paper",
+  ipos: () => "ipos",
   stockHistory: (symbol: string, days: number) =>
     `stocks/${encodeURIComponent(symbol)}/history${query({ days })}`,
   screener: (f: ScreenerQuery) => {
@@ -132,6 +133,8 @@ export const useActivity = (days = 7) =>
   });
 export const usePaper = () =>
   useQuery({ queryKey: ["paper"], queryFn: () => getJson(paths.paper(), s.paper), ...opts });
+export const useIpos = () =>
+  useQuery({ queryKey: ["ipos"], queryFn: () => getJson(paths.ipos(), s.ipos), ...opts });
 export const useSearch = (text: string) =>
   useQuery({
     queryKey: ["search", text],

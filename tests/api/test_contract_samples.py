@@ -35,6 +35,7 @@ CASES = {
     "live_quotes": "live/quotes?symbols=ALPHA,BETA,GAMMA,DELTA,ZZZ",
     "live_indices": "live/indices",
     "live_status": "live/status",
+    "ipos": "ipos",
 }
 
 

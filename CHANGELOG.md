@@ -8,7 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- Dashboard pages VCP Scanner, Strategies, Paper Trading and System Status (first draft, read-only, FRONTEND_SPECIFICATION 67.22).
+- Recent IPOs page and `GET /api/v1/ipos`: main-board stocks with fewer than 253 bars, display only, outside the universe, scans, scores, strategies and paper ledger (FRONTEND_SPECIFICATION 67.23). The duplicate VCP Scanner page is removed.
+- Dashboard pages Strategies, Paper Trading and System Status (first draft, read-only, FRONTEND_SPECIFICATION 67.22).
 
 ### Changed (Stock Analysis layout)
 - Stock Analysis: each card has its own colour, as on Market Overview (spec 67.21g).

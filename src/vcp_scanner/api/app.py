@@ -12,7 +12,7 @@ from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from vcp_scanner.api import health, reports
+from vcp_scanner.api import health, ipos, reports
 from vcp_scanner.api import models as m
 from vcp_scanner.api import queries as q
 from vcp_scanner.api.context import Context, StrategySpec, build_context
@@ -268,5 +268,10 @@ def create_app(
     def paper() -> m.PaperResponse:
         with db.cursor() as cur:
             return reports.paper(cur, ctx, db.data_time())
+
+    @app.get(f"{api}/ipos", response_model=m.IposResponse)
+    def recent_ipos() -> m.IposResponse:
+        with db.cursor() as cur:
+            return ipos.recent_listings(cur, db.data_time())
 
     return app

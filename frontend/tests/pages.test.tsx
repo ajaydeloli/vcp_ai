@@ -4,17 +4,20 @@ import { describe, expect, it } from "vitest";
 import { PaperTrading } from "@/components/PaperTrading";
 import { Strategies } from "@/components/Strategies";
 import { SystemStatus } from "@/components/SystemStatus";
-import { VcpScanner } from "@/components/VcpScanner";
+import { RecentIpos } from "@/components/RecentIpos";
 import { mockApi, renderApp } from "./helpers";
 
 describe("more pages", () => {
-  it("VCP Scanner lists the setups of a strategy and switches strategy and status", async () => {
-    const calls = mockApi();
-    renderApp(<VcpScanner />);
-    expect(await screen.findByRole("heading", { name: "Setups" })).toBeInTheDocument();
-    expect(await screen.findAllByRole("link", { name: /^[A-Z]+$/ })).not.toHaveLength(0);
-    await userEvent.click(screen.getByRole("button", { name: "Breakout" }));
-    expect(calls.some((c) => c.includes("status=BREAKOUT"))).toBe(true);
+  it("Recent IPOs lists the young listings and says they are outside the scan", async () => {
+    mockApi();
+    renderApp(<RecentIpos />);
+    expect(await screen.findByRole("heading", { name: "Recent IPOs", level: 2 })).toBeInTheDocument();
+    expect(await screen.findByRole("link", { name: "NEWCO" })).toHaveAttribute("href", "/stocks/NEWCO");
+    expect(screen.getByText(/not part of the scan/i)).toBeInTheDocument();
+    // a 60-bar stock has no 200-day average: nothing invented
+    await userEvent.type(screen.getByRole("spinbutton", { name: "Min bars" }), "100");
+    expect(screen.queryByRole("link", { name: "NEWCO" })).not.toBeInTheDocument();
+    expect(screen.getByText(/No listing matches/)).toBeInTheDocument();
   });
 
   it("Strategies shows one card per strategy and the overlap", async () => {

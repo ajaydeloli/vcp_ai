@@ -2297,9 +2297,18 @@ Every card on the Stock Analysis page has its own border colour and a soft gradi
 
 Four read-only pages, built only from endpoints that already exist (no new API, no new data):
 
-- **VCP Scanner** (`/scanner`): four count cards for the chosen strategy (ranked, grade 2 or better, breakouts, mean score of the top 10), then a table of its setups with a strategy and a status filter. Close and change show the live price when the feed has one, otherwise the stored close. A filter for research, not buy signals.
+- **VCP Scanner**: removed. Its list is the Screener with a strategy, grade and status filter, so it was a duplicate.
 - **Strategies** (`/strategies`): one coloured card per frozen strategy (stage, algorithm version, config hash, today's counts, grade tiers) and the stocks that are in more than one strategy.
 - **Paper Trading** (`/paper`): the paper panel of the Market Overview plus the review gates of each strategy (needs / value / met). A gate without a value shows a dash and "not yet judged", never 0.
 - **System Status** (`/system`): data dates, daily run, newest backup and its age, live feed state, warnings and the last 7 days of activity.
 
 Alerts, Fundamentals, Backtest, Research & Notes, Reports, Settings and Trend Template stay "later": there is no stored data behind them yet.
+
+### 67.23 Recent IPOs (`/ipos`, `GET /api/v1/ipos`)
+
+Main-board (series EQ) stocks with fewer than 253 bars, the complement of the scan universe (`universe.min_history_days`). Display only:
+
+- The endpoint reads the adjusted prices of the serving copy and nothing else. It does not read or write the universe, scans, scores, strategies or the paper ledger, and no scan, score, universe count, strategy or paper trade reads it (tests/api/test_ipos.py).
+- Per stock: listing date (first bar), bars, IPO open and close, close, change, change since listing, distance from the first-day high and from the high since listing, price against the 20-day and 50-day averages, the range of the last 10 bars, and the mean traded value of the last 20 bars. A measure that needs more bars than the stock has is null and shown as a dash, never 0.
+- The page has a symbol/company search, a "Min bars" filter (default 1, so nothing is hidden), a sort, 15 rows per page and a link to the Stock Analysis page. Prices are the stored close, not live (the live feed covers the scan universe only).
+- Not in this draft: base-pattern detection and relative strength for young listings. They need the scan code and a separate specification.

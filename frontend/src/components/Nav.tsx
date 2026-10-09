@@ -17,7 +17,7 @@ const PAGES = [
   ["Market Overview", "/dashboard"],
   ["Screener", "/screener"],
   ["Stock Analysis", "/stocks"],
-  ["VCP Scanner", "/scanner"],
+  ["Recent IPOs", "/ipos"],
   ["Strategies", "/strategies"],
   ["Paper Trading", "/paper"],
   ["Watchlist", "/watchlist"],

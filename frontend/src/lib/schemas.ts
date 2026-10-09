@@ -239,6 +239,30 @@ export const paper = z.object({
   strategies: z.array(paperStrategy),
 });
 
+export const ipoRow = z.object({
+  instrument_id: z.string(),
+  symbol: z.string(),
+  company: z.string().nullable(),
+  listing_date: day,
+  bars: z.number(),
+  ipo_open: num,
+  ipo_close: num,
+  first_day_high: num,
+  close: num,
+  change_pct: num,
+  since_listing_pct: num,
+  vs_first_day_high_pct: num,
+  high_since_listing: num,
+  from_high_pct: num,
+  sma20: num,
+  sma50: num,
+  vs_sma20_pct: num,
+  vs_sma50_pct: num,
+  range_pct: num,
+  avg_traded_value: num,
+});
+export const ipos = z.object({ ...stamp, full_history_bars: z.number(), rows: z.array(ipoRow) });
+
 export const search = z.object({
   ...stamp,
   query: z.string(),
@@ -353,6 +377,8 @@ export type ActivityEvent = z.infer<typeof activityEvent>;
 export type Activity = z.infer<typeof activity>;
 export type PaperStrategy = z.infer<typeof paperStrategy>;
 export type Paper = z.infer<typeof paper>;
+export type IpoRow = z.infer<typeof ipoRow>;
+export type Ipos = z.infer<typeof ipos>;
 export type Search = z.infer<typeof search>;
 export type ScreenerRow = z.infer<typeof screenerRow>;
 export type Screener = z.infer<typeof screener>;
