@@ -2315,7 +2315,7 @@ Main-board (series EQ) stocks with fewer than 253 bars, the complement of the sc
 
 ### 67.24 Screener: Universe only / EQ only (`GET /api/v1/screener?universe_only=&eq_only=`)
 
-Two check boxes in the Screener's filter card, both checked by default (the page is then exactly as before).
+Two check boxes at the right of the Screener's Filters card title, just before the More button, both checked by default (the page is then exactly as before).
 
 - **Universe only** checked: the stocks of the Trend Template scan, as before.
 - **Universe only** unchecked: the stocks that traded on the scan day but are outside the universe are added. They have prices only (close, change); every scan field (stage, conditions, near high, RS rank, setup, score, pivot) is null and shown as a dash, never 0. A column "In universe" appears and gives the universe's own reason for each outside stock (for example "History 119 bars < 253", "Series SM not in ['EQ']", "ASM/GSM flag active"); a stock with no recorded reason shows "No". The scan filters (Trend Template, RS, conditions, setup grade, status, strategies, stage) can only be true for universe stocks, so using one hides the outside stocks.
