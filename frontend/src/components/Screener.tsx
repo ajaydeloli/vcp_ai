@@ -12,7 +12,7 @@ import { WatchStar } from "./WatchStar";
 import { StatusBar } from "./StatusBar";
 import { Card, Empty, ErrorBox, GradeBadge, Loading, StatusPill } from "./ui";
 
-const field = "w-full rounded border border-line bg-panel2 px-2 py-1.5 text-xs text-ink";
+export const FIELD = "w-full rounded border border-line bg-panel2 px-2 py-1.5 text-xs text-ink";
 const stageLabel = (s: string): string => s.replace("STAGE_", "Stage ").replace("TRANSITION", "Transition");
 
 export type Col = {
@@ -101,7 +101,7 @@ const triState = (v: boolean | undefined): string => (v === undefined ? "" : v ?
 const fromTri = (v: string): boolean | undefined => (v === "" ? undefined : v === "yes");
 const numOrUndef = (v: string): number | undefined => (v === "" ? undefined : Number(v));
 
-function Field({ id, label, children, className = "" }: { id: string; label: string; children: React.ReactNode; className?: string }) {
+export function Field({ id, label, children, className = "" }: { id: string; label: string; children: React.ReactNode; className?: string }) {
   return (
     <div className={className}>
       <label className="mb-1 block text-[11px] uppercase text-mute" htmlFor={id}>
@@ -161,12 +161,12 @@ function Filters({
             value={q.q}
             maxLength={40}
             onChange={(e) => onChange({ q: e.target.value })}
-            className={field}
+            className={FIELD}
             placeholder="e.g. RELIANCE"
           />
         </Field>
         <Field id="scr-strategy" label="Strategy">
-          <select id="scr-strategy" value={q.strategy} onChange={(e) => onChange({ strategy: e.target.value })} className={field}>
+          <select id="scr-strategy" value={q.strategy} onChange={(e) => onChange({ strategy: e.target.value })} className={FIELD}>
             {strategyIds.map((id) => (
               <option key={id} value={id}>
                 {strategyLabel(id)}
@@ -175,7 +175,7 @@ function Filters({
           </select>
         </Field>
         <Field id="scr-grade" label="Min setup grade">
-          <select id="scr-grade" value={q.minGrade ?? ""} onChange={(e) => onChange({ minGrade: numOrUndef(e.target.value) })} className={field}>
+          <select id="scr-grade" value={q.minGrade ?? ""} onChange={(e) => onChange({ minGrade: numOrUndef(e.target.value) })} className={FIELD}>
             <option value="">Any</option>
             <option value="1">Grade 1+</option>
             <option value="2">Grade 2+</option>
@@ -183,7 +183,7 @@ function Filters({
           </select>
         </Field>
         <Field id="scr-status" label="Setup status">
-          <select id="scr-status" value={q.status ?? ""} onChange={(e) => onChange({ status: e.target.value || undefined })} className={field}>
+          <select id="scr-status" value={q.status ?? ""} onChange={(e) => onChange({ status: e.target.value || undefined })} className={FIELD}>
             <option value="">Any</option>
             <option value="FORMING">Forming</option>
             <option value="PIVOT_READY">Pivot ready</option>
@@ -195,7 +195,7 @@ function Filters({
             id="scr-several"
             value={q.minStrategies ?? ""}
             onChange={(e) => onChange({ minStrategies: numOrUndef(e.target.value) })}
-            className={field}
+            className={FIELD}
           >
             <option value="">Any</option>
             <option value="2">2 or more</option>
@@ -203,14 +203,14 @@ function Filters({
           </select>
         </Field>
         <Field id="scr-tt" label="Trend Template">
-          <select id="scr-tt" value={triState(q.ttPass)} onChange={(e) => onChange({ ttPass: fromTri(e.target.value) })} className={field}>
+          <select id="scr-tt" value={triState(q.ttPass)} onChange={(e) => onChange({ ttPass: fromTri(e.target.value) })} className={FIELD}>
             <option value="">Any</option>
             <option value="yes">Passes all 10</option>
             <option value="no">Does not pass</option>
           </select>
         </Field>
         <Field id="scr-high" label="Near 52-week high">
-          <select id="scr-high" value={triState(q.nearHigh)} onChange={(e) => onChange({ nearHigh: fromTri(e.target.value) })} className={field}>
+          <select id="scr-high" value={triState(q.nearHigh)} onChange={(e) => onChange({ nearHigh: fromTri(e.target.value) })} className={FIELD}>
             <option value="">Any</option>
             <option value="yes">Yes</option>
             <option value="no">No</option>
@@ -224,7 +224,7 @@ function Filters({
             max={99}
             value={q.minRs ?? ""}
             onChange={(e) => onChange({ minRs: numOrUndef(e.target.value) })}
-            className={field}
+            className={FIELD}
           />
         </Field>
         <Field id="scr-cond" label="Min conditions">
@@ -235,7 +235,7 @@ function Filters({
             max={10}
             value={q.minConditions ?? ""}
             onChange={(e) => onChange({ minConditions: numOrUndef(e.target.value) })}
-            className={field}
+            className={FIELD}
           />
         </Field>
         <div className="col-span-2 flex items-end md:col-span-1">
@@ -280,7 +280,7 @@ function Filters({
   );
 }
 
-function Pages({ page, total, size, onPage }: { page: number; total: number; size: number; onPage: (p: number) => void }) {
+export function Pages({ page, total, size, onPage }: { page: number; total: number; size: number; onPage: (p: number) => void }) {
   const pages = Math.max(1, Math.ceil(total / size));
   const from = total === 0 ? 0 : (page - 1) * size + 1;
   const to = Math.min(total, page * size);
