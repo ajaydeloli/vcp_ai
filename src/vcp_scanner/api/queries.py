@@ -218,6 +218,64 @@ WHERE t.as_of_date = ? AND t.config_hash = ? AND t.data_snapshot_id = ?
 """
 
 
+def _outside_rows(cur: Cur, day: date, inside: set[str], eq_only: bool) -> list[m.ScreenerRow]:
+    """Stocks that traded on ``day`` but are not in the scan universe: price only (display). The
+    scan fields stay None ("not available"); ``outside_reason`` is the universe's own reason."""
+    found = cur.execute(
+        """
+        SELECT p.instrument_id, i.symbol, i.company_name, s.series
+        FROM (SELECT DISTINCT instrument_id FROM daily_prices_adjusted_current
+              WHERE computed_from_snapshot_id = ? AND trade_date = ?) p
+        JOIN instruments i ON i.instrument_id = p.instrument_id
+        LEFT JOIN daily_series s ON s.instrument_id = p.instrument_id AND s.trade_date = ?
+        """,
+        [LIVE, day, day],
+    ).fetchall()
+    series: dict[str, str | None] = {}
+    names: dict[str, tuple[str, str | None]] = {}
+    for iid, symbol, company, ser in found:
+        if iid in inside:
+            continue
+        names[iid] = (str(symbol), company)
+        if series.get(iid) != "EQ":  # a stock with two series that day counts as EQ
+            series[iid] = ser
+    # a stock whose series is unknown is kept; a stock traded only in another series is not EQ
+    ids = [i for i in names if not eq_only or series.get(i) in (None, "EQ")]
+    snap = cur.execute(
+        "SELECT universe_snapshot_id FROM universe_snapshots WHERE as_of_date <= ?"
+        " ORDER BY as_of_date DESC LIMIT 1",
+        [day],
+    ).fetchone()
+    reasons: dict[str, str | None] = {}
+    if snap:
+        reasons = {
+            str(r[0]): r[1]
+            for r in cur.execute(
+                "SELECT instrument_id, exclusion_reason FROM universe_memberships"
+                " WHERE universe_snapshot_id = ? AND NOT eligible",
+                [snap[0]],
+            ).fetchall()
+        }
+    closes = _closes(cur, ids, day)
+    out = []
+    for iid in ids:
+        close, change = closes[iid]
+        if close is None:
+            continue
+        symbol, company = names[iid]
+        out.append(
+            m.ScreenerRow(
+                instrument_id=iid, symbol=symbol, company=company, stage=None,
+                trend_template_pass=None, conditions_passed=None, conditions_total=None,
+                near_52w_high=None, rs_rank=None, trend_score=None, close=close,
+                change_pct=change, classification=None, grade=None, status=None, score=None,
+                pivot=None, pivot_distance_pct=None, eligible=None, in_universe=False,
+                outside_reason=reasons.get(iid),
+            )
+        )  # fmt: skip
+    return out
+
+
 def screener(
     cur: Cur, ctx: Context, spec: StrategySpec, day: date, f: SimpleNamespace,
     data_time: datetime,
@@ -250,6 +308,8 @@ def screener(
                 eligible=s.eligible if s else None,
             )
         )  # fmt: skip
+    if not getattr(f, "universe_only", True):
+        rows.extend(_outside_rows(cur, day, set(ids), getattr(f, "eq_only", True)))
     needle = (f.q or "").strip().upper()
     several = (
         {r.instrument_id for r in overlap(cur, ctx, day) if len(r.strategies) >= f.min_strategies}

@@ -184,6 +184,7 @@ def create_app(
         tt_pass: bool | None = None, near_high: bool | None = None,
         min_rs: Annotated[int | None, Query(ge=0, le=99)] = None,
         min_conditions: Annotated[int | None, Query(ge=0, le=10)] = None,
+        universe_only: bool = True, eq_only: bool = True,
         has_setup: bool = False, min_grade: Annotated[int | None, Query(ge=0, le=3)] = None,
         status: Annotated[str | None, Query(max_length=40)] = None,
         classification: Annotated[str | None, Query(max_length=40)] = None,
@@ -199,6 +200,7 @@ def create_app(
             stages=stage or [], tt_pass=tt_pass, near_high=near_high, min_rs=min_rs,
             min_conditions=min_conditions, has_setup=has_setup, min_grade=min_grade,
             status=status, classification=classification, min_strategies=min_strategies,
+            universe_only=universe_only, eq_only=eq_only,
             sort=sort, descending=direction == "desc", page=page,
             page_size=page_size,
         )  # fmt: skip

@@ -30,7 +30,9 @@
    "score": 91.0,
    "pivot": 120.0,
    "pivot_distance_pct": 1.2,
-   "eligible": true
+   "eligible": true,
+   "in_universe": true,
+   "outside_reason": null
   },
   {
    "instrument_id": "NSE_EQ|BETA",
@@ -51,7 +53,9 @@
    "score": 86.0,
    "pivot": 140.0,
    "pivot_distance_pct": 1.2,
-   "eligible": true
+   "eligible": true,
+   "in_universe": true,
+   "outside_reason": null
   },
   {
    "instrument_id": "NSE_EQ|GAMMA",
@@ -72,7 +76,9 @@
    "score": 40.0,
    "pivot": null,
    "pivot_distance_pct": null,
-   "eligible": false
+   "eligible": false,
+   "in_universe": true,
+   "outside_reason": null
   },
   {
    "instrument_id": "NSE_EQ|F00",
@@ -93,7 +99,9 @@
    "score": null,
    "pivot": null,
    "pivot_distance_pct": null,
-   "eligible": null
+   "eligible": null,
+   "in_universe": true,
+   "outside_reason": null
   }
  ]
 }

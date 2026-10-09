@@ -36,6 +36,7 @@ CASES = {
     "live_indices": "live/indices",
     "live_status": "live/status",
     "ipos": "ipos",
+    "screener_all": "screener?universe_only=false&page_size=100",
 }
 
 
