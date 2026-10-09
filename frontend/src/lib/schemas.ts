@@ -291,6 +291,8 @@ export const screenerRow = z.object({
   pivot: num,
   pivot_distance_pct: num,
   eligible: z.boolean().nullable(),
+  in_universe: z.boolean(),
+  outside_reason: z.string().nullable(),
 });
 
 export const screener = z.object({

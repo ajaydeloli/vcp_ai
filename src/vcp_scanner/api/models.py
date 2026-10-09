@@ -243,6 +243,8 @@ class ScreenerRow(BaseModel):
     pivot: float | None
     pivot_distance_pct: float | None
     eligible: bool | None
+    in_universe: bool = True
+    outside_reason: str | None = None  # why a stock outside the universe is outside (if recorded)
 
 
 class ScreenerResponse(Stamped):

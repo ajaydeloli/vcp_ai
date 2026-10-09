@@ -55,6 +55,20 @@ export const COLS: Col[] = [
       </a>
     ),
   },
+  {
+    key: "universe",
+    align: "left",
+    w: 210,
+    label: "In universe",
+    render: (r) =>
+      r.in_universe ? (
+        <span className="text-up">Yes</span>
+      ) : (
+        <span className="block truncate text-mute" title={r.outside_reason ?? undefined}>
+          {r.outside_reason ?? "No"}
+        </span>
+      ),
+  },
   { key: "stage", label: "Stage", render: (r) => (r.stage ? stageLabel(r.stage) : DASH) },
   {
     key: "conditions_passed",
@@ -137,7 +151,9 @@ function Filters({
     q.minGrade !== undefined ||
     q.status !== undefined ||
     q.minStrategies !== undefined ||
-    q.strategy !== DEFAULT_QUERY.strategy;
+    q.strategy !== DEFAULT_QUERY.strategy ||
+    !q.universeOnly ||
+    !q.eqOnly;
   return (
     <Card
       title="Filters"
@@ -248,6 +264,27 @@ function Filters({
             Reset filters
           </button>
         </div>
+        <div className="col-span-full flex flex-wrap items-center gap-x-6 gap-y-1 text-xs text-ink">
+          <label className="flex cursor-pointer items-center gap-1.5">
+            <input type="checkbox" checked={q.universeOnly} onChange={(e) => onChange({ universeOnly: e.target.checked })} />
+            Universe only
+          </label>
+          <label
+            className="flex cursor-pointer items-center gap-1.5"
+            title={q.universeOnly ? "The universe holds main-board (EQ) stocks only" : undefined}
+          >
+            <input
+              type="checkbox"
+              checked={q.universeOnly || q.eqOnly}
+              disabled={q.universeOnly}
+              onChange={(e) => onChange({ eqOnly: e.target.checked })}
+            />
+            EQ only
+          </label>
+          {q.universeOnly ? null : (
+            <span className="text-mute">Stocks outside the universe show prices only; the scan filters apply to universe stocks.</span>
+          )}
+        </div>
         {open ? (
           <fieldset className="col-span-full">
             <legend className="mb-1 block text-[11px] uppercase text-mute">Weekly stage</legend>
@@ -339,6 +376,7 @@ export function Screener() {
   const result = useScreener(query);
   const data = result.data;
   const live = useLiveQuotes(data?.rows.map((r) => r.symbol) ?? [], !!data);
+  const cols = COLS.filter((c) => c.key !== "universe" || !query.universeOnly);
   const change = (next: Partial<ScreenerQuery>) => setQuery((q) => ({ ...q, ...next, page: 1 }));
 
   return (
@@ -368,13 +406,13 @@ export function Screener() {
                   <div className="overflow-x-auto">
                     <table className="w-full min-w-[1100px] table-fixed text-left text-xs">
                       <colgroup>
-                        {COLS.map((c) => (
+                        {cols.map((c) => (
                           <col key={c.key} style={c.w ? { width: c.w } : undefined} />
                         ))}
                       </colgroup>
                       <thead className="text-[11px] uppercase text-mute">
                         <tr>
-                          {COLS.map((c) => {
+                          {cols.map((c) => {
                             const key = c.key;
                             const sortable = SORTABLE.has(key);
                             const on = query.sort === key;
@@ -412,7 +450,7 @@ export function Screener() {
                       <tbody>
                         {data.rows.map((r, i) => (
                           <tr key={r.instrument_id} className="border-t border-line">
-                            {COLS.map((c) => (
+                            {cols.map((c) => (
                               <td key={c.key} className={`px-3 py-1.5 ${alignClass(c)}`}>
                                 {c.render(r, live.bySymbol.get(r.symbol), (data.page - 1) * data.page_size + i + 1)}
                               </td>

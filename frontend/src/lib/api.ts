@@ -64,7 +64,7 @@ export const paths = {
     const stages = f.stages.map((x) => `&stage=${encodeURIComponent(x)}`).join("");
     return `screener${query({
         strategy: f.strategy, q: f.q, symbols: f.symbols?.join(","), tt_pass: f.ttPass, near_high: f.nearHigh, min_rs: f.minRs,
-        min_conditions: f.minConditions, has_setup: f.hasSetup || undefined,
+        min_conditions: f.minConditions, universe_only: f.universeOnly ? undefined : false, eq_only: f.eqOnly ? undefined : false, has_setup: f.hasSetup || undefined,
         min_grade: f.minGrade, status: f.status, classification: f.classification,
         min_strategies: f.minStrategies, sort: f.sort, direction: f.direction,
         page: f.page, page_size: f.pageSize,

@@ -52,6 +52,27 @@ describe("screener page", () => {
     await waitFor(() => expect(calls.some((c) => c.includes("tt_pass=true") && c.includes("stage=STAGE_2") && c.includes("min_rs=80"))).toBe(true));
   });
 
+  it("Universe only and EQ only: unchecking the universe adds the other stocks and says why they are outside", async () => {
+    const calls = mockApi();
+    renderApp(<Screener />);
+    await screen.findByRole("link", { name: "ALPHA" });
+    const uni = screen.getByRole("checkbox", { name: "Universe only" });
+    const eq = screen.getByRole("checkbox", { name: "EQ only" });
+    expect(uni).toBeChecked();
+    expect(eq).toBeChecked();
+    expect(eq).toBeDisabled(); // the universe is main-board stocks only
+    expect(screen.queryByRole("columnheader", { name: "In universe" })).toBeNull();
+    await userEvent.click(uni);
+    await waitFor(() => expect(calls.some((c) => c.includes("universe_only=false"))).toBe(true));
+    expect(eq).toBeEnabled();
+    expect(await screen.findByRole("columnheader", { name: "In universe" })).toBeInTheDocument();
+    await userEvent.click(eq);
+    await waitFor(() => expect(calls.some((c) => c.includes("eq_only=false"))).toBe(true));
+    await userEvent.click(screen.getByRole("button", { name: "Reset filters" }));
+    expect(uni).toBeChecked();
+    expect(eq).toBeChecked();
+  });
+
   it("Reset filters clears them and is off when nothing is set", async () => {
     mockApi();
     renderApp(<Screener />);
@@ -68,6 +89,9 @@ describe("screener page", () => {
   it("builds the query string from the filters", () => {
     const q = { ...DEFAULT_QUERY, q: "alp", ttPass: true };
     expect(paths.screener(q)).toBe("screener?strategy=vcp&q=alp&tt_pass=true&sort=rs_rank&direction=desc&page=1&page_size=15");
+    expect(paths.screener({ ...DEFAULT_QUERY, universeOnly: false, eqOnly: false })).toBe(
+      "screener?strategy=vcp&universe_only=false&eq_only=false&sort=rs_rank&direction=desc&page=1&page_size=15",
+    );
     expect(paths.screener(DEFAULT_QUERY)).toBe("screener?strategy=vcp&sort=rs_rank&direction=desc&page=1&page_size=15");
   });
 });

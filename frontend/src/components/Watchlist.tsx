@@ -169,7 +169,7 @@ export function Watchlist() {
   const live = useLiveQuotes(rows.map((r) => r.symbol), rows.length > 0);
   const found = new Set(rows.map((r) => r.symbol));
   const missing = result.data ? symbols.filter((s) => !found.has(s)) : [];
-  const cols = COLS.filter((c) => c.key !== "watch");
+  const cols = COLS.filter((c) => c.key !== "watch" && c.key !== "universe");
 
   return (
     <div className="flex min-h-screen flex-col">

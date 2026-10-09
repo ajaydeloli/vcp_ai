@@ -10,6 +10,10 @@ export type ScreenerQuery = {
   minRs?: number;
   minConditions?: number;
   hasSetup: boolean;
+  /** only the scan universe; unchecked adds the stocks outside it (price only) */
+  universeOnly: boolean;
+  /** with the universe unchecked: main-board (EQ) stocks only */
+  eqOnly: boolean;
   minGrade?: number;
   status?: string;
   classification?: string;
@@ -27,6 +31,8 @@ export const DEFAULT_QUERY: ScreenerQuery = {
   q: "",
   stages: [],
   hasSetup: false,
+  universeOnly: true,
+  eqOnly: true,
   sort: "rs_rank",
   direction: "desc",
   page: 1,

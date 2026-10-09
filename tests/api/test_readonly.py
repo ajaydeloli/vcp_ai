@@ -15,6 +15,7 @@ PATHS = [
     "setups/overlap", "stocks/ALPHA/bars", "stocks/ALPHA/setups", "activity", "paper",
     "search?q=alp", "stocks/ALPHA/history", "market/health", "screener?stage=STAGE_2&min_rs=80",
     "live/quotes?symbols=ALPHA,BETA", "live/indices", "live/status", "ipos",
+    "screener?universe_only=false&eq_only=false",
 ]  # fmt: skip
 
 
