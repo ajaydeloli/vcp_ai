@@ -204,9 +204,11 @@ function ScoreCard({ setup }: { setup: StockSetup | null }) {
       {!setup || arcs.length === 0 ? (
         <p className="text-xs text-mute">No score parts stored.</p>
       ) : (
-        <div className="flex flex-wrap items-center gap-4">
-          <ScoreRing arcs={arcs} center={fmtNum(setup.score, 0)} caption="Final score" />
-          <ul className="min-w-0 flex-1 space-y-1.5 text-xs">
+        <div className="flex flex-1 flex-col">
+          <div className="flex flex-1 items-center justify-center pb-3">
+            <ScoreRing arcs={arcs} center={fmtNum(setup.score, 0)} caption="Final score" />
+          </div>
+          <ul className="flex-1 space-y-1.5 border-t border-line pt-3 text-xs">
             {arcs.map((a) => (
               <li key={a.label} className="flex items-center justify-between gap-3">
                 <span className="flex items-center gap-2 text-mute">
