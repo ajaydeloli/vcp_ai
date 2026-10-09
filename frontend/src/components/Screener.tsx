@@ -159,14 +159,35 @@ function Filters({
       title="Filters"
       label="Filters"
       right={
-        <button
-          type="button"
-          aria-expanded={open}
-          onClick={() => setOpen((v) => !v)}
-          className="rounded border border-line px-2 py-1 text-xs text-mute hover:text-ink"
-        >
-          {open ? "Less" : "More"}
-        </button>
+        <div className="flex items-center gap-4 text-xs text-ink">
+          <label
+            className="flex cursor-pointer items-center gap-1.5"
+            title={q.universeOnly ? undefined : "Stocks outside the universe show prices only; the scan filters apply to universe stocks."}
+          >
+            <input type="checkbox" checked={q.universeOnly} onChange={(e) => onChange({ universeOnly: e.target.checked })} />
+            Universe only
+          </label>
+          <label
+            className="flex cursor-pointer items-center gap-1.5"
+            title={q.universeOnly ? "The universe holds main-board (EQ) stocks only" : undefined}
+          >
+            <input
+              type="checkbox"
+              checked={q.universeOnly || q.eqOnly}
+              disabled={q.universeOnly}
+              onChange={(e) => onChange({ eqOnly: e.target.checked })}
+            />
+            EQ only
+          </label>
+          <button
+            type="button"
+            aria-expanded={open}
+            onClick={() => setOpen((v) => !v)}
+            className="rounded border border-line px-2 py-1 text-xs text-mute hover:text-ink"
+          >
+            {open ? "Less" : "More"}
+          </button>
+        </div>
       }
     >
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-[minmax(0,1.4fr)_repeat(8,minmax(0,1fr))_auto]">
@@ -263,27 +284,6 @@ function Filters({
           >
             Reset filters
           </button>
-        </div>
-        <div className="col-span-full flex flex-wrap items-center gap-x-6 gap-y-1 text-xs text-ink">
-          <label className="flex cursor-pointer items-center gap-1.5">
-            <input type="checkbox" checked={q.universeOnly} onChange={(e) => onChange({ universeOnly: e.target.checked })} />
-            Universe only
-          </label>
-          <label
-            className="flex cursor-pointer items-center gap-1.5"
-            title={q.universeOnly ? "The universe holds main-board (EQ) stocks only" : undefined}
-          >
-            <input
-              type="checkbox"
-              checked={q.universeOnly || q.eqOnly}
-              disabled={q.universeOnly}
-              onChange={(e) => onChange({ eqOnly: e.target.checked })}
-            />
-            EQ only
-          </label>
-          {q.universeOnly ? null : (
-            <span className="text-mute">Stocks outside the universe show prices only; the scan filters apply to universe stocks.</span>
-          )}
         </div>
         {open ? (
           <fieldset className="col-span-full">
