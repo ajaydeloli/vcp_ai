@@ -5,7 +5,7 @@ import { useLiveQuotes, useScreener, useSearch } from "@/lib/api";
 import { fmtDay } from "@/lib/fmt";
 import { DEFAULT_QUERY } from "@/lib/screener";
 import { useWatchlists } from "@/lib/watchlist";
-import { alignClass, COLS } from "./Screener";
+import { alignClass, COLS, Pages, SORTABLE } from "./Screener";
 import { Nav } from "./Nav";
 import { StatusBar } from "./StatusBar";
 import { Card, Empty, ErrorBox, Loading } from "./ui";
@@ -161,13 +161,22 @@ function Tabs() {
 }
 
 /** My watch lists: lists I made, each stock with the latest scan result. Kept in this browser. */
+const PAGE_SIZE = 15;
+
 export function Watchlist() {
   const { active, toggle } = useWatchlists();
   const symbols = active.symbols;
-  const result = useScreener({ ...DEFAULT_QUERY, symbols, pageSize: 100 }, symbols.length > 0);
-  const rows = result.data?.rows ?? [];
+  const [sort, setSort] = useState(DEFAULT_QUERY.sort);
+  const [direction, setDirection] = useState<"asc" | "desc">(DEFAULT_QUERY.direction);
+  const [page, setPage] = useState(1);
+  useEffect(() => setPage(1), [active.id]);
+  const result = useScreener({ ...DEFAULT_QUERY, symbols, sort, direction, pageSize: 100 }, symbols.length > 0);
+  const all = result.data?.rows ?? [];
+  const pages = Math.max(1, Math.ceil(all.length / PAGE_SIZE));
+  const at = Math.min(page, pages);
+  const rows = all.slice((at - 1) * PAGE_SIZE, at * PAGE_SIZE);
   const live = useLiveQuotes(rows.map((r) => r.symbol), rows.length > 0);
-  const found = new Set(rows.map((r) => r.symbol));
+  const found = new Set(all.map((r) => r.symbol));
   const missing = result.data ? symbols.filter((s) => !found.has(s)) : [];
   const cols = COLS.filter((c) => c.key !== "watch" && c.key !== "universe");
 
@@ -196,43 +205,76 @@ export function Watchlist() {
           ) : !result.data ? (
             <Loading what="watch list" />
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs">
-                <thead className="text-[11px] uppercase text-mute">
-                  <tr>
+            <>
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[1100px] table-fixed text-left text-xs">
+                  <colgroup>
                     {cols.map((c) => (
-                      <th key={c.key} scope="col" className={`px-3 py-1.5 font-medium ${alignClass(c)}`}>
-                        {c.label}
-                      </th>
+                      <col key={c.key} style={c.w ? { width: c.w } : undefined} />
                     ))}
-                    <th scope="col" className="px-2 py-1.5 font-medium">
-                      <span className="sr-only">Remove</span>
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {rows.map((r, i) => (
-                    <tr key={r.instrument_id} className="border-t border-line">
-                      {cols.map((c) => (
-                        <td key={c.key} className={`px-3 py-1.5 ${alignClass(c)}`}>
-                          {c.render(r, live.bySymbol.get(r.symbol), i + 1)}
-                        </td>
-                      ))}
-                      <td className="px-2 py-1.5 text-right">
-                        <button
-                          type="button"
-                          aria-label={`Remove ${r.symbol} from ${active.name}`}
-                          onClick={() => toggle(active.id, r.symbol)}
-                          className="text-mute hover:text-down"
-                        >
-                          ✕
-                        </button>
-                      </td>
+                    <col style={{ width: 40 }} />
+                  </colgroup>
+                  <thead className="text-[11px] uppercase text-mute">
+                    <tr>
+                      {cols.map((c) => {
+                        const sortable = SORTABLE.has(c.key);
+                        const on = sort === c.key;
+                        return (
+                          <th
+                            key={c.key}
+                            scope="col"
+                            className={`px-3 py-1.5 font-medium ${alignClass(c)}`}
+                            aria-sort={on ? (direction === "asc" ? "ascending" : "descending") : "none"}
+                          >
+                            {sortable ? (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setDirection(on && direction === "desc" ? "asc" : "desc");
+                                  setSort(c.key);
+                                  setPage(1);
+                                }}
+                                className="uppercase hover:text-ink"
+                              >
+                                {c.label}
+                                {on ? (direction === "asc" ? " ▲" : " ▼") : ""}
+                              </button>
+                            ) : (
+                              c.label
+                            )}
+                          </th>
+                        );
+                      })}
+                      <th scope="col" className="px-2 py-1.5 font-medium">
+                        <span className="sr-only">Remove</span>
+                      </th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody>
+                    {rows.map((r, i) => (
+                      <tr key={r.instrument_id} className="border-t border-line">
+                        {cols.map((c) => (
+                          <td key={c.key} className={`px-3 py-1.5 ${alignClass(c)}`}>
+                            {c.render(r, live.bySymbol.get(r.symbol), (at - 1) * PAGE_SIZE + i + 1)}
+                          </td>
+                        ))}
+                        <td className="px-2 py-1.5 text-right">
+                          <button
+                            type="button"
+                            aria-label={`Remove ${r.symbol} from ${active.name}`}
+                            onClick={() => toggle(active.id, r.symbol)}
+                            className="text-mute hover:text-down"
+                          >
+                            ✕
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <Pages page={at} total={all.length} size={PAGE_SIZE} onPage={setPage} />
+            </>
           )}
           {missing.length > 0 ? (
             <p className="mt-3 text-xs text-mute">Not in the latest scan: {missing.join(", ")}.</p>

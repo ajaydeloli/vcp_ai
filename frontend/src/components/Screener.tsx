@@ -106,7 +106,7 @@ export const COLS: Col[] = [
   },
 ];
 
-const SORTABLE = new Set([
+export const SORTABLE = new Set([
   "symbol", "rs_rank", "conditions_passed", "close", "change_pct", "score", "grade",
   "pivot_distance_pct",
 ]); // fmt: skip
