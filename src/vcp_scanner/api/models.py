@@ -454,3 +454,33 @@ class LiveIndicesResponse(LiveStamped):
 
 class LiveStatusResponse(LiveStamped):
     pass
+
+
+class IpoRow(BaseModel):
+    """A recently listed main-board stock; a measure that needs more bars than it has is None."""
+
+    instrument_id: str
+    symbol: str
+    company: str | None
+    listing_date: date
+    bars: int
+    ipo_open: float | None
+    ipo_close: float | None
+    first_day_high: float | None
+    close: float | None
+    change_pct: float | None
+    since_listing_pct: float | None
+    vs_first_day_high_pct: float | None
+    high_since_listing: float | None
+    from_high_pct: float | None
+    sma20: float | None
+    sma50: float | None
+    vs_sma20_pct: float | None
+    vs_sma50_pct: float | None
+    range_pct: float | None  # high-low range of the last 10 bars as a percent of the close
+    avg_traded_value: float | None  # mean close x volume over the last (up to) 20 bars
+
+
+class IposResponse(Stamped):
+    full_history_bars: int  # stocks with at least this many bars are in the scan universe
+    rows: list[IpoRow]

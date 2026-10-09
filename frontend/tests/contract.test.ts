@@ -29,6 +29,7 @@ const CASES: Record<string, z.ZodTypeAny> = {
   live_quotes: s.liveQuotes,
   live_indices: s.liveIndices,
   live_status: s.liveStatus,
+  ipos: s.ipos,
 };
 
 /** The same schema, but an unknown key anywhere is an error (a new API field must be noticed). */

@@ -1,0 +1,29 @@
+{
+ "as_of": "2026-10-05",
+ "data_time": "2026-10-06T14:00:00+05:30",
+ "full_history_bars": 253,
+ "rows": [
+  {
+   "instrument_id": "NSE_EQ|NEWCO",
+   "symbol": "NEWCO",
+   "company": "NEWCO Ltd",
+   "listing_date": "2026-07-13",
+   "bars": 60,
+   "ipo_open": 166.0,
+   "ipo_close": 166.0,
+   "first_day_high": 167.0,
+   "close": 171.9,
+   "change_pct": 0.05820721769498327,
+   "since_listing_pct": 3.5542168674698837,
+   "vs_first_day_high_pct": 2.934131736526946,
+   "high_since_listing": 172.9,
+   "from_high_pct": -0.5783689994216301,
+   "sma20": 170.95,
+   "sma50": 169.45,
+   "vs_sma20_pct": 0.5557180462123501,
+   "vs_sma50_pct": 1.4458542342874026,
+   "range_pct": 1.6870273414776067,
+   "avg_traded_value": 17095000.0
+  }
+ ]
+}
