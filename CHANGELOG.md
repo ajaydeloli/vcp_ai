@@ -558,6 +558,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Not done (see audit P1-5): per-dataset cutoffs, `snapshot_manifest` content hashes, `scan_runs`.
 
 ### Changed
+- Watchlist table now uses the Screener table theme: fixed column widths, sortable headers, 15 per page with the page bar (FRONTEND_SPECIFICATION 67.25).
 - Universe defaults reconciled with `PROJECT_DESIGN.md` §14 (audit P1-4): `eligible_series` `[EQ, BE]` → `[EQ]`; `min_close_price` 10 → 20; `min_daily_turnover_inr` (20d average) 5,000,000 → 10,000,000; new `min_avg_traded_value_50d_inr` = 10,000,000 gate using a 50-day average. Universe `method_version` `1.0` → `1.1`. Why: config silently widened the research population versus the governing design. Snapshots built under `1.0` are not rewritten; rebuild to get the new population. SME series (SM/ST) are excluded by the EQ-only whitelist; ETFs are not identifiable from series alone and remain open.
 
 ### Fixed (audit P0-4, data completeness)
