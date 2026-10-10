@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Reports: the VQI base date and what VQI is are a note under Market regime.
 - Reports call the index VQI, as the dashboard does.
 - Daily and weekly reports now show the index (VQI) on the same 250-day window as the Market Overview page, with its base date, so both show the same level.
 - Backtest page (`GET /api/v1/backtests`, stored runs from the research database, read-only) and Reports page (`GET /api/v1/reports`, the daily and weekly HTML reports); drafts for review (FRONTEND_SPECIFICATION 67.26, 67.27). `vcp api serve` gains `--research-db` and `--reports-dir`.
