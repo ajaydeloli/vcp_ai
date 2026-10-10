@@ -6,7 +6,7 @@ import { generateReport, useReports, useStatus } from "@/lib/api";
 import { fmtInt, fmtStamp } from "@/lib/fmt";
 import type { ReportFile } from "@/lib/schemas";
 import { Page } from "./Page";
-import { Field, FIELD } from "./Screener";
+import { FIELD } from "./Screener";
 import { Card, Empty, ErrorBox, Loading } from "./ui";
 
 const url = (f: ReportFile): string => `/api/v1/reports/${f.kind}/${encodeURIComponent(f.name)}`;
@@ -19,7 +19,7 @@ function Group({ title, files, picked, onPick }: { title: string; files: ReportF
       {files.length === 0 ? (
         <p className="text-xs text-mute">None yet.</p>
       ) : (
-        <ul className="max-h-64 space-y-1 overflow-y-auto">
+        <ul className="space-y-1">
           {files.map((f) => (
             <li key={key(f)}>
               <button
@@ -39,7 +39,7 @@ function Group({ title, files, picked, onPick }: { title: string; files: ReportF
   );
 }
 
-/** Build the report of a past day or week. It only writes an HTML file; no data changes. */
+/** Build the report of a past day or week, in one slim bar. It only writes an HTML file. */
 function Generate({ onDone }: { onDone: (k: string) => void }) {
   const status = useStatus();
   const client = useQueryClient();
@@ -53,43 +53,50 @@ function Generate({ onDone }: { onDone: (k: string) => void }) {
       onDone(key(f));
     },
   });
+  const small = `${FIELD} !py-1`;
   return (
-    <Card
-      title="Generate a report"
-      label="Generate a report"
-      subtitle="Build the report of a past day or week. A report for the same day is replaced. Open positions, paper results and run health always show the latest data."
-    >
+    <section aria-label="Generate a report" className="flex shrink-0 flex-wrap items-center justify-between gap-x-4 gap-y-2 rounded-lg border border-line bg-panel px-4 py-2">
+      <h2 className="text-sm font-semibold text-ink">Generate a report</h2>
       <form
-        className="flex flex-wrap items-end gap-3"
+        className="flex flex-wrap items-center gap-3 text-[11px] uppercase text-mute"
         onSubmit={(e) => {
           e.preventDefault();
           make.mutate();
         }}
       >
-        <Field id="gen-kind" label="Report">
-          <select id="gen-kind" value={kind} onChange={(e) => setKind(e.target.value as "daily" | "weekly")} className={FIELD}>
+        <label className="flex items-center gap-2" htmlFor="gen-kind">
+          Report
+          <select id="gen-kind" value={kind} onChange={(e) => setKind(e.target.value as "daily" | "weekly")} className={small}>
             <option value="daily">Daily report</option>
             <option value="weekly">Weekly summary</option>
           </select>
-        </Field>
-        <Field id="gen-date" label={kind === "daily" ? "Trading day" : "Any day of the week"}>
-          <input id="gen-date" type="date" max={latest} value={date || latest || ""} onChange={(e) => setDate(e.target.value)} className={FIELD} />
-        </Field>
+        </label>
+        <label className="flex items-center gap-2" htmlFor="gen-date">
+          {kind === "daily" ? "Trading day" : "Any day of the week"}
+          <input id="gen-date" type="date" max={latest} value={date || latest || ""} onChange={(e) => setDate(e.target.value)} className={small} />
+        </label>
         <button
           type="submit"
           disabled={make.isPending || !(date || latest)}
-          className="rounded border border-accent px-3 py-1.5 text-xs text-accent enabled:hover:bg-accent/10 disabled:opacity-40"
+          className="rounded border border-accent px-3 py-1 text-xs normal-case text-accent enabled:hover:bg-accent/10 disabled:opacity-40"
         >
           {make.isPending ? "Generating…" : "Generate"}
         </button>
+        {make.isError ? (
+          <span role="alert" className="text-xs normal-case text-down">
+            {make.error instanceof Error ? make.error.message : "The report could not be made."}
+          </span>
+        ) : null}
+        {make.isSuccess ? (
+          <span role="status" className="text-xs normal-case text-up">{`Written: ${make.data.label}`}</span>
+        ) : null}
       </form>
-      {make.isError ? <p role="alert" className="mt-2 text-xs text-down">{make.error instanceof Error ? make.error.message : "The report could not be made."}</p> : null}
-      {make.isSuccess ? <p role="status" className="mt-2 text-xs text-up">{`Written: ${make.data.label}`}</p> : null}
-    </Card>
+    </section>
   );
 }
 
-/** The daily and weekly HTML reports written by the daily run, shown as they are. */
+/** The daily and weekly HTML reports. On a wide screen the page fits the window: the list of
+ *  reports and the report each scroll on their own. */
 export function Reports() {
   const reports = useReports();
   const [chosen, setChosen] = useState<string | null>(null);
@@ -100,12 +107,9 @@ export function Reports() {
   const file = files.find((f) => key(f) === picked);
 
   return (
-    <Page active="Reports" title="Reports">
+    <Page active="Reports" title="Reports" fill>
       <Generate onDone={setChosen} />
-      <Card
-        title="Reports"
-        subtitle="Written by the daily run after the serving copy: a daily report each session and a weekly summary on Fridays. Watch lists for paper monitoring, not trade instructions."
-      >
+      <Card label="Reports" className="min-h-0 lg:flex-1">
         {reports.isError ? (
           <ErrorBox error={reports.error} />
         ) : reports.isPending ? (
@@ -113,22 +117,22 @@ export function Reports() {
         ) : files.length === 0 ? (
           <Empty>No report has been written yet. The daily run writes one; to write it now run: vcp report daily</Empty>
         ) : (
-          <div className="grid gap-4 lg:grid-cols-[18rem_minmax(0,1fr)]">
-            <div className="space-y-4">
+          <div className="grid min-h-0 flex-1 gap-4 lg:grid-cols-[18rem_minmax(0,1fr)]">
+            <div className="max-h-60 space-y-4 overflow-y-auto pr-1 lg:max-h-none">
               <Group title="Daily" files={daily} picked={picked} onPick={setChosen} />
               <Group title="Weekly" files={weekly} picked={picked} onPick={setChosen} />
             </div>
-            <div>
+            <div className="flex min-h-0 flex-col">
               {file ? (
                 <>
-                  <div className="mb-2 flex items-center justify-between gap-3 text-xs">
+                  <div className="mb-2 flex shrink-0 items-center justify-between gap-3 text-xs">
                     <span className="font-medium text-ink">{file.label}</span>
                     <a href={url(file)} target="_blank" rel="noreferrer" className="text-accent hover:underline">
                       Open in a new tab
                     </a>
                   </div>
                   {/* the report is a plain page; no scripts are allowed in it */}
-                  <iframe title={file.label} src={url(file)} sandbox="" className="h-[75vh] w-full rounded border border-line bg-white" />
+                  <iframe title={file.label} src={url(file)} sandbox="" className="h-[70vh] min-h-0 w-full rounded border border-line bg-white lg:h-auto lg:flex-1" />
                 </>
               ) : null}
             </div>
