@@ -2455,3 +2455,10 @@ Owner request after the Minervini market-reading outline: build steps 1 and 2. F
 **Change.** Top bar and logo side bar, tile row with the score gauge, grouped Market health card, setup-counts card, status in the bottom bar; `short` on each reading. Display only; nothing that decides a trade is touched.
 
 **Tests.** Frontend: side bar opens and closes, coming pages disabled, tiles, NIFTY/SENSEX placeholders, bottom bar, grouped card. API: `short` on every reading.
+
+## Decision F2 — fundamentals picked up from NSE filings, display and research only (owner, 2026-10-10)
+
+The owner asked for the plan and the choice of source (NSE filings or scraping Screener.in) and said "yes go ahead" to NSE filings and writing the specification. Screener.in was rejected as the source: it shows today's restated figures with no publication date, so it cannot be used point-in-time.
+
+**Effect.** FUNDAMENTALS_SPECIFICATION.md is written (draft, 2026-10-10). Nothing is built yet. Because the backtest and the paper ledger rank simultaneous signals by setup score, fundamentals stay out of `setup_scores` and every gate and rank until the review on or after 2027-04-01 (spec §2). Supersedes Decision F1. Scope (the scan universe) and history (from 2023-10-01 first) were not chosen by the owner; the recommended defaults were taken and are settings.
+

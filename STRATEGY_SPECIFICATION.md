@@ -24,7 +24,7 @@ Run several base-pattern strategies on the same data, gates, scores, labels and 
 
 A **strategy** is: a detector (finds setups), its config (thresholds), its pattern-quality score, and its ranking rule. Everything else is shared: prices, corporate actions, quality gates, universe, features, RS, Trend Template, weekly stage, the shared score parts, labels, the event engine and walk-forward periods.
 
-Not in scope: new data sources, fundamentals (still skipped, decision F1), intraday entries, ML.
+Not in scope: new data sources, fundamentals (decision F1; since 2026-10-10 display and research only, FUNDAMENTALS_SPECIFICATION), intraday entries, ML.
 
 ---
 
