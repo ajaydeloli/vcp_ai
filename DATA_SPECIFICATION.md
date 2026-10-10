@@ -1546,6 +1546,23 @@ Classification must be point-in-time where historical research uses it.
 
 Do not assume today's sector classification was always true.
 
+## 48.1 Plan (owner request 2026-10-10; step S1, before the Fundamentals page F5)
+
+Display and research only, like fundamentals (FUNDAMENTALS_SPECIFICATION §2): no gate, score, rank, backtest or paper rule reads it until a strategy change says so.
+
+**Sources (NSE only).**
+
+1. **Index constituent lists** on the archive host, e.g. `https://nsearchives.nseindia.com/content/indices/ind_niftytotalmarket_list.csv`. Columns `Company Name, Industry, Symbol, Series, ISIN Code`; 755 stocks in 21 industries (Capital Goods 123, Financial Services 118, Healthcare 67, ...). Probed 2026-10-10: it covers **679 of the 1,272 eligible stocks (53 %)**; the Microcap 250 list is already inside it. One request; the archive host is not the one that rate-limits.
+2. **NSE's per-stock industry classification** (the four levels shown on a stock's quote page: macro-economic sector, sector, industry, basic industry) for the remaining stocks and for the finer levels. One request per stock on www.nseindia.com, which rate-limited us on 2026-10-10: fetched slowly (`request_interval_seconds`), only after the block has lifted, resumable. **Verify in S1:** the endpoint, its fields, and that the index lists' `Industry` equals its sector level.
+
+**Table** `instrument_classification`: `instrument_id`, `macro_sector`, `sector`, `industry`, `basic_industry`, `classification_source` (NSE_INDEX_LIST | NSE_QUOTE), `valid_from`, `valid_to`, `fetched_at`. A changed classification closes the old row (`valid_to`) and opens a new one; nothing is overwritten.
+
+**Point in time.** NSE publishes only today's classification. Rows start at the first fetch date; for earlier dates the first known row is used and marked "classification as of <first fetch date>", so research can tell a recorded classification from a back-filled one.
+
+**Refresh.** Weekly in the daily run (Fridays), guarded like the fundamentals step: a failure is a warning.
+
+**Display.** Sector and industry on the Stock Analysis page and as Screener columns and filter; sector of each name in the new-highs and breakout lists; sector strength (median RS, share above the 50-day average, breakouts per sector) on Market Overview; "breakouts this week by sector" in the weekly report.
+
 ---
 
 # 49. Data Quality Score

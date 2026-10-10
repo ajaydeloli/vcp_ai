@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- DATA_SPECIFICATION §48.1 (plan): sector and industry classification from NSE (index constituent lists on the archive host, 679 of 1,272 eligible stocks, then per-stock classification after the rate limit lifts), table `instrument_classification` with validity dates, display only. Step S1, before the Fundamentals page. Docs only.
+
 - Fundamentals: gentler on NSE after the website rate-limited the first backfill (403 after ~7,600 requests): one request every 2 seconds, no website cookie request for archive downloads, a stop after 20 failures in a row, and `vcp fundamentals backfill --resume` from the saved target list.
 
 - Stock chart: the Pivot and Stop titles no longer sit inside the plot over the latest candles and the breakout mark; a legend at the top left shows them with their prices. The breakout arrow is orange and larger (the blue one was hard to see on the dark background), and the chart leaves six empty bars after the last one so recent candles clear the price axis.
