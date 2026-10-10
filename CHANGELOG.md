@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Fundamentals: gentler on NSE after the website rate-limited the first backfill (403 after ~7,600 requests): one request every 2 seconds, no website cookie request for archive downloads, a stop after 20 failures in a row, and `vcp fundamentals backfill --resume` from the saved target list.
+
 - Stock chart: the Pivot and Stop titles no longer sit inside the plot over the latest candles and the breakout mark; a legend at the top left shows them with their prices. The breakout arrow is orange and larger (the blue one was hard to see on the dark background), and the chart leaves six empty bars after the last one so recent candles clear the price axis.
 
 - FUNDAMENTALS_SPECIFICATION §15 (draft): shareholding pattern (promoter, FII/FPI, DII, mutual funds, public, promoter pledge) from NSE's quarterly Regulation 31 filings as step F8, display and research only. Docs only; the feed is probed after the results backfill.

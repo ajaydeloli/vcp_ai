@@ -242,3 +242,11 @@ def test_quarterly_and_annual_of_the_same_period_end_are_not_revisions(
     fetch_filings(StubProvider([q4, annual]), repo, tmp_path, {"RELIANCE": "I"}, clock=lambda: NOW)
     rows = store.conn.execute("SELECT DISTINCT revision_number FROM fundamental_filings").fetchall()
     assert rows == [(0,)]
+
+
+def test_archive_downloads_do_not_touch_the_website() -> None:
+    provider, session = _provider(
+        {"x.xml": [FakeResponse(403), FakeResponse(200, content=b"<a/>")]}
+    )
+    assert provider.download("https://nsearchives.nseindia.com/corporate/xbrl/x.xml") == b"<a/>"
+    assert all("www.nseindia.com" not in url for url, _ in session.calls)

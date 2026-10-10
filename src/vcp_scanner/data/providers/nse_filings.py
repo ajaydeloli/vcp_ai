@@ -160,7 +160,11 @@ class NseFilingProvider:
         self._primed = True
 
     def _get(self, url: str, params: dict[str, str] | None = None) -> requests.Response:
-        if not self._primed:
+        # Only the website's API needs the session cookie; the XBRL files come from the archive
+        # host, so a download never touches www.nseindia.com (which rate-limits: 2026-10-10 it
+        # answered 403 after about 7,600 requests in 2.5 hours while the archive kept serving).
+        website = url.startswith(BASE_URL)
+        if website and not self._primed:
             self._prime()
         last_error = "no attempt"
         for attempt in range(len(_BACKOFF_SECONDS) + 1):
@@ -180,7 +184,8 @@ class NseFilingProvider:
                     break
             if attempt < len(_BACKOFF_SECONDS):
                 self._sleep(_BACKOFF_SECONDS[attempt])
-                self._prime()
+                if website:
+                    self._prime()
         raise ProviderError(f"NSE request failed ({last_error}): {url}")
 
     @staticmethod

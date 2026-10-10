@@ -8,6 +8,7 @@ fetched again, so an interrupted backfill resumes where it stopped.
 
 from __future__ import annotations
 
+import json
 import logging
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
@@ -157,10 +158,17 @@ def download_missing(
     targets: Sequence[tuple[FilingRef, str]],
     cache_root: Path,
     progress: Progress = _quiet,
+    *,
+    stop_after_failures: int = 20,
 ) -> list[Downloaded]:
-    """Download every target not yet in the cache (no database access)."""
+    """Download every target not yet in the cache (no database access).
+
+    Stops after ``stop_after_failures`` failures in a row: the source is then refusing us (rate
+    limit, outage), and more requests would only prolong the block. What was downloaded is
+    returned; the rest is fetched by the next run.
+    """
     out: list[Downloaded] = []
-    fetched = 0
+    fetched = streak = 0
     for n, (ref, iid) in enumerate(targets, 1):
         path = cache_path_for(cache_root, ref)
         rel = path.relative_to(cache_root).as_posix()
@@ -168,12 +176,39 @@ def download_missing(
             try:
                 _write_atomic(path, provider.download(ref.url))
                 fetched += 1
+                streak = 0
             except (ProviderError, OSError) as exc:
                 out.append(Downloaded(ref, iid, None, None, str(exc)))
+                streak += 1
+                if streak >= stop_after_failures:
+                    progress(f"stopped after {streak} failures in a row at {n}/{len(targets)}:"
+                             f" {exc}. Run again later; nothing is lost.")  # fmt: skip
+                    break
                 continue
         out.append(Downloaded(ref, iid, rel, sha256_hex(path.read_bytes())))
         if n % 100 == 0:
             progress(f"downloaded {n}/{len(targets)} ({fetched} new)")
+    return out
+
+
+def save_targets(path: Path, targets: Sequence[tuple[FilingRef, str]]) -> None:
+    """Keep a backfill's target list so a resumed run needs no new listing."""
+    rows = [{**{k: (v.isoformat() if isinstance(v, date | datetime) else v)
+                for k, v in ref.__dict__.items()}, "instrument_id": iid}
+            for ref, iid in targets]  # fmt: skip
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_suffix(".part")
+    tmp.write_text(json.dumps(rows))
+    tmp.replace(path)
+
+
+def load_targets(path: Path) -> list[tuple[FilingRef, str]]:
+    out: list[tuple[FilingRef, str]] = []
+    for row in json.loads(path.read_text()):
+        iid = row.pop("instrument_id")
+        row["period_end"] = date.fromisoformat(row["period_end"])
+        row["broadcast_at"] = datetime.fromisoformat(row["broadcast_at"])
+        out.append((FilingRef(**row), iid))
     return out
 
 

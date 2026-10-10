@@ -34,7 +34,7 @@ nse_user_agent: null
 fundamentals:
   scope: universe              # every stock eligible in a universe snapshot since history_from
   history_from: 2023-10-01     # filings are fetched from 15 months earlier (year-ago quarters)
-  request_interval_seconds: 1.0
+  request_interval_seconds: 2.0  # NSE blocked us after ~2.5 h at 1.0 (2026-10-10)
   daily_update: true           # `vcp run daily` runs `vcp fundamentals update`
   update_days: 7               # first update without a previous run; later updates resume
                                # from the last date listed completely (no days skipped)

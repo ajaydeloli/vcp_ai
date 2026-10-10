@@ -40,6 +40,11 @@ def add_fundamentals_parser(subparsers: argparse._SubParsersAction) -> None:  # 
         b.add_argument("--config-dir", default="config")
         b.add_argument("--days", type=int, default=None, help="update: days back (config)")
         b.add_argument("--limit", type=int, default=None, help="backfill: first N stocks only")
+        b.add_argument(
+            "--resume",
+            action="store_true",
+            help="backfill: use the target list of the last backfill (no listing)",
+        )
     st = sub.add_parser("status", help="What is stored (read-only)")
     st.add_argument("--db", default="data/vcp_scanner.duckdb")
     v = sub.add_parser("show", help="Metrics of one stock as of a date (read-only)")
@@ -230,8 +235,10 @@ def _run_bulk(args: argparse.Namespace, command: str) -> int:
         download_missing,
         list_histories,
         list_range,
+        load_targets,
         min_period_end,
         record_downloads,
+        save_targets,
         select_targets,
         update_start,
         update_views,
@@ -276,10 +283,26 @@ def _run_bulk(args: argparse.Namespace, command: str) -> int:
 
     # 2. List and download (network and raw cache only).
     provider = NseFilingProvider(interval_seconds=fcfg.request_interval_seconds)
-    listing = list_range(provider, start, today, progress=_say if command == "backfill" else _quiet)
-    histories = list_histories(provider, new_symbols, progress=_say) if new_symbols else Listing()
-    targets = select_targets(listing.refs + histories.refs, ids, oldest)
-    _say(f"listed {len(listing.refs) + len(histories.refs)} filings, {len(targets)} for our stocks")
+    saved = cache_root / "backfill_targets.json"
+    resume = command == "backfill" and getattr(args, "resume", False)
+    if resume and not saved.is_file():
+        _err("No saved backfill target list; run 'vcp fundamentals backfill' without --resume.")
+        return 1
+    if resume:
+        listing, histories = Listing(), Listing()
+        targets = load_targets(saved)
+        _say(f"resuming the saved target list: {len(targets)} filings")
+    else:
+        progress = _say if command == "backfill" else _quiet
+        listing = list_range(provider, start, today, progress=progress)
+        histories = (
+            list_histories(provider, new_symbols, progress=_say) if new_symbols else Listing()
+        )
+        targets = select_targets(listing.refs + histories.refs, ids, oldest)
+        if command == "backfill":
+            save_targets(saved, targets)
+        _say(f"listed {len(listing.refs) + len(histories.refs)} filings,"
+             f" {len(targets)} for our stocks")  # fmt: skip
     downloads = download_missing(provider, targets, cache_root, progress=_say)
     failed = sum(1 for d in downloads if d.error)
     _say(f"downloads done: {len(downloads) - failed} in cache, {failed} failed")

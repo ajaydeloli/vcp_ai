@@ -20,8 +20,10 @@ from vcp_scanner.fundamentals.pipeline import (
     download_missing,
     list_histories,
     list_range,
+    load_targets,
     min_period_end,
     record_downloads,
+    save_targets,
     select_targets,
     update_start,
     update_views,
@@ -245,3 +247,22 @@ def test_bookkeeping(repo: DuckDBFundamentalRepository, tmp_path: Path) -> None:
     repo.record_fetch_run("update", date(2026, 10, 1), date(2026, 10, 9), 0, 1)
     repo.record_fetch_run("update", date(2026, 10, 9), None, 3, 0)  # a run that failed
     assert repo.last_complete_through() == date(2026, 10, 9)
+
+
+def test_downloads_stop_after_failures_in_a_row(tmp_path: Path) -> None:
+    refs = [old_ref(str(i), "31-Dec-2024", "Quarterly", "Consolidated", "16-Jan-2025 20:15:20")
+            for i in range(30)]  # fmt: skip
+    provider = Provider(refs, {})  # every download fails
+    messages: list[str] = []
+    out = download_missing(provider, [(r, "I") for r in refs], tmp_path, messages.append,
+                           stop_after_failures=5)  # fmt: skip
+    assert len(provider.downloads) == 5 and len(out) == 5
+    assert messages and "5 failures in a row" in messages[0]
+
+
+def test_saved_targets_round_trip(tmp_path: Path) -> None:
+    refs, _ = refs_and_files()
+    targets = [(r, "INS1") for r in refs]
+    path = tmp_path / "t.json"
+    save_targets(path, targets)
+    assert load_targets(path) == targets
