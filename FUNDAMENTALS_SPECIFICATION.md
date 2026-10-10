@@ -12,6 +12,7 @@ Owner decisions this spec follows:
 | F2.1 | Source: **NSE filings** (the exchange's financial-results feeds and their XBRL files). Screener.in is not used: it shows today's restated figures with no publication date, which breaks the point-in-time rule. | Owner, 2026-10-10 |
 | F2.2 | **Freeze rule:** fundamentals are display and research only until the review on or after 2027-04-01. They never touch `setup_scores`, a gate, a rank or a paper trade (§2). | Recommended, accepted with "go ahead", 2026-10-10 |
 | F2.3 | **Scope:** the scan universe first (about 1,271 stocks); a setting can widen it to every main-board (EQ) stock later. | Default taken; the owner did not choose. Change on request |
+| F2.5 | **Shareholding** (promoter, FII/FPI, DII, public, promoter pledge) is added as step F8, display and research only, after F5 (§15). | Owner, 2026-10-10 |
 | F2.4 | **History:** from 2023-10-01 first (enough for year-on-year growth on every quarter shown); the research needs 2021-01-01 and is added later (§12). | Default taken; the owner did not choose. Change on request |
 
 This replaces Decision F1 (fundamentals skipped, 2026-10-03). Its probe findings are the basis of §3.
@@ -22,7 +23,7 @@ This replaces Decision F1 (fundamentals skipped, 2026-10-03). Its probe findings
 
 Show, for each stock, how its earnings and sales are growing, and find out with evidence whether this adds anything to the technical setups. Fundamentals stay secondary: a setup is valid or not on its technical structure only (PROJECT_DESIGN §29, VCP_SPECIFICATION §36).
 
-Not in scope: valuation ratios, shareholding, analyst estimates, news, any provider other than NSE, intraday data.
+Not in scope: valuation ratios, analyst estimates, news, any provider other than NSE, intraday data. Shareholding is added later as step F8 (§15).
 
 ---
 
@@ -190,8 +191,9 @@ Implemented in F4 (`fundamentals/pipeline.py`, `cli_fundamentals.py`):
 | F5 | API and the Fundamentals page; the Stock Analysis card; Screener columns | contract tests; FRONTEND_SPECIFICATION updated |
 | F6 | Backfill from 2021-01-01 in the background | as F4 |
 | F7 | Shadow score and the research study | the report of §12 |
+| F8 | Shareholding pattern (§15): probe, provider, parser, table, backfill, display | probe findings written into §15; known-answer tests on saved filings; categories sum to 100 % per filing; a backfill with counts and parse-error rate |
 
-Each step is a branch with the full checks, a CHANGELOG entry and a spec update, as before. The owner reviews after F1 (what the data really looks like), F5 (the pages) and F7 (the result).
+Each step is a branch with the full checks, a CHANGELOG entry and a spec update, as before. The owner reviews after F1 (what the data really looks like), F5 (the pages), F7 (the result) and F8 (shareholding).
 
 ---
 
@@ -202,3 +204,34 @@ Each step is a branch with the full checks, a CHANGELOG entry and a spec update,
 - **Gaps:** ROE and debt will be missing for many stocks (equity is filed half-yearly). They show "N/A" and the score drops them (SCORING §7), so coverage is reported, not hidden.
 - **History:** the old feed ends in Jan 2025 and the new one starts in Feb 2025; the join must not drop or double a quarter. Test: no gap or duplicate period per stock across the boundary.
 - **Look-ahead:** the only protection is §7. It is tested, not assumed.
+
+---
+
+# 15. Shareholding pattern (step F8)
+
+Added 2026-10-10 at the owner's request. Same rules as the rest of this spec: NSE only, point in time, display and research only (§2 freeze rule: nothing in the scan, score, backtest or paper ledger reads it).
+
+**Source.** The quarterly shareholding pattern every listed company files under SEBI LODR Regulation 31, within 21 days of each quarter end, published by NSE per company with an XBRL file. It is a separate filing from the financial results (the result XBRL files of §3 carry no shareholding). **Verify in F8:** the NSE listing endpoint and its paging, the XBRL tag names and categories, how revisions appear, and how far back the files go.
+
+**What is stored** (per stock and quarter end; `available_at` = broadcast time, as §7):
+
+| Item | Meaning |
+|---|---|
+| `promoter_pct` | promoter and promoter group, % of shares |
+| `promoter_pledged_pct` | promoter shares pledged or encumbered, % of promoter shares |
+| `fii_pct` | foreign portfolio investors (FPI/FII), % of shares |
+| `dii_pct` | domestic institutions: mutual funds, insurance companies, banks, financial institutions, pension and provident funds, alternative investment funds |
+| `mf_pct` | mutual funds alone (part of DII) |
+| `public_pct` | non-institutional holders (retail and others) |
+| `shareholders` | number of shareholders, when filed |
+
+Changes are computed like §6, between consecutive quarters of the same stock: `promoter_change`, `fii_change`, `dii_change` (percentage points), `pledge_change`. A missing filing is "N/A", never 0.
+
+**Tables.** `shareholding_filings` (raw manifest, as `fundamental_filings`), `shareholding_snapshots` (one row per stock, quarter end and revision, with the items above and `available_at`). Raw files are cached unchanged under `data/raw/shareholding/`.
+
+**Pipeline.** As §10: the backfill and the daily update list by date range, download with the database closed, then record and parse. The backfill runs only after the results backfill has finished, so the two never run at the same time against NSE. Scope and history as §9 (about 18,000 files for the universe since mid-2022, about 5 hours at one request a second).
+
+**Display (with F5 or after it).** The stock's Fundamentals card shows the latest split and its change over one and four quarters, and flags a rising pledge. Screener columns: promoter %, FII change, DII change, pledge %.
+
+**Research.** The F7 study may test shareholding changes as an extra feature (for example a rise in institutional holding before a breakout). Any use in the score is a strategy change decided at the review, as §2.
+
