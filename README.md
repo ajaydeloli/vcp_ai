@@ -5,13 +5,31 @@ See `PROJECT_DESIGN.md` for architecture and `AGENTS.md` for agent rules.
 
 ## Status
 
-Phases 0–5 are built: data ingestion, corporate-action adjustment, universe snapshots, daily
-features, relative strength, weekly stage and the Trend Template. **The VCP detector (Phase 6),
-scoring (Phase 7), API and frontend do not exist yet.**
+The system is in the **monitoring phase**. The data pipeline, Trend Template, VCP detector,
+scoring, the other four pattern strategies, the backtest engine, the paper ledger, the dashboard
+API and the frontend are built; the strategies are frozen.
 
-An independent audit of Phases 0–5 (`reports/phase0-5-independent-audit.md`, kept locally and
-git-ignored) concluded that Phase 6 should not start until its blockers are closed. Read
-[Known limitations](#known-limitations) before trusting any output for research.
+- **Data and scans:** ingestion, corporate-action adjustment, universe snapshots, features,
+  relative strength, Trend Template, VCP detection and setup scores (Phases 0-8), run every
+  evening by `vcp run daily`.
+- **Strategies (frozen, paper only):** `vcp-1.1.0`, `flat_base-1.0.0`,
+  `three_weeks_tight-1.1.0`, `cup_handle-1.1.0`, `double_bottom-1.0.0`. No strategy changes
+  until the review on or after **2027-04-01** (`STRATEGY_SPECIFICATION.md` section 21).
+- **Paper ledger:** rule set `paper-v1`, started 2026-10-01, updated by the daily run. Review
+  gates per strategy: at least 30 closed trades, profit factor 1.3 or better, drawdown no worse
+  than -20 %.
+- **Dashboard:** FastAPI at `/api/v1` and a Next.js frontend (`scripts/dashboard.sh`) over a
+  read-only serving copy. Pages: Market Overview, Screener, Stock Analysis, Recent IPOs,
+  Watchlist, Strategies, Paper Trading, System Status. Live prices are display only.
+- **Reports:** `vcp report daily|weekly` and the daily run write `reports/daily/<date>.html`
+  and, on Fridays, `reports/weekly/<ISO week>.html` (monitoring step M4).
+- **Not built:** Trend Template, Fundamentals, Alerts, Backtest, Research & Notes, Reports and
+  Settings dashboard pages; portfolio return and drawdown in the reports (judged at the review).
+
+The project never places orders. Read [Known limitations](#known-limitations) before trusting
+any output for research; the independent audit of Phases 0-5
+(`reports/phase0-5-independent-audit.md`, kept locally and git-ignored) is the basis of those
+limits.
 
 ## Setup
 
@@ -192,6 +210,8 @@ current status of each.
 | Trend Template, RS formula, weekly Stage | `TREND_TEMPLATE_SPECIFICATION.md` |
 | VCP detection and classification (Phase 6) | `VCP_SPECIFICATION.md` |
 | Scoring and ranking (Phase 7) | `SCORING_SPECIFICATION.md` |
+| Strategies, paper ledger, monitoring plan, reports | `STRATEGY_SPECIFICATION.md` |
+| Dashboard API and frontend | `FRONTEND_SPECIFICATION.md` |
 | Agent entry point / detailed agent rules | `AGENTS.md` / `AI_AGENT_RULES.md` |
 | Change history | `CHANGELOG.md` |
 
