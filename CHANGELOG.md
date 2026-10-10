@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Fundamentals: `vcp fundamentals update` no longer skips days or new stocks. It resumes listing from the last date listed completely (new table `fundamental_fetch_runs`), so days without a daily run are caught up, and it fetches the whole filing history of stocks entering the scope for the first time (up to `new_stock_limit` per run; table `fundamental_stock_history`). Stocks that leave the universe stay in scope, so a return leaves no gap.
+
 - Fundamentals F4: `vcp fundamentals backfill`, `update`, `status`. Lists all result filings by date range (the integrated feed pages: `size`/`page`/`totalCount`), keeps universe stocks since `history_from` (consolidated preferred), downloads with the database closed, then records, parses and stores one view per stock and change date in `fundamental_metrics` / `fundamental_data_quality` (now keyed by stock and as-of date; the empty F1 tables are replaced on migration). Config `data.fundamentals` in data.yaml. `vcp run daily` runs `fundamentals update` after the paper ledger (off with `daily_update: false`).
 
 - Fundamentals F3: `fundamentals/metrics.py` computes, as of the close of any date, EPS and sales growth (YoY, QoQ), EPS acceleration, margin expansion, ROE, debt/equity, TTM EPS, availability score, staleness and hard-gate flags (shown only) from the stored snapshots: point in time (broadcast by 15:30 IST, highest revision then), consolidated preferred, earlier EPS put on the current share basis across splits and bonus issues. `vcp fundamentals show SYMBOL [--date]` prints it. The pipeline test now checks that stored fundamentals leave the score hash unchanged.

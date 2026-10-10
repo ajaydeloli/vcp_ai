@@ -18,10 +18,12 @@ from vcp_scanner.domain.errors import ProviderError
 from vcp_scanner.fundamentals.base import FilingListing, FilingRef
 from vcp_scanner.fundamentals.pipeline import (
     download_missing,
+    list_histories,
     list_range,
     min_period_end,
     record_downloads,
     select_targets,
+    update_start,
     update_views,
     windows,
 )
@@ -53,8 +55,13 @@ class Provider:
         self.files = files
         self.downloads: list[str] = []
         self.fail_listing: set[date] = set()
+        self.fail_symbols: set[str] = set()
 
     def list_filings(self, *, symbol: Any = None, start: Any = None, end: Any = None) -> Any:
+        if symbol is not None:
+            if symbol in self.fail_symbols:
+                raise ProviderError("blocked")
+            return FilingListing([r for r in self.refs if r.symbol == symbol])
         if any(start <= d <= end for d in self.fail_listing):
             raise ProviderError("blocked")
         return FilingListing([r for r in self.refs if start <= r.broadcast_at.date() <= end])
@@ -197,3 +204,44 @@ def test_daily_switch_reads_the_config(tmp_path: Path) -> None:
     data = (cfg / "data.yaml").read_text().replace("daily_update: true", "daily_update: false")
     (cfg / "data.yaml").write_text(data)
     assert fundamentals_daily(str(cfg)) is False
+
+
+def test_listing_reports_how_far_it_is_complete() -> None:
+    refs, files = refs_and_files()
+    provider = Provider(refs, files)
+    full = list_range(provider, date(2024, 1, 1), date(2024, 3, 10))
+    assert full.complete_through == date(2024, 3, 10) and not full.incomplete
+    provider.fail_listing = {date(2024, 2, 10)}  # the second window fails
+    part = list_range(provider, date(2024, 1, 1), date(2024, 3, 10))
+    assert part.complete_through == date(2024, 1, 31) and len(part.incomplete) == 1
+    provider.fail_listing = {date(2024, 1, 5)}
+    assert list_range(provider, date(2024, 1, 1), date(2024, 3, 10)).complete_through is None
+
+
+def test_update_resumes_after_a_long_break() -> None:
+    today = date(2026, 10, 10)
+    assert update_start(today, None, 7) == date(2026, 10, 3)  # first update
+    # The daily run did not run for three weeks: the update starts where listing stopped.
+    assert update_start(today, date(2026, 9, 19), 7) == date(2026, 9, 16)
+    assert update_start(today, today, 7) == date(2026, 10, 7)
+
+
+def test_histories_of_new_stocks(repo: DuckDBFundamentalRepository) -> None:
+    refs, files = refs_and_files()
+    other = FilingRef(**{**refs[0].__dict__, "symbol": "NEWCO", "source_record_id": "9"})
+    provider = Provider([*refs, other], files)
+    provider.fail_symbols = {"BROKEN"}
+    listing = list_histories(provider, ["RELIANCE", "BROKEN"])
+    assert listing.histories_listed == ["RELIANCE"] and len(listing.refs) == 2
+    assert listing.incomplete == ["BROKEN: blocked"]
+
+
+def test_bookkeeping(repo: DuckDBFundamentalRepository, tmp_path: Path) -> None:
+    assert repo.last_complete_through() is None and repo.stocks_with_history() == set()
+    refs, files = refs_and_files()
+    run_pipeline(repo, Provider(refs, files), tmp_path)
+    repo.mark_history(["NOFILINGS"])
+    assert repo.stocks_with_history() == {"INS1", "NOFILINGS"}  # filings or a marker
+    repo.record_fetch_run("update", date(2026, 10, 1), date(2026, 10, 9), 0, 1)
+    repo.record_fetch_run("update", date(2026, 10, 9), None, 3, 0)  # a run that failed
+    assert repo.last_complete_through() == date(2026, 10, 9)

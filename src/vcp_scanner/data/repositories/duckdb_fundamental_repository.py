@@ -286,3 +286,49 @@ class DuckDBFundamentalRepository:
             "last_broadcast": q("SELECT max(broadcast_at) FROM fundamental_filings").fetchone()[0],  # type: ignore[index]
             "last_fetch": q("SELECT max(fetched_at) FROM fundamental_filings").fetchone()[0],  # type: ignore[index]
         }  # fmt: skip
+
+    # --- fetch bookkeeping (F4) ----------------------------------------------------------------
+
+    def record_fetch_run(
+        self, kind: str, listed_from: date, complete_through: date | None, incomplete: int,
+        new_stocks: int,
+    ) -> None:  # fmt: skip
+        self._conn.execute(
+            "INSERT INTO fundamental_fetch_runs VALUES (?, ?, ?, ?, ?, ?)",
+            [datetime.now(UTC), kind, listed_from, complete_through, incomplete, new_stocks],
+        )
+
+    def stocks_with_history(self) -> set[str]:
+        """Stocks whose history is stored: with filings already, or listed per stock (the
+        marker table may not exist yet in a database opened read-only before migration)."""
+        tables = {r[0] for r in self._conn.execute(
+            "SELECT table_name FROM information_schema.tables"
+            " WHERE table_name IN ('fundamental_filings', 'fundamental_stock_history')"
+        ).fetchall()}  # fmt: skip
+        out: set[str] = set()
+        if "fundamental_filings" in tables:
+            out |= {r[0] for r in self._conn.execute(
+                "SELECT DISTINCT instrument_id FROM fundamental_filings").fetchall()}  # fmt: skip
+        if "fundamental_stock_history" in tables:
+            out |= {r[0] for r in self._conn.execute(
+                "SELECT instrument_id FROM fundamental_stock_history").fetchall()}  # fmt: skip
+        return out
+
+    def last_complete_through(self) -> date | None:
+        exists = self._conn.execute(
+            "SELECT count(*) FROM information_schema.tables"
+            " WHERE table_name = 'fundamental_fetch_runs'"
+        ).fetchone()
+        if not exists or not exists[0]:
+            return None
+        row = self._conn.execute(
+            "SELECT max(complete_through) FROM fundamental_fetch_runs"
+        ).fetchone()
+        return row[0] if row else None
+
+    def mark_history(self, instrument_ids: Sequence[str]) -> None:
+        now = datetime.now(UTC)
+        for iid in instrument_ids:
+            self._conn.execute(
+                "INSERT OR IGNORE INTO fundamental_stock_history VALUES (?, ?)", [iid, now]
+            )

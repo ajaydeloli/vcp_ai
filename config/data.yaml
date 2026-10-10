@@ -35,6 +35,8 @@ fundamentals:
   scope: universe              # every stock eligible in a universe snapshot since history_from
   history_from: 2023-10-01     # filings are fetched from 15 months earlier (year-ago quarters)
   request_interval_seconds: 1.0
-  daily_update: true           # `vcp run daily` fetches the filings of the last update_days
-  update_days: 7
+  daily_update: true           # `vcp run daily` runs `vcp fundamentals update`
+  update_days: 7               # first update without a previous run; later updates resume
+                               # from the last date listed completely (no days skipped)
+  new_stock_limit: 100         # stocks new to the scope whose history one update fetches
   max_staleness_days: 120      # latest quarter older than this: STALE (a warning)

@@ -62,6 +62,11 @@ def windows(start: date, end: date, days: int = 31) -> list[tuple[date, date]]:
 class Listing:
     refs: list[FilingRef] = field(default_factory=list)
     incomplete: list[str] = field(default_factory=list)  # windows that failed or ran short
+    #: Every filing broadcast up to this date was listed (the end of the last window before the
+    #: first failed one); None when the first window failed. The next update starts here.
+    complete_through: date | None = None
+    #: Stocks whose whole history was listed (per-stock listing).
+    histories_listed: list[str] = field(default_factory=list)
 
 
 def list_range(
@@ -71,21 +76,57 @@ def list_range(
     result = Listing()
     seen: set[str] = set()
     spans = windows(start, end)
+    failed = False
     for n, (a, b) in enumerate(spans, 1):
         try:
             listing = provider.list_filings(start=a, end=b)
         except ProviderError as exc:
             result.incomplete.append(f"{a}..{b}: {exc}")
             logger.warning("fundamentals listing %s..%s failed: %s", a, b, exc)
+            failed = True
             continue
         if listing.truncated:
             result.incomplete.append(f"{a}..{b}: source returned fewer rows than it reported")
+            failed = True
+        elif not failed:
+            result.complete_through = b
         for ref in listing.filings:
             if ref.filing_id not in seen:
                 seen.add(ref.filing_id)
                 result.refs.append(ref)
         progress(f"listed {a}..{b} ({n}/{len(spans)}): {len(result.refs)} filings so far")
     return result
+
+
+def list_histories(
+    provider: FundamentalProvider, symbols: Sequence[str], progress: Progress = _quiet
+) -> Listing:
+    """The whole filing history of each stock (for stocks new to the scope)."""
+    result = Listing()
+    for n, symbol in enumerate(symbols, 1):
+        try:
+            listing = provider.list_filings(symbol=symbol)
+        except ProviderError as exc:
+            result.incomplete.append(f"{symbol}: {exc}")
+            continue
+        if listing.truncated:
+            result.incomplete.append(f"{symbol}: source returned fewer rows than it reported")
+            continue
+        result.refs.extend(listing.filings)
+        result.histories_listed.append(symbol)
+        if n % 20 == 0:
+            progress(f"histories listed {n}/{len(symbols)}")
+    return result
+
+
+def update_start(
+    today: date, complete_through: date | None, first_days: int, overlap_days: int = 3
+) -> date:
+    """Where an update starts listing: a few days before the last date listed completely
+    (filings are sometimes listed late), or ``first_days`` back when there is no such date."""
+    if complete_through is None:
+        return today - timedelta(days=first_days)
+    return min(today, complete_through - timedelta(days=overlap_days))
 
 
 def select_targets(

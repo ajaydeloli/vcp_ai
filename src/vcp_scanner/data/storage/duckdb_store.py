@@ -1126,6 +1126,24 @@ CREATE TABLE IF NOT EXISTS fundamental_data_quality (
     PRIMARY KEY (instrument_id, as_of_date)
 )
 """
+# Fundamentals fetch bookkeeping (F4): how far the date-range listing is known to be complete,
+# and which stocks have had their whole history listed (FUNDAMENTALS_SPECIFICATION §10).
+_DDL_FUNDAMENTAL_FETCH_RUNS = """
+CREATE TABLE IF NOT EXISTS fundamental_fetch_runs (
+    run_at            TIMESTAMPTZ NOT NULL,
+    kind              VARCHAR NOT NULL,      -- backfill | update
+    listed_from       DATE NOT NULL,
+    complete_through  DATE,                  -- every filing broadcast up to here was listed
+    incomplete        INTEGER NOT NULL,      -- windows that failed or ran short
+    new_stocks        INTEGER NOT NULL
+)
+"""
+_DDL_FUNDAMENTAL_STOCK_HISTORY = """
+CREATE TABLE IF NOT EXISTS fundamental_stock_history (
+    instrument_id  VARCHAR PRIMARY KEY,     -- its full filing history has been listed
+    listed_at      TIMESTAMPTZ NOT NULL
+)
+"""
 _DDL_FUNDAMENTAL_RESEARCH_SCORES = """
 CREATE TABLE IF NOT EXISTS fundamental_research_scores (
     instrument_id   VARCHAR NOT NULL,
@@ -1197,6 +1215,8 @@ _ALL_DDL: list[tuple[str, str]] = [
     ("fundamental_metrics", _DDL_FUNDAMENTAL_METRICS),
     ("fundamental_data_quality", _DDL_FUNDAMENTAL_DATA_QUALITY),
     ("fundamental_research_scores", _DDL_FUNDAMENTAL_RESEARCH_SCORES),
+    ("fundamental_fetch_runs", _DDL_FUNDAMENTAL_FETCH_RUNS),
+    ("fundamental_stock_history", _DDL_FUNDAMENTAL_STOCK_HISTORY),
 ]
 
 

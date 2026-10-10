@@ -642,7 +642,8 @@ class FundamentalsConfig(StrictBaseModel):
     history_from: date = date(2023, 10, 1)
     request_interval_seconds: Annotated[float, Field(ge=0.5)] = 1.0
     daily_update: bool = True  # `vcp run daily` fetches the last days' filings
-    update_days: Annotated[int, Field(ge=1, le=60)] = 7
+    update_days: Annotated[int, Field(ge=1, le=60)] = 7  # first update only; then resumes
+    new_stock_limit: Annotated[int, Field(ge=0)] = 100  # histories listed per update
     max_staleness_days: Annotated[int, Field(ge=1)] = 120
 
 

@@ -212,7 +212,12 @@ def _open_store(db: Path, *, read_only: bool) -> DuckDBStore:
 
 
 def _run_bulk(args: argparse.Namespace, command: str) -> int:
-    """``backfill`` and ``update``: the network part runs with the database closed."""
+    """``backfill`` and ``update``: the network part runs with the database closed.
+
+    ``update`` lists from a few days before the last date listed completely (so a week without
+    a daily run skips nothing) and lists the whole history of stocks new to the scope (at most
+    ``new_stock_limit`` per run; the rest follow on the next runs).
+    """
     import duckdb
 
     from vcp_scanner.config.loader import load_scanner_config
@@ -221,11 +226,14 @@ def _run_bulk(args: argparse.Namespace, command: str) -> int:
         DuckDBFundamentalRepository,
     )
     from vcp_scanner.fundamentals.pipeline import (
+        Listing,
         download_missing,
+        list_histories,
         list_range,
         min_period_end,
         record_downloads,
         select_targets,
+        update_start,
         update_views,
     )
     from vcp_scanner.fundamentals.snapshots import parse_filings
@@ -237,28 +245,41 @@ def _run_bulk(args: argparse.Namespace, command: str) -> int:
     cache_root = db.parent / "raw" / "fundamentals"
     today = datetime.now(IST).date()
     oldest = min_period_end(fcfg.history_from)
-    if command == "backfill":
-        start = oldest + timedelta(days=1)
-    else:
-        start = today - timedelta(days=args.days or fcfg.update_days)
 
     # 1. What to fetch (database read-only, briefly).
     try:
         store = _open_store(db, read_only=True)
-        ids = DuckDBFundamentalRepository(store).universe_symbols(fcfg.history_from)
+        repo = DuckDBFundamentalRepository(store)
+        ids = repo.universe_symbols(fcfg.history_from)
+        through = repo.last_complete_through()
+        have_history = repo.stocks_with_history()
         store.conn.close()
     except duckdb.Error as exc:
         _err(f"Database not readable now ({exc}). Is another job running? Try again later.")
         return 1
     if args.limit:
         ids = dict(sorted(ids.items())[: args.limit])
-    _say(f"{command}: {len(ids)} stocks, filings broadcast {start}..{today}, periods >= {oldest}")
+    if command == "backfill":
+        start = oldest + timedelta(days=1)
+        new_symbols: list[str] = []
+    else:
+        first = args.days or fcfg.update_days
+        start = max(update_start(today, through, first), oldest + timedelta(days=1))
+        if args.days:
+            start = today - timedelta(days=args.days)
+        new_symbols = sorted(s for s, iid in ids.items() if iid not in have_history)
+        new_symbols = new_symbols[: fcfg.new_stock_limit]
+    _say(
+        f"{command}: {len(ids)} stocks, filings broadcast {start}..{today}, periods >= {oldest}"
+        + (f"; whole history of {len(new_symbols)} new stocks" if new_symbols else "")
+    )
 
     # 2. List and download (network and raw cache only).
     provider = NseFilingProvider(interval_seconds=fcfg.request_interval_seconds)
     listing = list_range(provider, start, today, progress=_say if command == "backfill" else _quiet)
-    targets = select_targets(listing.refs, ids, oldest)
-    _say(f"listed {len(listing.refs)} filings, {len(targets)} for our stocks")
+    histories = list_histories(provider, new_symbols, progress=_say) if new_symbols else Listing()
+    targets = select_targets(listing.refs + histories.refs, ids, oldest)
+    _say(f"listed {len(listing.refs) + len(histories.refs)} filings, {len(targets)} for our stocks")
     downloads = download_missing(provider, targets, cache_root, progress=_say)
     failed = sum(1 for d in downloads if d.error)
     _say(f"downloads done: {len(downloads) - failed} in cache, {failed} failed")
@@ -274,13 +295,20 @@ def _run_bulk(args: argparse.Namespace, command: str) -> int:
     parsed = parse_filings(repo, cache_root)
     views = update_views(repo, staleness_days=fcfg.max_staleness_days,
                          min_availability=min_availability)  # fmt: skip
+    if command == "backfill" and listing.complete_through == today:
+        repo.mark_history(list(ids.values()))  # every stock's filings since then were listed
+    repo.mark_history([ids[s] for s in histories.histories_listed])
+    repo.record_fetch_run(command, start, listing.complete_through,
+                          len(listing.incomplete) + len(histories.incomplete),
+                          len(histories.histories_listed))  # fmt: skip
     store.conn.close()
     total = parsed.parsed + parsed.errors
     rate = parsed.errors / total if total else 0.0
     _say(f"recorded {recorded} new filings ({errors} fetch errors); snapshots {parsed.parsed}"
          f" (estimated {parsed.estimated}, invalid {parsed.invalid}), parse errors"
-         f" {parsed.errors} ({rate:.1%}); views written {views}")  # fmt: skip
-    for message in (listing.incomplete + parsed.messages)[:20]:
+         f" {parsed.errors} ({rate:.1%}); views written {views};"
+         f" listed completely through {listing.complete_through}")  # fmt: skip
+    for message in (listing.incomplete + histories.incomplete + parsed.messages)[:20]:
         print(f"  WARNING {message}")
     return 0
 
