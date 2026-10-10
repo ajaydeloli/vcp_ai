@@ -65,6 +65,16 @@ def table(head: list[str], rows: list[list[str]], numeric_from: int = 99) -> str
     return f"<table><tr>{th}</tr>{body}</table>"
 
 
+def past_note(day: date, latest: date | None, now: datetime) -> str:
+    if latest is None or day >= latest:
+        return ""
+    return (
+        f'<p class="warn">Rebuilt on {now:%Y-%m-%d} for a past day. Scans, setups, regime and '
+        f"paper trades are for {day}; open positions, paper results and run health are as of "
+        f"the latest data ({latest}).</p>"
+    )
+
+
 def page(title: str, sections: list[str], generated: datetime) -> str:
     return (
         f'<!doctype html><html lang="en"><head><meta charset="utf-8"><title>{esc(title)}</title>'
@@ -138,7 +148,7 @@ def daily_html(
 ) -> str:  # fmt: skip
     status = r.status(cur, ctx, now, data_time)
     days = [d for d in q.market_days(cur, ctx, day, MARKET_DAYS) if d.day <= day]
-    sections = [regime_section(days, ctx.regime_rule)]
+    sections = [past_note(day, status.prices_date, now), regime_section(days, ctx.regime_rule)]
 
     sections.append("<h2>Ranked setups by strategy (grade 2 or better)</h2>")
     for spec in ctx.strategies:
@@ -207,7 +217,7 @@ def weekly_html(
     days = [d for d in q.market_days(cur, ctx, day, MARKET_DAYS) if d.day <= day]
     this_week = [d for d in days if d.day >= monday]
 
-    sections = [regime_section(days, ctx.regime_rule)]
+    sections = [past_note(day, status.prices_date, now), regime_section(days, ctx.regime_rule)]
     if this_week:
         first, last = this_week[0], this_week[-1]
         idx = (
@@ -278,25 +288,70 @@ def weekly_html(
 
 # --- writing -----------------------------------------------------------------------------
 
+Source = Path | ServingDb
+
+
+def _db(serving: Source) -> ServingDb:
+    return serving if isinstance(serving, ServingDb) else ServingDb(serving)
+
+
+def _sessions(cur: duckdb.DuckDBPyConnection, start: date, end: date) -> list[date]:
+    rows = cur.execute(
+        "SELECT trade_date FROM bhavcopy_files WHERE status = 'OK' AND trade_date BETWEEN ? AND ?"
+        " ORDER BY trade_date",
+        [start, end],
+    ).fetchall()
+    return [r[0] for r in rows]
+
+
+def last_session_of_week(cur: duckdb.DuckDBPyConnection, day: date) -> date | None:
+    """The last session of ``day``'s week that has prices (the week so far when it is current)."""
+    monday, sunday, _ = week_bounds(day)
+    days = _sessions(cur, monday, sunday)
+    return days[-1] if days else None
+
+
+def week_is_over(latest: date, holidays: set[date] | None) -> bool:
+    """True when ``latest`` is the week's last trading day: a Friday, or a day after which every
+    weekday up to Friday is a known holiday (``holidays`` None: only Friday counts)."""
+    if latest.weekday() == 4:
+        return True
+    if not holidays:
+        return False
+    rest = [latest + timedelta(days=k) for k in range(1, 5 - latest.weekday())]
+    return bool(rest) and latest.weekday() < 4 and all(d in holidays for d in rest)
+
 
 def _build(
-    serving: Path, config_dir: str | Path, data_dir: str | Path,
-    make: Callable[..., str], day: date | None, now: datetime,
+    serving: Source, config_dir: str | Path, data_dir: str | Path,
+    make: Callable[..., str], day: date | None, now: datetime, weekly: bool,
 ) -> tuple[str, date]:  # fmt: skip
     ctx = build_context(config_dir, data_dir)
-    db = ServingDb(serving)
+    db = _db(serving)
     with db.cursor() as cur:
-        use = day or q.latest_prices_date(cur)
-        if use is None:
+        latest = q.latest_prices_date(cur)
+        if latest is None:
             raise ValueError("no prices in the serving copy")
+        use = day or latest
+        if use > latest:
+            raise ValueError(f"{use} is after the latest prices ({latest})")
+        if weekly:
+            last = last_session_of_week(cur, use)
+            if last is None or last > latest:
+                raise ValueError(f"no trading session in the week of {use}")
+            use = last
+        elif use not in _sessions(cur, use, use):
+            raise ValueError(f"{use} is not a trading session with prices")
         return make(cur, ctx, use, now, db.data_time()), use
 
 
 def write_daily(
-    serving: Path, config_dir: str | Path, data_dir: str | Path, out_dir: Path,
+    serving: Source, config_dir: str | Path, data_dir: str | Path, out_dir: Path,
     day: date | None = None, now: datetime | None = None,
 ) -> Path:  # fmt: skip
-    text, used = _build(serving, config_dir, data_dir, daily_html, day, now or datetime.now(IST))
+    text, used = _build(
+        serving, config_dir, data_dir, daily_html, day, now or datetime.now(IST), False
+    )
     path = out_dir / "daily" / f"{used}.html"
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(text, encoding="utf-8")
@@ -304,30 +359,53 @@ def write_daily(
 
 
 def write_weekly(
-    serving: Path, config_dir: str | Path, data_dir: str | Path, out_dir: Path,
+    serving: Source, config_dir: str | Path, data_dir: str | Path, out_dir: Path,
     day: date | None = None, now: datetime | None = None,
 ) -> Path:  # fmt: skip
-    text, used = _build(serving, config_dir, data_dir, weekly_html, day, now or datetime.now(IST))
+    """The summary of ``day``'s week, as of that week's last session so far."""
+    text, used = _build(
+        serving, config_dir, data_dir, weekly_html, day, now or datetime.now(IST), True
+    )
     path = out_dir / "weekly" / f"{week_bounds(used)[2]}.html"
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(text, encoding="utf-8")
     return path
 
 
-def _latest_day(serving: Path) -> date | None:
-    with ServingDb(serving).cursor() as cur:
+def _latest_day(serving: Source) -> date | None:
+    with _db(serving).cursor() as cur:
         return q.latest_prices_date(cur)
 
 
 def write_reports(
-    serving: Path, config_dir: str | Path, data_dir: str | Path, out_dir: Path
+    serving: Source, config_dir: str | Path, data_dir: str | Path, out_dir: Path,
+    holidays: Callable[[], set[date]] | None = None,
 ) -> list[Path]:  # fmt: skip
-    """The daily report, plus the weekly summary when the latest prices are from a Friday."""
+    """The daily report; the weekly summary when the latest prices are the week's last trading day
+    (a Friday, or a day before holidays that run up to the weekend); and the previous week's
+    summary when the first run of a new week finds it missing (a holiday list that could not be
+    loaded, or a missed run)."""
     paths = [write_daily(serving, config_dir, data_dir, out_dir)]
     latest = _latest_day(serving)
-    if latest is not None and latest.weekday() == 4:
+    if latest is None:
+        return paths
+    try:
+        known = holidays() if holidays else None
+    except Exception:  # the list is a convenience: without it only Friday counts
+        known = None
+    if week_is_over(latest, known):
         paths.append(write_weekly(serving, config_dir, data_dir, out_dir, latest))
+        return paths
+    before = week_bounds(latest)[0] - timedelta(days=1)
+    missing = out_dir / "weekly" / f"{week_bounds(before)[2]}.html"
+    with _db(serving).cursor() as cur:
+        had_sessions = last_session_of_week(cur, before) is not None
+    if had_sessions and not missing.exists():
+        paths.append(write_weekly(serving, config_dir, data_dir, out_dir, before))
     return paths
 
 
-__all__: list[Any] = ["write_daily", "write_weekly", "write_reports", "week_bounds"]
+__all__: list[Any] = [
+    "write_daily", "write_weekly", "write_reports", "week_bounds", "week_is_over",
+    "last_session_of_week",
+]  # fmt: skip

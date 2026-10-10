@@ -46,6 +46,7 @@ export function sample(rel: string): unknown {
     case "ipos": return fx.ipos;
     case "backtests": return fx.backtests;
     case "reports": return fx.reports;
+    case "reports/generate": return { ...fx.reports.files[0], name: "2026-10-01.html", label: "Daily report 2026-10-01" };
     case "search": return fx.search;
     case "screener": return fx.screener;
     case "live/indices": return fx.liveIndices;

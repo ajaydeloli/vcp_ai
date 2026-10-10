@@ -13,10 +13,10 @@ export class ApiError extends Error {
   }
 }
 
-export async function getJson<T>(path: string, schema: z.ZodType<T>): Promise<T> {
+async function request<T>(path: string, schema: z.ZodType<T>, init?: RequestInit): Promise<T> {
   let res: Response;
   try {
-    res = await fetch(`/api/v1/${path}`, { headers: { accept: "application/json" } });
+    res = await fetch(`/api/v1/${path}`, { headers: { accept: "application/json" }, ...init });
   } catch {
     throw new ApiError("The API is not reachable. Start it with: vcp api serve");
   }
@@ -36,6 +36,16 @@ export async function getJson<T>(path: string, schema: z.ZodType<T>): Promise<T>
   }
   return parsed.data;
 }
+
+export const getJson = <T,>(path: string, schema: z.ZodType<T>): Promise<T> => request(path, schema);
+
+/** The only write the page can ask for: build a report file (POST /reports/generate). */
+export const generateReport = (kind: "daily" | "weekly", date: string): Promise<s.ReportFile> =>
+  request("reports/generate", s.reportFile, {
+    method: "POST",
+    headers: { accept: "application/json", "content-type": "application/json" },
+    body: JSON.stringify({ kind, date }),
+  });
 
 type Params = Record<string, string | number | boolean | undefined | null>;
 

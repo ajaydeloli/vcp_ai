@@ -1959,7 +1959,7 @@ The owner asked (2026-10-06, signed off the same day: W1–W4 all as recommended
 
 ## 67.1 Principles
 
-- **Read-only.** Neither the API nor the page writes anything; the frozen strategies and the paper ledger are untouched (STRATEGY_SPECIFICATION §21.1).
+- **Read-only.** Neither the API nor the page writes to a database; the frozen strategies and the paper ledger are untouched (STRATEGY_SPECIFICATION §21.1). One exception, added with the Reports page (§67.27): `POST /api/v1/reports/generate` writes a report HTML file under the reports folder. It takes a JSON body only, reads the serving copy, and cannot write anywhere else.
 - **Honest data only.** Every number comes from our database; nothing the database does not have is shown or imitated. Lists are labelled a watch list, not trade instructions; the page footer says "Research tool, not financial advice".
 - **Local.** The API listens on `127.0.0.1:8000`, the page on `localhost:3000`, on this PC only (Windows reaches WSL's localhost). No login, no remote access, no alerts in v1.
 - The frontend never reads DuckDB directly (§4).
@@ -2342,6 +2342,8 @@ Lists the HTML reports of STRATEGY_SPECIFICATION 21.10 (`reports/daily/<date>.ht
 
 - The API serves a file only when its folder is `daily` or `weekly` and its name is a report name (`YYYY-MM-DD.html`, `YYYY-Www.html`); any other name is a 404. The frame is sandboxed (no scripts).
 - No report yet: the page says so and gives the command to write one (`vcp report daily`).
+- **Generate a report** (card above the list): choose Daily report or Weekly summary and a date, then Generate. The date defaults to the latest prices and cannot be later. Daily needs a trading day with prices; weekly takes any day of the week and reports the week up to its last session. `POST /api/v1/reports/generate` with `{"kind": "daily"|"weekly", "date": "YYYY-MM-DD"}` writes `reports/daily/<date>.html` or `reports/weekly/<ISO week>.html` (a report of the same day is replaced) and answers with the file; a day that cannot have a report gets a 400 with the reason, an unknown kind or a body that is not JSON a 422. The new report is opened in the list at once.
+- A report of a past day says so at the top: scans, setups, regime and the day's paper trades are for that day, but open positions, paper results and run health are as of the latest data (the ledger and the status are not kept per day). It is rebuilt from today's stored data, not a copy of what was shown then.
 - Not built: PDF/CSV export, and the other report kinds of section 27 (Breakout, Research, Data Quality); the daily report already holds the run health.
 
 Both pages move from "later" into the top navigation (after Paper Trading).
