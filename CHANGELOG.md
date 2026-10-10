@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- FRONTEND_SPECIFICATION §67.28 (plan): Market Overview update after F5 — NIFTY 50/500 next to VQI from NSE's daily index file on the archive host (probed: 168 indices), distribution-day markers, A/D and net-new-highs divergence warnings, net new highs with a 10-day average, setups/breakouts per day with the failure rate, sector strength after S1, a breadth thrust line. Docs only.
+
 - DATA_SPECIFICATION §48.1 (plan): sector and industry classification from NSE (index constituent lists on the archive host, 679 of 1,272 eligible stocks, then per-stock classification after the rate limit lifts), table `instrument_classification` with validity dates, display only. Step S1, before the Fundamentals page. Docs only.
 
 - Fundamentals: gentler on NSE after the website rate-limited the first backfill (403 after ~7,600 requests): one request every 2 seconds, no website cookie request for archive downloads, a stop after 20 failures in a row, and `vcp fundamentals backfill --resume` from the saved target list.

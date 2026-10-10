@@ -2348,3 +2348,24 @@ Lists the HTML reports of STRATEGY_SPECIFICATION 21.10 (`reports/daily/<date>.ht
 - Not built: PDF/CSV export, and the other report kinds of section 27 (Breakout, Research, Data Quality); the daily report already holds the run health.
 
 Both pages move from "later" into the top navigation (after Paper Trading).
+
+### 67.28 Market Overview update — plan (owner, 2026-10-10; after F5)
+
+Goal: answer five questions with about eight charts, each one saying something the others do not. The Market Health score is display only, outside the frozen strategies and the paper ledger, so changing it is not a strategy change.
+
+| Question | Chart | Now | Change |
+|---|---|---|---|
+| Is the market in an uptrend? | Index with 50/200-day averages | VQI | **Add NIFTY 50 and NIFTY 500 lines** (rebased to 100 like VQI): NIFTY up while VQI lags = a few large stocks carry the market. Source: NSE's daily index file on the archive host, `nsearchives.nseindia.com/content/indices/ind_close_all_DDMMYYYY.csv` (probed 2026-10-10: 168 indices with open/high/low/close/volume, incl. the sector indices), stored in a new table `index_daily` by the daily run; backfilled from the same files. **Distribution days as markers** on the index chart. |
+| How many stocks take part? | % above 50- and 200-day averages | yes | keep |
+| | A/D line | vs its 50-day average | **divergence warning**: VQI within 3 % of its 52-week high while the A/D line is clearly below its own 52-week high |
+| | Short-term breadth thrust | — | **add**: 10-day average of advancers / (advancers + decliners); a jump from below 40 % to above 61.5 % within 10 sessions is marked as a thrust (the end-of-correction signal) |
+| Are leaders emerging or failing? | New 52-week highs vs lows | two daily lines | **net new highs** (highs − lows) with its **10-day average**; the health item scores the average, not one day; divergence warning as for the A/D line; a "New highs today" list (symbol, RS, sector) |
+| | Setups and breakouts | — | **add**: per day, new setups and breakouts across the five strategies, with the 5-session failure rate as a line |
+| | Leaders vs the index | scored | chart the median RS of the top 10 % against VQI |
+| Where is the strength? | Sector strength | — | **add after S1**: per sector, % above the 50-day average, median RS, breakouts, new highs, and their change over a month; NSE sector index closes from the same daily file |
+| Is our method working? | Paper results; market stage counts | yes | keep; the paper chart stays prominent |
+
+Left out on purpose: McClellan oscillator, TRIN and similar oscillators (noise for this style of trading).
+
+Order of work: (1) setups/breakouts with failure rate, (2) net new highs with its average and both divergence warnings, (3) NIFTY lines from the index file, (4) distribution-day markers, (5) sector strength after S1, (6) breadth thrust. Each step: API change with contract tests, the chart, the health item's rule in STRATEGY_SPECIFICATION §21.10 updated, CHANGELOG.
+
