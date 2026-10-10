@@ -4,8 +4,9 @@ FUNDAMENTALS_SPECIFICATION §3. Two public feeds, same XBRL tag set:
 
 * ``corporates-financial-results`` - filings to Jan 2025 (``period`` Quarterly | Annual).
 * ``integrated-filing-results`` - filings from Feb 2025. One feed for several kinds of filing;
-  only ``Integrated Filing- Financials`` rows are results. It returns at most 20 rows per query
-  (verified 2026-10-03), so ``FilingListing.truncated`` is set when 20 rows come back.
+  ``type=Integrated Filing- Financials`` keeps the results. It pages: 20 rows by default,
+  ``size`` up to 1000 and ``page`` (1-based), with ``totalCount`` in the answer (verified
+  2026-10-10: 2,976 result filings for 1-14 Aug 2026 in three pages of 1,000).
 
 One request per second at most; HTTP 403/429 and timeouts are retried with a growing pause and a
 fresh session cookie. Nothing is parsed here.
@@ -36,7 +37,8 @@ logger = logging.getLogger(__name__)
 BASE_URL = "https://www.nseindia.com"
 OLD_URL = f"{BASE_URL}/api/corporates-financial-results"
 NEW_URL = f"{BASE_URL}/api/integrated-filing-results"
-NEW_FEED_ROW_LIMIT = 20
+NEW_FEED_PAGE_SIZE = 1000
+NEW_FEED_MAX_PAGES = 50
 _FINANCIALS = "Integrated Filing- Financials"
 _BACKOFF_SECONDS = (5.0, 20.0, 60.0)
 
@@ -201,14 +203,36 @@ class NseFilingProvider:
         for period in ("Quarterly", "Annual"):
             rows = self._json_rows(self._get(OLD_URL, {**base, "period": period}))
             refs.extend(r for r in map(parse_old_row, rows) if r is not None)
-        new_rows = self._json_rows(self._get(NEW_URL, base))
+        new_rows, complete = self._new_feed_rows(base)
         refs.extend(r for r in map(parse_new_row, new_rows) if r is not None)
-        # Rows of other kinds count toward the cap, so compare the raw row count.
-        truncated = len(new_rows) >= NEW_FEED_ROW_LIMIT
         unique = {r.filing_id: r for r in refs}
-        return FilingListing(
-            sorted(unique.values(), key=lambda r: (r.symbol, r.broadcast_at)), truncated
-        )
+        ordered = sorted(unique.values(), key=lambda r: (r.symbol, r.broadcast_at))
+        return FilingListing(ordered, truncated=not complete)
+
+    def _new_feed_rows(self, base: dict[str, str]) -> tuple[list[dict[str, Any]], bool]:
+        """All result rows of the integrated feed for ``base``, page by page."""
+        rows: list[dict[str, Any]] = []
+        for page in range(1, NEW_FEED_MAX_PAGES + 1):
+            params = {**base, "type": _FINANCIALS, "size": str(NEW_FEED_PAGE_SIZE),
+                      "page": str(page)}  # fmt: skip
+            response = self._get(NEW_URL, params)
+            batch = self._json_rows(response)
+            rows.extend(batch)
+            total = self._total_count(response)
+            if total is None:  # no paging information: one answer is all there is
+                return rows, len(batch) < NEW_FEED_PAGE_SIZE
+            if len(rows) >= total or not batch:
+                return rows, len(rows) >= total
+        return rows, False
+
+    @staticmethod
+    def _total_count(response: requests.Response) -> int | None:
+        try:
+            data = response.json()
+        except ValueError:
+            return None
+        total = data.get("totalCount") if isinstance(data, dict) else None
+        return int(total) if isinstance(total, int | str) and str(total).isdigit() else None
 
     @staticmethod
     def _json_rows(response: requests.Response) -> list[dict[str, Any]]:

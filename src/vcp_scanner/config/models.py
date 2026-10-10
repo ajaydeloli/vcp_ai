@@ -9,6 +9,7 @@ Implements all hypotheses and safety bounds specified in:
 from __future__ import annotations
 
 import math
+from datetime import date
 from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
@@ -634,6 +635,17 @@ class QualityGateConfig(StrictBaseModel):
     staleness: StalenessConfig = Field(default_factory=StalenessConfig)
 
 
+class FundamentalsConfig(StrictBaseModel):
+    """FUNDAMENTALS_SPECIFICATION §9. Display and research only until the review (§2)."""
+
+    scope: Literal["universe"] = "universe"
+    history_from: date = date(2023, 10, 1)
+    request_interval_seconds: Annotated[float, Field(ge=0.5)] = 1.0
+    daily_update: bool = True  # `vcp run daily` fetches the last days' filings
+    update_days: Annotated[int, Field(ge=1, le=60)] = 7
+    max_staleness_days: Annotated[int, Field(ge=1)] = 120
+
+
 class DataConfig(StrictBaseModel):
     """Data persistence and provider configuration (PROJECT_DESIGN section 45)."""
 
@@ -649,6 +661,7 @@ class DataConfig(StrictBaseModel):
     completeness: CompletenessConfig = Field(default_factory=CompletenessConfig)
     corporate_actions: CorporateActionsConfig = Field(default_factory=CorporateActionsConfig)
     quality: QualityGateConfig = Field(default_factory=QualityGateConfig)
+    fundamentals: FundamentalsConfig = Field(default_factory=FundamentalsConfig)
 
 
 class MonitoringConfig(StrictBaseModel):

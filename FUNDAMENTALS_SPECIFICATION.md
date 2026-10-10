@@ -58,7 +58,7 @@ XBRL facts (old feed): RevenueFromOperations, ProfitLossForPeriod, ProfitOrLossA
 - (c) **One parser is enough.** The integrated feed also links an XBRL file (`xbrl`, namespace `in-capmkt`, same tag names and `OneD`/`FourD` contexts). The inline-XBRL HTML (`ixbrl`) is not needed and not fetched.
 - (d) Balance-sheet tags (`Equity`, `EquityAttributableToOwnersOfParent`, `BorrowingsCurrent`, `BorrowingsNoncurrent`) appear only in half-yearly (Sep, Mar) and annual filings; the Jun and Dec quarterly filings have no balance sheet. ROE and debt/equity therefore update twice a year.
 - (e) **Banks** (feed flag `bank = B`, `Non-Ind-AS` format) use another tag set (`InterestEarned`, `Income`, `BasicEarningsPerShareAfterExtraordinaryItems`); the Ind-AS names are absent. Handled as §5.5 (version 1: total income, EPS as filed).
-- (f) **Date-range queries.** The old feed answers an all-equities range (647 rows for 1–10 Nov 2024). The integrated feed returns **at most 20 rows per query**, even for a two-day range, and mixes in non-result filings (`Integrated Filing- Governance`). The listing marks such a result `truncated`; the daily update must query one symbol at a time (or one day with paging, once a paging parameter is found).
+- (f) **Date-range queries.** The old feed answers an all-equities range (647 rows for 1–10 Nov 2024). The integrated feed returns 20 rows by default but pages: `type=Integrated Filing- Financials` keeps only results, `size` up to 1000, `page` 1-based, `totalCount` in the answer (F4 probe, 2026-10-10: 2,976 result filings for 1–14 Aug 2026). So both the backfill and the daily update list all stocks by date range, month by month; a window that fails or returns fewer rows than `totalCount` is reported and listed again by the next run.
 - Old-feed filings before about 2013 have no XBRL file (the link ends in `/xbrl/-`); they are not listed.
 - A quarterly and an annual filing share the March period end, so the revision number counts per (period end, type, basis). The integrated feed does not say quarterly or annual: its period type is set by the parser (F2) and its revisions renumbered then.
 - Revision fields: old feed `reInd` (`N`, `I`, `-`) and `oldNewFlag`; integrated feed `type_Sub` (`Original`), `revised_Date`, `revision_Remark`. Their meaning is not documented; they are stored verbatim (`revision_flags`) and revisions are numbered by broadcast order, which is what point-in-time selection needs.
@@ -145,10 +145,14 @@ A stock that enters the universe later is fetched on the next update; a stock wi
 
 # 10. Pipeline
 
-- `vcp fundamentals backfill [--from DATE] [--symbol X]`: lists filings per stock and fetches the missing ones. It works in small batches and, per batch, takes the daily-run lock, writes, and releases it, so the evening run is never blocked by an hours-long backfill (DuckDB has one writer). Stops cleanly on Ctrl-C and resumes.
-- `vcp fundamentals update`: the incremental step. Asks the all-equities date-range query for filings since the last stored broadcast date (it has none: F1 finding a), fetches those of universe stocks, parses, stores, recomputes metrics.
-- `vcp fundamentals status`: counts by status, newest broadcast, stocks without data, parse errors.
-- `vcp run daily`: a guarded step after the paper ledger and before the serving copy. A failure prints a warning and never fails the run; the daily summary line gains "fundamentals: N new filings".
+Implemented in F4 (`fundamentals/pipeline.py`, `cli_fundamentals.py`):
+
+- `vcp fundamentals backfill [--limit N]`: lists every result filing broadcast since 15 months before `history_from` (all stocks, month by month), keeps those of stocks eligible in any universe snapshot since `history_from` (§9) with a period end in range, and downloads the missing ones; standalone filings only where no consolidated one exists for the period (policy `prefer_consolidated`). The network part runs with the database closed (DuckDB has one writer): the database is opened read-only at the start (which stocks) and read-write at the end for a few minutes (manifest, parse, views). A file already in the raw cache is not downloaded again, so an interrupted backfill resumes; if the database is busy at the end, the downloads are kept and the next run records them.
+- `vcp fundamentals update [--days N]`: the same for filings broadcast in the last `update_days` (7).
+- `vcp fundamentals status`: filings by status and error rate, snapshots, stocks with data, stored views, newest broadcast and last fetch.
+- `vcp fundamentals show SYMBOL [--date]`: the view of one stock as of a date.
+- `vcp run daily`: runs `fundamentals update` after the paper ledger and before the serving copy when `data.fundamentals.daily_update` is true. NSE being unreachable is a warning inside the step (exit 0); only a real error fails the step.
+- **Stored views.** `fundamental_metrics` and `fundamental_data_quality` hold one row per stock and date on which its view changed (the first date whose close sees a new filing), keyed `(instrument_id, as_of_date)`. The view of any date D is the row with the greatest `as_of_date` ≤ D, with STALE when D is after `stale_after`. A filing that arrives late (an earlier date than rows already stored) recomputes the later rows. Rows are computed by the pure function of §6–8, so they equal a recompute.
 - The serving copy carries the fundamental tables, so the dashboard reads them like everything else.
 
 ---

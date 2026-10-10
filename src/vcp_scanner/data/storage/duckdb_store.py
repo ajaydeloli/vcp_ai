@@ -1088,18 +1088,29 @@ CREATE TABLE IF NOT EXISTS fundamental_facts (
     PRIMARY KEY (fundamental_snapshot_id, scope, item)
 )
 """
+# One row per stock and date on which its fundamental view changed (a usable filing appeared):
+# the view as of the close of that date (FUNDAMENTALS_SPECIFICATION §6-8, F4). The view of any
+# later date D is the row with the greatest as_of_date <= D. Point in time by construction.
 _DDL_FUNDAMENTAL_METRICS = """
 CREATE TABLE IF NOT EXISTS fundamental_metrics (
-    fundamental_snapshot_id VARCHAR PRIMARY KEY,
+    instrument_id           VARCHAR NOT NULL,
+    as_of_date              DATE NOT NULL,
+    fundamental_snapshot_id VARCHAR NOT NULL,   -- the latest usable quarter
+    period_end              DATE NOT NULL,
+    statement_basis         VARCHAR NOT NULL,
     revenue DOUBLE, revenue_yoy DOUBLE, revenue_qoq DOUBLE,
-    eps DOUBLE, eps_yoy DOUBLE, eps_qoq DOUBLE, eps_acceleration DOUBLE,
+    eps DOUBLE, eps_yoy DOUBLE, eps_qoq DOUBLE, eps_acceleration DOUBLE, ttm_eps DOUBLE,
     gross_margin DOUBLE, operating_margin DOUBLE, net_margin DOUBLE, margin_expansion DOUBLE,
-    roe DOUBLE, debt DOUBLE, debt_to_equity DOUBLE
+    roe DOUBLE, debt DOUBLE, debt_to_equity DOUBLE,
+    statuses_json           VARCHAR NOT NULL,   -- metric -> AVAILABLE | MISSING | ...
+    computed_at             TIMESTAMPTZ NOT NULL,
+    PRIMARY KEY (instrument_id, as_of_date)
 )
 """
 _DDL_FUNDAMENTAL_DATA_QUALITY = """
 CREATE TABLE IF NOT EXISTS fundamental_data_quality (
-    fundamental_snapshot_id      VARCHAR PRIMARY KEY,
+    instrument_id                VARCHAR NOT NULL,
+    as_of_date                   DATE NOT NULL,
     eps_available                BOOLEAN NOT NULL,
     sales_available              BOOLEAN NOT NULL,
     margin_available             BOOLEAN NOT NULL,
@@ -1107,8 +1118,12 @@ CREATE TABLE IF NOT EXISTS fundamental_data_quality (
     debt_available               BOOLEAN NOT NULL,
     periods_available            INTEGER NOT NULL,
     availability_score           DOUBLE NOT NULL,
-    fundamental_hard_gate_pass   BOOLEAN,           -- shown only, never applied (spec §2)
-    fundamental_gate_reason      VARCHAR
+    stale_after                  DATE NOT NULL,     -- STALE on later dates (§8)
+    estimated                    BOOLEAN NOT NULL,
+    restated                     BOOLEAN NOT NULL,
+    fundamental_hard_gate_pass   BOOLEAN NOT NULL,  -- shown only, never applied (spec §2)
+    fundamental_gate_reason      VARCHAR,
+    PRIMARY KEY (instrument_id, as_of_date)
 )
 """
 _DDL_FUNDAMENTAL_RESEARCH_SCORES = """
@@ -1310,6 +1325,7 @@ class DuckDBStore:
         self._migrate_derived_snapshot_lineage()
         self._add_column_if_missing("trend_template_results", "blocked_by", "VARCHAR")
         self._add_column_if_missing("universe_snapshots", "survivorship_detail", "VARCHAR")
+        self._migrate_fundamental_views()
         new_collections = not self._column_nullability("surveillance_collections")
         for table_name, ddl in _ALL_DDL:
             self.conn.execute(ddl)
@@ -1331,6 +1347,23 @@ class DuckDBStore:
             logger.debug("Ensured view: %s", view_name)
         self._seed_event_history()
         logger.info("DuckDBStore migration complete (%d tables)", len(_ALL_DDL))
+
+    def _migrate_fundamental_views(self) -> None:
+        """F4 keyed fundamental_metrics/_data_quality by (stock, as-of date) instead of by
+        snapshot. The old tables were created empty in F1 and never written, so an empty old
+        table is dropped and recreated; a non-empty one is left alone and reported."""
+        for table in ("fundamental_metrics", "fundamental_data_quality"):
+            cols = {r[0] for r in self.conn.execute(
+                "SELECT column_name FROM information_schema.columns WHERE table_name = ?",
+                [table],
+            ).fetchall()}  # fmt: skip
+            if not cols or "as_of_date" in cols:
+                continue
+            count = self.conn.execute(f"SELECT count(*) FROM {table}").fetchone()
+            if count is not None and count[0] == 0:
+                self.conn.execute(f"DROP TABLE {table}")
+            else:  # pragma: no cover - no such database exists
+                raise RuntimeError(f"{table} has rows in the pre-F4 layout; migrate by hand")
 
     def _migrate_trend_conditions_config_hash(self) -> None:
         """Rebuild a pre-existing ``trend_template_conditions`` that lacks ``config_hash``.

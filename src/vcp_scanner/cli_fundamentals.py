@@ -7,11 +7,15 @@ Nothing the scan, score, backtest or paper ledger reads is touched.
 from __future__ import annotations
 
 import argparse
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from pathlib import Path
+from typing import TYPE_CHECKING
 from zoneinfo import ZoneInfo
 
 from vcp_scanner.cli_pipeline import _err
+
+if TYPE_CHECKING:
+    from vcp_scanner.data.storage.duckdb_store import DuckDBStore
 
 IST = ZoneInfo("Asia/Kolkata")
 
@@ -27,6 +31,17 @@ def add_fundamentals_parser(subparsers: argparse._SubParsersAction) -> None:  # 
     s.add_argument("--interval", type=float, default=1.0, help="Seconds between requests")
     q = sub.add_parser("parse", help="Turn stored filings into quarterly values")
     q.add_argument("--db", default="data/vcp_scanner.duckdb")
+    for name, text in (
+        ("backfill", "Fetch, parse and compute everything since history_from (resumable)"),
+        ("update", "Fetch, parse and compute the filings of the last days (daily step)"),
+    ):
+        b = sub.add_parser(name, help=text)
+        b.add_argument("--db", default="data/vcp_scanner.duckdb")
+        b.add_argument("--config-dir", default="config")
+        b.add_argument("--days", type=int, default=None, help="update: days back (config)")
+        b.add_argument("--limit", type=int, default=None, help="backfill: first N stocks only")
+    st = sub.add_parser("status", help="What is stored (read-only)")
+    st.add_argument("--db", default="data/vcp_scanner.duckdb")
     v = sub.add_parser("show", help="Metrics of one stock as of a date (read-only)")
     v.add_argument("symbol")
     v.add_argument("--date", default=None, metavar="YYYY-MM-DD", help="Default: today")
@@ -47,8 +62,12 @@ def run_fundamentals(args: argparse.Namespace) -> int:
         return _run_parse(args)
     if command == "show":
         return _run_show(args)
+    if command in ("backfill", "update"):
+        return _run_bulk(args, command)
+    if command == "status":
+        return _run_status(args)
     if command != "fetch":
-        _err("Usage: vcp fundamentals {fetch,parse,show}")
+        _err("Usage: vcp fundamentals {backfill,update,status,show,fetch,parse}")
         return 1
     if bool(args.start) != bool(args.end):
         _err("--from and --to go together")
@@ -170,4 +189,130 @@ def _run_show(args: argparse.Namespace) -> int:
         f"  Availability {view.availability_score:.0%}, quarters {view.quarters_available},"
         f" hard gate {gate} (shown only, not applied)"
     )
+    return 0
+
+
+def _say(message: str) -> None:
+    print(f"[{datetime.now(IST):%H:%M:%S}] {message}", flush=True)
+
+
+def _open_store(db: Path, *, read_only: bool) -> DuckDBStore:
+    """A DuckDBStore on ``db``; read-only stores skip the migration."""
+    import duckdb
+
+    from vcp_scanner.data.storage.duckdb_store import DuckDBStore
+
+    if read_only:
+        store = DuckDBStore.__new__(DuckDBStore)
+        store.conn = duckdb.connect(str(db), read_only=True)
+        return store
+    store = DuckDBStore(db)
+    store.migrate()
+    return store
+
+
+def _run_bulk(args: argparse.Namespace, command: str) -> int:
+    """``backfill`` and ``update``: the network part runs with the database closed."""
+    import duckdb
+
+    from vcp_scanner.config.loader import load_scanner_config
+    from vcp_scanner.data.providers.nse_filings import NseFilingProvider
+    from vcp_scanner.data.repositories.duckdb_fundamental_repository import (
+        DuckDBFundamentalRepository,
+    )
+    from vcp_scanner.fundamentals.pipeline import (
+        download_missing,
+        list_range,
+        min_period_end,
+        record_downloads,
+        select_targets,
+        update_views,
+    )
+    from vcp_scanner.fundamentals.snapshots import parse_filings
+
+    config = load_scanner_config(args.config_dir)
+    fcfg = config.data.fundamentals
+    min_availability = config.strategy.scoring.fundamentals_min_availability
+    db = Path(args.db).resolve()
+    cache_root = db.parent / "raw" / "fundamentals"
+    today = datetime.now(IST).date()
+    oldest = min_period_end(fcfg.history_from)
+    if command == "backfill":
+        start = oldest + timedelta(days=1)
+    else:
+        start = today - timedelta(days=args.days or fcfg.update_days)
+
+    # 1. What to fetch (database read-only, briefly).
+    try:
+        store = _open_store(db, read_only=True)
+        ids = DuckDBFundamentalRepository(store).universe_symbols(fcfg.history_from)
+        store.conn.close()
+    except duckdb.Error as exc:
+        _err(f"Database not readable now ({exc}). Is another job running? Try again later.")
+        return 1
+    if args.limit:
+        ids = dict(sorted(ids.items())[: args.limit])
+    _say(f"{command}: {len(ids)} stocks, filings broadcast {start}..{today}, periods >= {oldest}")
+
+    # 2. List and download (network and raw cache only).
+    provider = NseFilingProvider(interval_seconds=fcfg.request_interval_seconds)
+    listing = list_range(provider, start, today, progress=_say if command == "backfill" else _quiet)
+    targets = select_targets(listing.refs, ids, oldest)
+    _say(f"listed {len(listing.refs)} filings, {len(targets)} for our stocks")
+    downloads = download_missing(provider, targets, cache_root, progress=_say)
+    failed = sum(1 for d in downloads if d.error)
+    _say(f"downloads done: {len(downloads) - failed} in cache, {failed} failed")
+
+    # 3. Record, parse, views (database read-write, a few minutes at most).
+    try:
+        store = _open_store(db, read_only=False)
+    except duckdb.Error as exc:
+        _err(f"Database busy ({exc}). The downloads are kept; run the command again later.")
+        return 1
+    repo = DuckDBFundamentalRepository(store)
+    recorded, errors = record_downloads(repo, downloads)
+    parsed = parse_filings(repo, cache_root)
+    views = update_views(repo, staleness_days=fcfg.max_staleness_days,
+                         min_availability=min_availability)  # fmt: skip
+    store.conn.close()
+    total = parsed.parsed + parsed.errors
+    rate = parsed.errors / total if total else 0.0
+    _say(f"recorded {recorded} new filings ({errors} fetch errors); snapshots {parsed.parsed}"
+         f" (estimated {parsed.estimated}, invalid {parsed.invalid}), parse errors"
+         f" {parsed.errors} ({rate:.1%}); views written {views}")  # fmt: skip
+    for message in (listing.incomplete + parsed.messages)[:20]:
+        print(f"  WARNING {message}")
+    return 0
+
+
+def _quiet(_: str) -> None:
+    return None
+
+
+def _run_status(args: argparse.Namespace) -> int:
+    import duckdb
+
+    from vcp_scanner.data.repositories.duckdb_fundamental_repository import (
+        DuckDBFundamentalRepository,
+    )
+
+    db = Path(args.db).resolve()
+    try:
+        store = _open_store(db, read_only=True)
+        counts = DuckDBFundamentalRepository(store).status_counts()
+    except duckdb.CatalogException:
+        print("No fundamentals stored yet (run 'vcp fundamentals backfill').")
+        return 0
+    except duckdb.Error as exc:
+        _err(f"Database not readable now: {exc}")
+        return 1
+    filings = counts["filings"]
+    assert isinstance(filings, dict)
+    done = sum(filings.values())
+    errors = filings.get("PARSE_ERROR", 0) + filings.get("FETCH_ERROR", 0)
+    print(f"Filings {done}: " + ", ".join(f"{k} {v}" for k, v in sorted(filings.items())))
+    print(f"  error rate {errors / done:.1%}" if done else "  none")
+    print(f"Snapshots: {counts['snapshots']}; stocks with data {counts['stocks']};"
+          f" stored views {counts['views']}")  # fmt: skip
+    print(f"Newest filing broadcast {counts['last_broadcast']}; last fetch {counts['last_fetch']}")
     return 0

@@ -28,3 +28,13 @@ quality:
 # refuses non-browser clients, so a desktop browser string is sent; set this to a newer one if
 # NSE starts refusing the built-in string (src/vcp_scanner/data/providers/nse_http.py).
 nse_user_agent: null
+
+# Fundamentals from NSE result filings (FUNDAMENTALS_SPECIFICATION §9). Display and research
+# only: nothing in the scan, score, backtest or paper ledger reads them until the review.
+fundamentals:
+  scope: universe              # every stock eligible in a universe snapshot since history_from
+  history_from: 2023-10-01     # filings are fetched from 15 months earlier (year-ago quarters)
+  request_interval_seconds: 1.0
+  daily_update: true           # `vcp run daily` fetches the filings of the last update_days
+  update_days: 7
+  max_staleness_days: 120      # latest quarter older than this: STALE (a warning)

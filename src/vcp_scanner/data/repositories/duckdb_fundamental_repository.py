@@ -7,11 +7,13 @@ times of all its filings, so a restatement becomes revision 1 without touching r
 
 from __future__ import annotations
 
-from datetime import date, datetime
+import json
+from collections.abc import Sequence
+from datetime import UTC, date, datetime, timedelta
 
 from vcp_scanner.data.storage.duckdb_store import DuckDBStore
 from vcp_scanner.fundamentals.base import STATUS_PARSE_ERROR, FilingRef, FilingRow, StoredFiling
-from vcp_scanner.fundamentals.metrics import ShareAction, SnapshotData
+from vcp_scanner.fundamentals.metrics import FundamentalView, ShareAction, SnapshotData
 from vcp_scanner.fundamentals.snapshots import PROVIDER, Fact, SnapshotRow
 
 
@@ -210,3 +212,77 @@ class DuckDBFundamentalRepository:
             [instrument_id],
         ).fetchall()
         return [ShareAction(d, float(f)) for d, f in rows]
+
+    # --- stored views and scope (F4) ------------------------------------------------------------
+
+    def universe_symbols(self, since: date) -> dict[str, str]:
+        """Symbol -> instrument_id of every stock eligible in a universe snapshot since ``since``
+        (FUNDAMENTALS_SPECIFICATION §9, scope ``universe``)."""
+        rows = self._conn.execute(
+            "SELECT DISTINCT i.symbol, i.instrument_id FROM universe_memberships m"
+            " JOIN universe_snapshots u USING (universe_snapshot_id)"
+            " JOIN instruments i ON i.instrument_id = m.instrument_id"
+            " WHERE m.exclusion_reason IS NULL AND u.as_of_date >= ?",
+            [since],
+        ).fetchall()
+        return {symbol: iid for symbol, iid in rows}
+
+    def instruments_with_snapshots(self) -> list[str]:
+        return [r[0] for r in self._conn.execute(
+            "SELECT DISTINCT instrument_id FROM fundamental_snapshots ORDER BY 1"
+        ).fetchall()]  # fmt: skip
+
+    def view_dates_stored(self, instrument_id: str) -> set[date]:
+        return {r[0] for r in self._conn.execute(
+            "SELECT as_of_date FROM fundamental_metrics WHERE instrument_id = ?", [instrument_id]
+        ).fetchall()}  # fmt: skip
+
+    def write_views(
+        self, instrument_id: str, views: Sequence[FundamentalView], staleness_days: int
+    ) -> None:
+        now = datetime.now(UTC)
+        conn = self._conn
+        conn.execute("BEGIN")
+        try:
+            for v in views:
+                if v.snapshot_id is None or v.period_end is None or v.basis is None:
+                    continue
+                m = v.metrics
+                conn.execute(
+                    "INSERT OR REPLACE INTO fundamental_metrics VALUES (?, ?, ?, ?, ?, ?, ?, ?,"
+                    " ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                    [instrument_id, v.as_of, v.snapshot_id, v.period_end, v.basis, v.revenue,
+                     v.value("sales_yoy"), v.revenue_qoq, v.eps, v.value("eps_yoy"),
+                     v.value("eps_qoq"), v.value("eps_acceleration"), v.ttm_eps, None,
+                     v.operating_margin, v.net_margin, v.value("margin_expansion"),
+                     v.value("roe"), v.debt, v.value("debt_to_equity"),
+                     json.dumps({k: x.status for k, x in m.items()}, sort_keys=True), now],
+                )  # fmt: skip
+                conn.execute(
+                    "INSERT OR REPLACE INTO fundamental_data_quality VALUES (?, ?, ?, ?, ?, ?,"
+                    " ?, ?, ?, ?, ?, ?, ?, ?)",
+                    [instrument_id, v.as_of, v.value("eps_yoy") is not None,
+                     v.value("sales_yoy") is not None, v.value("margin_expansion") is not None,
+                     v.value("roe") is not None, v.value("debt_to_equity") is not None,
+                     v.quarters_available, v.availability_score,
+                     v.period_end + timedelta(days=staleness_days), v.estimated, v.restated,
+                     v.hard_gate_pass, v.gate_reason],
+                )  # fmt: skip
+            conn.execute("COMMIT")
+        except Exception:
+            conn.execute("ROLLBACK")
+            raise
+
+    def status_counts(self) -> dict[str, object]:
+        q = self._conn.execute
+        return {
+            "filings": dict(q("SELECT status, count(*) FROM fundamental_filings GROUP BY 1")
+                            .fetchall()),
+            "snapshots": dict(q("SELECT data_status, count(*) FROM fundamental_snapshots"
+                                " GROUP BY 1").fetchall()),
+            "stocks": q("SELECT count(DISTINCT instrument_id) FROM fundamental_snapshots")
+                      .fetchone()[0],  # type: ignore[index]
+            "views": q("SELECT count(*) FROM fundamental_metrics").fetchone()[0],  # type: ignore[index]
+            "last_broadcast": q("SELECT max(broadcast_at) FROM fundamental_filings").fetchone()[0],  # type: ignore[index]
+            "last_fetch": q("SELECT max(fetched_at) FROM fundamental_filings").fetchone()[0],  # type: ignore[index]
+        }  # fmt: skip

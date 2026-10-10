@@ -92,6 +92,16 @@ def paper_strategies(config_dir: str) -> list[str]:
             if sid != VCP_STRATEGY_ID and sid in files and files[sid].enabled]  # fmt: skip
 
 
+def fundamentals_daily(config_dir: str) -> bool:
+    """Whether the daily run updates fundamentals (``data.fundamentals.daily_update``)."""
+    try:
+        from vcp_scanner.config.loader import load_scanner_config
+
+        return load_scanner_config(config_dir).data.fundamentals.daily_update
+    except Exception:  # a broken config is reported by the steps that need it
+        return False
+
+
 def run_daily(args: argparse.Namespace, cli_main: Callable[[list[str]], int]) -> int:
     db, cfg, env = args.db, args.config_dir, args.env_file
     started = datetime.now(UTC)
@@ -180,6 +190,11 @@ def run_daily(args: argparse.Namespace, cli_main: Callable[[list[str]], int]) ->
             step(f"{sid} forward labels", ["compute", "labels", "--strategy", sid, "--db", db,
                                            "--config-dir", cfg])  # fmt: skip
         step("paper ledger", ["paper", "update", "--db", db, "--config-dir", cfg])
+
+    # Fundamentals (FUNDAMENTALS_SPECIFICATION F4): display and research only. An unreachable
+    # NSE is a warning inside the step (exit 0); only a real error fails it.
+    if fundamentals_daily(cfg):
+        step("fundamentals", ["fundamentals", "update", "--db", db, "--config-dir", cfg])
 
     if getattr(args, "serving_copy", False):
         target = Path(getattr(args, "serving_path", None) or default_serving_path(db))

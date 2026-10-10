@@ -1468,6 +1468,8 @@ The critical date is `available_at`. Backtests must not use a fundamental value 
 
 `fundamental_filings` is the manifest of raw files: one row per filing seen (`filing_id` = `<feed>:<record id>`, `instrument_id`, `period_end`, `period_type`, `statement_basis`, `revision_number`, `broadcast_at`, `url`, `sha256`, `cache_path`, `status` OK | FETCH_ERROR | PARSE_ERROR | NOT_APPLICABLE). `fundamental_snapshots.source_record_id` points to it.
 
+`fundamental_metrics` and `fundamental_data_quality` (§37, §38) are keyed `(instrument_id, as_of_date)` since F4: one row per stock and date on which its view changed, holding the metrics, per-metric statuses (`statuses_json`), availability, `stale_after`, ESTIMATED/RESTATED flags and the hard-gate flags of §39 (FUNDAMENTALS_SPECIFICATION §10).
+
 `fundamental_facts` holds the numbers of a snapshot: `(fundamental_snapshot_id, scope, item)` -> `value`, with `scope` QUARTER | YTD | ANNUAL | INSTANT, `derived` (true when a quarter was computed from year-to-date values; the snapshot is then `ESTIMATED`) and the period dates. EPS is as filed. `data_status`: OK | ESTIMATED | INVALID.
 
 ---

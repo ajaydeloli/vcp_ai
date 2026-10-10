@@ -100,19 +100,29 @@ def test_parse_new_row_keeps_only_financials() -> None:
     assert parse_new_row(GOVERNANCE) is None
 
 
-def test_listing_merges_feeds_and_flags_the_row_cap() -> None:
-    full = [{**GOVERNANCE, "seq_Id": str(i)} for i in range(19)] + [NEW_ROW]
+def test_listing_merges_feeds_and_pages_the_integrated_feed() -> None:
+    page1 = [{**NEW_ROW, "seq_Id": str(i)} for i in range(1000)]
+    page2 = [{**NEW_ROW, "seq_Id": "x1"}, GOVERNANCE]
     provider, session = _provider({
         "corporates-financial-results": [FakeResponse(body=[OLD_ROW])],
-        "integrated-filing-results": [FakeResponse(body=full)],
+        "integrated-filing-results": [FakeResponse(body={"data": page1, "totalCount": 1002}),
+                                      FakeResponse(body={"data": page2, "totalCount": 1002})],
     })  # fmt: skip
-    listing = provider.list_filings(symbol="RELIANCE", start=date(2024, 1, 1), end=date(2026, 9, 1))
-    assert listing.truncated is True  # 20 rows came back
-    assert {r.source_feed for r in listing.filings} == {
-        "NSE_FINANCIAL_RESULTS",
-        "NSE_INTEGRATED_FILING",
-    }
-    assert session.calls[1][1]["from_date"] == "01-01-2024"  # type: ignore[index]
+    listing = provider.list_filings(start=date(2026, 8, 1), end=date(2026, 8, 14))
+    assert listing.truncated is False
+    assert len(listing.filings) == 1 + 1001  # governance row dropped
+    new_calls = [p for u, p in session.calls if u.endswith("integrated-filing-results")]
+    assert [p["page"] for p in new_calls] == ["1", "2"]  # type: ignore[index]
+    assert new_calls[0]["type"] == "Integrated Filing- Financials"  # type: ignore[index]
+    assert session.calls[1][1]["from_date"] == "01-08-2026"  # type: ignore[index]
+
+
+def test_listing_is_marked_incomplete_when_pages_run_short() -> None:
+    provider, _ = _provider({
+        "corporates-financial-results": [FakeResponse(body=[])],
+        "integrated-filing-results": [FakeResponse(body={"data": [], "totalCount": 50})],
+    })  # fmt: skip
+    assert provider.list_filings(symbol="RELIANCE").truncated is True
 
 
 def test_retry_after_403_then_ok_and_gives_up_after_limit() -> None:

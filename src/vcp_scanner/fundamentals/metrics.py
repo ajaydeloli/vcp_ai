@@ -91,6 +91,9 @@ class FundamentalView:
     revenue: float | None = None
     eps: float | None = None
     operating_margin: float | None = None
+    net_margin: float | None = None  # net profit / revenue, %
+    revenue_qoq: float | None = None  # % (shown, not a score metric)
+    debt: float | None = None  # borrowings at the latest balance sheet
     ttm_eps: float | None = None
     quarters_available: int = 0
     metrics: dict[str, Metric] = field(default_factory=dict)
@@ -238,6 +241,13 @@ def compute_view(
     else:
         m["eps_acceleration"] = Metric(None, MISSING)
 
+    prev_q = find(month_end_shift(latest_end, -3))
+    if prev_q is not None:
+        view.revenue_qoq = _pct_change(latest.quarter("revenue"), prev_q.quarter("revenue")).value
+    net, revenue = latest.quarter("net_profit"), latest.quarter("revenue")
+    if net is not None and revenue is not None and revenue > 0:
+        view.net_margin = net / revenue * 100.0
+
     om = operating_margin(latest)
     view.operating_margin = om.value
     if om.status == NOT_APPLICABLE:
@@ -280,6 +290,10 @@ def compute_view(
         m["roe"] = Metric(None, MISSING)
 
     m["debt_to_equity"] = _debt_to_equity(snaps, basis, latest_end)
+    for s in sorted(snaps, key=lambda s: s.period_end, reverse=True):
+        if s.basis == basis and s.period_end <= latest_end and s.instant("borrowings") is not None:
+            view.debt = s.instant("borrowings")
+            break
 
     view.metrics = m
     available = sum(1 for k in SCORE_METRICS if m[k].value is not None)
@@ -312,3 +326,18 @@ def _debt_to_equity(snaps: list[SnapshotData], basis: str, latest_end: date) -> 
         if ratio is not None:
             return Metric(ratio, AVAILABLE)
     return Metric(None, MISSING)
+
+
+# --- the stored time series (F4) ---------------------------------------------------------------
+
+
+def first_usable_date(available_at: datetime) -> date:
+    """The first date whose close sees a filing: the same day up to 15:30 IST, else the next."""
+    local = available_at.astimezone(IST)
+    day = local.date()
+    return day if local.time() <= CLOSE else date.fromordinal(day.toordinal() + 1)
+
+
+def view_dates(snapshots: Iterable[SnapshotData]) -> list[date]:
+    """Dates on which a stock's view can change: the first usable date of each snapshot."""
+    return sorted({first_usable_date(s.available_at) for s in snapshots})
