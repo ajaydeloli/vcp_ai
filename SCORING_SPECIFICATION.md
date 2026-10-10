@@ -163,7 +163,7 @@ Validation (2025-10 .. 2026-09, final score only, looked at once): IC +0.010 for
 
 **Reading.** The spec score (`scoring-1.0.0`) orders setups in an explainable, reproducible way, but it does **not** predict 60-session outcomes among Trend Template passers. The only component with a measurable signal is the VCP shape, and it comes mostly from its lowest quintile doing worse. No weight or bound was changed; any change is the owner's decision.
 
-**Fundamentals deferred (owner, 2026-10-03).** Phase 8 is skipped for now. `fundamental_score` stays NULL and is renormalized away as in §1. The data-source findings are in AUDIT_FIX_LOG ("Decision F1").
+**Fundamentals deferred (owner, 2026-10-03).** Phase 8 is skipped for now. `fundamental_score` stays NULL and is renormalized away as in §1. The data-source findings are in AUDIT_FIX_LOG ("Decision F1"). Superseded in part on 2026-10-10 (Decision F2): fundamentals are being added as display and research only (FUNDAMENTALS_SPECIFICATION); `fundamental_score` stays NULL in `setup_scores` until the review on or after 2027-04-01.
 
 
 # 12. Per-strategy scoring (Multi-Strategy step 2, 2026-10-05)

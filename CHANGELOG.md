@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- FUNDAMENTALS_SPECIFICATION.md (draft): fundamentals from NSE filings, point-in-time, display and research only until the 2027-04-01 review; steps F1-F7. Decision F2 in AUDIT_FIX_LOG. Docs only; nothing built yet.
 - Reports page fits the window: a slim Generate bar, then the report list and the report, each scrolling on its own.
 - Reports page: Generate a report for a past day or week (`POST /api/v1/reports/generate`, the API's only write: an HTML file under `reports/`). The weekly summary now follows the week's last trading day, with a catch-up for a missed week (FRONTEND_SPECIFICATION 67.27, STRATEGY_SPECIFICATION 21.10).
 - Reports: the VQI base date and what VQI is are a note under Market regime.

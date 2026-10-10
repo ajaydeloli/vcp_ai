@@ -211,6 +211,7 @@ current status of each.
 | VCP detection and classification (Phase 6) | `VCP_SPECIFICATION.md` |
 | Scoring and ranking (Phase 7) | `SCORING_SPECIFICATION.md` |
 | Strategies, paper ledger, monitoring plan, reports | `STRATEGY_SPECIFICATION.md` |
+| Fundamentals (NSE filings; display and research only) | `FUNDAMENTALS_SPECIFICATION.md` |
 | Dashboard API and frontend | `FRONTEND_SPECIFICATION.md` |
 | Agent entry point / detailed agent rules | `AGENTS.md` / `AI_AGENT_RULES.md` |
 | Change history | `CHANGELOG.md` |
