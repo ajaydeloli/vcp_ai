@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Stock chart: the Pivot and Stop titles no longer sit inside the plot over the latest candles and the breakout mark; a legend at the top left shows them with their prices. The breakout arrow is orange and larger (the blue one was hard to see on the dark background), and the chart leaves six empty bars after the last one so recent candles clear the price axis.
+
 - FUNDAMENTALS_SPECIFICATION §15 (draft): shareholding pattern (promoter, FII/FPI, DII, mutual funds, public, promoter pledge) from NSE's quarterly Regulation 31 filings as step F8, display and research only. Docs only; the feed is probed after the results backfill.
 
 - Fundamentals: `vcp fundamentals update` no longer skips days or new stocks. It resumes listing from the last date listed completely (new table `fundamental_fetch_runs`), so days without a daily run are caught up, and it fetches the whole filing history of stocks entering the scope for the first time (up to `new_stock_limit` per run; table `fundamental_stock_history`). Stocks that leave the universe stay in scope, so a return leaves no gap.

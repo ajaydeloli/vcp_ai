@@ -44,6 +44,8 @@ export const CHART_THEME = {
   crosshair: { mode: CrosshairMode.Normal },
 } as const;
 
+const RIGHT_GAP = 6;
+
 type Handles = {
   chart: IChartApi;
   candles: ISeriesApi<"Candlestick">;
@@ -163,14 +165,19 @@ export function ChartView({ bars, setup, range, onRange }: Props) {
           lineWidth: 1,
           lineStyle: l.dashed ? LineStyle.Dashed : LineStyle.Solid,
           axisLabelVisible: true,
-          title: l.title,
+          // no title on the line: drawn inside the plot it hid the latest candles and the
+          // breakout mark; the names are in the legend at the top left instead
+          title: "",
         }),
       ]),
     );
+    // Bar positions, not dates: a time range ends exactly on the last bar, which put the
+    // latest candles and the breakout mark against the price axis. RIGHT_GAP empty bars after
+    // the last one keep them clear.
     const from = rangeFrom(bars, range);
-    const last = bars[bars.length - 1]?.day;
-    if (from && last) {
-      c.chart.timeScale().setVisibleRange({ from: from as Time, to: last as Time });
+    const start = from ? Math.max(0, bars.findIndex((b) => b.day >= from)) : 0;
+    if (bars.length > 0) {
+      c.chart.timeScale().setVisibleLogicalRange({ from: start, to: bars.length - 1 + RIGHT_GAP });
     } else {
       c.chart.timeScale().fitContent();
     }
@@ -187,6 +194,8 @@ export function ChartView({ bars, setup, range, onRange }: Props) {
     c.sma50.applyOptions({ visible: shown.sma50 });
     c.sma200.applyOptions({ visible: shown.sma200 });
   }, [type, shown]);
+
+  const levels = buildPriceLines(setup);
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -250,6 +259,22 @@ export function ChartView({ bars, setup, range, onRange }: Props) {
       </div>
       <div className="relative min-h-[380px] flex-1">
         <div ref={box} data-testid="price-chart" className="absolute inset-0" />
+        {levels.length > 0 && (
+          <div
+            data-testid="chart-levels"
+            className="pointer-events-none absolute left-2 top-2 z-10 flex gap-3 rounded bg-[#0d1422]/80 px-2 py-1 text-xs"
+          >
+            {levels.map((l) => (
+              <span key={l.title} className="flex items-center gap-1" style={{ color: l.color }}>
+                <svg width="16" height="6" aria-hidden="true">
+                  <line x1="0" y1="3" x2="16" y2="3" stroke={l.color} strokeWidth="2"
+                        strokeDasharray={l.dashed ? "3 2" : undefined} />
+                </svg>
+                {l.title} {l.price.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </span>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

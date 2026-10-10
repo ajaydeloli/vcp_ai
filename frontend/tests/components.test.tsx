@@ -99,9 +99,14 @@ describe("stock panel", () => {
     await waitFor(() => expect(candles.markers.length).toBeGreaterThan(0));
     // marks on days without a bar are dropped: the sample's base start (a Saturday) and T2
     expect(candles.markers.map((m) => m.text)).toEqual(["P1", "P2", "T1 9.2%"]);
-    expect(candles.priceLines.map((l) => l.title).sort()).toEqual(["Pivot", "Stop"]);
+    // pivot and stop lines carry no title inside the plot (it hid the latest candles); their
+    // names and prices are in the legend at the top left
     const vcp = fx.stockSetups.setups[0]!;
-    expect(candles.priceLines.find((l) => l.title === "Pivot")?.price).toBe(vcp.pivot);
+    expect(candles.priceLines.map((l) => l.title)).toEqual(["", ""]);
+    expect(candles.priceLines.map((l) => l.price).sort()).toEqual([vcp.stop, vcp.pivot].sort());
+    const legend = screen.getByTestId("chart-levels");
+    expect(legend).toHaveTextContent("Pivot 120.00");
+    expect(legend).toHaveTextContent("Stop");
 
     expect(screen.getByText("171.90", { selector: "span" })).toBeInTheDocument();
     await waitFor(() => expect(screen.getByText("RS rank").nextElementSibling).toHaveTextContent("91"));
@@ -214,14 +219,17 @@ describe("chart range buttons", () => {
     expect(screen.getByRole("button", { name: "1Y" })).toHaveAttribute("aria-pressed", "true");
     await userEvent.click(screen.getByRole("button", { name: "3M" }));
     expect(onRange).toHaveBeenCalledWith("3M");
-    expect(liveCharts()[0]!.fitted).toBeGreaterThan(0); // 60 bars < 3 months: everything shown
+    // 60 bars < 3 months: everything shown, with 6 empty bars after the last one
+    const n = fx.bars.bars.length;
+    expect(liveCharts()[0]!.logicalRange).toEqual({ from: 0, to: n - 1 + 6 });
   });
 
   it("show the last N bars as the visible range", () => {
     const many = Array.from({ length: 300 }, (_, i) => ({ ...fx.bars.bars[0]!, day: `2025-01-${String((i % 28) + 1).padStart(2, "0")}-${i}` }));
     const bars = many.map((b, i) => ({ ...b, day: `2025-${String(1 + Math.floor(i / 28)).padStart(2, "0")}-${String((i % 28) + 1).padStart(2, "0")}` }));
     renderApp(<ChartView bars={bars} setup={null} range="3M" onRange={() => {}} />);
-    expect(liveCharts()[0]!.visibleRange).toEqual({ from: bars[300 - 63]!.day, to: bars[299]!.day });
+    // the last 63 bars plus 6 empty bars, so the latest candles and marks clear the price axis
+    expect(liveCharts()[0]!.logicalRange).toEqual({ from: 300 - 63, to: 299 + 6 });
   });
 });
 

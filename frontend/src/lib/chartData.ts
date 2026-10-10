@@ -14,7 +14,8 @@ export const COLORS = {
   pivot: "#26c281",
   stop: "#ef5350",
   mark: "#e6ecf8",
-  breakout: "#2f6df6",
+  // bright orange: the old blue (#2f6df6) disappeared against the dark chart background
+  breakout: "#ff9f1c",
 } as const;
 
 export type Candle = { time: string; open: number; high: number; low: number; close: number };
@@ -27,6 +28,7 @@ export type ChartMarker = {
   shape: "arrowUp" | "arrowDown" | "circle" | "square";
   color: string;
   text: string;
+  size?: number;
 };
 
 export type ChartLine = { price: number; title: string; color: string; dashed: boolean };
@@ -135,6 +137,7 @@ export function buildMarkers(bars: Bar[], setup: StockSetup | null): ChartMarker
       shape: "arrowUp",
       color: COLORS.breakout,
       text: "Breakout",
+      size: 2,
     });
   }
   // the chart wants marks in time order; two marks on a day keep their order

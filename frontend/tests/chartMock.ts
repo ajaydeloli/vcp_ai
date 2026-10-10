@@ -35,6 +35,7 @@ export class FakeSeries {
 export class FakeChart {
   series: FakeSeries[] = [];
   visibleRange: any = null;
+  logicalRange: any = null;
   fitted = 0;
   removed = false;
   constructor(
@@ -66,6 +67,9 @@ export class FakeChart {
     return {
       setVisibleRange: (r: any) => {
         this.visibleRange = r;
+      },
+      setVisibleLogicalRange: (r: any) => {
+        this.logicalRange = r;
       },
       fitContent: () => {
         this.fitted += 1;
