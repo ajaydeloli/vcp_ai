@@ -91,9 +91,10 @@ def regime_section(days: list[m.MarketDay], rule: str) -> str:
     return (
         f'<h2>Market regime</h2><p>Regime <b class="{cls}">{state}</b> on {d.day} '
         f"(rule: {esc(rule)}). Stocks above their 50-day average: {num(d.breadth_pct, 1, ' %')}. "
-        f"VQI (VCP Quality Index, 100 on {days[0].day}): {num(d.index, 1)}, "
-        f"{above} its 50-day average ({num(d.index_ma50, 1)}). VQI is an equal-weight index "
-        "of the stocks we scan, not NIFTY.</p>"
+        f"VQI (VCP Quality Index): {num(d.index, 1)}, "
+        f"{above} its 50-day average ({num(d.index_ma50, 1)}).</p>"
+        f'<p class="muted">Note: VQI is 100 on {days[0].day}. It is an equal-weight index of the '
+        "stocks we scan, not NIFTY.</p>"
     )
 
 
