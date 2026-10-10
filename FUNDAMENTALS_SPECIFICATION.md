@@ -41,7 +41,7 @@ Adding fundamentals to the score is a strategy change (new score version, spec u
 
 # 3. Source: NSE filings
 
-Verified by read-only probes on 2026-10-03 (AUDIT_FIX_LOG "Decision F1"); the points marked **verify** are checked again in step F1 before code depends on them.
+Verified by read-only probes on 2026-10-03 (AUDIT_FIX_LOG "Decision F1"); the open points were checked again in step F1 (findings below).
 
 | Feed | Covers | Gives |
 |---|---|---|
@@ -51,9 +51,19 @@ Verified by read-only probes on 2026-10-03 (AUDIT_FIX_LOG "Decision F1"); the po
 
 XBRL facts (old feed): RevenueFromOperations, ProfitLossForPeriod, ProfitOrLossAttributableToOwnersOfParent, Basic EPS, ProfitBeforeTax, FinanceCosts, DepreciationDepletionAndAmortisationExpense, DebtEquityRatio (some companies only). Contexts: `OneD` is the quarter, `FourD` the year to date.
 
-**Verify in F1:** (a) whether a filing carries the prior-year and preceding-quarter comparatives; (b) the other-income tag; (c) the inline-XBRL fact names of the new feed; (d) the balance-sheet tags (equity, borrowings) of the half-yearly statement; (e) the taxonomy of banks, NBFCs and insurers; (f) the all-equities date-range query for the daily update.
+**F1 findings (probed 2026-10-03 and 2026-10-10, RELIANCE, HDFCBANK and date-range queries):**
 
-Fetching: the existing NSE HTTP helper (`nse_http`), one request per second at most, back-off on 403/429, every raw file cached unchanged under `data/raw/fundamentals/` with its SHA-256, resumable (a filing already stored is not fetched again). Credentials are not needed. A source that cannot be reached is a warning, never a failed daily run.
+- (a) **No comparatives.** A filing's XBRL carries only the current quarter (`OneD`) and year to date (`FourD`), not the prior-year or preceding-quarter column. Prior-year EPS therefore always comes from the stored filing of that quarter (§5.3 second branch).
+- (b) Other income is `OtherIncome`. Also confirmed: `RevenueFromOperations`, `FinanceCosts`, `ProfitBeforeTax`, `DepreciationDepletionAndAmortisationExpense`, `ProfitLossForPeriod`, `BasicEarningsLossPerShareFromContinuingAndDiscontinuedOperations`, `DebtEquityRatio`.
+- (c) **One parser is enough.** The integrated feed also links an XBRL file (`xbrl`, namespace `in-capmkt`, same tag names and `OneD`/`FourD` contexts). The inline-XBRL HTML (`ixbrl`) is not needed and not fetched.
+- (d) Balance-sheet tags (`Equity`, `EquityAttributableToOwnersOfParent`, `BorrowingsCurrent`, `BorrowingsNoncurrent`) appear only in half-yearly (Sep, Mar) and annual filings; the Jun and Dec quarterly filings have no balance sheet. ROE and debt/equity therefore update twice a year.
+- (e) **Banks** (feed flag `bank = B`, `Non-Ind-AS` format) use another tag set (`InterestEarned`, `Income`, `BasicEarningsPerShareAfterExtraordinaryItems`); the Ind-AS names are absent. Handled as §5.5 (version 1: total income, EPS as filed).
+- (f) **Date-range queries.** The old feed answers an all-equities range (647 rows for 1–10 Nov 2024). The integrated feed returns **at most 20 rows per query**, even for a two-day range, and mixes in non-result filings (`Integrated Filing- Governance`). The listing marks such a result `truncated`; the daily update must query one symbol at a time (or one day with paging, once a paging parameter is found).
+- Old-feed filings before about 2013 have no XBRL file (the link ends in `/xbrl/-`); they are not listed.
+- A quarterly and an annual filing share the March period end, so the revision number counts per (period end, type, basis). The integrated feed does not say quarterly or annual: its period type is set by the parser (F2) and its revisions renumbered then.
+- Revision fields: old feed `reInd` (`N`, `I`, `-`) and `oldNewFlag`; integrated feed `type_Sub` (`Original`), `revised_Date`, `revision_Remark`. Their meaning is not documented; they are stored verbatim (`revision_flags`) and revisions are numbered by broadcast order, which is what point-in-time selection needs.
+
+Fetching: the existing NSE HTTP helper (`nse_http`), one request per second at most, back-off on 403/429, every raw file cached unchanged under `data/raw/fundamentals/` with its SHA-256, resumable (a filing already stored, with an unchanged file, is not fetched again; `vcp fundamentals fetch`). Credentials are not needed. A source that cannot be reached is a warning, never a failed daily run.
 
 ---
 
@@ -72,7 +82,7 @@ Keys follow §36: `(instrument_id, period_end, period_type, statement_basis, rev
 
 1. **Quarter values.** Use the `OneD` (quarter) context. If it is missing, derive the quarter from year-to-date values: Q2 = H1 − Q1, Q3 = 9M − H1, Q4 = annual − 9M. A derived value is marked `ESTIMATED`.
 2. **Basis.** Keep CONSOLIDATED and STANDALONE as separate snapshots. Policy `prefer_consolidated` (DATABASE_SCHEMA §36); growth only between periods of the same basis; a switch gives NULL growth with status `BASIS_CHANGE`.
-3. **EPS** is the basic EPS (continuing and discontinued operations) as filed. For a year-on-year comparison the prior-year EPS is taken from the same filing's comparative column if it has one (**verify**); otherwise from the stored filing of that quarter, multiplied by our corporate-action adjustment factor between the two period ends (splits and bonus issues), so a split does not look like an earnings fall.
+3. **EPS** is the basic EPS (continuing and discontinued operations) as filed. For a year-on-year comparison the prior-year EPS is taken from the same filing's comparative column if it has one (it has none: F1 finding a); otherwise from the stored filing of that quarter, multiplied by our corporate-action adjustment factor between the two period ends (splits and bonus issues), so a split does not look like an earnings fall.
 4. **Operating profit** = profit before tax + finance costs + depreciation and amortisation − other income; **operating margin** = operating profit / revenue from operations. Tags confirmed in F1.
 5. **Financial companies** (banks, NBFCs, insurers) use other statements. Version 1: revenue = total income, EPS as filed, operating margin NULL with status `NOT_APPLICABLE`. Revisited after F1 shows how many stocks this covers.
 6. **Units** are normalised to rupees; a filing in lakhs or crores is converted using its own scale tag. A filing that fails a sanity check (revenue negative, EPS outside ±10,000, period end after broadcast) is stored as `INVALID` and not used.
@@ -132,7 +142,7 @@ A stock that enters the universe later is fetched on the next update; a stock wi
 # 10. Pipeline
 
 - `vcp fundamentals backfill [--from DATE] [--symbol X]`: lists filings per stock and fetches the missing ones. It works in small batches and, per batch, takes the daily-run lock, writes, and releases it, so the evening run is never blocked by an hours-long backfill (DuckDB has one writer). Stops cleanly on Ctrl-C and resumes.
-- `vcp fundamentals update`: the incremental step. Asks the all-equities date-range query for filings since the last stored broadcast date (**verify**), fetches those of universe stocks, parses, stores, recomputes metrics.
+- `vcp fundamentals update`: the incremental step. Asks the all-equities date-range query for filings since the last stored broadcast date (it has none: F1 finding a), fetches those of universe stocks, parses, stores, recomputes metrics.
 - `vcp fundamentals status`: counts by status, newest broadcast, stocks without data, parse errors.
 - `vcp run daily`: a guarded step after the paper ledger and before the serving copy. A failure prints a warning and never fails the run; the daily summary line gains "fundamentals: N new filings".
 - The serving copy carries the fundamental tables, so the dashboard reads them like everything else.

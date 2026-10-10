@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Fundamentals F1: `vcp fundamentals fetch [--symbol X] [--from D --to D]` lists NSE result filings (old results feed and integrated-filing feed), stores each XBRL file unchanged under `data/raw/fundamentals/` with its SHA-256, and records it in the new `fundamental_filings` manifest. Resumable: a stored, unchanged filing is not fetched again; an unreachable source is a warning. Also adds the empty tables `fundamental_snapshots`, `fundamental_metrics`, `fundamental_data_quality`, `fundamental_research_scores`. Nothing the scan, score, backtest or paper ledger reads is changed. Probe findings in FUNDAMENTALS_SPECIFICATION §3.
+
 ### Added
 - FUNDAMENTALS_SPECIFICATION.md (draft): fundamentals from NSE filings, point-in-time, display and research only until the 2027-04-01 review; steps F1-F7. Decision F2 in AUDIT_FIX_LOG. Docs only; nothing built yet.
 - Reports page fits the window: a slim Generate bar, then the report list and the report, each scrolling on its own.

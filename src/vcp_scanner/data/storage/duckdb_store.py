@@ -1035,6 +1035,82 @@ _VIEW_SETUP_SCORES_V = """
 CREATE OR REPLACE VIEW setup_scores_v AS
 SELECT *, vcp_score AS pattern_score, vcp_weight AS pattern_weight FROM setup_scores
 """
+# Fundamentals (FUNDAMENTALS_SPECIFICATION §4, DATABASE_SCHEMA §36-39). Separate from every
+# scan/score/paper table: nothing in the scan reads them (freeze rule, spec §2).
+_DDL_FUNDAMENTAL_FILINGS = """
+CREATE TABLE IF NOT EXISTS fundamental_filings (
+    filing_id         VARCHAR PRIMARY KEY,       -- '<source_feed>:<source record id>'
+    instrument_id     VARCHAR NOT NULL,
+    period_end        DATE NOT NULL,
+    period_type       VARCHAR,                   -- QUARTER | ANNUAL | NULL until parsed
+    statement_basis   VARCHAR NOT NULL,          -- CONSOLIDATED | STANDALONE | UNKNOWN
+    revision_number   INTEGER NOT NULL,          -- 0 = first filing of the period and basis
+    broadcast_at      TIMESTAMPTZ NOT NULL,      -- when the market could first see it
+    source_feed       VARCHAR NOT NULL,
+    source_record_id  VARCHAR NOT NULL,
+    url               VARCHAR NOT NULL,
+    audited           BOOLEAN,
+    revision_flags    VARCHAR,
+    sha256            VARCHAR,
+    cache_path        VARCHAR,
+    fetched_at        TIMESTAMPTZ,
+    status            VARCHAR NOT NULL           -- OK | FETCH_ERROR | PARSE_ERROR | NOT_APPLICABLE
+)
+"""
+_DDL_FUNDAMENTAL_SNAPSHOTS = """
+CREATE TABLE IF NOT EXISTS fundamental_snapshots (
+    fundamental_snapshot_id    VARCHAR PRIMARY KEY,
+    instrument_id              VARCHAR NOT NULL,
+    period_end                 DATE NOT NULL,
+    period_type                VARCHAR NOT NULL,   -- QUARTER | ANNUAL
+    statement_basis            VARCHAR NOT NULL,   -- CONSOLIDATED | STANDALONE
+    revision_number            INTEGER NOT NULL,
+    superseded_by_snapshot_id  VARCHAR,
+    filing_date                DATE,
+    available_at               TIMESTAMPTZ NOT NULL,
+    provider                   VARCHAR NOT NULL,
+    currency                   VARCHAR,
+    data_status                VARCHAR NOT NULL,
+    source_record_id           VARCHAR,            -- fundamental_filings.filing_id
+    ingestion_run_id           VARCHAR,
+    UNIQUE (instrument_id, period_end, period_type, statement_basis, revision_number)
+)
+"""
+_DDL_FUNDAMENTAL_METRICS = """
+CREATE TABLE IF NOT EXISTS fundamental_metrics (
+    fundamental_snapshot_id VARCHAR PRIMARY KEY,
+    revenue DOUBLE, revenue_yoy DOUBLE, revenue_qoq DOUBLE,
+    eps DOUBLE, eps_yoy DOUBLE, eps_qoq DOUBLE, eps_acceleration DOUBLE,
+    gross_margin DOUBLE, operating_margin DOUBLE, net_margin DOUBLE, margin_expansion DOUBLE,
+    roe DOUBLE, debt DOUBLE, debt_to_equity DOUBLE
+)
+"""
+_DDL_FUNDAMENTAL_DATA_QUALITY = """
+CREATE TABLE IF NOT EXISTS fundamental_data_quality (
+    fundamental_snapshot_id      VARCHAR PRIMARY KEY,
+    eps_available                BOOLEAN NOT NULL,
+    sales_available              BOOLEAN NOT NULL,
+    margin_available             BOOLEAN NOT NULL,
+    roe_available                BOOLEAN NOT NULL,
+    debt_available               BOOLEAN NOT NULL,
+    periods_available            INTEGER NOT NULL,
+    availability_score           DOUBLE NOT NULL,
+    fundamental_hard_gate_pass   BOOLEAN,           -- shown only, never applied (spec §2)
+    fundamental_gate_reason      VARCHAR
+)
+"""
+_DDL_FUNDAMENTAL_RESEARCH_SCORES = """
+CREATE TABLE IF NOT EXISTS fundamental_research_scores (
+    instrument_id   VARCHAR NOT NULL,
+    as_of_date      DATE NOT NULL,
+    score_version   VARCHAR NOT NULL,
+    score           DOUBLE,
+    components_json VARCHAR,
+    PRIMARY KEY (instrument_id, as_of_date, score_version)
+)
+"""
+
+
 _ALL_VIEWS: list[tuple[str, str]] = [
     ("setups", _VIEW_SETUPS),
     ("breakout_events", _VIEW_BREAKOUT_EVENTS),
@@ -1088,6 +1164,11 @@ _ALL_DDL: list[tuple[str, str]] = [
     ("strategy_breakout_events", _DDL_STRATEGY_BREAKOUT_EVENTS),
     ("strategy_scan_run_results", _DDL_STRATEGY_SCAN_RUN_RESULTS),
     ("paper_events", _DDL_PAPER_EVENTS),
+    ("fundamental_filings", _DDL_FUNDAMENTAL_FILINGS),
+    ("fundamental_snapshots", _DDL_FUNDAMENTAL_SNAPSHOTS),
+    ("fundamental_metrics", _DDL_FUNDAMENTAL_METRICS),
+    ("fundamental_data_quality", _DDL_FUNDAMENTAL_DATA_QUALITY),
+    ("fundamental_research_scores", _DDL_FUNDAMENTAL_RESEARCH_SCORES),
 ]
 
 
