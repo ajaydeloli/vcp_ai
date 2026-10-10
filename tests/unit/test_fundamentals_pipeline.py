@@ -266,3 +266,11 @@ def test_saved_targets_round_trip(tmp_path: Path) -> None:
     path = tmp_path / "t.json"
     save_targets(path, targets)
     assert load_targets(path) == targets
+
+
+def test_history_listing_stops_when_the_source_refuses() -> None:
+    refs, files = refs_and_files()
+    provider = Provider(refs, files)
+    provider.fail_symbols = {f"S{i}" for i in range(10)}
+    listing = list_histories(provider, [f"S{i}" for i in range(10)])
+    assert len(listing.incomplete) == 4 and "3 failures in a row" in listing.incomplete[-1]

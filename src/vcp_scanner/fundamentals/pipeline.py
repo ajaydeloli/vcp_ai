@@ -104,12 +104,18 @@ def list_histories(
 ) -> Listing:
     """The whole filing history of each stock (for stocks new to the scope)."""
     result = Listing()
+    streak = 0
     for n, symbol in enumerate(symbols, 1):
         try:
             listing = provider.list_filings(symbol=symbol)
         except ProviderError as exc:
             result.incomplete.append(f"{symbol}: {exc}")
+            streak += 1
+            if streak >= 3:  # the source is refusing us: the rest wait for the next run
+                result.incomplete.append(f"stopped after 3 failures in a row ({n}/{len(symbols)})")
+                break
             continue
+        streak = 0
         if listing.truncated:
             result.incomplete.append(f"{symbol}: source returned fewer rows than it reported")
             continue
