@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Daily and weekly HTML reports (`vcp report daily|weekly`; written by the daily run after the serving copy, weekly on Fridays), read-only, built from the same queries as the dashboard (STRATEGY_SPECIFICATION 21.10). Monitoring step M4.
 - Screener check boxes Universe only and EQ only: unchecked, stocks outside the scan universe are listed with prices only and the reason they are outside (FRONTEND_SPECIFICATION 67.24).
 - Recent IPOs page and `GET /api/v1/ipos`: main-board stocks with fewer than 253 bars, display only, outside the universe, scans, scores, strategies and paper ledger (FRONTEND_SPECIFICATION 67.23). The duplicate VCP Scanner page is removed.
 - Dashboard pages Strategies, Paper Trading and System Status (first draft, read-only, FRONTEND_SPECIFICATION 67.22).

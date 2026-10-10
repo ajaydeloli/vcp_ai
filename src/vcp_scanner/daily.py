@@ -191,6 +191,8 @@ def run_daily(args: argparse.Namespace, cli_main: Callable[[list[str]], int]) ->
         except Exception as exc:  # the dashboard keeps the previous copy
             print(f"ERROR: serving copy not refreshed: {exc}. The dashboard keeps the old copy.")
             results.append(("serving copy", 1))
+        else:
+            _write_reports(db, cfg, target)
 
     collected = sorted(
         str(r[0])
@@ -218,6 +220,18 @@ def run_daily(args: argparse.Namespace, cli_main: Callable[[list[str]], int]) ->
         )
     _append_summary(db, summary)
     return 1 if failed else 0
+
+
+def _write_reports(db: str, config_dir: str, serving: Path) -> None:
+    """Daily (and Friday weekly) HTML report. Never fails the run and never writes data."""
+    try:
+        from vcp_scanner.reporting.build import write_reports
+
+        root = Path(db).resolve()
+        for path in write_reports(serving, config_dir, root.parent, root.parent.parent / "reports"):
+            print(f"Report written: {path}")
+    except Exception as exc:
+        print(f"WARNING: report not written: {exc}")
 
 
 def _append_summary(db: str, line: str) -> None:

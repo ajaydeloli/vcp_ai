@@ -589,6 +589,9 @@ def build_parser() -> argparse.ArgumentParser:
     from vcp_scanner.cli_paper import add_paper_parser
 
     add_paper_parser(subparsers)
+    from vcp_scanner.cli_report import add_report_parser
+
+    add_report_parser(subparsers)
     from vcp_scanner.cli_api import add_api_parser
 
     add_api_parser(subparsers)
@@ -1053,6 +1056,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         from vcp_scanner.cli_paper import run_paper
 
         return run_paper(args)
+    if args.command == "report":
+        from vcp_scanner.cli_report import run_report
+
+        return run_report(args)
     if args.command == "api":
         from vcp_scanner.cli_api import run_api
 
