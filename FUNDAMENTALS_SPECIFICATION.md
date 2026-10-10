@@ -85,7 +85,9 @@ Keys follow §36: `(instrument_id, period_end, period_type, statement_basis, rev
 3. **EPS** is the basic EPS (continuing and discontinued operations) as filed. For a year-on-year comparison the prior-year EPS is taken from the same filing's comparative column if it has one (it has none: F1 finding a); otherwise from the stored filing of that quarter, multiplied by our corporate-action adjustment factor between the two period ends (splits and bonus issues), so a split does not look like an earnings fall.
 4. **Operating profit** = profit before tax + finance costs + depreciation and amortisation − other income; **operating margin** = operating profit / revenue from operations. Tags confirmed in F1.
 5. **Financial companies** (banks, NBFCs, insurers) use other statements. Version 1: revenue = total income, EPS as filed, operating margin NULL with status `NOT_APPLICABLE`. Revisited after F1 shows how many stocks this covers.
-6. **Units** are normalised to rupees; a filing in lakhs or crores is converted using its own scale tag. A filing that fails a sanity check (revenue negative, EPS outside ±10,000, period end after broadcast) is stored as `INVALID` and not used.
+6. **Units.** Facts in NSE's XBRL are already plain rupees (the "Crores" tag only says how the filer displayed them) and per-share amounts in rupees (verified F2, RELIANCE and HDFCBANK). No scaling is applied; a currency other than INR is `INVALID`. A filing that fails a sanity check (negative revenue, EPS outside ±10,000, period end after the broadcast date, period end different from the listing) is stored as `INVALID` and not used.
+7. **Annual filings.** The old feed's annual filing repeats the last quarter in `OneD` and carries the year in `FourD`, plus the balance sheet (verified on RELIANCE 2024-03-31). It becomes an `ANNUAL` snapshot with the year as scope `ANNUAL`; the Q4 quarter comes from the Q4 quarterly filing. A filing of the integrated feed is a `QUARTER` snapshot; if it is a March filing its `FourD` (the year) is kept as scope `YTD`.
+8. **Where the numbers live.** `fundamental_facts` (one row per snapshot, scope and item: revenue, other_income, finance_costs, depreciation, pbt, net_profit, profit_owners, eps; equity, borrowings, debt_equity_ratio; is_financial). Growth rates, margins and the split adjustment of prior-year EPS (rule 3) are computed from these in F3, not stored by F2: F2 keeps EPS exactly as filed (RELIANCE Q3 FY24 reads 25.52, Q3 FY25 reads 13.70 after the 1:1 bonus).
 
 ---
 
@@ -174,7 +176,7 @@ A stock that enters the universe later is fetched on the next update; a stock wi
 | Step | Delivers | Acceptance |
 |---|---|---|
 | F1 | Probe of the **verify** points (read-only, a few requests); provider interface and NSE adapter; raw cache and manifest; tables | the probe results are written into §3; one stock fetched end to end; refetch does nothing |
-| F2 | Parser (XBRL and inline XBRL) to quarterly values; basis, revisions, units, derived quarters | known-answer tests on saved sample filings, including one bank and one with a split |
+| F2 | Parser (XBRL and inline XBRL) to quarterly values; basis, revisions, units, derived quarters | known-answer tests on saved sample filings, including one bank and one with a split (the split is kept as filed here; the adjustment is F3) |
 | F3 | Metrics, point-in-time selection, data quality, hard-gate flags (pure functions) | tests of §6–8; a recompute of a past date equals the original; the hashes of §2 unchanged |
 | F4 | Backfill of 2023-10 onward for the universe; `update` and `status`; guarded daily step | counts and parse-error rate reported; a daily run with the step on a copy of the database |
 | F5 | API and the Fundamentals page; the Stock Analysis card; Screener columns | contract tests; FRONTEND_SPECIFICATION updated |

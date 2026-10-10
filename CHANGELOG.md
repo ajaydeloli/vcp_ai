@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Fundamentals F2: `vcp fundamentals parse` reads the stored NSE filings (both feeds, banks included) into `fundamental_snapshots` and the new `fundamental_facts` (quarter, year-to-date, annual and balance-sheet values; EPS as filed). Basis, period type and revisions are set from the file; a quarter missing from a filing is derived from year-to-date values and marked ESTIMATED; failed sanity checks are INVALID; unreadable files are PARSE_ERROR and not retried. Idempotent. Scan, score, backtest and paper code are unchanged.
+
 - Fundamentals F1: `vcp fundamentals fetch [--symbol X] [--from D --to D]` lists NSE result filings (old results feed and integrated-filing feed), stores each XBRL file unchanged under `data/raw/fundamentals/` with its SHA-256, and records it in the new `fundamental_filings` manifest. Resumable: a stored, unchanged filing is not fetched again; an unreachable source is a warning. Also adds the empty tables `fundamental_snapshots`, `fundamental_metrics`, `fundamental_data_quality`, `fundamental_research_scores`. Nothing the scan, score, backtest or paper ledger reads is changed. Probe findings in FUNDAMENTALS_SPECIFICATION §3.
 
 ### Added

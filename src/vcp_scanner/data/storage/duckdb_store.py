@@ -1076,6 +1076,18 @@ CREATE TABLE IF NOT EXISTS fundamental_snapshots (
     UNIQUE (instrument_id, period_end, period_type, statement_basis, revision_number)
 )
 """
+_DDL_FUNDAMENTAL_FACTS = """
+CREATE TABLE IF NOT EXISTS fundamental_facts (
+    fundamental_snapshot_id VARCHAR NOT NULL,
+    scope        VARCHAR NOT NULL,        -- QUARTER | YTD | ANNUAL | INSTANT
+    item         VARCHAR NOT NULL,        -- revenue, eps, net_profit, equity, ...
+    value        DOUBLE NOT NULL,
+    derived      BOOLEAN NOT NULL,        -- true: computed from year-to-date values
+    period_start DATE,
+    period_end   DATE,
+    PRIMARY KEY (fundamental_snapshot_id, scope, item)
+)
+"""
 _DDL_FUNDAMENTAL_METRICS = """
 CREATE TABLE IF NOT EXISTS fundamental_metrics (
     fundamental_snapshot_id VARCHAR PRIMARY KEY,
@@ -1166,6 +1178,7 @@ _ALL_DDL: list[tuple[str, str]] = [
     ("paper_events", _DDL_PAPER_EVENTS),
     ("fundamental_filings", _DDL_FUNDAMENTAL_FILINGS),
     ("fundamental_snapshots", _DDL_FUNDAMENTAL_SNAPSHOTS),
+    ("fundamental_facts", _DDL_FUNDAMENTAL_FACTS),
     ("fundamental_metrics", _DDL_FUNDAMENTAL_METRICS),
     ("fundamental_data_quality", _DDL_FUNDAMENTAL_DATA_QUALITY),
     ("fundamental_research_scores", _DDL_FUNDAMENTAL_RESEARCH_SCORES),

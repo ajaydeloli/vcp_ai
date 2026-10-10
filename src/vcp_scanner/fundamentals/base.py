@@ -79,6 +79,21 @@ class StoredFiling:
     cache_path: str | None
 
 
+@dataclass(frozen=True)
+class FilingRow:
+    """A manifest row as the parser needs it."""
+
+    filing_id: str
+    instrument_id: str
+    period_end: date
+    period_type: str | None
+    statement_basis: str
+    revision_number: int
+    broadcast_at: datetime
+    cache_path: str | None
+    sha256: str | None
+
+
 class FilingManifest(Protocol):
     """The manifest of filings seen, one row per filing (spec §4)."""
 

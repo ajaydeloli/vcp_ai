@@ -22,6 +22,8 @@ def add_fundamentals_parser(subparsers: argparse._SubParsersAction) -> None:  # 
     s.add_argument("--to", dest="end", default=None, metavar="YYYY-MM-DD")
     s.add_argument("--db", default="data/vcp_scanner.duckdb")
     s.add_argument("--interval", type=float, default=1.0, help="Seconds between requests")
+    q = sub.add_parser("parse", help="Turn stored filings into quarterly values")
+    q.add_argument("--db", default="data/vcp_scanner.duckdb")
 
 
 def run_fundamentals(args: argparse.Namespace) -> int:
@@ -32,8 +34,11 @@ def run_fundamentals(args: argparse.Namespace) -> int:
     from vcp_scanner.data.storage.duckdb_store import DuckDBStore
     from vcp_scanner.fundamentals.fetch import fetch_filings
 
-    if getattr(args, "fundamentals_command", None) != "fetch":
-        _err("Usage: vcp fundamentals fetch [--symbol X] [--from D --to D]")
+    command = getattr(args, "fundamentals_command", None)
+    if command == "parse":
+        return _run_parse(args)
+    if command != "fetch":
+        _err("Usage: vcp fundamentals {fetch,parse}")
         return 1
     if bool(args.start) != bool(args.end):
         _err("--from and --to go together")
@@ -67,5 +72,25 @@ def run_fundamentals(args: argparse.Namespace) -> int:
         f"other symbols {report.skipped_no_instrument}"
     )
     for message in report.messages:
+        print(f"  {message}")
+    return 0
+
+
+def _run_parse(args: argparse.Namespace) -> int:
+    from vcp_scanner.data.repositories.duckdb_fundamental_repository import (
+        DuckDBFundamentalRepository,
+    )
+    from vcp_scanner.data.storage.duckdb_store import DuckDBStore
+    from vcp_scanner.fundamentals.snapshots import parse_filings
+
+    db = Path(args.db).resolve()
+    store = DuckDBStore(db)
+    store.migrate()
+    report = parse_filings(DuckDBFundamentalRepository(store), db.parent / "raw" / "fundamentals")
+    print(
+        f"Snapshots created {report.parsed}, estimated {report.estimated}, "
+        f"invalid {report.invalid}, parse errors {report.errors}"
+    )
+    for message in report.messages[:20]:
         print(f"  {message}")
     return 0
