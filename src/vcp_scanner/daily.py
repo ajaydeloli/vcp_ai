@@ -228,7 +228,13 @@ def _write_reports(db: str, config_dir: str, serving: Path) -> None:
         from vcp_scanner.reporting.build import write_reports
 
         root = Path(db).resolve()
-        for path in write_reports(serving, config_dir, root.parent, root.parent.parent / "reports"):
+        from vcp_scanner.data.providers.nse_bhavcopy import NseBhavcopyProvider
+
+        def holidays() -> set[date]:
+            return NseBhavcopyProvider(root.parent / "raw" / "bhavcopy").get_trading_holidays()
+
+        out = root.parent.parent / "reports"
+        for path in write_reports(serving, config_dir, root.parent, out, holidays):
             print(f"Report written: {path}")
     except Exception as exc:
         print(f"WARNING: report not written: {exc}")

@@ -26,7 +26,10 @@ def _digest(path: Path) -> str:
 
 def test_every_route_is_a_get(ro_env: Env) -> None:
     routes = [r for r in ro_env.app.routes if isinstance(r, APIRoute)]
-    assert routes and all(r.methods == {"GET"} for r in routes)
+    # the only write: a report file under the reports folder (never a database)
+    writes = [r.path for r in routes if r.methods != {"GET"}]
+    assert writes == ["/api/v1/reports/generate"]
+    assert all(r.methods == {"POST"} for r in routes if r.path in writes)
     assert all(r.path.startswith("/api/v1/") for r in routes)
 
 

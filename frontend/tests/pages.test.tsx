@@ -1,6 +1,6 @@
 import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { PaperTrading } from "@/components/PaperTrading";
 import { Strategies } from "@/components/Strategies";
 import { SystemStatus } from "@/components/SystemStatus";
@@ -67,5 +67,24 @@ describe("more pages", () => {
     expect(await screen.findByRole("button", { name: /Daily report 2026-10-05/ })).toHaveAttribute("aria-current", "true");
     expect(screen.getByRole("button", { name: /Weekly summary 2026-W41/ })).toBeInTheDocument();
     expect(screen.getByTitle("Daily report 2026-10-05")).toHaveAttribute("src", "/api/v1/reports/daily/2026-10-05.html");
+  });
+
+  it("Reports can build a past report and then shows it", async () => {
+    mockApi();
+    renderApp(<Reports />);
+    await screen.findByRole("button", { name: /Daily report 2026-10-05/ });
+    await userEvent.click(screen.getByRole("button", { name: "Generate" }));
+    expect(await screen.findByRole("status")).toHaveTextContent("Written: Daily report 2026-10-01");
+    const post = vi.mocked(globalThis.fetch).mock.calls.find(([, init]) => init?.method === "POST");
+    expect(String(post?.[0])).toBe("/api/v1/reports/generate");
+    expect(JSON.parse(String(post?.[1]?.body))).toEqual({ kind: "daily", date: "2026-10-05" });
+  });
+
+  it("Reports says why a report could not be made", async () => {
+    mockApi({ "reports/generate": new Error("down") });
+    renderApp(<Reports />);
+    await screen.findByRole("button", { name: /Daily report 2026-10-05/ });
+    await userEvent.click(screen.getByRole("button", { name: "Generate" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent(/not reachable/);
   });
 });

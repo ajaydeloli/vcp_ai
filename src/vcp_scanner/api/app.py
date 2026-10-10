@@ -24,6 +24,7 @@ from vcp_scanner.live.factory import make_feed_factory, nse_holiday_loader
 from vcp_scanner.live.hours import MarketCalendar
 from vcp_scanner.live.models import UniverseEntry
 from vcp_scanner.live.service import LiveService
+from vcp_scanner.reporting import build as report_build
 from vcp_scanner.serving import default_serving_path
 
 MARKET_LABEL = "VCP Quality Index, VQI (equal-weight index of the stocks we scan), not NIFTY"
@@ -286,6 +287,18 @@ def create_app(
     @app.get(f"{api}/reports", response_model=m.ReportsResponse)
     def report_list() -> m.ReportsResponse:
         return report_files.list_reports(reports_folder)
+
+    @app.post(f"{api}/reports/generate", response_model=m.ReportFile)
+    def generate_report(req: m.ReportRequest) -> m.ReportFile:
+        """The API's only write, and only an HTML file under the reports folder: a report for a
+        past day or week, built from the serving copy. JSON body required (a page on another
+        origin cannot send one without a CORS preflight, which this API refuses)."""
+        write = report_build.write_daily if req.kind == "daily" else report_build.write_weekly
+        try:
+            path = write(db, config_dir, data, reports_folder, req.date, clock())
+        except ValueError as exc:
+            raise HTTPException(400, str(exc)) from exc
+        return report_files.file_info(req.kind, path)
 
     @app.get(f"{api}/reports/{{kind}}/{{name}}", response_class=HTMLResponse)
     def report_file(kind: str, name: str) -> HTMLResponse:

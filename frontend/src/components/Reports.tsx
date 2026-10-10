@@ -1,10 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { useReports } from "@/lib/api";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { generateReport, useReports, useStatus } from "@/lib/api";
 import { fmtInt, fmtStamp } from "@/lib/fmt";
 import type { ReportFile } from "@/lib/schemas";
 import { Page } from "./Page";
+import { Field, FIELD } from "./Screener";
 import { Card, Empty, ErrorBox, Loading } from "./ui";
 
 const url = (f: ReportFile): string => `/api/v1/reports/${f.kind}/${encodeURIComponent(f.name)}`;
@@ -37,6 +39,56 @@ function Group({ title, files, picked, onPick }: { title: string; files: ReportF
   );
 }
 
+/** Build the report of a past day or week. It only writes an HTML file; no data changes. */
+function Generate({ onDone }: { onDone: (k: string) => void }) {
+  const status = useStatus();
+  const client = useQueryClient();
+  const latest = status.data?.prices_date ?? undefined;
+  const [kind, setKind] = useState<"daily" | "weekly">("daily");
+  const [date, setDate] = useState("");
+  const make = useMutation({
+    mutationFn: () => generateReport(kind, date || latest || ""),
+    onSuccess: async (f) => {
+      await client.invalidateQueries({ queryKey: ["reports"] });
+      onDone(key(f));
+    },
+  });
+  return (
+    <Card
+      title="Generate a report"
+      label="Generate a report"
+      subtitle="Build the report of a past day or week. A report for the same day is replaced. Open positions, paper results and run health always show the latest data."
+    >
+      <form
+        className="flex flex-wrap items-end gap-3"
+        onSubmit={(e) => {
+          e.preventDefault();
+          make.mutate();
+        }}
+      >
+        <Field id="gen-kind" label="Report">
+          <select id="gen-kind" value={kind} onChange={(e) => setKind(e.target.value as "daily" | "weekly")} className={FIELD}>
+            <option value="daily">Daily report</option>
+            <option value="weekly">Weekly summary</option>
+          </select>
+        </Field>
+        <Field id="gen-date" label={kind === "daily" ? "Trading day" : "Any day of the week"}>
+          <input id="gen-date" type="date" max={latest} value={date || latest || ""} onChange={(e) => setDate(e.target.value)} className={FIELD} />
+        </Field>
+        <button
+          type="submit"
+          disabled={make.isPending || !(date || latest)}
+          className="rounded border border-accent px-3 py-1.5 text-xs text-accent enabled:hover:bg-accent/10 disabled:opacity-40"
+        >
+          {make.isPending ? "Generating…" : "Generate"}
+        </button>
+      </form>
+      {make.isError ? <p role="alert" className="mt-2 text-xs text-down">{make.error instanceof Error ? make.error.message : "The report could not be made."}</p> : null}
+      {make.isSuccess ? <p role="status" className="mt-2 text-xs text-up">{`Written: ${make.data.label}`}</p> : null}
+    </Card>
+  );
+}
+
 /** The daily and weekly HTML reports written by the daily run, shown as they are. */
 export function Reports() {
   const reports = useReports();
@@ -49,6 +101,7 @@ export function Reports() {
 
   return (
     <Page active="Reports" title="Reports">
+      <Generate onDone={setChosen} />
       <Card
         title="Reports"
         subtitle="Written by the daily run after the serving copy: a daily report each session and a weekly summary on Fridays. Watch lists for paper monitoring, not trade instructions."

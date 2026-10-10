@@ -21,6 +21,15 @@ def _label(kind: str, stem: str) -> str:
     return f"Daily report {stem}" if kind == "daily" else f"Weekly summary {stem}"
 
 
+def file_info(kind: str, p: Path) -> m.ReportFile:
+    st = p.stat()
+    return m.ReportFile(
+        kind=kind,
+        name=p.name, label=_label(kind, p.name[:-5]), size_bytes=st.st_size,
+        modified=datetime.fromtimestamp(st.st_mtime, IST),
+    )  # fmt: skip
+
+
 def list_reports(folder: Path | None) -> m.ReportsResponse:
     files: list[m.ReportFile] = []
     for kind in KINDS:
@@ -30,13 +39,7 @@ def list_reports(folder: Path | None) -> m.ReportsResponse:
             hit = NAME[kind].match(p.name)
             if hit is None or not p.is_file():
                 continue
-            st = p.stat()
-            files.append(
-                m.ReportFile(
-                    kind=kind, name=p.name, label=_label(kind, hit.group(1)),
-                    size_bytes=st.st_size, modified=datetime.fromtimestamp(st.st_mtime, IST),
-                )
-            )  # fmt: skip
+            files.append(file_info(kind, p))
     newest = max((f.modified for f in files), default=datetime.now(IST))
     days = [date.fromisoformat(f.name[:-5]) for f in files if f.kind == "daily"]
     return m.ReportsResponse(as_of=max(days, default=None), data_time=newest, files=files)

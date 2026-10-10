@@ -549,3 +549,10 @@ class ReportFile(BaseModel):
 
 class ReportsResponse(Stamped):
     files: list[ReportFile]
+
+
+class ReportRequest(BaseModel):
+    """The one thing the API writes: a report file (FRONTEND_SPECIFICATION 67.27)."""
+
+    kind: Literal["daily", "weekly"]
+    date: date  # a trading day (daily), or any day of the week (weekly)
