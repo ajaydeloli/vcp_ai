@@ -47,7 +47,9 @@ describe("dashboard page (market view)", () => {
     await userEvent.click(screen.getByRole("button", { name: "Open the menu" }));
     const menu = screen.getByRole("complementary", { name: "Menu" });
     expect(within(menu).getByRole("link", { name: "Watchlist" })).toHaveAttribute("href", "/watchlist");
-    for (const name of ["Backtest", "Reports", "Fundamentals"]) {
+    expect(within(menu).getByRole("link", { name: "Backtest" })).toHaveAttribute("href", "/backtest");
+    expect(within(menu).getByRole("link", { name: "Reports" })).toHaveAttribute("href", "/reports");
+    for (const name of ["Fundamentals", "Alerts"]) {
       expect(within(menu).getByText(name).closest("[aria-disabled]")).toHaveAttribute("aria-disabled", "true");
     }
     await userEvent.keyboard("{Escape}");

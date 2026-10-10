@@ -10,9 +10,9 @@ from typing import Annotated
 
 from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 
-from vcp_scanner.api import health, ipos, reports
+from vcp_scanner.api import backtests, health, ipos, report_files, reports
 from vcp_scanner.api import models as m
 from vcp_scanner.api import queries as q
 from vcp_scanner.api.context import Context, StrategySpec, build_context
@@ -36,11 +36,14 @@ def create_app(
     serving_path: str | Path | None = None, config_dir: str | Path = "config",
     data_dir: str | Path = "data", now: Callable[[], datetime] | None = None,
     origins: tuple[str, ...] = ORIGINS, live: LiveService | None = None, env_file: str = ".env",
+    research_db: str | Path | None = None, reports_dir: str | Path | None = None,
 ) -> FastAPI:  # fmt: skip
     """``serving_path`` defaults to ``<data_dir>/serving/vcp_serving.duckdb``; logs and backups
     are read from ``data_dir``. ``live`` is the live-price service (display only); by default one
     is built from ``config/live.yaml`` and reads credentials from ``env_file`` at its first poll."""
     data = Path(data_dir)
+    research = Path(research_db) if research_db else data / "golden_src.duckdb"
+    reports_folder = Path(reports_dir) if reports_dir else data.resolve().parent / "reports"
     db = ServingDb(serving_path or default_serving_path(data / "vcp_scanner.duckdb"))
     ctx: Context = build_context(config_dir, data)
     clock = now or (lambda: datetime.now(IST))
@@ -275,5 +278,20 @@ def create_app(
     def recent_ipos() -> m.IposResponse:
         with db.cursor() as cur:
             return ipos.recent_listings(cur, db.data_time())
+
+    @app.get(f"{api}/backtests", response_model=m.BacktestsResponse)
+    def stored_backtests() -> m.BacktestsResponse:
+        return backtests.stored_runs(research)
+
+    @app.get(f"{api}/reports", response_model=m.ReportsResponse)
+    def report_list() -> m.ReportsResponse:
+        return report_files.list_reports(reports_folder)
+
+    @app.get(f"{api}/reports/{{kind}}/{{name}}", response_class=HTMLResponse)
+    def report_file(kind: str, name: str) -> HTMLResponse:
+        text = report_files.read_report(reports_folder, kind, name)
+        if text is None:
+            raise HTTPException(404, f"no report {kind}/{name}")
+        return HTMLResponse(text)
 
     return app

@@ -263,6 +263,60 @@ export const ipoRow = z.object({
 });
 export const ipos = z.object({ ...stamp, full_history_bars: z.number(), rows: z.array(ipoRow) });
 
+export const backtestStats = z.object({
+  trades: num,
+  win_rate_pct: num,
+  avg_return_pct: num,
+  median_return_pct: num,
+  profit_factor: num,
+  avg_win_pct: num,
+  avg_loss_pct: num,
+  avg_hold_days: num,
+});
+export const backtestPortfolio = backtestStats.extend({
+  total_return_pct: num,
+  cagr_pct: num,
+  max_drawdown_pct: num,
+  sharpe: num,
+  avg_exposure_pct: num,
+  skipped: num,
+});
+export const backtestRun = z.object({
+  backtest_id: z.string(),
+  strategy_id: z.string(),
+  algorithm_version: z.string().nullable(),
+  period: z.string().nullable(),
+  start_date: day,
+  end_date: day,
+  survivorship: z.string().nullable(),
+  entry: z.string().nullable(),
+  regime: z.string().nullable(),
+  rule: z.string().nullable(),
+  cost_bps: num,
+  max_positions: num,
+  classes: z.array(z.string()),
+  min_score: num,
+  baseline: z.boolean(),
+  paper_rules: z.boolean(),
+  completed_at: z.string().nullable(),
+  every_trade: backtestStats,
+  portfolio: backtestPortfolio,
+});
+export const backtests = z.object({
+  ...stamp,
+  available: z.boolean(),
+  reason: z.string().nullable(),
+  runs: z.array(backtestRun),
+});
+export const reportFile = z.object({
+  kind: z.enum(["daily", "weekly"]),
+  name: z.string(),
+  label: z.string(),
+  size_bytes: z.number(),
+  modified: z.string(),
+});
+export const reports = z.object({ ...stamp, files: z.array(reportFile) });
+
 export const search = z.object({
   ...stamp,
   query: z.string(),
@@ -379,6 +433,10 @@ export type ActivityEvent = z.infer<typeof activityEvent>;
 export type Activity = z.infer<typeof activity>;
 export type PaperStrategy = z.infer<typeof paperStrategy>;
 export type Paper = z.infer<typeof paper>;
+export type BacktestRun = z.infer<typeof backtestRun>;
+export type Backtests = z.infer<typeof backtests>;
+export type ReportFile = z.infer<typeof reportFile>;
+export type Reports = z.infer<typeof reports>;
 export type IpoRow = z.infer<typeof ipoRow>;
 export type Ipos = z.infer<typeof ipos>;
 export type Search = z.infer<typeof search>;

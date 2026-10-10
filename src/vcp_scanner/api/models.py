@@ -486,3 +486,66 @@ class IpoRow(BaseModel):
 class IposResponse(Stamped):
     full_history_bars: int  # stocks with at least this many bars are in the scan universe
     rows: list[IpoRow]
+
+
+# ---- Backtest runs and report files (FRONTEND_SPECIFICATION 67.26, 67.27) ----------------------
+
+
+class BacktestStats(BaseModel):
+    trades: int | None
+    win_rate_pct: float | None
+    avg_return_pct: float | None
+    median_return_pct: float | None
+    profit_factor: float | None
+    avg_win_pct: float | None
+    avg_loss_pct: float | None
+    avg_hold_days: float | None
+
+
+class BacktestPortfolio(BacktestStats):
+    total_return_pct: float | None
+    cagr_pct: float | None
+    max_drawdown_pct: float | None
+    sharpe: float | None
+    avg_exposure_pct: float | None
+    skipped: int | None
+
+
+class BacktestRun(BaseModel):
+    backtest_id: str
+    strategy_id: str
+    algorithm_version: str | None
+    period: str | None  # development | validation
+    start_date: date
+    end_date: date
+    survivorship: str | None
+    entry: str | None
+    regime: str | None
+    rule: str | None
+    cost_bps: float | None
+    max_positions: int | None
+    classes: list[str]
+    min_score: float | None
+    baseline: bool
+    paper_rules: bool  # entry, regime, exit rule, positions and costs of the frozen paper rules
+    completed_at: datetime | None
+    every_trade: BacktestStats
+    portfolio: BacktestPortfolio
+
+
+class BacktestsResponse(Stamped):
+    available: bool
+    reason: str | None  # why there are no runs to show
+    runs: list[BacktestRun]
+
+
+class ReportFile(BaseModel):
+    kind: Literal["daily", "weekly"]
+    name: str
+    label: str
+    size_bytes: int
+    modified: datetime
+
+
+class ReportsResponse(Stamped):
+    files: list[ReportFile]

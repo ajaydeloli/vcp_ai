@@ -9,12 +9,14 @@ import bars from "./fixtures/api/bars.json";
 import liveIndices from "./fixtures/api/live_indices.json";
 import liveQuotes from "./fixtures/api/live_quotes.json";
 import liveStatus from "./fixtures/api/live_status.json";
+import backtests from "./fixtures/api/backtests.json";
 import ipos from "./fixtures/api/ipos.json";
 import history from "./fixtures/api/stock_history.json";
 import marketHealth from "./fixtures/api/market_health.json";
 import market from "./fixtures/api/market.json";
 import overlap from "./fixtures/api/overlap.json";
 import paper from "./fixtures/api/paper.json";
+import reports from "./fixtures/api/reports.json";
 import screener from "./fixtures/api/screener.json";
 import search from "./fixtures/api/search.json";
 import setupsFlat from "./fixtures/api/setups_flat_base.json";
@@ -25,7 +27,7 @@ import strategies from "./fixtures/api/strategies.json";
 import summary from "./fixtures/api/summary.json";
 
 export const fx = {
-  activity, bars, history, ipos, liveIndices, liveQuotes, liveStatus, market, marketHealth, overlap, paper, search, screener, setupsFlat, setupsVcp, status,
+  activity, backtests, bars, history, ipos, reports, liveIndices, liveQuotes, liveStatus, market, marketHealth, overlap, paper, search, screener, setupsFlat, setupsVcp, status,
   stockSetups, strategies, summary,
 }; // fmt: skip
 
@@ -42,6 +44,8 @@ export function sample(rel: string): unknown {
     case "activity": return fx.activity;
     case "paper": return fx.paper;
     case "ipos": return fx.ipos;
+    case "backtests": return fx.backtests;
+    case "reports": return fx.reports;
     case "search": return fx.search;
     case "screener": return fx.screener;
     case "live/indices": return fx.liveIndices;

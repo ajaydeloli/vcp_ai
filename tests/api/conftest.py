@@ -9,7 +9,7 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from tests.api.fixture import CONFIG_DIR, build_all
+from tests.api.fixture import CONFIG_DIR, build_all, build_research_db, write_report_files
 from tests.live.fakes import UNIVERSE, Clock, make_service
 from vcp_scanner.api.app import create_app
 from vcp_scanner.api.context import Context
@@ -29,13 +29,22 @@ class Env(NamedTuple):
 
 def _make(data_dir: Path) -> Env:
     ctx, db = build_all(data_dir)
+    research = build_research_db(data_dir / "golden_src.duckdb")
+    write_report_files(data_dir / "reports")
     clock = {"now": NOW}
     # Every test app gets a fake live feed (synthetic prices, polled once at NOW): no test can
     # reach a real provider.
     live_clock = Clock(NOW)
     live, _ = make_service(live_clock, universe=UNIVERSE)
     live.poll_once()
-    app = create_app(config_dir=CONFIG_DIR, data_dir=data_dir, now=lambda: clock["now"], live=live)
+    app = create_app(
+        config_dir=CONFIG_DIR,
+        data_dir=data_dir,
+        now=lambda: clock["now"],
+        live=live,
+        research_db=research,
+        reports_dir=data_dir / "reports",
+    )
 
     def set_now(t: datetime) -> None:
         clock.update(now=t)
