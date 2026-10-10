@@ -247,6 +247,27 @@ def test_full_pipeline_from_an_empty_database(
         bad = q("SELECT count(*) FROM setup_scores WHERE ranking_percentile IS NOT NULL"
                 " AND NOT eligible").fetchone()  # fmt: skip
         assert bad == (0,)
+    # Fundamentals freeze rule (FUNDAMENTALS_SPECIFICATION §2): stored fundamentals, even
+    # extreme ones, change nothing in the score; the rerun hash equals the hash without them.
+    with DuckDBStore(db) as store:
+        q = store.conn.execute
+        ids = [r[0] for r in q("SELECT DISTINCT instrument_id FROM setup_scores").fetchall()]
+        for n, iid in enumerate(ids):
+            sid = f"fs_test_{n}"
+            q("INSERT INTO fundamental_snapshots (fundamental_snapshot_id, instrument_id,"
+              " period_end, period_type, statement_basis, revision_number, available_at,"
+              " provider, data_status) VALUES (?, ?, DATE '2024-03-31', 'QUARTER',"
+              " 'CONSOLIDATED', 0, TIMESTAMPTZ '2024-04-20 18:00:00+05:30', 'NSE', 'OK')",
+              [sid, iid])  # fmt: skip
+            q("INSERT INTO fundamental_facts VALUES (?, 'QUARTER', 'eps', -999.0, false,"
+              " DATE '2024-01-01', DATE '2024-03-31')", [sid])  # fmt: skip
+    assert cli_main(score_argv) == 0
+    capsys.readouterr()
+    with DuckDBStore(db) as store:
+        hashes = store.conn.execute(
+            "SELECT DISTINCT results_hash FROM scan_runs WHERE scan_type = 'SCORE'"
+        ).fetchall()
+        assert hashes == [(shash,)]
     # Phase 9 step 2: forward labels for the scored observations (no later bars: all open).
     assert cli_main(["compute", "labels", "--db", db, "--config-dir", CONFIG_DIR]) == 0
     assert "Forward labels" in capsys.readouterr().out

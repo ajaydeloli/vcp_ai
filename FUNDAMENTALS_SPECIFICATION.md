@@ -82,7 +82,7 @@ Keys follow §36: `(instrument_id, period_end, period_type, statement_basis, rev
 
 1. **Quarter values.** Use the `OneD` (quarter) context. If it is missing, derive the quarter from year-to-date values: Q2 = H1 − Q1, Q3 = 9M − H1, Q4 = annual − 9M. A derived value is marked `ESTIMATED`.
 2. **Basis.** Keep CONSOLIDATED and STANDALONE as separate snapshots. Policy `prefer_consolidated` (DATABASE_SCHEMA §36); growth only between periods of the same basis; a switch gives NULL growth with status `BASIS_CHANGE`.
-3. **EPS** is the basic EPS (continuing and discontinued operations) as filed. For a year-on-year comparison the prior-year EPS is taken from the same filing's comparative column if it has one (it has none: F1 finding a); otherwise from the stored filing of that quarter, multiplied by our corporate-action adjustment factor between the two period ends (splits and bonus issues), so a split does not look like an earnings fall.
+3. **EPS** is the basic EPS (continuing and discontinued operations) as filed. For a year-on-year comparison the prior-year EPS is taken from the same filing's comparative column if it has one (it has none: F1 finding a); otherwise from the stored filing of that quarter, multiplied by the price factors of the splits and bonus issues whose ex-date falls after that filing's broadcast date and on or before the later filing's, so a split does not look like an earnings fall. Broadcast dates, not period ends, because Ind-AS 33 restates EPS for a bonus or split that happens before the results are approved (RELIANCE: the 1:1 bonus went ex on 2024-10-28, after the Sep 2024 quarter ended; that quarter, filed on 14 Oct, shows pre-bonus EPS, the Dec 2024 quarter post-bonus). The factors come from our corporate-action tables as currently known (`known_to IS NULL`): a split or bonus is announced weeks before its ex-date, so using today's knowledge of past actions does not look ahead.
 4. **Operating profit** = profit before tax + finance costs + depreciation and amortisation − other income; **operating margin** = operating profit / revenue from operations. Tags confirmed in F1.
 5. **Financial companies** (banks, NBFCs, insurers) use other statements. Version 1: revenue = total income, EPS as filed, operating margin NULL with status `NOT_APPLICABLE`. Revisited after F1 shows how many stocks this covers.
 6. **Units.** Facts in NSE's XBRL are already plain rupees (the "Crores" tag only says how the filer displayed them) and per-share amounts in rupees (verified F2, RELIANCE and HDFCBANK). No scaling is applied; a currency other than INR is `INVALID`. A filing that fails a sanity check (negative revenue, EPS outside ±10,000, period end after the broadcast date, period end different from the listing) is stored as `INVALID` and not used.
@@ -102,10 +102,12 @@ Defined as in SCORING_SPECIFICATION §7; computed per stock, per `as_of_date`, f
 | `sales_yoy` | revenue from operations, year on year, % | prior revenue missing or ≤ 0 |
 | `eps_acceleration` | `eps_yoy` of this quarter − `eps_yoy` of the preceding quarter (percentage points) | either is NULL |
 | `margin_expansion` | operating margin − operating margin a year earlier (percentage points) | either margin is NULL |
-| `roe` | trailing four quarters' profit attributable to owners / average of the equity at the last two balance-sheet dates, % | equity not filed or fewer than four quarters |
-| `debt_to_equity` | the filed `DebtEquityRatio`, or borrowings / equity from the balance sheet | neither exists |
+| `roe` | trailing four quarters' profit attributable to owners (net profit when not filed) / average of the equity attributable to owners at the last two balance-sheet dates (one date when only one exists), % | equity not filed or fewer than four consecutive quarters |
+| `debt_to_equity` | borrowings (current + non-current) / equity from the latest balance sheet; the filed `DebtEquityRatio` only when no balance sheet exists (F3: some filings carry a filed ratio of 0 next to real borrowings, RELIANCE 2024-03-31) | neither exists |
 
-Also stored: trailing-twelve-month EPS (for the negative-EPS hard gate) and the number of quarters available.
+Also computed: trailing-twelve-month EPS on the latest share basis (for the negative-EPS hard gate), the operating margin of the latest quarter and the number of quarters available.
+
+Implementation (F3): `fundamentals/metrics.py`, `compute_view(snapshots, as_of, share_actions)`, a pure function; `vcp fundamentals show SYMBOL [--date]` prints it. Hard-gate reasons: `NO_DATA`, `INSUFFICIENT_DATA` (availability below `fundamentals_min_availability`), `NEGATIVE_TTM_EPS`. Writing the results to `fundamental_metrics` / `fundamental_data_quality` for every stock and date is part of F4.
 
 ---
 

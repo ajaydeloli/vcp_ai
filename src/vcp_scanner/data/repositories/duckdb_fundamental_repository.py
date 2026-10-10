@@ -11,6 +11,7 @@ from datetime import date, datetime
 
 from vcp_scanner.data.storage.duckdb_store import DuckDBStore
 from vcp_scanner.fundamentals.base import STATUS_PARSE_ERROR, FilingRef, FilingRow, StoredFiling
+from vcp_scanner.fundamentals.metrics import ShareAction, SnapshotData
 from vcp_scanner.fundamentals.snapshots import PROVIDER, Fact, SnapshotRow
 
 
@@ -176,3 +177,36 @@ class DuckDBFundamentalRepository:
         except Exception:
             conn.execute("ROLLBACK")
             raise
+
+    # --- metric inputs (F3) -----------------------------------------------------------------
+
+    def snapshots_for(self, instrument_id: str) -> list[SnapshotData]:
+        """Every snapshot of a stock with its facts (all revisions; selection is the caller's)."""
+        heads = self._conn.execute(
+            "SELECT fundamental_snapshot_id, period_end, period_type, statement_basis,"
+            " revision_number, available_at, data_status FROM fundamental_snapshots"
+            " WHERE instrument_id = ? ORDER BY period_end, revision_number",
+            [instrument_id],
+        ).fetchall()
+        facts: dict[str, dict[str, dict[str, float]]] = {}
+        for sid, scope, item, value in self._conn.execute(
+            "SELECT f.fundamental_snapshot_id, f.scope, f.item, f.value FROM fundamental_facts f"
+            " JOIN fundamental_snapshots s USING (fundamental_snapshot_id)"
+            " WHERE s.instrument_id = ?",
+            [instrument_id],
+        ).fetchall():
+            facts.setdefault(sid, {}).setdefault(scope, {})[item] = value
+        return [SnapshotData(h[0], h[1], h[2], h[3], h[4], h[5], h[6], facts.get(h[0], {}))
+                for h in heads]  # fmt: skip
+
+    def share_actions(self, instrument_id: str) -> list[ShareAction]:
+        """Splits and bonus issues (current knowledge) as price factors."""
+        rows = self._conn.execute(
+            "SELECT DISTINCT r.ex_date, a.price_factor FROM corporate_action_adjustments a"
+            " JOIN corporate_action_resolution r USING (resolution_id)"
+            " WHERE a.instrument_id = ? AND a.known_to IS NULL AND r.known_to IS NULL"
+            " AND r.action_type IN ('SPLIT', 'BONUS') AND r.ex_date IS NOT NULL"
+            " ORDER BY r.ex_date",
+            [instrument_id],
+        ).fetchall()
+        return [ShareAction(d, float(f)) for d, f in rows]
