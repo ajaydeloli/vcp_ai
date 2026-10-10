@@ -91,8 +91,9 @@ def regime_section(days: list[m.MarketDay], rule: str) -> str:
     return (
         f'<h2>Market regime</h2><p>Regime <b class="{cls}">{state}</b> on {d.day} '
         f"(rule: {esc(rule)}). Stocks above their 50-day average: {num(d.breadth_pct, 1, ' %')}. "
-        f"Equal-weight index of our universe (VQI, 100 on {days[0].day}): {num(d.index, 1)}, "
-        f"{above} its 50-day average ({num(d.index_ma50, 1)}).</p>"
+        f"VQI (VCP Quality Index, 100 on {days[0].day}): {num(d.index, 1)}, "
+        f"{above} its 50-day average ({num(d.index_ma50, 1)}). VQI is an equal-weight index "
+        "of the stocks we scan, not NIFTY.</p>"
     )
 
 
@@ -216,7 +217,7 @@ def weekly_html(
             "<h2>Breadth and index this week</h2><ul>"
             f"<li>Stocks above their 50-day average: {num(first.breadth_pct, 1, ' %')} on "
             f"{first.day} to {num(last.breadth_pct, 1, ' %')} on {last.day}.</li>"
-            f"<li>Equal-weight index of our universe over the week: {idx}.</li>"
+            f"<li>VQI over the week: {idx}.</li>"
             f"<li>Regime ON on {sum(d.regime_on for d in this_week)} of {len(this_week)} "
             "sessions.</li></ul>"
         )  # fmt: skip
@@ -243,7 +244,7 @@ def weekly_html(
              "Average trade", "Profit factor", "Open now"],
             rows, 1,
         )
-        + "<p class='muted'>Portfolio return and drawdown against the equal-weight index are "
+        + "<p class='muted'>Portfolio return and drawdown against VQI are "
         f"{NA} in the reports: they need a portfolio replay, judged at the review on or after "
         f"{paper.review_from}. Closed trades needed per strategy: {paper.min_closed_trades}.</p>"
     )  # fmt: skip
