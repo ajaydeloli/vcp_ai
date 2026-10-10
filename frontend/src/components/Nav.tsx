@@ -7,9 +7,7 @@ const LATER = [
   "Trend Template",
   "Fundamentals",
   "Alerts",
-  "Backtest",
   "Research & Notes",
-  "Reports",
   "Settings",
 ];
 
@@ -21,6 +19,8 @@ const PAGES = [
   ["Watchlist", "/watchlist"],
   ["Strategies", "/strategies"],
   ["Paper Trading", "/paper"],
+  ["Backtest", "/backtest"],
+  ["Reports", "/reports"],
   ["System Status", "/system"],
 ] as const;
 

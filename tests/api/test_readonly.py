@@ -15,7 +15,8 @@ PATHS = [
     "setups/overlap", "stocks/ALPHA/bars", "stocks/ALPHA/setups", "activity", "paper",
     "search?q=alp", "stocks/ALPHA/history", "market/health", "screener?stage=STAGE_2&min_rs=80",
     "live/quotes?symbols=ALPHA,BETA", "live/indices", "live/status", "ipos",
-    "screener?universe_only=false&eq_only=false",
+    "screener?universe_only=false&eq_only=false", "backtests", "reports",
+    "reports/daily/2026-10-05.html",
 ]  # fmt: skip
 
 
@@ -38,10 +39,11 @@ def test_writing_verbs_are_refused(ro_env: Env, method: str) -> None:
 
 def test_requests_leave_both_databases_untouched(ro_env: Env) -> None:
     serving = ro_env.data_dir / "serving" / "vcp_serving.duckdb"
-    before = (_digest(serving), _digest(ro_env.db))
+    research = ro_env.data_dir / "golden_src.duckdb"
+    before = (_digest(serving), _digest(ro_env.db), _digest(research))
     for p in PATHS:
         assert ro_env.client.get(f"/api/v1/{p}").status_code == 200
-    assert (_digest(serving), _digest(ro_env.db)) == before
+    assert (_digest(serving), _digest(ro_env.db), _digest(research)) == before
     assert not list(serving.parent.glob("*.wal"))
 
 

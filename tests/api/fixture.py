@@ -8,6 +8,7 @@ paper repository; the serving copy is made with ``refresh_serving_copy``.
 
 from __future__ import annotations
 
+import os
 from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 from typing import Any
@@ -247,3 +248,48 @@ def build_all(data_dir: Path) -> tuple[Context, Path]:
     build_main_db(db, ctx)
     refresh_serving_copy(db)
     return ctx, db
+
+
+def build_research_db(path: Path) -> Path:
+    """A research database with three stored backtest runs: the frozen paper rules in the
+    development and validation periods, and one experiment (breakout entry, no regime) whose
+    metrics are mostly missing (a missing number must come out as null)."""
+    import json
+
+    paper = {"entry": "cross_5", "regime": "breadth50", "rule": "hold_low8", "max_positions": 10,
+             "cost_bps": 15.0, "baseline": False, "classes": ["VCP", "A_PLUS_VCP"],
+             "min_score": None}  # fmt: skip
+    metrics = {
+        "every_trade": {"trades": 20, "win_rate": 0.45, "avg_ret": 1.5, "median_ret": -2.0,
+                        "profit_factor": 1.6, "avg_win": 9.0, "avg_loss": -5.0,
+                        "avg_hold_days": 40.0},
+        "portfolio": {"trades": 20, "win_rate": 0.45, "avg_ret": 1.5, "median_ret": -2.0,
+                      "profit_factor": 1.6, "avg_win": 9.0, "avg_loss": -5.0, "avg_hold_days": 40.0,
+                      "total_ret": 30.0, "cagr": 12.0, "max_drawdown": -11.0, "sharpe": 0.8,
+                      "avg_exposure": 0.5, "skipped": 2},
+    }  # fmt: skip
+    runs = [
+        ("bt-dev", "vcp", "development", date(2022, 2, 1), date(2024, 6, 30), paper, metrics),
+        ("bt-val", "vcp", "validation", date(2024, 7, 1), date(2026, 9, 30), paper, metrics),
+        ("bt-exp", "flat_base", "development", date(2022, 2, 1), date(2024, 6, 30),
+         {**paper, "entry": "breakout", "regime": "none"}, {"every_trade": {}, "portfolio": {}}),
+    ]  # fmt: skip
+    with DuckDBStore(str(path)) as store:
+        store.migrate()
+        for k, (bid, sid, period, start, end, settings, met) in enumerate(runs):
+            put(store.conn, "backtest_runs", backtest_id=bid, strategy_id=sid,
+                started_at=T0 + timedelta(minutes=k),
+                completed_at=T0 + timedelta(minutes=k, seconds=5),
+                start_date=start, end_date=end, status="COMPLETED", period_name=period,
+                algorithm_version=f"{sid}-1.0.0", survivorship_status="PARTIAL",
+                settings_json=json.dumps(settings), metrics_json=json.dumps(met))  # fmt: skip
+    return path
+
+
+def write_report_files(folder: Path) -> None:
+    for kind, name in (("daily", "2026-10-05.html"), ("weekly", "2026-W41.html")):
+        (folder / kind).mkdir(parents=True, exist_ok=True)
+        (folder / kind / name).write_text(f"<html><body><h1>{kind} {name}</h1></body></html>")
+    (folder / "daily" / "notes.html").write_text("not a report name")
+    for p in folder.rglob("*.html"):
+        os.utime(p, (1_790_000_000, 1_790_000_000))  # a fixed time: the API sample must not change

@@ -1,0 +1,20 @@
+{
+ "as_of": "2026-10-05",
+ "data_time": "2026-10-06T14:00:00+05:30",
+ "files": [
+  {
+   "kind": "daily",
+   "name": "2026-10-05.html",
+   "label": "Daily report 2026-10-05",
+   "size_bytes": 56,
+   "modified": "2026-09-21T19:43:20+05:30"
+  },
+  {
+   "kind": "weekly",
+   "name": "2026-W41.html",
+   "label": "Weekly summary 2026-W41",
+   "size_bytes": 55,
+   "modified": "2026-09-21T19:43:20+05:30"
+  }
+ ]
+}

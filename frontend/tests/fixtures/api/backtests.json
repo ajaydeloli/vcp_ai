@@ -1,0 +1,152 @@
+{
+ "as_of": "2026-09-30",
+ "data_time": "2026-10-06T14:00:00+05:30",
+ "available": true,
+ "reason": null,
+ "runs": [
+  {
+   "backtest_id": "bt-exp",
+   "strategy_id": "flat_base",
+   "algorithm_version": "flat_base-1.0.0",
+   "period": "development",
+   "start_date": "2022-02-01",
+   "end_date": "2024-06-30",
+   "survivorship": "PARTIAL",
+   "entry": "breakout",
+   "regime": "none",
+   "rule": "hold_low8",
+   "cost_bps": 15.0,
+   "max_positions": 10,
+   "classes": [
+    "VCP",
+    "A_PLUS_VCP"
+   ],
+   "min_score": null,
+   "baseline": false,
+   "paper_rules": false,
+   "completed_at": "2026-10-05T20:32:05+05:30",
+   "every_trade": {
+    "trades": null,
+    "win_rate_pct": null,
+    "avg_return_pct": null,
+    "median_return_pct": null,
+    "profit_factor": null,
+    "avg_win_pct": null,
+    "avg_loss_pct": null,
+    "avg_hold_days": null
+   },
+   "portfolio": {
+    "trades": null,
+    "win_rate_pct": null,
+    "avg_return_pct": null,
+    "median_return_pct": null,
+    "profit_factor": null,
+    "avg_win_pct": null,
+    "avg_loss_pct": null,
+    "avg_hold_days": null,
+    "total_return_pct": null,
+    "cagr_pct": null,
+    "max_drawdown_pct": null,
+    "sharpe": null,
+    "avg_exposure_pct": null,
+    "skipped": null
+   }
+  },
+  {
+   "backtest_id": "bt-val",
+   "strategy_id": "vcp",
+   "algorithm_version": "vcp-1.0.0",
+   "period": "validation",
+   "start_date": "2024-07-01",
+   "end_date": "2026-09-30",
+   "survivorship": "PARTIAL",
+   "entry": "cross_5",
+   "regime": "breadth50",
+   "rule": "hold_low8",
+   "cost_bps": 15.0,
+   "max_positions": 10,
+   "classes": [
+    "VCP",
+    "A_PLUS_VCP"
+   ],
+   "min_score": null,
+   "baseline": false,
+   "paper_rules": true,
+   "completed_at": "2026-10-05T20:31:05+05:30",
+   "every_trade": {
+    "trades": 20,
+    "win_rate_pct": 45.0,
+    "avg_return_pct": 1.5,
+    "median_return_pct": -2.0,
+    "profit_factor": 1.6,
+    "avg_win_pct": 9.0,
+    "avg_loss_pct": -5.0,
+    "avg_hold_days": 40.0
+   },
+   "portfolio": {
+    "trades": 20,
+    "win_rate_pct": 45.0,
+    "avg_return_pct": 1.5,
+    "median_return_pct": -2.0,
+    "profit_factor": 1.6,
+    "avg_win_pct": 9.0,
+    "avg_loss_pct": -5.0,
+    "avg_hold_days": 40.0,
+    "total_return_pct": 30.0,
+    "cagr_pct": 12.0,
+    "max_drawdown_pct": -11.0,
+    "sharpe": 0.8,
+    "avg_exposure_pct": 50.0,
+    "skipped": 2
+   }
+  },
+  {
+   "backtest_id": "bt-dev",
+   "strategy_id": "vcp",
+   "algorithm_version": "vcp-1.0.0",
+   "period": "development",
+   "start_date": "2022-02-01",
+   "end_date": "2024-06-30",
+   "survivorship": "PARTIAL",
+   "entry": "cross_5",
+   "regime": "breadth50",
+   "rule": "hold_low8",
+   "cost_bps": 15.0,
+   "max_positions": 10,
+   "classes": [
+    "VCP",
+    "A_PLUS_VCP"
+   ],
+   "min_score": null,
+   "baseline": false,
+   "paper_rules": true,
+   "completed_at": "2026-10-05T20:30:05+05:30",
+   "every_trade": {
+    "trades": 20,
+    "win_rate_pct": 45.0,
+    "avg_return_pct": 1.5,
+    "median_return_pct": -2.0,
+    "profit_factor": 1.6,
+    "avg_win_pct": 9.0,
+    "avg_loss_pct": -5.0,
+    "avg_hold_days": 40.0
+   },
+   "portfolio": {
+    "trades": 20,
+    "win_rate_pct": 45.0,
+    "avg_return_pct": 1.5,
+    "median_return_pct": -2.0,
+    "profit_factor": 1.6,
+    "avg_win_pct": 9.0,
+    "avg_loss_pct": -5.0,
+    "avg_hold_days": 40.0,
+    "total_return_pct": 30.0,
+    "cagr_pct": 12.0,
+    "max_drawdown_pct": -11.0,
+    "sharpe": 0.8,
+    "avg_exposure_pct": 50.0,
+    "skipped": 2
+   }
+  }
+ ]
+}

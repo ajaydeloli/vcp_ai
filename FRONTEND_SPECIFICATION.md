@@ -2325,3 +2325,23 @@ Two check boxes at the right of the Screener's Filters card title, just before t
 ### 67.25 Watchlist table
 
 The Watchlist table has the Screener table's look: the same columns and widths (fixed layout), centred values with the symbol on the left, a number column, sortable headers (▲/▼), 15 stocks per page with the Screener's page bar, and a remove button at the end of each row.
+
+### 67.26 Backtest page (`GET /api/v1/backtests`) — draft for review
+
+Shows the backtest runs already stored by `vcp backtest run`. Nothing is run, recalculated or written from the dashboard.
+
+- **Source:** the research database (`--research-db`, default `<data-dir>/golden_src.duckdb`), opened read-only for each request; the serving copy holds no backtest runs. If the file is missing or cannot be opened, the page says why (`available: false`, `reason`) instead of showing an empty table.
+- **Run row:** strategy, period (development / validation), dates, rules (entry, regime, exit rule; the title shows costs, positions and survivorship), and the portfolio results: trades, win rate, average trade, profit factor, total return, maximum drawdown, average exposure, and when the run finished. Win rate and exposure are stored as fractions and shown as percentages. A value the run did not store is null and shown as a dash, never 0.
+- **Frozen paper rules:** a run is marked "paper rules" when entry `cross_5`, regime `breadth50`, exit `hold_low8`, 10 positions, 15 bps and no baseline flag all match (STRATEGY_SPECIFICATION 21.3). The check box "Frozen paper rules only" is on by default, so the page opens with those runs; unchecking it lists every experiment. Filters: strategy, period.
+- **Note card:** development is where the rules were chosen, validation comes after it; survivorship is partial; the paper ledger, not a backtest, decides the review.
+- **Not in this draft:** equity curves and trade lists (the stored runs hold events, not curves), comparing two runs side by side, starting a run. Each needs its own decision.
+
+### 67.27 Reports page (`GET /api/v1/reports`, `GET /api/v1/reports/{daily|weekly}/{name}`) — draft for review
+
+Lists the HTML reports of STRATEGY_SPECIFICATION 21.10 (`reports/daily/<date>.html`, `reports/weekly/<ISO week>.html`, folder `--reports-dir`, default `<project>/reports`) and shows the chosen one in a frame. The newest daily report is open at first; "Open in a new tab" opens the file itself.
+
+- The API serves a file only when its folder is `daily` or `weekly` and its name is a report name (`YYYY-MM-DD.html`, `YYYY-Www.html`); any other name is a 404. The frame is sandboxed (no scripts).
+- No report yet: the page says so and gives the command to write one (`vcp report daily`).
+- Not built: PDF/CSV export, and the other report kinds of section 27 (Breakout, Research, Data Quality); the daily report already holds the run health.
+
+Both pages move from "later" into the top navigation (after Paper Trading).
