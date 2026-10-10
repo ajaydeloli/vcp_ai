@@ -23,6 +23,9 @@ from vcp_scanner.api.db import ServingDb
 from vcp_scanner.data.providers._time import IST
 
 NA = "not available"
+#: The same window as the dashboard's Market Overview: the index is rebased to 100 at the first
+#: day shown, so a different window gives a different level for the same day.
+MARKET_DAYS = 250
 START = date(2026, 10, 1)  # paper start (STRATEGY_SPECIFICATION 21.3)
 NOTE = "Watch list for paper monitoring, not trade instructions. Strategies are frozen."
 CSS = (
@@ -88,8 +91,8 @@ def regime_section(days: list[m.MarketDay], rule: str) -> str:
     return (
         f'<h2>Market regime</h2><p>Regime <b class="{cls}">{state}</b> on {d.day} '
         f"(rule: {esc(rule)}). Stocks above their 50-day average: {num(d.breadth_pct, 1, ' %')}. "
-        f"Equal-weight index of our universe: {num(d.index, 1)}, {above} its 50-day average "
-        f"({num(d.index_ma50, 1)}).</p>"
+        f"Equal-weight index of our universe (VQI, 100 on {days[0].day}): {num(d.index, 1)}, "
+        f"{above} its 50-day average ({num(d.index_ma50, 1)}).</p>"
     )
 
 
@@ -132,7 +135,7 @@ def daily_html(
     data_time: datetime,
 ) -> str:  # fmt: skip
     status = r.status(cur, ctx, now, data_time)
-    days = [d for d in q.market_days(cur, ctx, day, 60) if d.day <= day]
+    days = [d for d in q.market_days(cur, ctx, day, MARKET_DAYS) if d.day <= day]
     sections = [regime_section(days, ctx.regime_rule)]
 
     sections.append("<h2>Ranked setups by strategy (grade 2 or better)</h2>")
@@ -199,7 +202,7 @@ def weekly_html(
     monday, _sunday, label = week_bounds(day)
     status = r.status(cur, ctx, now, data_time)
     paper = r.paper(cur, ctx, data_time)
-    days = [d for d in q.market_days(cur, ctx, day, 60) if d.day <= day]
+    days = [d for d in q.market_days(cur, ctx, day, MARKET_DAYS) if d.day <= day]
     this_week = [d for d in days if d.day >= monday]
 
     sections = [regime_section(days, ctx.regime_rule)]
