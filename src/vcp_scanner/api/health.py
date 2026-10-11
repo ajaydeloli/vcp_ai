@@ -11,7 +11,7 @@ from typing import Any
 
 from vcp_scanner.api import models as m
 from vcp_scanner.api.context import Context
-from vcp_scanner.api.queries import Cur, _f
+from vcp_scanner.api.queries import Cur, _f, classification
 from vcp_scanner.config.models import StageConfig
 from vcp_scanner.domain.enums import WeeklyStage
 from vcp_scanner.domain.features import FEATURES_CALCULATION_VERSION
@@ -33,6 +33,10 @@ STAGE_WEEKS = 52  # weeks drawn in the stage chart
 STAGE_FETCH_WEEKS = 124  # the 30-week average and its own 30-week look-back, on top of the chart
 TRADES_JUDGED = 10  # last closed paper trades looked at; fewer: no colour
 FLOW_WINDOW = 20  # sessions of judged breakouts behind each point of the failure-rate line
+NET_HIGHS_AVG = 10  # sessions in the average of net new highs (the reading scores this)
+YEAR = 252  # sessions in 52 weeks
+NEAR_HIGH = 0.03  # the index within 3 % of its 52-week high
+DIVERGENCE_GAP = 0.25  # a line "clearly below" its 52-week high: by a quarter of its range
 
 _DAILY_SQL = """
 WITH runs AS (
@@ -347,6 +351,104 @@ def _flow(cur: Cur, ctx: Context, sessions: list[date]) -> list[m.HealthFlowPoin
     return out
 
 
+def _highs_lows(rows: list[tuple[Any, ...]]) -> m.HealthItem:
+    """New 52-week highs against lows, read on their 10-session averages (one day is noisy)."""
+    recent = rows[-NET_HIGHS_AVG:]
+    hi_today, lo_today = int(rows[-1][9]), int(rows[-1][10])
+    hi = sum(int(r[9]) for r in recent) / len(recent)
+    lo = sum(int(r[10]) for r in recent) / len(recent)
+    status = "green" if hi >= 2 * lo and hi > 0 else "red" if lo > hi else "amber"
+    return _item(
+        "highs_lows", "New 52-week highs vs lows", status,
+        f"{hi_today} new 52-week highs against {lo_today} new lows today; over the last "
+        f"{len(recent)} sessions {hi:.1f} highs against {lo:.1f} lows a day "
+        f"(net {hi - lo:+.1f}).", hi - lo,
+        _ramp(hi / (hi + lo), 0.3, 0.7) if hi + lo else None,
+    )  # fmt: skip
+
+
+def _below_own_high(series: list[float | None]) -> tuple[bool, float] | None:
+    """(clearly below its 52-week high, how far as a share of the range) of a line, or None
+    when it has no range to judge."""
+    year = [v for v in series[-YEAR:] if v is not None]
+    last = series[-1] if series else None
+    if len(year) < 2 or last is None:
+        return None
+    top, bottom = max(year), min(year)
+    if top <= bottom:
+        return None
+    gap = (top - last) / (top - bottom)
+    return gap > DIVERGENCE_GAP, gap
+
+
+def _warnings(rows: list[tuple[Any, ...]], index: list[float]) -> list[m.HealthWarning]:
+    """Divergences: VQI within NEAR_HIGH of its 52-week high while the A/D line, or the 10-day
+    average of net new highs, is clearly below its own 52-week high (fewer stocks carry the
+    index up). Shown as warnings; not part of the score."""
+    if len(index) < 2 or index[-1] < (1 - NEAR_HIGH) * max(index[-YEAR:]):
+        return []
+    out: list[m.HealthWarning] = []
+    off = _pct(index[-1], max(index[-YEAR:]))
+    ad = _below_own_high(list(_ad_line(rows)))
+    if ad and ad[0]:
+        out.append(m.HealthWarning(id="ad_divergence", text=(
+            f"VQI is {abs(off):.1f}% from its 52-week high, but the advance/decline line is "
+            f"{ad[1] * 100:.0f}% of its 52-week range below its own high: fewer stocks are "
+            "taking part in the advance.")))  # fmt: skip
+    net = _net_highs(rows)
+    avg = [_sma(net, NET_HIGHS_AVG, i) for i in range(len(net))]
+    nh = _below_own_high(avg)
+    if nh and nh[0]:
+        out.append(m.HealthWarning(id="highs_divergence", text=(
+            f"VQI is {abs(off):.1f}% from its 52-week high, but the 10-day average of net new "
+            f"highs is {nh[1] * 100:.0f}% of its 52-week range below its own high: fewer "
+            "stocks are making new highs.")))  # fmt: skip
+    return out
+
+
+_NEW_HIGHS_SQL = """
+WITH snap AS (
+    SELECT universe_snapshot_id FROM scan_runs
+    WHERE scan_type = 'TREND_TEMPLATE' AND status = 'COMPLETED'
+      AND scan_config_hash = ? AND data_snapshot_id = ? AND as_of_date <= ?
+    ORDER BY as_of_date DESC, completed_at DESC LIMIT 1
+), rs AS (
+    SELECT instrument_id, rs_rank FROM trend_template_results
+    WHERE config_hash = ? AND data_snapshot_id = ? AND as_of_date = (
+        SELECT max(as_of_date) FROM trend_template_results
+        WHERE config_hash = ? AND data_snapshot_id = ? AND as_of_date <= ?)
+)
+SELECT f.instrument_id, coalesce(i.symbol, f.instrument_id), rs.rs_rank
+FROM technical_features_daily f
+JOIN universe_memberships mem ON mem.instrument_id = f.instrument_id AND mem.eligible
+ AND mem.universe_snapshot_id = (SELECT universe_snapshot_id FROM snap)
+JOIN daily_prices_adjusted_current p ON p.instrument_id = f.instrument_id
+ AND p.trade_date = f.trade_date AND p.computed_from_snapshot_id = ?
+LEFT JOIN instruments i ON i.instrument_id = f.instrument_id
+LEFT JOIN rs ON rs.instrument_id = f.instrument_id
+WHERE f.trade_date = ? AND f.calculation_version = ? AND f.data_snapshot_id = ?
+  AND f.high_252 IS NOT NULL AND p.high_adj >= f.high_252 * 0.99999
+"""
+
+
+def _new_highs_today(cur: Cur, ctx: Context, end: date) -> list[m.HealthNewHigh]:
+    """Universe stocks whose high on ``end`` is a new 52-week high (the same test as the daily
+    count), best RS first."""
+    rows = cur.execute(
+        _NEW_HIGHS_SQL,
+        [ctx.scan_hash, LIVE, end, ctx.scan_hash, LIVE, ctx.scan_hash, LIVE, end, LIVE, end,
+         FEATURES_CALCULATION_VERSION, LIVE],
+    ).fetchall()  # fmt: skip
+    sectors = classification(cur, [str(r[0]) for r in rows])
+    out = [
+        m.HealthNewHigh(symbol=str(r[1]), rs_rank=None if r[2] is None else int(r[2]),
+                        sector=sectors.get(str(r[0]), (None, None))[0])
+        for r in rows
+    ]  # fmt: skip
+    out.sort(key=lambda x: (-(x.rs_rank if x.rs_rank is not None else -1), x.symbol))
+    return out
+
+
 def _leaders(cur: Cur, ctx: Context, sessions: list[date], index: list[float]) -> m.HealthItem:
     if len(sessions) <= LEADER_DAYS:
         return _item("leaders", "Leaders vs the index", "grey", "Not enough history.")
@@ -408,12 +510,22 @@ def _index_days(
     )
 
 
-def _points(rows: list[tuple[Any, ...]], index: list[float]) -> list[m.HealthPoint]:
+def _ad_line(rows: list[tuple[Any, ...]]) -> list[float]:
     line: list[float] = []
     total = 0.0
     for r in rows:
         total += float(r[7]) - float(r[8])
         line.append(total)
+    return line
+
+
+def _net_highs(rows: list[tuple[Any, ...]]) -> list[float]:
+    return [float(int(r[9]) - int(r[10])) for r in rows]
+
+
+def _points(rows: list[tuple[Any, ...]], index: list[float]) -> list[m.HealthPoint]:
+    line = _ad_line(rows)
+    net = _net_highs(rows)
     first = len(rows) - CHART_DAYS if len(rows) > CHART_DAYS else 0
     base = index[first] or 1.0
     out: list[m.HealthPoint] = []
@@ -431,6 +543,8 @@ def _points(rows: list[tuple[Any, ...]], index: list[float]) -> list[m.HealthPoi
                 above200=100.0 * int(r[4]) / int(r[3]) if r[3] else None,
                 ad_line=line[i],
                 ad_ma50=_sma(line, 50, i),
+                net_highs=int(r[9]) - int(r[10]),
+                net_highs_avg10=_sma(net, NET_HIGHS_AVG, i),
             )
         )
     return out
@@ -486,7 +600,7 @@ def _paper(cur: Cur, ctx: Context) -> m.HealthGroup:
 
 def _shorts(groups: list[m.HealthGroup], last: tuple[Any, ...]) -> None:
     """The one-line form of each reading, shown on the card (the sentence is its tooltip)."""
-    adv, dec, hi, lo = int(last[7]), int(last[8]), int(last[9]), int(last[10])
+    adv, dec = int(last[7]), int(last[8])
     for g in groups:
         for i in g.items:
             v = i.value
@@ -497,7 +611,7 @@ def _shorts(groups: list[m.HealthGroup], last: tuple[Any, ...]) -> None:
             elif i.id == "distribution":
                 i.short = f"{int(v or 0)} in the last {DIST_WINDOW} sessions"
             elif i.id == "highs_lows":
-                i.short = f"{hi} highs, {lo} lows"
+                i.short = f"net {v:+.1f} a day (10 sessions)"
             elif i.id == "failed_breakouts":
                 i.short = f"{v:.0f}% failed"
             elif i.id == "leaders":
@@ -626,12 +740,8 @@ def market_health(cur: Cur, ctx: Context, end: date, data_time: datetime) -> m.M
     volume = [float(r[6] or 0.0) for r in rows]
     index_group = _index_group(index, mean_ret, volume)
     last = rows[-1]
-    hi, lo = int(last[9]), int(last[10])
-    status = "green" if hi >= 2 * lo and hi > 0 else "red" if lo > hi else "amber"
     leaders_items = [
-        _item("highs_lows", "New 52-week highs vs lows", status,
-              f"{hi} new 52-week highs against {lo} new lows today.", float(hi - lo),
-              _ramp(hi / (hi + lo), 0.3, 0.7) if hi + lo else None),
+        _highs_lows(rows),
         _failed_breakouts(cur, ctx, sessions, end),
         _leaders(cur, ctx, sessions, index),
     ]  # fmt: skip
@@ -646,5 +756,6 @@ def market_health(cur: Cur, ctx: Context, end: date, data_time: datetime) -> m.M
         as_of=sessions[-1], data_time=data_time, groups=groups,
         points=_points(rows, index), trades=_trades(cur, ctx), verdict=_verdict(groups),
         index_days=_index_days(index, mean_ret, volume), stages=_stage_history(cur, ctx, end),
-        flow=_flow(cur, ctx, sessions),
+        flow=_flow(cur, ctx, sessions), warnings=_warnings(rows, index),
+        new_highs=_new_highs_today(cur, ctx, end),
     )  # fmt: skip

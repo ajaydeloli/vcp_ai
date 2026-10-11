@@ -288,7 +288,13 @@ function Charts({ d, id }: { d: Health; id: string }) {
     () => [series("VQI", C.ink, pts, (p) => p.index), series("50-day", C.warn, pts, (p) => p.ma50), series("200-day", C.down, pts, (p) => p.ma200)],
     [pts],
   );
-  const highs = useMemo(() => [series("New highs", C.up, pts, (p) => p.highs), series("New lows", C.down, pts, (p) => p.lows)], [pts]);
+  const highs = useMemo(
+    () => [
+      { ...series("Net new highs", C.blue, pts, (p) => p.net_highs), kind: "bar" as const },
+      series("10-day average", C.warn, pts, (p) => p.net_highs_avg10),
+    ],
+    [pts],
+  );
   const breadth = useMemo(() => [series("Above 50-day %", C.blue, pts, (p) => p.above50), series("Above 200-day %", C.violet, pts, (p) => p.above200)], [pts]);
   const ad = useMemo(() => [series("A/D line", C.ink, pts, (p) => p.ad_line), series("50-day avg", C.warn, pts, (p) => p.ad_ma50)], [pts]);
   if (id === "index")
@@ -301,8 +307,9 @@ function Charts({ d, id }: { d: Health; id: string }) {
   if (id === "leadership")
     return (
       <>
-        <MiniLineChart series={highs} height={262} plain whole label="highs-lows-chart" />
-        <Legend items={[["New 52-week highs", C.up], ["New 52-week lows", C.down]]} />
+        <MiniLineChart series={highs} height={200} plain label="highs-lows-chart" />
+        <Legend items={[["Net new 52-week highs (highs − lows) a day", C.blue], ["its 10-day average", C.warn]]} />
+        <NewHighsList highs={d.new_highs} />
       </>
     );
   if (id === "breadth")
@@ -319,6 +326,51 @@ function Charts({ d, id }: { d: Health; id: string }) {
       <Trades trades={d.trades} />
       <PaperProgress />
     </>
+  );
+}
+
+/** The universe's stocks at a new 52-week high today, best RS first, each a link to its page. */
+function NewHighsList({ highs }: { highs: Health["new_highs"] }) {
+  return (
+    <div className="mt-2" data-testid="new-highs-today">
+      <p className="mb-1 text-[11px] uppercase text-mute">New highs today ({highs.length})</p>
+      {highs.length === 0 ? (
+        <p className="text-[11px] text-mute">No stock of the universe made a new 52-week high today.</p>
+      ) : (
+        <ul className="flex flex-wrap gap-1.5 text-[11px]">
+          {highs.map((h) => (
+            <li key={h.symbol}>
+              <a
+                href={`/stocks/${encodeURIComponent(h.symbol)}`}
+                title={h.sector ?? "Sector not classified yet"}
+                className="inline-flex items-center gap-1 rounded border border-line px-1.5 py-0.5 text-ink hover:border-accent"
+              >
+                {h.symbol}
+                <span className="text-mute">RS {h.rs_rank ?? "—"}</span>
+              </a>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+/** Divergences, when the index is near its 52-week high but breadth is not: a warning, not a score. */
+function Warnings({ warnings }: { warnings: Health["warnings"] }) {
+  if (warnings.length === 0) return null;
+  return (
+    <ul aria-label="Divergence warnings" className="mb-4 space-y-1 rounded-lg border border-warn/50 bg-warn/10 p-3 text-xs text-ink">
+      {warnings.map((w) => (
+        <li key={w.id} className="flex gap-2">
+          <span aria-hidden="true" className="text-warn">⚠</span>
+          <span>
+            <span className="font-medium text-warn">Divergence: </span>
+            {w.text}
+          </span>
+        </li>
+      ))}
+    </ul>
   );
 }
 
@@ -341,6 +393,7 @@ export function MarketHealth() {
         <Empty>No market data to read yet.</Empty>
       ) : (
         <>
+          <Warnings warnings={d.warnings} />
           <div className="grid gap-4 lg:grid-cols-2">
             {idx && (
               <Inner title={idx.title} box={BOX.index}>

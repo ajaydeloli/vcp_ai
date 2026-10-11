@@ -77,3 +77,39 @@ def test_flow_counts_new_setups_breakouts_and_the_failure_rate(db: Any) -> None:
 def test_flow_is_empty_without_stored_scans(db: Any) -> None:
     store, ctx = db
     assert health._flow(store.conn, ctx, SESSIONS) == []
+
+
+# --- step 2: net new highs, divergences ------------------------------------------------------
+
+
+def row(adv: int, dec: int, highs: int, lows: int) -> tuple[Any, ...]:
+    """A row of the daily query: only advancers [7], decliners [8], highs [9], lows [10] used."""
+    return (None, 0, 0, 0, 0, 0.0, 0.0, adv, dec, highs, lows)
+
+
+def test_highs_lows_reads_the_ten_day_average_not_one_day() -> None:
+    rows = [row(0, 0, 30, 5)] * 9 + [row(0, 0, 0, 40)]  # one bad day after nine good ones
+    item = health._highs_lows(rows)
+    assert item.value == pytest.approx((9 * 30 - 9 * 5 - 40) / 10)  # net 18.5 a day
+    assert item.status == "green"  # 27 highs against 8.5 lows on average
+    assert "0 new 52-week highs against 40 new lows today" in item.text
+
+
+def test_below_own_high() -> None:
+    assert health._below_own_high([0.0, 10.0, 9.0]) == (False, pytest.approx(0.1))
+    assert health._below_own_high([0.0, 10.0, 5.0]) == (True, pytest.approx(0.5))
+    assert health._below_own_high([None, 3.0]) is None  # one value: no range
+    assert health._below_own_high([2.0, 2.0]) is None
+
+
+def test_divergence_warnings_need_the_index_near_its_high() -> None:
+    n = 60
+    # breadth: the A/D line rises for 40 sessions, then falls; new highs dry up likewise
+    rows = [row(30, 10, 20, 0) for _ in range(40)] + [row(10, 30, 0, 20) for _ in range(20)]
+    near = [100.0 + k * 0.1 for k in range(n)]  # VQI keeps making new highs
+    ids = [w.id for w in health._warnings(rows, near)]
+    assert ids == ["ad_divergence", "highs_divergence"]
+    far = near[:-1] + [near[-2] * 0.9]  # VQI 10 % off its high: no divergence to speak of
+    assert health._warnings(rows, far) == []
+    healthy = [row(30, 10, 20, 0) for _ in range(n)]  # breadth confirms the high
+    assert health._warnings(healthy, near) == []

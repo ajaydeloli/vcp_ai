@@ -334,7 +334,7 @@ def test_market_health_reads_the_four_groups_and_says_when_data_is_too_thin(ro_e
     assert pts[-1]["ma200"] is None and pts[-1]["ma50"] is not None  # short history: no line
     assert [t["ret_pct"] for t in body["trades"]] == [-5.15]
     assert all(i["short"] for i in items.values())  # every reading has its one-line form
-    assert items["highs_lows"]["short"].endswith("lows")
+    assert items["highs_lows"]["short"] == "net +0.0 a day (10 sessions)"  # 10-day average
     days = body["index_days"]
     assert "pct_from_50" in days
     assert days["window"] == 25 and days["accumulation"] >= 0 and days["distribution"] >= 0

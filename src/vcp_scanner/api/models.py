@@ -174,6 +174,8 @@ class HealthPoint(BaseModel):
     above200: float | None
     ad_line: float
     ad_ma50: float | None
+    net_highs: int  # new 52-week highs minus new lows
+    net_highs_avg10: float | None  # its 10-session average
 
 
 class HealthStagePoint(BaseModel):
@@ -196,6 +198,19 @@ class HealthFlowPoint(BaseModel):
     breakouts: int  # breakout events dated this session
     failed_pct: float | None  # failed share of the breakouts judged in the last FLOW_WINDOW
     judged: int  # breakouts judged in that window (None rate below MIN_JUDGED)
+
+
+class HealthWarning(BaseModel):
+    """A divergence: the index near its high while a breadth line is not (display only)."""
+
+    id: str  # ad_divergence | highs_divergence
+    text: str
+
+
+class HealthNewHigh(BaseModel):
+    symbol: str
+    rs_rank: int | None
+    sector: str | None
 
 
 class HealthTrade(BaseModel):
@@ -221,6 +236,8 @@ class MarketHealthResponse(Stamped):
     index_days: HealthIndexDays | None
     stages: list[HealthStagePoint] = []
     flow: list[HealthFlowPoint] = []  # from the first stored scan on
+    warnings: list[HealthWarning] = []
+    new_highs: list[HealthNewHigh] = []  # universe stocks at a new 52-week high on as_of
 
 
 class SearchHit(BaseModel):

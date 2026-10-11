@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 import { Dashboard } from "@/components/Dashboard";
 import { liveCharts } from "./chartMock";
-import { mockApi, renderApp } from "./helpers";
+import { fx, mockApi, renderApp } from "./helpers";
 
 describe("dashboard page (market view)", () => {
   it("shows the market panels and no watch list, stock chart or setup details", async () => {
@@ -184,6 +184,34 @@ describe("dashboard page (market view)", () => {
     expect(fig.getByText("New setups").parentElement?.parentElement).toHaveTextContent("New setups—today");
     expect(card).toHaveTextContent("Failure rate: too few breakouts judged yet.");
     expect(card).toHaveTextContent("Since 5 Oct 2026, the first stored scan");
+  });
+
+  it("leadership charts net new highs with their 10-day average and lists today's new highs", async () => {
+    const health = {
+      ...fx.marketHealth,
+      new_highs: [
+        { symbol: "ALPHA", rs_rank: 91, sector: "Capital Goods" },
+        { symbol: "BETA", rs_rank: null, sector: null },
+      ],
+    };
+    mockApi({ "market/health": health });
+    renderApp(<Dashboard />);
+    const card = await screen.findByRole("region", { name: "Leadership" });
+    expect(await within(card).findByTestId("mini-highs-lows-chart")).toBeInTheDocument();
+    expect(card).toHaveTextContent("Net new 52-week highs (highs − lows) a day");
+    const list = within(card).getByTestId("new-highs-today");
+    expect(list).toHaveTextContent("New highs today (2)");
+    expect(within(list).getByRole("link", { name: /ALPHA/ })).toHaveAttribute("href", "/stocks/ALPHA");
+    expect(within(list).getByRole("link", { name: /BETA/ })).toHaveTextContent("BETARS —");
+    expect(screen.queryByRole("list", { name: "Divergence warnings" })).toBeNull();
+  });
+
+  it("shows divergence warnings above the cards only when there are some", async () => {
+    const text = "VQI is 1.0% from its 52-week high, but the advance/decline line is 40% of its 52-week range below its own high: fewer stocks are taking part in the advance.";
+    mockApi({ "market/health": { ...fx.marketHealth, warnings: [{ id: "ad_divergence", text }] } });
+    renderApp(<Dashboard />);
+    const box = await screen.findByRole("list", { name: "Divergence warnings" });
+    expect(box).toHaveTextContent(`Divergence: ${text}`);
   });
 
   it("reports an unreachable API instead of an empty page", async () => {
