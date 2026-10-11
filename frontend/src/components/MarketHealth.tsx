@@ -28,8 +28,9 @@ function series(name: string, color: string, pts: Health["points"], pick: (p: He
   return { name, color, data };
 }
 
-/** Where each strategy stands on the way to its review, and how the open paper positions are doing. */
-function PaperProgress() {
+/** How the open paper positions are doing (their count and the progress toward the review are in
+ *  the Paper trading panel). */
+function OpenPositions() {
   const paper = usePaper();
   const p = paper.data;
   if (!p) return null;
@@ -37,27 +38,6 @@ function PaperProgress() {
   const max = Math.max(...open.map((o) => Math.abs(o.open_pct ?? 0)), 1);
   return (
     <div className="mt-4 space-y-4 text-xs">
-      <div data-testid="mini-paper-progress">
-        <p className="mb-2 text-mute">
-          Closed trades toward the review (needs {p.min_closed_trades} each, from {fmtDay(p.review_from)})
-        </p>
-        <ul className="space-y-1.5">
-          {p.strategies.map((s) => (
-            <li key={s.strategy_id} className="grid grid-cols-[6.5rem_1fr_3.5rem] items-center gap-2">
-              <span className="text-ink">{strategyLabel(s.strategy_id)}</span>
-              <span className="h-2 overflow-hidden rounded bg-bg">
-                <span
-                  className="block h-full bg-accent"
-                  style={{ width: `${Math.min(100, (s.closed / p.min_closed_trades) * 100)}%` }}
-                />
-              </span>
-              <span className="text-right tabular-nums text-mute">
-                {s.closed} / {p.min_closed_trades}
-              </span>
-            </li>
-          ))}
-        </ul>
-      </div>
       <div data-testid="mini-open-positions">
         <p className="mb-2 text-mute">Open paper positions now (gain or loss since entry)</p>
         {open.length === 0 ? (
@@ -163,22 +143,37 @@ function IndexFigures({ days }: { days: NonNullable<Health["index_days"]> }) {
   );
 }
 
-/** The figures beside the leadership chart: new highs, new lows, failed breakouts, leaders against the index. */
-function LeadershipFigures({ group, highs, lows }: { group: Health["groups"][number]; highs: number | null; lows: number | null }) {
+/** The figures beside the leadership chart: net new highs (the reading's 10-day average), new lows
+ *  today, how many leaders there are and how they do against the index. Today's new highs are the
+ *  list under the chart and the failure rate is on the Setups and breakouts card (one place each). */
+function LeadershipFigures({ group, lows, leaders, change }: {
+  group: Health["groups"][number];
+  lows: number | null;
+  leaders: number | null;
+  change: number | null;
+}) {
   const num = (id: string) => group.items.find((i) => i.id === id)?.value ?? null;
-  const failed = num("failed_breakouts");
+  const net = num("highs_lows");
   const lead = num("leaders");
   return (
     <aside aria-label="Leadership figures" className="w-40 shrink-0 space-y-3 border-l border-line pl-4">
-      <Figure label="New 52-week highs" value={highs === null ? "—" : String(highs)} sub="today" color="text-up" />
+      <div title="New 52-week highs minus new lows, average of the last 10 sessions">
+        <Figure
+          label="Net new highs"
+          value={net === null ? "—" : `${net >= 0 ? "+" : ""}${net.toFixed(1)}`}
+          sub="a day, 10-day avg"
+          color={net === null ? "text-ink" : net >= 0 ? "text-up" : "text-down"}
+        />
+      </div>
       <div className="border-t border-line pt-3">
         <Figure label="New 52-week lows" value={lows === null ? "—" : String(lows)} sub="today" color="text-down" />
       </div>
-      <div className="border-t border-line pt-3">
+      <div className="border-t border-line pt-3" title="Stocks passing the Trend Template with RS 80 or more; the change against the scan 20 sessions earlier">
         <Figure
-          label="Failed breakouts"
-          value={failed === null ? "—" : `${failed.toFixed(0)}%`}
-          color={failed === null ? "text-ink" : failed > 50 ? "text-down" : failed > 25 ? "text-warn" : "text-up"}
+          label="Leaders"
+          value={leaders === null ? "—" : String(leaders)}
+          sub={change === null ? "(TT pass, RS 80+)" : `${change >= 0 ? "+" : ""}${change} in 20 sessions`}
+          color={change === null ? "text-ink" : change >= 0 ? "text-up" : "text-down"}
         />
       </div>
       <div className="border-t border-line pt-3">
@@ -375,7 +370,7 @@ function Charts({ d, id }: { d: Health; id: string }) {
   return (
     <>
       <Trades trades={d.trades} />
-      <PaperProgress />
+      <OpenPositions />
     </>
   );
 }
@@ -464,8 +459,9 @@ export function MarketHealth() {
                   </div>
                   <LeadershipFigures
                     group={lead}
-                    highs={d.points.at(-1)?.highs ?? null}
                     lows={d.points.at(-1)?.lows ?? null}
+                    leaders={d.leader_count}
+                    change={d.leader_change}
                   />
                 </div>
               </Inner>

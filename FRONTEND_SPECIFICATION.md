@@ -2394,3 +2394,12 @@ Display only (FUNDAMENTALS_SPECIFICATION §2): every place below says fundamenta
 6. **Breadth thrust** (third chart in the Breadth card; the other two are a little shorter): the 10-session average of advancers / (advancers + decliners) of the universe, %, with dashed lines at 40 % and 61.5 %. A thrust is the session the average first closes above 61.5 % with a reading below 40 % in the 10 sessions before (Zweig's rule on our universe); it is marked on the line and named under the chart ("Last thrust …"), or the chart says there is none. Rare by design: none in the year to 2026-10-09 (range 30–71 %). Not scored. API: `thrust_ratio`, `thrust` on the points.
 
 The Market Overview now has eight cards in four rows: index and leadership, breadth and stage, setup flow and setups today, feedback and sector strength; divergence warnings sit above them when they apply. Everything stays display only: no reading, warning or chart feeds the regime rule, a scan, a score or the paper ledger.
+
+**Review 2026-10-11 (owner): one place for each figure.** Three figures appeared twice on the page and now appear once:
+- *Failed breakouts* leaves the Leadership card; it is shown only on the Setups and breakouts card. The score's "Failed breakouts" reading uses that same number (the latest point of the line: breakouts judged in the last 20 sessions) instead of its own 60-day count, which mixed in breakouts the first scans found looking back and showed 55 % against the card's 75 %.
+- *New 52-week highs today* was both a figure and the list header in the Leadership card; the figure becomes **Net new highs** (highs − lows a day, 10-day average: the number the chart and the reading use).
+- *Closed trades toward the review* was in the Feedback loop card and in the Paper trading panel's Closed column; the Feedback loop keeps the bars of the last trades and the open positions with their gain or loss.
+
+New in the Leadership figures: **Leaders**, the stocks passing the Trend Template with RS 80+ in the latest scan (current scan configuration only), with the change against the scan 20 sessions earlier once that exists (149 on 2026-10-09).
+
+Two changes to the Setups and breakouts card: a stock that breaks out in several strategies on the same day counts once (judged against the lowest of its pivots, so it fails only when it closes back below every strategy's pivot; on 2026-10-09: 26 of 34 stocks, 76 %, instead of 42 of 56 events), and the chart keeps the last 250 sessions like the other charts.

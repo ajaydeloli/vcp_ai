@@ -24,7 +24,6 @@ CHART_DAYS = 250  # sessions drawn in the charts
 DIST_WINDOW = 25  # sessions looked at for distribution days
 DIST_DROP = -0.002  # an index fall of 0.2 % or more on higher volume is a distribution day
 DIST_AMBER, DIST_RED = 4, 6
-BREAKOUT_LOOKBACK_DAYS = 60
 FAIL_WITHIN = 5  # sessions after the breakout in which a close below the pivot is a failure
 MIN_JUDGED = 5  # fewer judged breakouts than this: no colour
 LEADER_RS = 80
@@ -245,60 +244,6 @@ def _breadth_group(rows: list[tuple[Any, ...]]) -> m.HealthGroup:
     return m.HealthGroup(id="breadth", title="Breadth", items=items)
 
 
-def _failed_breakouts(cur: Cur, ctx: Context, sessions: list[date], end: date) -> m.HealthItem:
-    since = end - timedelta(days=BREAKOUT_LOOKBACK_DAYS)
-    events: list[tuple[str, str, date, float]] = []
-    for spec in ctx.strategies:
-        for eid, iid, d, pivot in cur.execute(
-            "SELECT breakout_event_id, instrument_id, breakout_date, pivot_price"
-            " FROM breakout_events WHERE strategy_id = ? AND config_hash = ?"
-            " AND breakout_date BETWEEN ? AND ? AND pivot_price IS NOT NULL",
-            [spec.strategy_id, spec.config_hash, since, end],
-        ).fetchall():
-            events.append((str(eid), str(iid), d, float(pivot)))
-    if not events:
-        return _item("failed_breakouts", "Failed breakouts", "grey",
-                     f"No breakouts in the last {BREAKOUT_LOOKBACK_DAYS} days.")  # fmt: skip
-    ids = sorted({e[1] for e in events})
-    closes: dict[str, dict[date, float]] = defaultdict(dict)
-    for iid, d, c in cur.execute(
-        "SELECT instrument_id, trade_date, close_adj FROM daily_prices_adjusted_current"
-        " WHERE computed_from_snapshot_id = ? AND trade_date >= ? AND trade_date <= ?"
-        " AND instrument_id IN (SELECT unnest(?))",
-        [LIVE, since, end, ids],
-    ).fetchall():
-        if c is not None:
-            closes[str(iid)][d] = float(c)
-    pos = {d: i for i, d in enumerate(sessions)}
-    failed = held = pending = 0
-    for _eid, iid, d, pivot in events:
-        i = pos.get(d)
-        if i is None:
-            continue
-        window = sessions[i + 1 : i + 1 + FAIL_WITHIN]
-        if any(closes[iid].get(s, pivot) < pivot for s in window):
-            failed += 1
-        elif len(window) >= FAIL_WITHIN:
-            held += 1
-        else:
-            pending += 1
-    judged = failed + held
-    if judged < MIN_JUDGED:
-        return _item(
-            "failed_breakouts", "Failed breakouts", "grey",
-            f"Too few judged breakouts to read ({judged}; {pending} still too recent).",
-            None,
-        )  # fmt: skip
-    rate = 100.0 * failed / judged
-    status = "green" if rate <= 25 else "amber" if rate <= 50 else "red"
-    return _item(
-        "failed_breakouts", "Failed breakouts", status,
-        f"{failed} of {judged} breakouts in the last {BREAKOUT_LOOKBACK_DAYS} days closed back "
-        f"below their pivot within {FAIL_WITHIN} sessions ({rate:.0f}%); {pending} too recent "
-        "to judge.", rate, _ramp(rate, 60, 10),
-    )  # fmt: skip
-
-
 def _judge(
     closes: dict[date, float], sessions: list[date], i: int, pivot: float
 ) -> tuple[bool, int] | None:
@@ -331,7 +276,7 @@ def _flow(cur: Cur, ctx: Context, sessions: list[date]) -> list[m.HealthFlowPoin
     first = min((d[0] for d in scans.values() if d), default=None)
     if first is None:
         return []
-    days = [d for d in sessions if d >= first]
+    days = [d for d in sessions[-CHART_DAYS:] if d >= first]
     new: dict[date, int] = defaultdict(int)
     scanned: set[date] = set()
     for sid, dates in scans.items():
@@ -360,10 +305,15 @@ def _flow(cur: Cur, ctx: Context, sessions: list[date]) -> list[m.HealthFlowPoin
         ).fetchall():
             if c is not None:
                 closes[str(iid)][d] = float(c)
+    # A stock that breaks out in several strategies on one day counts once, judged against the
+    # lowest of its pivots: it fails when it closes back below every strategy's pivot.
+    pivots: dict[tuple[str, date], float] = {}
+    for iid, d, pivot in events:
+        pivots[(iid, d)] = min(pivot, pivots.get((iid, d), pivot))
     pos = {d: i for i, d in enumerate(sessions)}
     count: dict[date, int] = defaultdict(int)
     known: list[tuple[int, bool]] = []  # (session index the result is known, failed)
-    for iid, d, pivot in events:
+    for (iid, d), pivot in pivots.items():
         count[d] += 1
         i = pos.get(d)
         if i is not None and (result := _judge(closes[iid], sessions, i, pivot)) is not None:
@@ -374,10 +324,48 @@ def _flow(cur: Cur, ctx: Context, sessions: list[date]) -> list[m.HealthFlowPoin
         recent = [failed for k, failed in known if i - FLOW_WINDOW < k <= i]
         out.append(m.HealthFlowPoint(
             day=d, new_setups=None if d == first or d not in scanned else new[d],
-            breakouts=count[d], judged=len(recent),
+            breakouts=count[d], judged=len(recent), failed=sum(recent),
             failed_pct=100.0 * sum(recent) / len(recent) if len(recent) >= MIN_JUDGED else None,
         ))  # fmt: skip
     return out
+
+
+def _failure_item(flow: list[m.HealthFlowPoint]) -> m.HealthItem:
+    """The failed-breakout reading of the score: the latest point of the setup-flow line, so the
+    score and the Setups and breakouts card show one number."""
+    last = flow[-1] if flow else None
+    if last is None or last.failed_pct is None:
+        return _item(
+            "failed_breakouts", "Failed breakouts", "grey",
+            f"Too few breakouts judged in the last {FLOW_WINDOW} sessions to read "
+            f"({last.judged if last else 0}).",
+        )  # fmt: skip
+    rate = last.failed_pct
+    status = "green" if rate <= 25 else "amber" if rate <= 50 else "red"
+    return _item(
+        "failed_breakouts", "Failed breakouts", status,
+        f"{last.failed} of {last.judged} breakouts judged in the last {FLOW_WINDOW} sessions "
+        f"closed back below their pivot within {FAIL_WITHIN} sessions ({rate:.0f}%); a stock "
+        "breaking out in several strategies on one day counts once.", rate, _ramp(rate, 60, 10),
+    )  # fmt: skip
+
+
+def _leader_counts(cur: Cur, ctx: Context, sessions: list[date]) -> tuple[int | None, int | None]:
+    """Stocks passing the Trend Template with RS LEADER_RS+ in the latest scan, and the change
+    against the scan LEADER_DAYS sessions earlier (None until that scan exists)."""
+    counts = dict(cur.execute(
+        "SELECT as_of_date, count(*) FILTER (WHERE trend_template_pass AND rs_rank >= ?)"
+        " FROM trend_template_results WHERE config_hash = ? AND data_snapshot_id = ?"
+        " AND as_of_date <= ? GROUP BY 1",
+        [LEADER_RS, ctx.scan_hash, LIVE, sessions[-1]],
+    ).fetchall())  # fmt: skip
+    if not counts:
+        return None, None
+    latest = max(counts)
+    i = sessions.index(latest) if latest in sessions else None
+    then = sessions[i - LEADER_DAYS] if i is not None and i >= LEADER_DAYS else None
+    now = int(counts[latest])
+    return now, (now - int(counts[then]) if then in counts else None)
 
 
 def _highs_lows(rows: list[tuple[Any, ...]]) -> m.HealthItem:
@@ -923,9 +911,11 @@ def market_health(cur: Cur, ctx: Context, end: date, data_time: datetime) -> m.M
     volume = [float(r[6] or 0.0) for r in rows]
     index_group = _index_group(index, mean_ret, volume)
     last = rows[-1]
+    flow = _flow(cur, ctx, sessions)
+    leader_count, leader_change = _leader_counts(cur, ctx, sessions)
     leaders_items = [
         _highs_lows(rows),
-        _failed_breakouts(cur, ctx, sessions, end),
+        _failure_item(flow),
         _leaders(cur, ctx, sessions, index),
     ]  # fmt: skip
     groups = [
@@ -941,6 +931,7 @@ def market_health(cur: Cur, ctx: Context, end: date, data_time: datetime) -> m.M
                        _day_kinds(mean_ret, volume)),
         trades=_trades(cur, ctx), verdict=_verdict(groups),
         index_days=_index_days(index, mean_ret, volume), stages=_stage_history(cur, ctx, end),
-        flow=_flow(cur, ctx, sessions), warnings=_warnings(rows, index),
+        flow=flow, warnings=_warnings(rows, index), leader_count=leader_count,
+        leader_change=leader_change,
         new_highs=_new_highs_today(cur, ctx, end), sectors=_sectors(cur, ctx, sessions),
     )  # fmt: skip

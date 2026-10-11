@@ -206,3 +206,48 @@ def test_a_slow_climb_is_not_a_thrust() -> None:
     rows = [row(30 + k, 70 - k, 0, 0) for k in range(41)]
     _ratio, signal = health._thrust(rows)
     assert not any(signal)
+
+
+# --- review 2026-10-11: one failure rate on the page, each stock once per breakout day ---------
+
+
+def test_a_stock_breaking_out_in_two_strategies_counts_once(db: Any) -> None:
+    store, ctx = db
+    c = store.conn
+    s = SESSIONS
+    vcp, flat = ctx.strategy("vcp"), ctx.strategy("flat_base")
+    put(c, "setup_scores", scan_id="x", strategy_id="vcp", instrument_id="X", as_of_date=s[0],
+        classification="VCP", eligible=True, final_setup_score=80.0, scoring_version="s1",
+        config_hash=vcp.config_hash, data_snapshot_id="LIVE")  # fmt: skip
+    put(c, "vcp_breakout_events", breakout_event_id="v", instrument_id="DUP",
+        config_hash=vcp.config_hash, breakout_date=s[1], pivot_price=100.0,
+        detected_as_of=s[1])  # fmt: skip
+    put(c, "strategy_breakout_events", breakout_event_id="f", strategy_id="flat_base",
+        instrument_id="DUP", base_start_date=s[0], config_hash=flat.config_hash,
+        breakout_date=s[1], pivot_price=101.0, pivot_date=s[0], pivot_source="x",
+        volume_ratio=2.0, detected_as_of=s[1], method="x")  # fmt: skip
+    # closes at 100.5: below the flat-base pivot (101) but not below the VCP pivot (100)
+    for d in s[2:]:
+        close(c, "DUP", d, 100.5)
+    flow = {p.day: p for p in health._flow(c, ctx, s)}
+    assert flow[s[1]].breakouts == 1  # one stock, not two events
+    known = flow[s[1 + health.FAIL_WITHIN]]
+    assert (known.judged, known.failed) == (1, 0)  # still above its lowest pivot: held
+
+
+def test_the_score_reads_the_same_failure_rate_as_the_card(db: Any) -> None:
+    points = [
+        health.m.HealthFlowPoint(day=SESSIONS[0], new_setups=None, breakouts=3,
+                                 failed_pct=75.0, judged=8, failed=6),
+    ]  # fmt: skip
+    item = health._failure_item(points)
+    assert (item.value, item.status, item.score) == (75.0, "red", 0.0)
+    assert item.text.startswith("6 of 8 breakouts judged in the last 20 sessions")
+    thin = health._failure_item([points[0].model_copy(update={"failed_pct": None, "judged": 3})])
+    assert thin.status == "grey" and thin.score is None
+
+
+def test_leader_count_from_the_current_scan_config(ro_env: Any) -> None:
+    body = ro_env.client.get("/api/v1/market/health").json()
+    assert body["leader_count"] == 2  # ALPHA (RS 91) and BETA (RS 85) pass with RS 80+
+    assert body["leader_change"] is None  # no scan 20 sessions earlier in the fixture

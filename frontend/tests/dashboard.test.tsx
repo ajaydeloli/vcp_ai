@@ -167,13 +167,18 @@ describe("dashboard page (market view)", () => {
     for (const c of ["index-price-chart", "highs-lows-chart", "breadth-chart", "ad-line-chart"])
       expect(await screen.findByTestId(`mini-${c}`)).toBeInTheDocument();
     const fig = within(await screen.findByRole("complementary", { name: "Leadership figures" }));
-    for (const t of ["New 52-week highs", "New 52-week lows", "Failed breakouts", "Leaders vs index"])
+    for (const t of ["Net new highs", "New 52-week lows", "Leaders", "Leaders vs index"])
       expect(fig.getByText(t)).toBeInTheDocument();
+    // one place each: the failure rate is on the Setups and breakouts card, today's highs are the list
+    expect(fig.queryByText("Failed breakouts")).toBeNull();
+    expect(fig.queryByText("New 52-week highs")).toBeNull();
+    expect(fig.getByText("Leaders").parentElement?.parentElement).toHaveTextContent("Leaders2(TT pass, RS 80+)");
     const bf = within(await screen.findByRole("complementary", { name: "Breadth figures" }));
     for (const t of ["Regime", "Above 50-day average", "Above 200-day average", "Net advancers"])
       expect(bf.getByText(t)).toBeInTheDocument();
     expect(screen.getByTestId("mini-trades-chart")).toBeInTheDocument();
-    expect(await screen.findByTestId("mini-paper-progress")).toHaveTextContent("1 / 30");
+    // the progress toward the review is the Paper trading panel's Closed column, not repeated here
+    expect(screen.queryByTestId("mini-paper-progress")).toBeNull();
     expect(await screen.findByTestId("mini-open-positions")).toHaveTextContent("BETA");
   });
 

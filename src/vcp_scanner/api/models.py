@@ -205,6 +205,7 @@ class HealthFlowPoint(BaseModel):
     breakouts: int  # breakout events dated this session
     failed_pct: float | None  # failed share of the breakouts judged in the last FLOW_WINDOW
     judged: int  # breakouts judged in that window (None rate below MIN_JUDGED)
+    failed: int = 0  # of which failed
 
 
 class HealthWarning(BaseModel):
@@ -260,6 +261,8 @@ class MarketHealthResponse(Stamped):
     warnings: list[HealthWarning] = []
     new_highs: list[HealthNewHigh] = []  # universe stocks at a new 52-week high on as_of
     sectors: list[HealthSector] = []  # strongest first; not classified last
+    leader_count: int | None = None  # Trend Template pass and RS 80+ in the latest scan
+    leader_change: int | None = None  # against the scan LEADER_DAYS sessions earlier
 
 
 class SearchHit(BaseModel):

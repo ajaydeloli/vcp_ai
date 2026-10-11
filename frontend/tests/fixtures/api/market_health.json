@@ -43,7 +43,7 @@
      "id": "failed_breakouts",
      "label": "Failed breakouts",
      "status": "grey",
-     "text": "Too few judged breakouts to read (0; 1 still too recent).",
+     "text": "Too few breakouts judged in the last 20 sessions to read (0).",
      "value": null,
      "score": null,
      "short": "not enough data yet"
@@ -3068,7 +3068,8 @@
    "new_setups": null,
    "breakouts": 1,
    "failed_pct": null,
-   "judged": 0
+   "judged": 0,
+   "failed": 0
   }
  ],
  "warnings": [],
@@ -3107,5 +3108,7 @@
    "index_name": null,
    "index_change_pct": null
   }
- ]
+ ],
+ "leader_count": 2,
+ "leader_change": null
 }

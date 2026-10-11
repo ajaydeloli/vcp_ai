@@ -401,6 +401,8 @@ export const marketHealth = z.object({
   ),
   warnings: z.array(z.object({ id: z.string(), text: z.string() })),
   new_highs: z.array(z.object({ symbol: z.string(), rs_rank: num, sector: z.string().nullable() })),
+  leader_count: num,
+  leader_change: num,
   sectors: z.array(
     z.object({
       sector: z.string().nullable(),
@@ -433,6 +435,7 @@ export const marketHealth = z.object({
       breakouts: z.number(),
       failed_pct: num,
       judged: z.number(),
+      failed: z.number(),
     }),
   ),
   index_days: z
