@@ -104,6 +104,21 @@ def _pct(a: float, b: float) -> float:
     return (a / b - 1.0) * 100.0
 
 
+def _day_kinds(mean_ret: list[float | None], volume: list[float]) -> list[str | None]:
+    """'distribution' when VQI fell DIST_DROP or more on higher volume than the day before,
+    'accumulation' when it rose as much on higher volume, else None. The one rule behind the
+    reading, the figures beside the chart and the chart's markers."""
+    out: list[str | None] = [None]
+    for i in range(1, len(mean_ret)):
+        r = mean_ret[i] or 0.0
+        heavier = volume[i] > volume[i - 1]
+        out.append(
+            "distribution" if heavier and r <= DIST_DROP
+            else "accumulation" if heavier and r >= -DIST_DROP else None
+        )  # fmt: skip
+    return out[: len(mean_ret)]
+
+
 def _index_group(
     index: list[float], mean_ret: list[float | None], volume: list[float]
 ) -> m.HealthGroup:
@@ -144,11 +159,8 @@ def _index_group(
             f"{_pct(index[last], ma[200] or 1.0):+.1f}% from it.",
             _pct(index[last], ma[200] or 1.0), float(score),
         ))  # fmt: skip
-    start = max(1, len(index) - DIST_WINDOW)
-    dist = sum(
-        1 for i in range(start, len(index))
-        if (mean_ret[i] or 0.0) <= DIST_DROP and volume[i] > volume[i - 1]
-    )  # fmt: skip
+    kinds = _day_kinds(mean_ret, volume)
+    dist = sum(k == "distribution" for k in kinds[max(1, len(index) - DIST_WINDOW) :])
     status = "red" if dist >= DIST_RED else "amber" if dist >= DIST_AMBER else "green"
     items.append(_item(
         "distribution", "Distribution days", status,
@@ -494,19 +506,14 @@ def _leaders(cur: Cur, ctx: Context, sessions: list[date], index: list[float]) -
 def _index_days(
     index: list[float], mean_ret: list[float | None], volume: list[float]
 ) -> m.HealthIndexDays:
-    start = max(1, len(index) - DIST_WINDOW)
-    days = range(start, len(index))
+    recent = _day_kinds(mean_ret, volume)[max(1, len(index) - DIST_WINDOW) :]
     ma200 = _sma(index, 200, len(index) - 1)
     ma50 = _sma(index, 50, len(index) - 1)
     return m.HealthIndexDays(
         pct_from_50=None if ma50 is None else _pct(index[-1], ma50),
         pct_from_200=None if ma200 is None else _pct(index[-1], ma200),
-        accumulation=sum(
-            1 for i in days if (mean_ret[i] or 0.0) >= -DIST_DROP and volume[i] > volume[i - 1]
-        ),
-        distribution=sum(
-            1 for i in days if (mean_ret[i] or 0.0) <= DIST_DROP and volume[i] > volume[i - 1]
-        ),
+        accumulation=sum(k == "accumulation" for k in recent),
+        distribution=sum(k == "distribution" for k in recent),
         window=DIST_WINDOW,
     )
 
@@ -551,6 +558,7 @@ def _rebased(closes: dict[date, float], days: list[date]) -> list[float | None]:
 def _points(
     rows: list[tuple[Any, ...]], index: list[float],
     nse: dict[str, dict[date, float]] | None = None,
+    kinds: list[str | None] | None = None,
 ) -> list[m.HealthPoint]:  # fmt: skip
     line = _ad_line(rows)
     net = _net_highs(rows)
@@ -577,6 +585,7 @@ def _points(
                 net_highs_avg10=_sma(net, NET_HIGHS_AVG, i),
                 nifty50=lines["nifty50"][i - first],
                 nifty500=lines["nifty500"][i - first],
+                distribution=kinds is not None and kinds[i] == "distribution",
             )
         )
     return out
@@ -786,7 +795,8 @@ def market_health(cur: Cur, ctx: Context, end: date, data_time: datetime) -> m.M
     _shorts(groups, last)
     return m.MarketHealthResponse(
         as_of=sessions[-1], data_time=data_time, groups=groups,
-        points=_points(rows, index, _nse_closes(cur, sessions[0], end)),
+        points=_points(rows, index, _nse_closes(cur, sessions[0], end),
+                       _day_kinds(mean_ret, volume)),
         trades=_trades(cur, ctx), verdict=_verdict(groups),
         index_days=_index_days(index, mean_ret, volume), stages=_stage_history(cur, ctx, end),
         flow=_flow(cur, ctx, sessions), warnings=_warnings(rows, index),

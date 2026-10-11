@@ -286,7 +286,11 @@ function Charts({ d, id }: { d: Health; id: string }) {
   const pts = d.points;
   const index = useMemo(
     () => [
-      series("VQI", C.ink, pts, (p) => p.index),
+      {
+        ...series("VQI", C.ink, pts, (p) => p.index),
+        // distribution days: VQI down 0.2 % or more on higher volume (the count beside the chart)
+        markers: pts.filter((p) => p.distribution).map((p) => ({ time: p.day, color: C.down, position: "aboveBar" as const })),
+      },
       series("50-day", C.warn, pts, (p) => p.ma50),
       series("200-day", C.down, pts, (p) => p.ma200),
       series("NIFTY 50", NSE.nifty50, pts, (p) => p.nifty50),
@@ -313,6 +317,7 @@ function Charts({ d, id }: { d: Health; id: string }) {
             ["VQI", C.ink],
             ["its 50-day", C.warn],
             ["its 200-day", C.down],
+            ["● distribution day", C.down],
             ...(hasNse ? ([["NIFTY 50", NSE.nifty50], ["NIFTY 500", NSE.nifty500]] as [string, string][]) : []),
           ]}
         />

@@ -145,3 +145,23 @@ def test_market_health_points_carry_rebased_nifty_lines(ro_env: Any) -> None:
     last = with_nifty[-1]
     assert last["nifty50"] == pytest.approx((20000 + 290) / 20000 * 100)
     assert last["day"] == pts[-1]["day"]
+
+
+# --- step 4: distribution days -----------------------------------------------------------------
+
+
+def test_day_kinds_one_rule_for_the_count_and_the_markers() -> None:
+    rets = [None, -0.003, -0.003, 0.004, 0.001, -0.001]
+    vols = [100.0, 120.0, 110.0, 130.0, 140.0, 150.0]
+    # day 1: down 0.3 % on more volume; day 2: down on less; day 3: up 0.4 % on more;
+    # day 4: up 0.1 % on more (less than 0.2 %: neither); day 5: down 0.1 %: neither
+    assert health._day_kinds(rets, vols) == [
+        None, "distribution", None, "accumulation", None, None,
+    ]  # fmt: skip
+
+
+def test_markers_match_the_distribution_count(ro_env: Any) -> None:
+    body = ro_env.client.get("/api/v1/market/health").json()
+    window = body["index_days"]["window"]
+    marked = sum(p["distribution"] for p in body["points"][-window:])
+    assert marked == body["index_days"]["distribution"]

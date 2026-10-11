@@ -218,6 +218,21 @@ describe("dashboard page (market view)", () => {
     expect(box).toHaveTextContent(`Divergence: ${text}`);
   });
 
+  it("marks distribution days on the VQI line", async () => {
+    const points = fx.marketHealth.points.map((p, i, all) => ({ ...p, distribution: i >= all.length - 2 }));
+    mockApi({ "market/health": { ...fx.marketHealth, points } });
+    renderApp(<Dashboard />);
+    const card = await screen.findByRole("region", { name: "Index price action" });
+    expect(card).toHaveTextContent("● distribution day");
+    await waitFor(() =>
+      expect(liveCharts().find((c) => c.el.dataset.testid === "mini-index-price-chart")).toBeDefined(),
+    );
+    const chart = liveCharts().find((c) => c.el.dataset.testid === "mini-index-price-chart")!;
+    await waitFor(() => expect(chart.series[0]?.markers).toHaveLength(2));
+    const vqi = chart.series[0]!;
+    expect(vqi.markers.map((m) => m.time)).toEqual(points.slice(-2).map((p) => p.day));
+  });
+
   it("reports an unreachable API instead of an empty page", async () => {
     mockApi({
       strategies: new TypeError("fetch failed"),
