@@ -223,7 +223,7 @@ describe("dashboard page (market view)", () => {
     expect(box).toHaveTextContent(`Divergence: ${text}`);
   });
 
-  it("shows accumulation and distribution days as ticks in a strip above the dates, not on the VQI line", async () => {
+  it("shows accumulation and distribution days as small dots above the dates, not on the VQI line", async () => {
     const n = fx.marketHealth.points.length;
     const points = fx.marketHealth.points.map((p, i) => ({
       ...p,
@@ -233,21 +233,25 @@ describe("dashboard page (market view)", () => {
     mockApi({ "market/health": { ...fx.marketHealth, points } });
     renderApp(<Dashboard />);
     const card = await screen.findByRole("region", { name: "Index price action" });
-    expect(card).toHaveTextContent("▲ accumulation day");
-    expect(card).toHaveTextContent("▼ distribution day");
+    expect(card).toHaveTextContent("● accumulation day (upper row)");
+    expect(card).toHaveTextContent("● distribution day (lower row)");
     const chart = await waitFor(() => {
       const c = liveCharts().find((x) => x.el.dataset.testid === "mini-index-price-chart");
-      expect(c?.of("histogram")).toHaveLength(1);
+      expect(c?.series.some((s) => s.options.priceScaleId === "band")).toBe(true);
       return c!;
     });
-    const strip = chart.of("histogram")[0]!;
-    // up ticks for accumulation, down ticks for distribution: direction as well as colour
-    expect(strip.data.map((d) => [d.time, d.value])).toEqual([
+    const band = chart.series.find((s) => s.options.priceScaleId === "band")!;
+    expect(band.options.lineVisible).toBe(false); // only the dots show
+    // accumulation in the upper row, distribution in the lower: the row as well as the colour
+    expect(band.data.map((d) => [d.time, d.value])).toEqual([
       [points[n - 3]!.day, 1], [points[n - 2]!.day, -1], [points[n - 1]!.day, -1],
     ]); // fmt: skip
-    expect(strip.options.priceScaleId).toBe("strip");
-    expect(chart.scales["strip"].scaleMargins.top).toBeGreaterThan(0.8); // a band at the bottom
-    expect(chart.of("line").every((l) => l.markers.length === 0)).toBe(true); // nothing on the lines
+    expect(band.markers.map((m) => [m.shape, m.color])).toEqual([
+      ["circle", "#26a69a"], ["circle", "#ef5350"], ["circle", "#ef5350"],
+    ]); // fmt: skip
+    expect(chart.scales["band"].scaleMargins.top).toBeGreaterThan(0.8); // a band at the bottom
+    const vqi = chart.series[0]!;
+    expect(vqi.markers).toHaveLength(0); // nothing on the VQI line
   });
 
   it("sector strength lists the sectors strongest first and the unclassified stocks last", async () => {

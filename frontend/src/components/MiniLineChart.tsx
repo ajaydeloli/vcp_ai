@@ -9,12 +9,12 @@ import { CHART_THEME } from "./ChartView";
 export type MiniSeries = {
   name: string;
   color: string;
-  /** `color` per point: only for "strip" (each tick its own colour) */
+  /** `color` per point: only for "dots" (each dot its own colour) */
   data: { time: string; value: number; color?: string }[];
-  /** "bar": a histogram from zero (daily counts); "strip": short ticks from a centre line in a
-   *  band at the bottom of the chart, just above the dates, on a scale of their own (values +1
-   *  up, -1 down), so they never cover a line; default a line */
-  kind?: "line" | "bar" | "strip";
+  /** "bar": a histogram from zero (daily counts); "dots": small round dots in a band at the
+   *  bottom of the chart, just above the dates, on a scale of their own (value +1 the upper row,
+   *  -1 the lower row), so they never cover a line; default a line */
+  kind?: "line" | "bar" | "dots";
   /** small marks on this series, e.g. distribution days on the index line */
   markers?: { time: string; color: string; text?: string; position?: "aboveBar" | "belowBar" }[];
 };
@@ -63,20 +63,33 @@ export function MiniLineChart({ series, height = 120, threshold, label, plain, w
     const chart = chartRef.current;
     if (!chart) return;
     for (const s of linesRef.current) chart.removeSeries(s);
-    const strip = series.some((s) => s.kind === "strip");
-    // the lines keep the upper part of the pane; the strip takes the band below them
-    chart.priceScale("right").applyOptions({ scaleMargins: { top: 0.08, bottom: strip ? 0.16 : 0.08 } });
+    const band = series.some((s) => s.kind === "dots");
+    // the lines keep the upper part of the pane; the dots take the band below them
+    chart.priceScale("right").applyOptions({ scaleMargins: { top: 0.08, bottom: band ? 0.16 : 0.08 } });
     linesRef.current = series.map((s, i) => {
-      if (s.kind === "strip") {
-        const ticks = chart.addHistogramSeries({
-          priceScaleId: "strip",
+      if (s.kind === "dots") {
+        // an invisible line on its own scale carries one round marker per point
+        const dots = chart.addLineSeries({
+          priceScaleId: "band",
+          lineVisible: false,
           lastValueVisible: false,
           priceLineVisible: false,
-          base: 0,
+          crosshairMarkerVisible: false,
+          // a fixed range: the +1 and -1 rows stay apart even when only one kind is present
+          autoscaleInfoProvider: () => ({ priceRange: { minValue: -1.6, maxValue: 1.6 } }),
         });
-        chart.priceScale("strip").applyOptions({ scaleMargins: { top: 0.9, bottom: 0.01 }, visible: false });
-        ticks.setData(s.data.map((p) => ({ time: p.time as Time, value: p.value, color: p.color ?? s.color })));
-        return ticks;
+        chart.priceScale("band").applyOptions({ scaleMargins: { top: 0.86, bottom: 0.02 }, visible: false });
+        dots.setData(s.data.map((p) => ({ time: p.time as Time, value: p.value })));
+        dots.setMarkers(
+          s.data.map((p) => ({
+            time: p.time as Time,
+            position: "inBar" as const,
+            color: p.color ?? s.color,
+            shape: "circle" as const,
+            size: 0.5,
+          })),
+        );
+        return dots;
       }
       const common = {
         color: s.color,
