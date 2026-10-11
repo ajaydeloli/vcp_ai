@@ -186,3 +186,23 @@ def test_sector_rows_known_answers(ro_env: Any) -> None:
     rest = sectors[None]  # not classified yet: one row, listed last
     assert rest["stocks"] == 61  # 60 fillers and GAMMA
     assert list(sectors)[-1] is None
+
+
+# --- step 6: breadth thrust --------------------------------------------------------------------
+
+
+def test_thrust_signals_once_on_a_fast_swing_from_weak_to_strong() -> None:
+    weak = [row(30, 70, 0, 0)] * 12  # 30 % advancing: the 10-day ratio settles at 30 %
+    strong = [row(95, 5, 0, 0)] * 12  # 95 % advancing
+    ratio, signal = health._thrust(weak + strong)
+    assert ratio[8] is None and ratio[9] == pytest.approx(30.0)  # ten sessions needed
+    first = next(i for i, r in enumerate(ratio) if r is not None and r > health.THRUST_HIGH)
+    assert signal[first] and sum(signal) == 1  # signalled once, on the crossing day
+    assert ratio[first - 1] is not None and ratio[first - 1] <= health.THRUST_HIGH
+
+
+def test_a_slow_climb_is_not_a_thrust() -> None:
+    # from 30 % to 70 % advancing over 40 sessions: the ratio passes 40 % long before 61.5 %
+    rows = [row(30 + k, 70 - k, 0, 0) for k in range(41)]
+    _ratio, signal = health._thrust(rows)
+    assert not any(signal)

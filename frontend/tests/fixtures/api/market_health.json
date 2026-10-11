@@ -124,7 +124,9 @@
    "net_highs_avg10": null,
    "nifty50": null,
    "nifty500": null,
-   "distribution": false
+   "distribution": false,
+   "thrust_ratio": null,
+   "thrust": false
   },
   {
    "day": "2026-04-08",
@@ -141,7 +143,9 @@
    "net_highs_avg10": null,
    "nifty50": null,
    "nifty500": null,
-   "distribution": false
+   "distribution": false,
+   "thrust_ratio": null,
+   "thrust": false
   },
   {
    "day": "2026-04-09",
@@ -158,7 +162,9 @@
    "net_highs_avg10": null,
    "nifty50": null,
    "nifty500": null,
-   "distribution": false
+   "distribution": false,
+   "thrust_ratio": null,
+   "thrust": false
   },
   {
    "day": "2026-04-10",
@@ -175,7 +181,9 @@
    "net_highs_avg10": null,
    "nifty50": null,
    "nifty500": null,
-   "distribution": false
+   "distribution": false,
+   "thrust_ratio": null,
+   "thrust": false
   },
   {
    "day": "2026-04-13",
@@ -192,7 +200,9 @@
    "net_highs_avg10": null,
    "nifty50": null,
    "nifty500": null,
-   "distribution": false
+   "distribution": false,
+   "thrust_ratio": null,
+   "thrust": false
   },
   {
    "day": "2026-04-14",
@@ -209,7 +219,9 @@
    "net_highs_avg10": null,
    "nifty50": null,
    "nifty500": null,
-   "distribution": false
+   "distribution": false,
+   "thrust_ratio": null,
+   "thrust": false
   },
   {
    "day": "2026-04-15",
@@ -226,7 +238,9 @@
    "net_highs_avg10": null,
    "nifty50": null,
    "nifty500": null,
-   "distribution": false
+   "distribution": false,
+   "thrust_ratio": null,
+   "thrust": false
   },
   {
    "day": "2026-04-16",
@@ -243,7 +257,9 @@
    "net_highs_avg10": null,
    "nifty50": null,
    "nifty500": null,
-   "distribution": false
+   "distribution": false,
+   "thrust_ratio": null,
+   "thrust": false
   },
   {
    "day": "2026-04-17",
@@ -260,7 +276,9 @@
    "net_highs_avg10": null,
    "nifty50": null,
    "nifty500": null,
-   "distribution": false
+   "distribution": false,
+   "thrust_ratio": null,
+   "thrust": false
   },
   {
    "day": "2026-04-20",
@@ -277,7 +295,9 @@
    "net_highs_avg10": 0.0,
    "nifty50": null,
    "nifty500": null,
-   "distribution": false
+   "distribution": false,
+   "thrust_ratio": 100.0,
+   "thrust": false
   },
   {
    "day": "2026-04-21",
@@ -294,7 +314,9 @@
    "net_highs_avg10": 0.0,
    "nifty50": null,
    "nifty500": null,
-   "distribution": false
+   "distribution": false,
+   "thrust_ratio": 100.0,
+   "thrust": false
   },
   {
    "day": "2026-04-22",
@@ -311,7 +333,9 @@
    "net_highs_avg10": 0.0,
    "nifty50": null,
    "nifty500": null,
-   "distribution": false
+   "distribution": false,
+   "thrust_ratio": 100.0,
+   "thrust": false
   },
   {
    "day": "2026-04-23",
@@ -328,7 +352,9 @@
    "net_highs_avg10": 0.0,
    "nifty50": null,
    "nifty500": null,
-   "distribution": false
+   "distribution": false,
+   "thrust_ratio": 100.0,
+   "thrust": false
   },
   {
    "day": "2026-04-24",
@@ -345,7 +371,9 @@
    "net_highs_avg10": 0.0,
    "nifty50": null,
    "nifty500": null,
-   "distribution": false
+   "distribution": false,
+   "thrust_ratio": 100.0,
+   "thrust": false
   },
   {
    "day": "2026-04-27",
@@ -362,7 +390,9 @@
    "net_highs_avg10": 0.0,
    "nifty50": null,
    "nifty500": null,
-   "distribution": false
+   "distribution": false,
+   "thrust_ratio": 100.0,
+   "thrust": false
   },
   {
    "day": "2026-04-28",
@@ -379,7 +409,9 @@
    "net_highs_avg10": 0.0,
    "nifty50": null,
    "nifty500": null,
-   "distribution": false
+   "distribution": false,
+   "thrust_ratio": 100.0,
+   "thrust": false
   },
   {
    "day": "2026-04-29",
@@ -396,7 +428,9 @@
    "net_highs_avg10": 0.0,
    "nifty50": null,
    "nifty500": null,
-   "distribution": false
+   "distribution": false,
+   "thrust_ratio": 100.0,
+   "thrust": false
   },
   {
    "day": "2026-04-30",
@@ -413,7 +447,9 @@
    "net_highs_avg10": 0.0,
    "nifty50": null,
    "nifty500": null,
-   "distribution": false
+   "distribution": false,
+   "thrust_ratio": 100.0,
+   "thrust": false
   },
   {
    "day": "2026-05-01",
@@ -430,7 +466,9 @@
    "net_highs_avg10": 0.0,
    "nifty50": null,
    "nifty500": null,
-   "distribution": false
+   "distribution": false,
+   "thrust_ratio": 100.0,
+   "thrust": false
   },
   {
    "day": "2026-05-04",
@@ -447,7 +485,9 @@
    "net_highs_avg10": 0.0,
    "nifty50": null,
    "nifty500": null,
-   "distribution": false
+   "distribution": false,
+   "thrust_ratio": 100.0,
+   "thrust": false
   },
   {
    "day": "2026-05-05",
@@ -464,7 +504,9 @@
    "net_highs_avg10": 0.0,
    "nifty50": null,
    "nifty500": null,
-   "distribution": false
+   "distribution": false,
+   "thrust_ratio": 100.0,
+   "thrust": false
   },
   {
    "day": "2026-05-06",
@@ -481,7 +523,9 @@
    "net_highs_avg10": 0.0,
    "nifty50": null,
    "nifty500": null,
-   "distribution": false
+   "distribution": false,
+   "thrust_ratio": 100.0,
+   "thrust": false
   },
   {
    "day": "2026-05-07",
@@ -498,7 +542,9 @@
    "net_highs_avg10": 0.0,
    "nifty50": null,
    "nifty500": null,
-   "distribution": false
+   "distribution": false,
+   "thrust_ratio": 100.0,
+   "thrust": false
   },
   {
    "day": "2026-05-08",
@@ -515,7 +561,9 @@
    "net_highs_avg10": 0.0,
    "nifty50": null,
    "nifty500": null,
-   "distribution": false
+   "distribution": false,
+   "thrust_ratio": 100.0,
+   "thrust": false
   },
   {
    "day": "2026-05-11",
@@ -532,7 +580,9 @@
    "net_highs_avg10": 0.0,
    "nifty50": null,
    "nifty500": null,
-   "distribution": false
+   "distribution": false,
+   "thrust_ratio": 100.0,
+   "thrust": false
   },
   {
    "day": "2026-05-12",
@@ -549,7 +599,9 @@
    "net_highs_avg10": 0.0,
    "nifty50": null,
    "nifty500": null,
-   "distribution": false
+   "distribution": false,
+   "thrust_ratio": 100.0,
+   "thrust": false
   },
   {
    "day": "2026-05-13",
@@ -566,7 +618,9 @@
    "net_highs_avg10": 0.0,
    "nifty50": null,
    "nifty500": null,
-   "distribution": false
+   "distribution": false,
+   "thrust_ratio": 100.0,
+   "thrust": false
   },
   {
    "day": "2026-05-14",
@@ -583,7 +637,9 @@
    "net_highs_avg10": 0.0,
    "nifty50": null,
    "nifty500": null,
-   "distribution": false
+   "distribution": false,
+   "thrust_ratio": 100.0,
+   "thrust": false
   },
   {
    "day": "2026-05-15",
@@ -600,7 +656,9 @@
    "net_highs_avg10": 0.0,
    "nifty50": null,
    "nifty500": null,
-   "distribution": false
+   "distribution": false,
+   "thrust_ratio": 100.0,
+   "thrust": false
   },
   {
    "day": "2026-05-18",
@@ -617,7 +675,9 @@
    "net_highs_avg10": 0.0,
    "nifty50": null,
    "nifty500": null,
-   "distribution": false
+   "distribution": false,
+   "thrust_ratio": 100.0,
+   "thrust": false
   },
   {
    "day": "2026-05-19",
@@ -634,7 +694,9 @@
    "net_highs_avg10": 0.0,
    "nifty50": null,
    "nifty500": null,
-   "distribution": false
+   "distribution": false,
+   "thrust_ratio": 100.0,
+   "thrust": false
   },
   {
    "day": "2026-05-20",
@@ -651,7 +713,9 @@
    "net_highs_avg10": 0.0,
    "nifty50": null,
    "nifty500": null,
-   "distribution": false
+   "distribution": false,
+   "thrust_ratio": 100.0,
+   "thrust": false
   },
   {
    "day": "2026-05-21",
@@ -668,7 +732,9 @@
    "net_highs_avg10": 0.0,
    "nifty50": null,
    "nifty500": null,
-   "distribution": false
+   "distribution": false,
+   "thrust_ratio": 100.0,
+   "thrust": false
   },
   {
    "day": "2026-05-22",
@@ -685,7 +751,9 @@
    "net_highs_avg10": 0.0,
    "nifty50": null,
    "nifty500": null,
-   "distribution": false
+   "distribution": false,
+   "thrust_ratio": 100.0,
+   "thrust": false
   },
   {
    "day": "2026-05-25",
@@ -702,7 +770,9 @@
    "net_highs_avg10": 0.0,
    "nifty50": null,
    "nifty500": null,
-   "distribution": false
+   "distribution": false,
+   "thrust_ratio": 100.0,
+   "thrust": false
   },
   {
    "day": "2026-05-26",
@@ -719,7 +789,9 @@
    "net_highs_avg10": 0.0,
    "nifty50": null,
    "nifty500": null,
-   "distribution": false
+   "distribution": false,
+   "thrust_ratio": 100.0,
+   "thrust": false
   },
   {
    "day": "2026-05-27",
@@ -736,7 +808,9 @@
    "net_highs_avg10": 0.0,
    "nifty50": null,
    "nifty500": null,
-   "distribution": false
+   "distribution": false,
+   "thrust_ratio": 100.0,
+   "thrust": false
   },
   {
    "day": "2026-05-28",
@@ -753,7 +827,9 @@
    "net_highs_avg10": 0.0,
    "nifty50": null,
    "nifty500": null,
-   "distribution": false
+   "distribution": false,
+   "thrust_ratio": 100.0,
+   "thrust": false
   },
   {
    "day": "2026-05-29",
@@ -770,7 +846,9 @@
    "net_highs_avg10": 0.0,
    "nifty50": null,
    "nifty500": null,
-   "distribution": false
+   "distribution": false,
+   "thrust_ratio": 100.0,
+   "thrust": false
   },
   {
    "day": "2026-06-01",
@@ -787,7 +865,9 @@
    "net_highs_avg10": 0.0,
    "nifty50": null,
    "nifty500": null,
-   "distribution": false
+   "distribution": false,
+   "thrust_ratio": 100.0,
+   "thrust": false
   },
   {
    "day": "2026-06-02",
@@ -804,7 +884,9 @@
    "net_highs_avg10": 0.0,
    "nifty50": null,
    "nifty500": null,
-   "distribution": false
+   "distribution": false,
+   "thrust_ratio": 100.0,
+   "thrust": false
   },
   {
    "day": "2026-06-03",
@@ -821,7 +903,9 @@
    "net_highs_avg10": 0.0,
    "nifty50": null,
    "nifty500": null,
-   "distribution": false
+   "distribution": false,
+   "thrust_ratio": 100.0,
+   "thrust": false
   },
   {
    "day": "2026-06-04",
@@ -838,7 +922,9 @@
    "net_highs_avg10": 0.0,
    "nifty50": null,
    "nifty500": null,
-   "distribution": false
+   "distribution": false,
+   "thrust_ratio": 100.0,
+   "thrust": false
   },
   {
    "day": "2026-06-05",
@@ -855,7 +941,9 @@
    "net_highs_avg10": 0.0,
    "nifty50": null,
    "nifty500": null,
-   "distribution": false
+   "distribution": false,
+   "thrust_ratio": 100.0,
+   "thrust": false
   },
   {
    "day": "2026-06-08",
@@ -872,7 +960,9 @@
    "net_highs_avg10": 0.0,
    "nifty50": null,
    "nifty500": null,
-   "distribution": false
+   "distribution": false,
+   "thrust_ratio": 100.0,
+   "thrust": false
   },
   {
    "day": "2026-06-09",
@@ -889,7 +979,9 @@
    "net_highs_avg10": 0.0,
    "nifty50": null,
    "nifty500": null,
-   "distribution": false
+   "distribution": false,
+   "thrust_ratio": 100.0,
+   "thrust": false
   },
   {
    "day": "2026-06-10",
@@ -906,7 +998,9 @@
    "net_highs_avg10": 0.0,
    "nifty50": null,
    "nifty500": null,
-   "distribution": false
+   "distribution": false,
+   "thrust_ratio": 100.0,
+   "thrust": false
   },
   {
    "day": "2026-06-11",
@@ -923,7 +1017,9 @@
    "net_highs_avg10": 0.0,
    "nifty50": null,
    "nifty500": null,
-   "distribution": false
+   "distribution": false,
+   "thrust_ratio": 100.0,
+   "thrust": false
   },
   {
    "day": "2026-06-12",
@@ -940,7 +1036,9 @@
    "net_highs_avg10": 0.0,
    "nifty50": null,
    "nifty500": null,
-   "distribution": false
+   "distribution": false,
+   "thrust_ratio": 100.0,
+   "thrust": false
   },
   {
    "day": "2026-06-15",
@@ -957,7 +1055,9 @@
    "net_highs_avg10": 0.0,
    "nifty50": null,
    "nifty500": null,
-   "distribution": false
+   "distribution": false,
+   "thrust_ratio": 100.0,
+   "thrust": false
   },
   {
    "day": "2026-06-16",
@@ -974,7 +1074,9 @@
    "net_highs_avg10": 0.0,
    "nifty50": null,
    "nifty500": null,
-   "distribution": false
+   "distribution": false,
+   "thrust_ratio": 100.0,
+   "thrust": false
   },
   {
    "day": "2026-06-17",
@@ -991,7 +1093,9 @@
    "net_highs_avg10": 0.0,
    "nifty50": null,
    "nifty500": null,
-   "distribution": false
+   "distribution": false,
+   "thrust_ratio": 100.0,
+   "thrust": false
   },
   {
    "day": "2026-06-18",
@@ -1008,7 +1112,9 @@
    "net_highs_avg10": 0.0,
    "nifty50": null,
    "nifty500": null,
-   "distribution": false
+   "distribution": false,
+   "thrust_ratio": 100.0,
+   "thrust": false
   },
   {
    "day": "2026-06-19",
@@ -1025,7 +1131,9 @@
    "net_highs_avg10": 0.0,
    "nifty50": null,
    "nifty500": null,
-   "distribution": false
+   "distribution": false,
+   "thrust_ratio": 100.0,
+   "thrust": false
   },
   {
    "day": "2026-06-22",
@@ -1042,7 +1150,9 @@
    "net_highs_avg10": 0.0,
    "nifty50": null,
    "nifty500": null,
-   "distribution": false
+   "distribution": false,
+   "thrust_ratio": 100.0,
+   "thrust": false
   },
   {
    "day": "2026-06-23",
@@ -1059,7 +1169,9 @@
    "net_highs_avg10": 0.0,
    "nifty50": null,
    "nifty500": null,
-   "distribution": false
+   "distribution": false,
+   "thrust_ratio": 100.0,
+   "thrust": false
   },
   {
    "day": "2026-06-24",
@@ -1076,7 +1188,9 @@
    "net_highs_avg10": 0.0,
    "nifty50": null,
    "nifty500": null,
-   "distribution": false
+   "distribution": false,
+   "thrust_ratio": 100.0,
+   "thrust": false
   },
   {
    "day": "2026-06-25",
@@ -1093,7 +1207,9 @@
    "net_highs_avg10": 0.0,
    "nifty50": null,
    "nifty500": null,
-   "distribution": false
+   "distribution": false,
+   "thrust_ratio": 100.0,
+   "thrust": false
   },
   {
    "day": "2026-06-26",
@@ -1110,7 +1226,9 @@
    "net_highs_avg10": 0.0,
    "nifty50": null,
    "nifty500": null,
-   "distribution": false
+   "distribution": false,
+   "thrust_ratio": 100.0,
+   "thrust": false
   },
   {
    "day": "2026-06-29",
@@ -1127,7 +1245,9 @@
    "net_highs_avg10": 0.0,
    "nifty50": null,
    "nifty500": null,
-   "distribution": false
+   "distribution": false,
+   "thrust_ratio": 100.0,
+   "thrust": false
   },
   {
    "day": "2026-06-30",
@@ -1144,7 +1264,9 @@
    "net_highs_avg10": 0.0,
    "nifty50": null,
    "nifty500": null,
-   "distribution": false
+   "distribution": false,
+   "thrust_ratio": 100.0,
+   "thrust": false
   },
   {
    "day": "2026-07-01",
@@ -1161,7 +1283,9 @@
    "net_highs_avg10": 0.0,
    "nifty50": null,
    "nifty500": null,
-   "distribution": false
+   "distribution": false,
+   "thrust_ratio": 100.0,
+   "thrust": false
   },
   {
    "day": "2026-07-02",
@@ -1178,7 +1302,9 @@
    "net_highs_avg10": 0.0,
    "nifty50": null,
    "nifty500": null,
-   "distribution": false
+   "distribution": false,
+   "thrust_ratio": 100.0,
+   "thrust": false
   },
   {
    "day": "2026-07-03",
@@ -1195,7 +1321,9 @@
    "net_highs_avg10": 0.0,
    "nifty50": null,
    "nifty500": null,
-   "distribution": false
+   "distribution": false,
+   "thrust_ratio": 100.0,
+   "thrust": false
   },
   {
    "day": "2026-07-06",
@@ -1212,7 +1340,9 @@
    "net_highs_avg10": 0.0,
    "nifty50": null,
    "nifty500": null,
-   "distribution": false
+   "distribution": false,
+   "thrust_ratio": 100.0,
+   "thrust": false
   },
   {
    "day": "2026-07-07",
@@ -1229,7 +1359,9 @@
    "net_highs_avg10": 0.0,
    "nifty50": null,
    "nifty500": null,
-   "distribution": false
+   "distribution": false,
+   "thrust_ratio": 100.0,
+   "thrust": false
   },
   {
    "day": "2026-07-08",
@@ -1246,7 +1378,9 @@
    "net_highs_avg10": 0.0,
    "nifty50": null,
    "nifty500": null,
-   "distribution": false
+   "distribution": false,
+   "thrust_ratio": 100.0,
+   "thrust": false
   },
   {
    "day": "2026-07-09",
@@ -1263,7 +1397,9 @@
    "net_highs_avg10": 0.0,
    "nifty50": null,
    "nifty500": null,
-   "distribution": false
+   "distribution": false,
+   "thrust_ratio": 100.0,
+   "thrust": false
   },
   {
    "day": "2026-07-10",
@@ -1280,7 +1416,9 @@
    "net_highs_avg10": 0.0,
    "nifty50": null,
    "nifty500": null,
-   "distribution": false
+   "distribution": false,
+   "thrust_ratio": 100.0,
+   "thrust": false
   },
   {
    "day": "2026-07-13",
@@ -1297,7 +1435,9 @@
    "net_highs_avg10": 0.0,
    "nifty50": null,
    "nifty500": null,
-   "distribution": false
+   "distribution": false,
+   "thrust_ratio": 100.0,
+   "thrust": false
   },
   {
    "day": "2026-07-14",
@@ -1314,7 +1454,9 @@
    "net_highs_avg10": 0.0,
    "nifty50": null,
    "nifty500": null,
-   "distribution": false
+   "distribution": false,
+   "thrust_ratio": 100.0,
+   "thrust": false
   },
   {
    "day": "2026-07-15",
@@ -1331,7 +1473,9 @@
    "net_highs_avg10": 0.0,
    "nifty50": null,
    "nifty500": null,
-   "distribution": false
+   "distribution": false,
+   "thrust_ratio": 100.0,
+   "thrust": false
   },
   {
    "day": "2026-07-16",
@@ -1348,7 +1492,9 @@
    "net_highs_avg10": 0.0,
    "nifty50": null,
    "nifty500": null,
-   "distribution": false
+   "distribution": false,
+   "thrust_ratio": 100.0,
+   "thrust": false
   },
   {
    "day": "2026-07-17",
@@ -1365,7 +1511,9 @@
    "net_highs_avg10": 0.0,
    "nifty50": null,
    "nifty500": null,
-   "distribution": false
+   "distribution": false,
+   "thrust_ratio": 100.0,
+   "thrust": false
   },
   {
    "day": "2026-07-20",
@@ -1382,7 +1530,9 @@
    "net_highs_avg10": 0.0,
    "nifty50": null,
    "nifty500": null,
-   "distribution": false
+   "distribution": false,
+   "thrust_ratio": 100.0,
+   "thrust": false
   },
   {
    "day": "2026-07-21",
@@ -1399,7 +1549,9 @@
    "net_highs_avg10": 0.0,
    "nifty50": null,
    "nifty500": null,
-   "distribution": false
+   "distribution": false,
+   "thrust_ratio": 100.0,
+   "thrust": false
   },
   {
    "day": "2026-07-22",
@@ -1416,7 +1568,9 @@
    "net_highs_avg10": 0.0,
    "nifty50": null,
    "nifty500": null,
-   "distribution": false
+   "distribution": false,
+   "thrust_ratio": 100.0,
+   "thrust": false
   },
   {
    "day": "2026-07-23",
@@ -1433,7 +1587,9 @@
    "net_highs_avg10": 0.0,
    "nifty50": null,
    "nifty500": null,
-   "distribution": false
+   "distribution": false,
+   "thrust_ratio": 100.0,
+   "thrust": false
   },
   {
    "day": "2026-07-24",
@@ -1450,7 +1606,9 @@
    "net_highs_avg10": 0.0,
    "nifty50": null,
    "nifty500": null,
-   "distribution": false
+   "distribution": false,
+   "thrust_ratio": 100.0,
+   "thrust": false
   },
   {
    "day": "2026-07-27",
@@ -1467,7 +1625,9 @@
    "net_highs_avg10": 0.0,
    "nifty50": null,
    "nifty500": null,
-   "distribution": false
+   "distribution": false,
+   "thrust_ratio": 100.0,
+   "thrust": false
   },
   {
    "day": "2026-07-28",
@@ -1484,7 +1644,9 @@
    "net_highs_avg10": 0.0,
    "nifty50": null,
    "nifty500": null,
-   "distribution": false
+   "distribution": false,
+   "thrust_ratio": 100.0,
+   "thrust": false
   },
   {
    "day": "2026-07-29",
@@ -1501,7 +1663,9 @@
    "net_highs_avg10": 0.0,
    "nifty50": null,
    "nifty500": null,
-   "distribution": false
+   "distribution": false,
+   "thrust_ratio": 100.0,
+   "thrust": false
   },
   {
    "day": "2026-07-30",
@@ -1518,7 +1682,9 @@
    "net_highs_avg10": 0.0,
    "nifty50": null,
    "nifty500": null,
-   "distribution": false
+   "distribution": false,
+   "thrust_ratio": 100.0,
+   "thrust": false
   },
   {
    "day": "2026-07-31",
@@ -1535,7 +1701,9 @@
    "net_highs_avg10": 0.0,
    "nifty50": null,
    "nifty500": null,
-   "distribution": false
+   "distribution": false,
+   "thrust_ratio": 100.0,
+   "thrust": false
   },
   {
    "day": "2026-08-03",
@@ -1552,7 +1720,9 @@
    "net_highs_avg10": 0.0,
    "nifty50": null,
    "nifty500": null,
-   "distribution": false
+   "distribution": false,
+   "thrust_ratio": 100.0,
+   "thrust": false
   },
   {
    "day": "2026-08-04",
@@ -1569,7 +1739,9 @@
    "net_highs_avg10": 0.0,
    "nifty50": null,
    "nifty500": null,
-   "distribution": false
+   "distribution": false,
+   "thrust_ratio": 100.0,
+   "thrust": false
   },
   {
    "day": "2026-08-05",
@@ -1586,7 +1758,9 @@
    "net_highs_avg10": 0.0,
    "nifty50": null,
    "nifty500": null,
-   "distribution": false
+   "distribution": false,
+   "thrust_ratio": 100.0,
+   "thrust": false
   },
   {
    "day": "2026-08-06",
@@ -1603,7 +1777,9 @@
    "net_highs_avg10": 0.0,
    "nifty50": null,
    "nifty500": null,
-   "distribution": false
+   "distribution": false,
+   "thrust_ratio": 100.0,
+   "thrust": false
   },
   {
    "day": "2026-08-07",
@@ -1620,7 +1796,9 @@
    "net_highs_avg10": 0.0,
    "nifty50": null,
    "nifty500": null,
-   "distribution": false
+   "distribution": false,
+   "thrust_ratio": 100.0,
+   "thrust": false
   },
   {
    "day": "2026-08-10",
@@ -1637,7 +1815,9 @@
    "net_highs_avg10": 0.0,
    "nifty50": null,
    "nifty500": null,
-   "distribution": false
+   "distribution": false,
+   "thrust_ratio": 100.0,
+   "thrust": false
   },
   {
    "day": "2026-08-11",
@@ -1654,7 +1834,9 @@
    "net_highs_avg10": 0.0,
    "nifty50": null,
    "nifty500": null,
-   "distribution": false
+   "distribution": false,
+   "thrust_ratio": 100.0,
+   "thrust": false
   },
   {
    "day": "2026-08-12",
@@ -1671,7 +1853,9 @@
    "net_highs_avg10": 0.0,
    "nifty50": null,
    "nifty500": null,
-   "distribution": false
+   "distribution": false,
+   "thrust_ratio": 100.0,
+   "thrust": false
   },
   {
    "day": "2026-08-13",
@@ -1688,7 +1872,9 @@
    "net_highs_avg10": 0.0,
    "nifty50": null,
    "nifty500": null,
-   "distribution": false
+   "distribution": false,
+   "thrust_ratio": 100.0,
+   "thrust": false
   },
   {
    "day": "2026-08-14",
@@ -1705,7 +1891,9 @@
    "net_highs_avg10": 0.0,
    "nifty50": null,
    "nifty500": null,
-   "distribution": false
+   "distribution": false,
+   "thrust_ratio": 100.0,
+   "thrust": false
   },
   {
    "day": "2026-08-17",
@@ -1722,7 +1910,9 @@
    "net_highs_avg10": 0.0,
    "nifty50": null,
    "nifty500": null,
-   "distribution": false
+   "distribution": false,
+   "thrust_ratio": 100.0,
+   "thrust": false
   },
   {
    "day": "2026-08-18",
@@ -1739,7 +1929,9 @@
    "net_highs_avg10": 0.0,
    "nifty50": null,
    "nifty500": null,
-   "distribution": false
+   "distribution": false,
+   "thrust_ratio": 100.0,
+   "thrust": false
   },
   {
    "day": "2026-08-19",
@@ -1756,7 +1948,9 @@
    "net_highs_avg10": 0.0,
    "nifty50": null,
    "nifty500": null,
-   "distribution": false
+   "distribution": false,
+   "thrust_ratio": 100.0,
+   "thrust": false
   },
   {
    "day": "2026-08-20",
@@ -1773,7 +1967,9 @@
    "net_highs_avg10": 0.0,
    "nifty50": null,
    "nifty500": null,
-   "distribution": false
+   "distribution": false,
+   "thrust_ratio": 100.0,
+   "thrust": false
   },
   {
    "day": "2026-08-21",
@@ -1790,7 +1986,9 @@
    "net_highs_avg10": 0.0,
    "nifty50": null,
    "nifty500": null,
-   "distribution": false
+   "distribution": false,
+   "thrust_ratio": 100.0,
+   "thrust": false
   },
   {
    "day": "2026-08-24",
@@ -1807,7 +2005,9 @@
    "net_highs_avg10": 0.0,
    "nifty50": 100.0,
    "nifty500": 100.0,
-   "distribution": false
+   "distribution": false,
+   "thrust_ratio": 100.0,
+   "thrust": false
   },
   {
    "day": "2026-08-25",
@@ -1824,7 +2024,9 @@
    "net_highs_avg10": 0.0,
    "nifty50": 100.05,
    "nifty500": 100.02777777777779,
-   "distribution": false
+   "distribution": false,
+   "thrust_ratio": 100.0,
+   "thrust": false
   },
   {
    "day": "2026-08-26",
@@ -1841,7 +2043,9 @@
    "net_highs_avg10": 0.0,
    "nifty50": 100.1,
    "nifty500": 100.05555555555557,
-   "distribution": false
+   "distribution": false,
+   "thrust_ratio": 100.0,
+   "thrust": false
   },
   {
    "day": "2026-08-27",
@@ -1858,7 +2062,9 @@
    "net_highs_avg10": 0.0,
    "nifty50": 100.15,
    "nifty500": 100.08333333333333,
-   "distribution": false
+   "distribution": false,
+   "thrust_ratio": 100.0,
+   "thrust": false
   },
   {
    "day": "2026-08-28",
@@ -1875,7 +2081,9 @@
    "net_highs_avg10": 0.0,
    "nifty50": 100.2,
    "nifty500": 100.1111111111111,
-   "distribution": false
+   "distribution": false,
+   "thrust_ratio": 100.0,
+   "thrust": false
   },
   {
    "day": "2026-08-31",
@@ -1892,7 +2100,9 @@
    "net_highs_avg10": 0.0,
    "nifty50": 100.25,
    "nifty500": 100.13888888888889,
-   "distribution": false
+   "distribution": false,
+   "thrust_ratio": 100.0,
+   "thrust": false
   },
   {
    "day": "2026-09-01",
@@ -1909,7 +2119,9 @@
    "net_highs_avg10": 0.0,
    "nifty50": 100.29999999999998,
    "nifty500": 100.16666666666667,
-   "distribution": false
+   "distribution": false,
+   "thrust_ratio": 100.0,
+   "thrust": false
   },
   {
    "day": "2026-09-02",
@@ -1926,7 +2138,9 @@
    "net_highs_avg10": 0.0,
    "nifty50": 100.35000000000001,
    "nifty500": 100.19444444444446,
-   "distribution": false
+   "distribution": false,
+   "thrust_ratio": 100.0,
+   "thrust": false
   },
   {
    "day": "2026-09-03",
@@ -1943,7 +2157,9 @@
    "net_highs_avg10": 0.0,
    "nifty50": 100.4,
    "nifty500": 100.22222222222221,
-   "distribution": false
+   "distribution": false,
+   "thrust_ratio": 100.0,
+   "thrust": false
   },
   {
    "day": "2026-09-04",
@@ -1960,7 +2176,9 @@
    "net_highs_avg10": 0.0,
    "nifty50": 100.44999999999999,
    "nifty500": 100.25,
-   "distribution": false
+   "distribution": false,
+   "thrust_ratio": 100.0,
+   "thrust": false
   },
   {
    "day": "2026-09-07",
@@ -1977,7 +2195,9 @@
    "net_highs_avg10": 0.0,
    "nifty50": 100.49999999999999,
    "nifty500": 100.27777777777777,
-   "distribution": false
+   "distribution": false,
+   "thrust_ratio": 100.0,
+   "thrust": false
   },
   {
    "day": "2026-09-08",
@@ -1994,7 +2214,9 @@
    "net_highs_avg10": 0.0,
    "nifty50": 100.55000000000001,
    "nifty500": 100.30555555555556,
-   "distribution": false
+   "distribution": false,
+   "thrust_ratio": 100.0,
+   "thrust": false
   },
   {
    "day": "2026-09-09",
@@ -2011,7 +2233,9 @@
    "net_highs_avg10": 0.0,
    "nifty50": 100.6,
    "nifty500": 100.33333333333334,
-   "distribution": false
+   "distribution": false,
+   "thrust_ratio": 100.0,
+   "thrust": false
   },
   {
    "day": "2026-09-10",
@@ -2028,7 +2252,9 @@
    "net_highs_avg10": 0.0,
    "nifty50": 100.64999999999999,
    "nifty500": 100.3611111111111,
-   "distribution": false
+   "distribution": false,
+   "thrust_ratio": 100.0,
+   "thrust": false
   },
   {
    "day": "2026-09-11",
@@ -2045,7 +2271,9 @@
    "net_highs_avg10": 0.0,
    "nifty50": 100.69999999999999,
    "nifty500": 100.38888888888889,
-   "distribution": false
+   "distribution": false,
+   "thrust_ratio": 100.0,
+   "thrust": false
   },
   {
    "day": "2026-09-14",
@@ -2062,7 +2290,9 @@
    "net_highs_avg10": 0.0,
    "nifty50": 100.75,
    "nifty500": 100.41666666666667,
-   "distribution": false
+   "distribution": false,
+   "thrust_ratio": 100.0,
+   "thrust": false
   },
   {
    "day": "2026-09-15",
@@ -2079,7 +2309,9 @@
    "net_highs_avg10": 0.0,
    "nifty50": 100.8,
    "nifty500": 100.44444444444444,
-   "distribution": false
+   "distribution": false,
+   "thrust_ratio": 100.0,
+   "thrust": false
   },
   {
    "day": "2026-09-16",
@@ -2096,7 +2328,9 @@
    "net_highs_avg10": 0.0,
    "nifty50": 100.85,
    "nifty500": 100.47222222222223,
-   "distribution": false
+   "distribution": false,
+   "thrust_ratio": 100.0,
+   "thrust": false
   },
   {
    "day": "2026-09-17",
@@ -2113,7 +2347,9 @@
    "net_highs_avg10": 0.0,
    "nifty50": 100.89999999999999,
    "nifty500": 100.49999999999999,
-   "distribution": false
+   "distribution": false,
+   "thrust_ratio": 100.0,
+   "thrust": false
   },
   {
    "day": "2026-09-18",
@@ -2130,7 +2366,9 @@
    "net_highs_avg10": 0.0,
    "nifty50": 100.95,
    "nifty500": 100.52777777777777,
-   "distribution": false
+   "distribution": false,
+   "thrust_ratio": 100.0,
+   "thrust": false
   },
   {
    "day": "2026-09-21",
@@ -2147,7 +2385,9 @@
    "net_highs_avg10": 0.0,
    "nifty50": 101.0,
    "nifty500": 100.55555555555556,
-   "distribution": false
+   "distribution": false,
+   "thrust_ratio": 100.0,
+   "thrust": false
   },
   {
    "day": "2026-09-22",
@@ -2164,7 +2404,9 @@
    "net_highs_avg10": 0.0,
    "nifty50": 101.05,
    "nifty500": 100.58333333333334,
-   "distribution": false
+   "distribution": false,
+   "thrust_ratio": 100.0,
+   "thrust": false
   },
   {
    "day": "2026-09-23",
@@ -2181,7 +2423,9 @@
    "net_highs_avg10": 0.0,
    "nifty50": 101.1,
    "nifty500": 100.61111111111111,
-   "distribution": false
+   "distribution": false,
+   "thrust_ratio": 100.0,
+   "thrust": false
   },
   {
    "day": "2026-09-24",
@@ -2198,7 +2442,9 @@
    "net_highs_avg10": 0.0,
    "nifty50": 101.15,
    "nifty500": 100.6388888888889,
-   "distribution": false
+   "distribution": false,
+   "thrust_ratio": 100.0,
+   "thrust": false
   },
   {
    "day": "2026-09-25",
@@ -2215,7 +2461,9 @@
    "net_highs_avg10": 0.0,
    "nifty50": 101.2,
    "nifty500": 100.66666666666666,
-   "distribution": false
+   "distribution": false,
+   "thrust_ratio": 100.0,
+   "thrust": false
   },
   {
    "day": "2026-09-28",
@@ -2232,7 +2480,9 @@
    "net_highs_avg10": 0.0,
    "nifty50": 101.25,
    "nifty500": 100.69444444444444,
-   "distribution": false
+   "distribution": false,
+   "thrust_ratio": 100.0,
+   "thrust": false
   },
   {
    "day": "2026-09-29",
@@ -2249,7 +2499,9 @@
    "net_highs_avg10": 0.0,
    "nifty50": 101.29999999999998,
    "nifty500": 100.72222222222223,
-   "distribution": false
+   "distribution": false,
+   "thrust_ratio": 100.0,
+   "thrust": false
   },
   {
    "day": "2026-09-30",
@@ -2266,7 +2518,9 @@
    "net_highs_avg10": 0.0,
    "nifty50": 101.35000000000001,
    "nifty500": 100.75,
-   "distribution": false
+   "distribution": false,
+   "thrust_ratio": 100.0,
+   "thrust": false
   },
   {
    "day": "2026-10-01",
@@ -2283,7 +2537,9 @@
    "net_highs_avg10": 0.0,
    "nifty50": 101.4,
    "nifty500": 100.77777777777779,
-   "distribution": false
+   "distribution": false,
+   "thrust_ratio": 100.0,
+   "thrust": false
   },
   {
    "day": "2026-10-05",
@@ -2300,7 +2556,9 @@
    "net_highs_avg10": 0.0,
    "nifty50": 101.44999999999999,
    "nifty500": 100.80555555555554,
-   "distribution": false
+   "distribution": false,
+   "thrust_ratio": 100.0,
+   "thrust": false
   }
  ],
  "trades": [

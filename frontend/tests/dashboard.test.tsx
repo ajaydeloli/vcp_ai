@@ -246,6 +246,32 @@ describe("dashboard page (market view)", () => {
     expect(card).toHaveTextContent("61 stocks are not classified yet");
   });
 
+  it("breadth charts the thrust ratio with both lines and names the last thrust", async () => {
+    mockApi();
+    renderApp(<Dashboard />);
+    const card = await screen.findByRole("region", { name: "Breadth" });
+    expect(await within(card).findByTestId("mini-thrust-chart")).toBeInTheDocument();
+    expect(within(card).getByTestId("thrust-note")).toHaveTextContent("No breadth thrust in this chart");
+    const chart = await waitFor(() => {
+      const c = liveCharts().find((x) => x.el.dataset.testid === "mini-thrust-chart");
+      expect(c).toBeDefined();
+      return c!;
+    });
+    await waitFor(() => expect(chart.series[0]?.priceLines.map((l) => l.price)).toEqual([40, 61.5]));
+  });
+
+  it("a thrust day is marked on the chart and named under it", async () => {
+    const points = fx.marketHealth.points.map((p, i, all) => ({ ...p, thrust: i === all.length - 1 }));
+    mockApi({ "market/health": { ...fx.marketHealth, points } });
+    renderApp(<Dashboard />);
+    const note = await screen.findByTestId("thrust-note");
+    expect(note).toHaveTextContent(/^Last thrust 5 Oct 2026/);
+    await waitFor(() => {
+      const c = liveCharts().find((x) => x.el.dataset.testid === "mini-thrust-chart");
+      expect(c?.series[0]?.markers.map((m) => m.time)).toEqual([points.at(-1)!.day]);
+    });
+  });
+
   it("reports an unreachable API instead of an empty page", async () => {
     mockApi({
       strategies: new TypeError("fetch failed"),

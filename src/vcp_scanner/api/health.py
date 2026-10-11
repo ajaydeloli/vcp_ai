@@ -39,6 +39,8 @@ NEAR_HIGH = 0.03  # the index within 3 % of its 52-week high
 DIVERGENCE_GAP = 0.25  # a line "clearly below" its 52-week high: by a quarter of its range
 NSE_LINES = {"nifty50": "Nifty 50", "nifty500": "Nifty 500"}  # index_daily names
 SECTOR_MONTH = 21  # sessions in "a month" for the sector table
+THRUST_DAYS = 10  # breadth thrust: the 10-day average of advancers / (advancers + decliners)
+THRUST_LOW, THRUST_HIGH = 40.0, 61.5  # rising from below 40 % to above 61.5 % within 10 sessions
 #: NSE's sector (the Industry column of its index lists) -> its sector index in the daily file.
 #: Diversified, Forest Materials, Textiles and Utilities have none.
 SECTOR_INDEX = {
@@ -669,6 +671,29 @@ def _rebased(closes: dict[date, float], days: list[date]) -> list[float | None]:
     return [None if base is None or d not in closes else closes[d] / base * 100.0 for d in days]
 
 
+def _thrust(rows: list[tuple[Any, ...]]) -> tuple[list[float | None], list[bool]]:
+    """The breadth-thrust ratio per session and the sessions a thrust is signalled: the day the
+    ratio first closes above THRUST_HIGH with a reading below THRUST_LOW in the THRUST_DAYS
+    sessions before it (Zweig's rule, on our universe). Display only."""
+    share = [
+        100.0 * float(r[7]) / (float(r[7]) + float(r[8])) if float(r[7]) + float(r[8]) else None
+        for r in rows
+    ]
+    ratio: list[float | None] = []
+    for i in range(len(share)):
+        window = share[max(0, i - THRUST_DAYS + 1) : i + 1]
+        full = i >= THRUST_DAYS - 1 and all(v is not None for v in window)
+        ratio.append(sum(v for v in window if v is not None) / THRUST_DAYS if full else None)
+    signal = [False] * len(ratio)
+    for i in range(1, len(ratio)):
+        now, before = ratio[i], ratio[i - 1]
+        if now is None or now <= THRUST_HIGH or (before is not None and before > THRUST_HIGH):
+            continue
+        recent = [v for v in ratio[max(0, i - THRUST_DAYS) : i] if v is not None]
+        signal[i] = any(v < THRUST_LOW for v in recent)
+    return ratio, signal
+
+
 def _points(
     rows: list[tuple[Any, ...]], index: list[float],
     nse: dict[str, dict[date, float]] | None = None,
@@ -676,6 +701,7 @@ def _points(
 ) -> list[m.HealthPoint]:  # fmt: skip
     line = _ad_line(rows)
     net = _net_highs(rows)
+    ratio, signal = _thrust(rows)
     first = len(rows) - CHART_DAYS if len(rows) > CHART_DAYS else 0
     base = index[first] or 1.0
     days = [r[0] for r in rows[first:]]
@@ -700,6 +726,8 @@ def _points(
                 nifty50=lines["nifty50"][i - first],
                 nifty500=lines["nifty500"][i - first],
                 distribution=kinds is not None and kinds[i] == "distribution",
+                thrust_ratio=ratio[i],
+                thrust=signal[i],
             )
         )
     return out

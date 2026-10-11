@@ -309,6 +309,16 @@ function Charts({ d, id }: { d: Health; id: string }) {
   );
   const breadth = useMemo(() => [series("Above 50-day %", C.blue, pts, (p) => p.above50), series("Above 200-day %", C.violet, pts, (p) => p.above200)], [pts]);
   const ad = useMemo(() => [series("A/D line", C.ink, pts, (p) => p.ad_line), series("50-day avg", C.warn, pts, (p) => p.ad_ma50)], [pts]);
+  const thrust = useMemo(
+    () => [
+      {
+        ...series("Breadth thrust", C.blue, pts, (p) => p.thrust_ratio),
+        markers: pts.filter((p) => p.thrust).map((p) => ({ time: p.day, color: C.up, position: "aboveBar" as const, text: "thrust" })),
+      },
+    ],
+    [pts],
+  );
+  const lastThrust = [...pts].reverse().find((p) => p.thrust);
   if (id === "index")
     return (
       <>
@@ -340,10 +350,26 @@ function Charts({ d, id }: { d: Health; id: string }) {
   if (id === "breadth")
     return (
       <>
-        <MiniLineChart series={breadth} height={119} plain threshold={{ value: 40, title: "40%" }} label="breadth-chart" />
+        <MiniLineChart series={breadth} height={88} plain threshold={{ value: 40, title: "40%" }} label="breadth-chart" />
         <Legend items={[["% above 50-day", C.blue], ["% above 200-day", C.violet], ["dashed: regime on at 40%", C.warn]]} />
-        <MiniLineChart series={ad} height={119} plain label="ad-line-chart" />
+        <MiniLineChart series={ad} height={80} plain label="ad-line-chart" />
         <Legend items={[["Advance/decline line", C.ink], ["its 50-day average", C.warn]]} />
+        <MiniLineChart
+          series={thrust}
+          height={72}
+          plain
+          threshold={[
+            { value: 40, title: "40%" },
+            { value: 61.5, title: "61.5%" },
+          ]}
+          label="thrust-chart"
+        />
+        <Legend items={[["Breadth thrust: 10-day average of advancers / (advancers + decliners), %", C.blue], ["dashed: 40% and 61.5%", C.warn]]} />
+        <p className="text-[11px] text-mute" data-testid="thrust-note">
+          {lastThrust
+            ? `Last thrust ${fmtDay(lastThrust.day)}: from below 40% to above 61.5% within 10 sessions, a classic end-of-correction signal.`
+            : "No breadth thrust in this chart (from below 40% to above 61.5% within 10 sessions)."}
+        </p>
       </>
     );
   return (

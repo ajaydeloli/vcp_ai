@@ -19,8 +19,8 @@ export type MiniSeries = {
 type Props = {
   series: MiniSeries[];
   height?: number;
-  /** a dashed horizontal line, e.g. the breadth threshold of the regime */
-  threshold?: { value: number; title: string };
+  /** dashed horizontal lines, e.g. the breadth threshold of the regime */
+  threshold?: { value: number; title: string } | { value: number; title: string }[];
   label: string;
   /** the legend sits below the chart: no names on the lines, each line's value on the axis in its colour */
   plain?: boolean;
@@ -86,16 +86,18 @@ export function MiniLineChart({ series, height = 120, threshold, label, plain, w
         );
       }
       if (i === 0 && threshold) {
-        line.createPriceLine({
-          price: threshold.value,
-          color: "#f5a524",
-          lineWidth: 1,
-          lineStyle: LineStyle.Dashed,
-          // no label on the line or the axis: it covered the latest value; the card's caption
-          // names the threshold
-          axisLabelVisible: false,
-          title: "",
-        });
+        for (const t of Array.isArray(threshold) ? threshold : [threshold]) {
+          line.createPriceLine({
+            price: t.value,
+            color: "#f5a524",
+            lineWidth: 1,
+            lineStyle: LineStyle.Dashed,
+            // no label on the line or the axis: it covered the latest value; the card's caption
+            // names the threshold
+            axisLabelVisible: false,
+            title: "",
+          });
+        }
       }
       return line;
     });

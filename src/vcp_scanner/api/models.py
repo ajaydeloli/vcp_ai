@@ -179,6 +179,10 @@ class HealthPoint(BaseModel):
     nifty50: float | None = None  # NSE's NIFTY 50, 100 at its first value in the chart
     nifty500: float | None = None  # NIFTY 500, likewise; None: no index file stored that day
     distribution: bool = False  # a distribution day (the rule of the "Distribution days" reading)
+    thrust_ratio: float | None = None  # 10-day average of advancers / (advancers + decliners), %
+    thrust: bool = (
+        False  # the ratio crossed THRUST_HIGH within THRUST_DAYS of being below THRUST_LOW
+    )
 
 
 class HealthStagePoint(BaseModel):
