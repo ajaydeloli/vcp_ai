@@ -148,21 +148,23 @@ class DuckDBFundamentalRepository:
     def prior_ytd(
         self, instrument_id: str, basis: str, ytd_start: date, before: date, available_at: datetime
     ) -> tuple[date, dict[str, float]] | None:
+        # A YTD fact starting at ``ytd_start``; failing that a quarter starting there (a first
+        # quarter has no YTD facts: its year to date is the quarter; for H2 - Q3 it is Q3).
         row = self._conn.execute(
-            "SELECT s.fundamental_snapshot_id, s.period_end FROM fundamental_snapshots s"
+            "SELECT s.fundamental_snapshot_id, s.period_end, f.scope FROM fundamental_snapshots s"
             " JOIN fundamental_facts f ON f.fundamental_snapshot_id = s.fundamental_snapshot_id"
             " WHERE s.instrument_id = ? AND s.statement_basis = ? AND s.period_type = 'QUARTER'"
             " AND s.period_end < ? AND s.available_at <= ? AND s.data_status <> 'INVALID'"
-            " AND f.scope = 'YTD' AND f.period_start = ?"
-            " ORDER BY s.period_end DESC, s.revision_number DESC LIMIT 1",
+            " AND f.scope IN ('YTD', 'QUARTER') AND f.period_start = ?"
+            " ORDER BY s.period_end DESC, f.scope = 'YTD' DESC, s.revision_number DESC LIMIT 1",
             [instrument_id, basis, before, available_at, ytd_start],
         ).fetchone()
         if row is None:
             return None
         items = self._conn.execute(
             "SELECT item, value FROM fundamental_facts WHERE fundamental_snapshot_id = ?"
-            " AND scope = 'YTD'",
-            [row[0]],
+            " AND scope = ? AND period_start = ?",
+            [row[0], row[2], ytd_start],
         ).fetchall()
         return row[1], {k: v for k, v in items}
 

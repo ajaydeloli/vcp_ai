@@ -270,3 +270,49 @@ def test_bank_filing_with_undefined_period_contexts_uses_the_listing_period_end(
 def test_defined_contexts_ignore_the_listing_period_end() -> None:
     p = parse_xbrl(load("reliance_q3fy25_con"), period_end=date(2025, 3, 31))
     assert (p.period.start, p.period.end) == (date(2024, 10, 1), date(2024, 12, 31))
+
+
+def test_half_year_filings_give_derived_quarters(env: Any) -> None:
+    """Some integrated-feed filings of Sep and Mar carry only the half year in OneD (seen on
+    184 universe stocks, e.g. CGPOWER: "Half yearly" Apr-Sep, "Yearly" Oct-Mar with FourD the
+    year). Q2 = H1 - Q1 and Q4 = year - 9M, marked estimated."""
+    store, repo, root = env
+    rev, eps = "RevenueFromOperations", EPS_TAG
+    q1 = synthetic("2024-04-01", "2024-06-30", "2024-04-01", {rev: "100", eps: "4"}, {})
+    h1 = synthetic("2024-04-01", "2024-09-30", "2024-04-01",
+                   {rev: "250", eps: "11"}, {rev: "250", eps: "11"})  # fmt: skip
+    q3 = synthetic("2024-10-01", "2024-12-31", "2024-04-01",
+                   {rev: "160", eps: "8"}, {rev: "410", eps: "19"})  # fmt: skip
+    h2 = synthetic("2024-10-01", "2025-03-31", "2024-04-01",
+                   {rev: "330", eps: "16"}, {rev: "580", eps: "27"})  # fmt: skip
+    refs = [
+        (old_ref("1", "30-Jun-2024", "Quarterly", "Consolidated", "20-Jul-2024 18:00:00"), q1),
+        (old_ref("2", "30-Sep-2024", "Quarterly", "Consolidated", "20-Oct-2024 18:00:00"), h1),
+        (old_ref("3", "31-Dec-2024", "Quarterly", "Consolidated", "20-Jan-2025 18:00:00"), q3),
+        (old_ref("4", "31-Mar-2025", "Quarterly", "Consolidated", "20-May-2025 18:00:00"), h2),
+    ]
+    store_filings(repo, root, refs)
+    report = parse_filings(repo, root)
+    assert (report.parsed, report.estimated, report.errors) == (4, 2, 0)
+    got = dict(store.conn.execute(
+        "SELECT s.period_end::VARCHAR || ' ' || f.item, f.value FROM fundamental_facts f"
+        " JOIN fundamental_snapshots s USING (fundamental_snapshot_id)"
+        " WHERE f.scope = 'QUARTER'"
+    ).fetchall())  # fmt: skip
+    assert (got["2024-09-30 revenue"], got["2024-09-30 eps"]) == (150, 7)
+    assert (got["2025-03-31 revenue"], got["2025-03-31 eps"]) == (170, 8)
+    status = dict(store.conn.execute(
+        "SELECT period_end::VARCHAR, data_status FROM fundamental_snapshots"
+    ).fetchall())  # fmt: skip
+    assert status["2024-09-30"] == "ESTIMATED" and status["2024-12-31"] == "OK"
+
+
+def test_half_year_period_is_read_as_a_quarter_without_values() -> None:
+    h1 = synthetic("2024-04-01", "2024-09-30", "2024-04-01", {"RevenueFromOperations": "9"}, {})
+    p = parse_xbrl(h1)
+    assert (p.period.start, p.period.end, p.period.items) == (
+        date(2024, 7, 1),
+        date(2024, 9, 30),
+        {},
+    )
+    assert p.period_type == "QUARTER" and p.ytd is not None and p.ytd.days == 183

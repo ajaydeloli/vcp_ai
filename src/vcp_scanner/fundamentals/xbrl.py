@@ -44,6 +44,7 @@ FINANCIAL_MARKER_TAGS = ("InterestEarned",)
 
 QUARTER_DAYS = (75, 105)
 ANNUAL_DAYS = (350, 380)
+HALF_YEAR_DAYS = (175, 190)
 
 
 class FilingParseError(ValueError):
@@ -200,6 +201,16 @@ def parse_xbrl(data: bytes, *, period_end: date | None = None) -> ParsedFiling:
                 y = _number(text(TOTAL_INCOME_TAG, "FourD"))
                 if y is not None:
                     ytd.items["revenue"] = y
+
+    if HALF_YEAR_DAYS[0] <= period.days <= HALF_YEAR_DAYS[1]:
+        # Integrated-feed filings of Sep and Mar sometimes carry only the half year in OneD
+        # ("Half yearly": Apr-Sep, or "Yearly" with OneD Oct-Mar and FourD the year) and no
+        # quarter column (backfill 2026-10-11: 207 filings of 184 universe stocks, e.g.
+        # CGPOWER, LTTS). The quarter is left empty and derived from year-to-date values
+        # (snapshots: Q2 = H1 - Q1, Q4 = year - 9M, or H2 - Q3), marked estimated.
+        if ytd is None or ytd.end != period.end or ytd.start > period.start:
+            ytd = period  # OneD is the year to date (H1), or H2 when there is no FourD
+        period = PeriodFacts(_months_back(period.end, 3), period.end, {})
 
     instant: dict[str, float] = {}
     for tag in EQUITY_TAGS:
