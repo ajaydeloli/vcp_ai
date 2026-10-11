@@ -52,7 +52,7 @@
      "id": "leaders",
      "label": "Leaders vs the index",
      "status": "amber",
-     "text": "2 leaders (Trend Template pass, RS 80+) returned +1.2% over 20 sessions against +2.0% for the index (behind by 0.8 points).",
+     "text": "Today's 2 leaders (Trend Template pass, RS 80+) returned +1.2% over 20 sessions against +2.0% for the index (behind by 0.8 points). Measured back from today's scan until the scan of 20 sessions ago is stored, which flatters the leaders a little.",
      "value": -0.8419514489734325,
      "score": 41.6,
      "short": "-0.8 points vs the index"

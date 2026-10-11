@@ -566,20 +566,37 @@ def _sectors(cur: Cur, ctx: Context, sessions: list[date]) -> list[m.HealthSecto
     return out
 
 
-def _leaders(cur: Cur, ctx: Context, sessions: list[date], index: list[float]) -> m.HealthItem:
-    if len(sessions) <= LEADER_DAYS:
-        return _item("leaders", "Leaders vs the index", "grey", "Not enough history.")
-    d1, d0 = sessions[-1], sessions[-1 - LEADER_DAYS]
-    ids = [
+def _leader_ids(cur: Cur, ctx: Context, day: date) -> list[str]:
+    """Stocks passing the Trend Template with RS LEADER_RS+ in the scan of ``day`` (current scan
+    configuration only); empty when no scan of that day is stored."""
+    return [
         str(r[0])
         for r in cur.execute(
             "SELECT instrument_id FROM trend_template_results WHERE config_hash = ?"
             " AND data_snapshot_id = ? AND trend_template_pass AND rs_rank >= ?"
-            " AND as_of_date = (SELECT max(as_of_date) FROM trend_template_results"
-            " WHERE config_hash = ? AND data_snapshot_id = ?)",
-            [ctx.scan_hash, LIVE, LEADER_RS, ctx.scan_hash, LIVE],
+            " AND as_of_date = ?",
+            [ctx.scan_hash, LIVE, LEADER_RS, day],
         ).fetchall()
     ]
+
+
+def _leaders(cur: Cur, ctx: Context, sessions: list[date], index: list[float]) -> m.HealthItem:
+    """How the leaders did against VQI over LEADER_DAYS sessions. The leaders are those of the
+    scan LEADER_DAYS sessions ago, followed forward (no hindsight). Until that scan is stored
+    (live scans start 2026-09-30) the latest scan's leaders are measured back instead, which
+    flatters them a little (doing well lately helps a stock pass); the text says which."""
+    if len(sessions) <= LEADER_DAYS:
+        return _item("leaders", "Leaders vs the index", "grey", "Not enough history.")
+    d1, d0 = sessions[-1], sessions[-1 - LEADER_DAYS]
+    ids = _leader_ids(cur, ctx, d0)
+    forward = bool(ids)
+    if not forward:
+        latest = cur.execute(
+            "SELECT max(as_of_date) FROM trend_template_results WHERE config_hash = ?"
+            " AND data_snapshot_id = ? AND as_of_date <= ?",
+            [ctx.scan_hash, LIVE, d1],
+        ).fetchone()
+        ids = _leader_ids(cur, ctx, latest[0]) if latest and latest[0] else []
     if not ids:
         return _item("leaders", "Leaders vs the index", "grey", "No leaders in the latest scan.")
     px: dict[str, dict[date, float]] = defaultdict(dict)
@@ -598,11 +615,20 @@ def _leaders(cur: Cur, ctx: Context, sessions: list[date], index: list[float]) -
     idx = _pct(index[-1], index[-1 - LEADER_DAYS])
     gap = lead - idx
     status = "green" if gap > 0 else "amber" if gap > -2 else "red"
+    who = (
+        f"The {len(rets)} leaders of {d0:%d %b} (Trend Template pass, RS {LEADER_RS}+)"
+        if forward
+        else f"Today's {len(rets)} leaders (Trend Template pass, RS {LEADER_RS}+)"
+    )
+    note = (
+        "" if forward
+        else f" Measured back from today's scan until the scan of {LEADER_DAYS} sessions ago is "
+        "stored, which flatters the leaders a little."
+    )  # fmt: skip
     return _item(
         "leaders", "Leaders vs the index", status,
-        f"{len(rets)} leaders (Trend Template pass, RS {LEADER_RS}+) returned {lead:+.1f}% over "
-        f"{LEADER_DAYS} sessions against {idx:+.1f}% for the index "
-        f"({'ahead' if gap > 0 else 'behind'} by {abs(gap):.1f} points).", gap,
+        f"{who} returned {lead:+.1f}% over {LEADER_DAYS} sessions against {idx:+.1f}% for the "
+        f"index ({'ahead' if gap > 0 else 'behind'} by {abs(gap):.1f} points).{note}", gap,
         _ramp(gap, -5, 5),
     )  # fmt: skip
 

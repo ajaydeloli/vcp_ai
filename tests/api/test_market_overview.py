@@ -253,3 +253,33 @@ def test_leader_count_from_the_current_scan_config(ro_env: Any) -> None:
     body = ro_env.client.get("/api/v1/market/health").json()
     assert body["leader_count"] == 2  # ALPHA (RS 91) and BETA (RS 85) pass with RS 80+
     assert body["leader_change"] is None  # no scan 20 sessions earlier in the fixture
+
+
+# --- leaders vs the index: the leaders of 20 sessions ago, followed forward --------------------
+
+
+def _tt(c: Any, ctx: Any, sym: str, d: date, rs: int) -> None:
+    put(c, "trend_template_results", scan_id=f"tt-{d}", instrument_id=sym, as_of_date=d,
+        status="PASS", trend_template_pass=True, rs_rank=rs, calculation_version="1",
+        config_hash=ctx.scan_hash, data_snapshot_id="LIVE")  # fmt: skip
+
+
+def test_leaders_are_followed_forward_once_the_old_scan_exists(db: Any, monkeypatch: Any) -> None:
+    store, ctx = db
+    c = store.conn
+    monkeypatch.setattr(health, "LEADER_DAYS", 3)
+    s = SESSIONS[:5]
+    d0, d1 = s[-4], s[-1]
+    index = [100.0, 100.0, 100.0, 100.0, 102.0]  # VQI +2 % from d0 to d1
+    # OLD led on d0 and then rose 10 %; NEW leads only today and rose 30 % (the hindsight case)
+    for sym, p0, p1 in (("OLD", 100.0, 110.0), ("NEW", 100.0, 130.0)):
+        close(c, sym, d0, p0)
+        close(c, sym, d1, p1)
+    _tt(c, ctx, "NEW", d1, 95)
+    back = health._leaders(c, ctx, s, index)  # no scan of d0 yet: today's leaders measured back
+    assert back.value == pytest.approx(28.0) and back.text.startswith("Today's 1 leaders")
+    assert "Measured back from today's scan" in back.text
+    _tt(c, ctx, "OLD", d0, 85)  # the scan of d0 is stored: its leaders, followed forward
+    fwd = health._leaders(c, ctx, s, index)
+    assert fwd.value == pytest.approx(8.0)  # +10 % against +2 %: no hindsight
+    assert fwd.text.startswith(f"The 1 leaders of {d0:%d %b}") and "Measured back" not in fwd.text
