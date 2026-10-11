@@ -31,6 +31,9 @@ type Props = {
   whole?: boolean;
 };
 
+/** Radius in pixels of the "dots" kind. */
+const DOT_RADIUS = 1.5;
+
 export function MiniLineChart({ series, height = 120, threshold, label, plain, whole }: Props) {
   const box = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
@@ -66,30 +69,35 @@ export function MiniLineChart({ series, height = 120, threshold, label, plain, w
     const band = series.some((s) => s.kind === "dots");
     // the lines keep the upper part of the pane; the dots take the band below them
     chart.priceScale("right").applyOptions({ scaleMargins: { top: 0.08, bottom: band ? 0.16 : 0.08 } });
-    linesRef.current = series.map((s, i) => {
+    linesRef.current = series.flatMap((s, i) => {
       if (s.kind === "dots") {
-        // an invisible line on its own scale carries one round marker per point
-        const dots = chart.addLineSeries({
-          priceScaleId: "band",
-          lineVisible: false,
-          lastValueVisible: false,
-          priceLineVisible: false,
-          crosshairMarkerVisible: false,
-          // a fixed range, so the dots sit in the middle of the band
-          autoscaleInfoProvider: () => ({ priceRange: { minValue: -1, maxValue: 1 } }),
+        // Small round dots of a fixed radius on an invisible line of their own scale. Chart
+        // markers cannot be this small (lightweight-charts draws circles of at least 12 pixels
+        // whatever their size), and a series' point markers lose all but the last group when
+        // neighbouring points differ in colour (lightweight-charts 4.2.3), so each colour gets a
+        // series of its own.
+        const colors = [...new Set(s.data.map((p) => p.color ?? s.color))];
+        const made = colors.map((color) => {
+          const dots = chart.addLineSeries({
+            priceScaleId: "band",
+            color,
+            lineVisible: false,
+            pointMarkersVisible: true,
+            pointMarkersRadius: DOT_RADIUS,
+            lastValueVisible: false,
+            priceLineVisible: false,
+            crosshairMarkerVisible: false,
+            // a fixed range, so the dots sit in the middle of the band
+            autoscaleInfoProvider: () => ({ priceRange: { minValue: -1, maxValue: 1 } }),
+          });
+          dots.setData(
+            s.data.filter((p) => (p.color ?? s.color) === color).map((p) => ({ time: p.time as Time, value: p.value })),
+          );
+          return dots as ISeriesApi<"Line" | "Histogram">;
         });
+        // after the series exist: the options of a scale no series uses yet are not kept
         chart.priceScale("band").applyOptions({ scaleMargins: { top: 0.86, bottom: 0.02 }, visible: false });
-        dots.setData(s.data.map((p) => ({ time: p.time as Time, value: p.value })));
-        dots.setMarkers(
-          s.data.map((p) => ({
-            time: p.time as Time,
-            position: "inBar" as const,
-            color: p.color ?? s.color,
-            shape: "circle" as const,
-            size: 0.5,
-          })),
-        );
-        return dots;
+        return made;
       }
       const common = {
         color: s.color,

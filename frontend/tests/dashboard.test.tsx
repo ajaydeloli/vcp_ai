@@ -240,15 +240,18 @@ describe("dashboard page (market view)", () => {
       expect(c?.series.some((s) => s.options.priceScaleId === "band")).toBe(true);
       return c!;
     });
-    const band = chart.series.find((s) => s.options.priceScaleId === "band")!;
-    expect(band.options.lineVisible).toBe(false); // only the dots show
-    // one line: a day is accumulation or distribution or neither, never both
-    expect(band.data.map((d) => [d.time, d.value])).toEqual([
-      [points[n - 3]!.day, 0], [points[n - 2]!.day, 0], [points[n - 1]!.day, 0],
-    ]); // fmt: skip
-    expect(band.markers.map((m) => [m.shape, m.color])).toEqual([
-      ["circle", "#26a69a"], ["circle", "#ef5350"], ["circle", "#ef5350"],
-    ]); // fmt: skip
+    // one series per colour (each its own small dots), all on the band's single line
+    const band = chart.series.filter((s) => s.options.priceScaleId === "band");
+    const byColor = Object.fromEntries(band.map((s) => [s.options.color, s.data.map((d) => [d.time, d.value])]));
+    expect(byColor).toEqual({
+      "#26a69a": [[points[n - 3]!.day, 0]],
+      "#ef5350": [[points[n - 2]!.day, 0], [points[n - 1]!.day, 0]],
+    });
+    for (const s of band) {
+      expect(s.options.lineVisible).toBe(false); // only the dots show
+      expect(s.options.pointMarkersVisible).toBe(true);
+      expect(s.options.pointMarkersRadius).toBeLessThanOrEqual(2); // small dots
+    }
     expect(chart.scales["band"].scaleMargins.top).toBeGreaterThan(0.8); // a band at the bottom
     const vqi = chart.series[0]!;
     expect(vqi.markers).toHaveLength(0); // nothing on the VQI line
