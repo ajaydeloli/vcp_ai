@@ -163,8 +163,10 @@ def test_day_kinds_one_rule_for_the_count_and_the_markers() -> None:
 def test_markers_match_the_distribution_count(ro_env: Any) -> None:
     body = ro_env.client.get("/api/v1/market/health").json()
     window = body["index_days"]["window"]
-    marked = sum(p["distribution"] for p in body["points"][-window:])
-    assert marked == body["index_days"]["distribution"]
+    recent = body["points"][-window:]
+    assert sum(p["distribution"] for p in recent) == body["index_days"]["distribution"]
+    assert sum(p["accumulation"] for p in recent) == body["index_days"]["accumulation"]
+    assert not any(p["distribution"] and p["accumulation"] for p in body["points"])
 
 
 # --- step 5: sector strength -------------------------------------------------------------------

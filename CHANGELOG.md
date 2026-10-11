@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Index chart: accumulation days (green tick up) and distribution days (red tick down) in a strip above the dates instead of red dots on the VQI line; `accumulation` on the market-health points.
+
 - Market Overview review (owner): each figure in one place. The failure rate leaves the Leadership card (the score reads the Setups and breakouts number: 20 sessions, no breakouts found looking back); the Leadership card shows net new highs (10-day average) instead of today's highs (the list has them) and a new **Leaders** figure (Trend Template pass, RS 80+, change over 20 sessions); the Feedback loop no longer repeats the progress toward the review. Breakouts count each stock once per day (lowest pivot); the setup-flow chart keeps 250 sessions.
 
 - Market Overview update (FRONTEND_SPECIFICATION §67.31, plan §67.28), display only: (1) Setups and breakouts card: breakouts and new setups per session, failure rate of breakouts judged in the last 20 sessions (no later close used); (2) Leadership: net new highs with a 10-day average (the reading now judges the averages), "New highs today" list, divergence warnings above the cards when VQI is near its 52-week high but the A/D line or net new highs are not; (3) NIFTY 50 and NIFTY 500 next to VQI, from NSE's daily index file (`vcp indices update`, tables `index_daily` / `index_files`, daily step "index closes"; 495 days fetched); (4) distribution-day dots on the index chart; (5) Sector strength card per NSE sector with the sector index's month; (6) breadth thrust chart. MiniLineChart draws bars, markers and several dashed lines.

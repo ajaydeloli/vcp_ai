@@ -9,9 +9,12 @@ import { CHART_THEME } from "./ChartView";
 export type MiniSeries = {
   name: string;
   color: string;
-  data: { time: string; value: number }[];
-  /** "bar": a histogram from zero (daily counts); default a line */
-  kind?: "line" | "bar";
+  /** `color` per point: only for "strip" (each tick its own colour) */
+  data: { time: string; value: number; color?: string }[];
+  /** "bar": a histogram from zero (daily counts); "strip": short ticks from a centre line in a
+   *  band at the bottom of the chart, just above the dates, on a scale of their own (values +1
+   *  up, -1 down), so they never cover a line; default a line */
+  kind?: "line" | "bar" | "strip";
   /** small marks on this series, e.g. distribution days on the index line */
   markers?: { time: string; color: string; text?: string; position?: "aboveBar" | "belowBar" }[];
 };
@@ -60,7 +63,21 @@ export function MiniLineChart({ series, height = 120, threshold, label, plain, w
     const chart = chartRef.current;
     if (!chart) return;
     for (const s of linesRef.current) chart.removeSeries(s);
+    const strip = series.some((s) => s.kind === "strip");
+    // the lines keep the upper part of the pane; the strip takes the band below them
+    chart.priceScale("right").applyOptions({ scaleMargins: { top: 0.08, bottom: strip ? 0.16 : 0.08 } });
     linesRef.current = series.map((s, i) => {
+      if (s.kind === "strip") {
+        const ticks = chart.addHistogramSeries({
+          priceScaleId: "strip",
+          lastValueVisible: false,
+          priceLineVisible: false,
+          base: 0,
+        });
+        chart.priceScale("strip").applyOptions({ scaleMargins: { top: 0.9, bottom: 0.01 }, visible: false });
+        ticks.setData(s.data.map((p) => ({ time: p.time as Time, value: p.value, color: p.color ?? s.color })));
+        return ticks;
+      }
       const common = {
         color: s.color,
         // the first series shows its latest value on the axis; a second line next to it would

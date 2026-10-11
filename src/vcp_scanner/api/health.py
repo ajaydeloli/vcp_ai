@@ -714,6 +714,7 @@ def _points(
                 nifty50=lines["nifty50"][i - first],
                 nifty500=lines["nifty500"][i - first],
                 distribution=kinds is not None and kinds[i] == "distribution",
+                accumulation=kinds is not None and kinds[i] == "accumulation",
                 thrust_ratio=ratio[i],
                 thrust=signal[i],
             )

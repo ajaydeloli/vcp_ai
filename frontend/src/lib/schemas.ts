@@ -395,6 +395,7 @@ export const marketHealth = z.object({
       nifty50: num,
       nifty500: num,
       distribution: z.boolean(),
+      accumulation: z.boolean(),
       thrust_ratio: num,
       thrust: z.boolean(),
     }),

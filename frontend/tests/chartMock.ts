@@ -62,6 +62,14 @@ export class FakeChart {
   removeSeries(s: FakeSeries) {
     this.series = this.series.filter((x) => x !== s);
   }
+  scales: Record<string, any> = {};
+  priceScale(id: string) {
+    return {
+      applyOptions: (o: any) => {
+        this.scales[id] = { ...this.scales[id], ...o };
+      },
+    };
+  }
   applyOptions() {}
   timeScale() {
     return {

@@ -125,6 +125,7 @@
    "nifty50": null,
    "nifty500": null,
    "distribution": false,
+   "accumulation": false,
    "thrust_ratio": null,
    "thrust": false
   },
@@ -144,6 +145,7 @@
    "nifty50": null,
    "nifty500": null,
    "distribution": false,
+   "accumulation": false,
    "thrust_ratio": null,
    "thrust": false
   },
@@ -163,6 +165,7 @@
    "nifty50": null,
    "nifty500": null,
    "distribution": false,
+   "accumulation": false,
    "thrust_ratio": null,
    "thrust": false
   },
@@ -182,6 +185,7 @@
    "nifty50": null,
    "nifty500": null,
    "distribution": false,
+   "accumulation": false,
    "thrust_ratio": null,
    "thrust": false
   },
@@ -201,6 +205,7 @@
    "nifty50": null,
    "nifty500": null,
    "distribution": false,
+   "accumulation": false,
    "thrust_ratio": null,
    "thrust": false
   },
@@ -220,6 +225,7 @@
    "nifty50": null,
    "nifty500": null,
    "distribution": false,
+   "accumulation": false,
    "thrust_ratio": null,
    "thrust": false
   },
@@ -239,6 +245,7 @@
    "nifty50": null,
    "nifty500": null,
    "distribution": false,
+   "accumulation": false,
    "thrust_ratio": null,
    "thrust": false
   },
@@ -258,6 +265,7 @@
    "nifty50": null,
    "nifty500": null,
    "distribution": false,
+   "accumulation": false,
    "thrust_ratio": null,
    "thrust": false
   },
@@ -277,6 +285,7 @@
    "nifty50": null,
    "nifty500": null,
    "distribution": false,
+   "accumulation": false,
    "thrust_ratio": null,
    "thrust": false
   },
@@ -296,6 +305,7 @@
    "nifty50": null,
    "nifty500": null,
    "distribution": false,
+   "accumulation": false,
    "thrust_ratio": 100.0,
    "thrust": false
   },
@@ -315,6 +325,7 @@
    "nifty50": null,
    "nifty500": null,
    "distribution": false,
+   "accumulation": false,
    "thrust_ratio": 100.0,
    "thrust": false
   },
@@ -334,6 +345,7 @@
    "nifty50": null,
    "nifty500": null,
    "distribution": false,
+   "accumulation": false,
    "thrust_ratio": 100.0,
    "thrust": false
   },
@@ -353,6 +365,7 @@
    "nifty50": null,
    "nifty500": null,
    "distribution": false,
+   "accumulation": false,
    "thrust_ratio": 100.0,
    "thrust": false
   },
@@ -372,6 +385,7 @@
    "nifty50": null,
    "nifty500": null,
    "distribution": false,
+   "accumulation": false,
    "thrust_ratio": 100.0,
    "thrust": false
   },
@@ -391,6 +405,7 @@
    "nifty50": null,
    "nifty500": null,
    "distribution": false,
+   "accumulation": false,
    "thrust_ratio": 100.0,
    "thrust": false
   },
@@ -410,6 +425,7 @@
    "nifty50": null,
    "nifty500": null,
    "distribution": false,
+   "accumulation": false,
    "thrust_ratio": 100.0,
    "thrust": false
   },
@@ -429,6 +445,7 @@
    "nifty50": null,
    "nifty500": null,
    "distribution": false,
+   "accumulation": false,
    "thrust_ratio": 100.0,
    "thrust": false
   },
@@ -448,6 +465,7 @@
    "nifty50": null,
    "nifty500": null,
    "distribution": false,
+   "accumulation": false,
    "thrust_ratio": 100.0,
    "thrust": false
   },
@@ -467,6 +485,7 @@
    "nifty50": null,
    "nifty500": null,
    "distribution": false,
+   "accumulation": false,
    "thrust_ratio": 100.0,
    "thrust": false
   },
@@ -486,6 +505,7 @@
    "nifty50": null,
    "nifty500": null,
    "distribution": false,
+   "accumulation": false,
    "thrust_ratio": 100.0,
    "thrust": false
   },
@@ -505,6 +525,7 @@
    "nifty50": null,
    "nifty500": null,
    "distribution": false,
+   "accumulation": false,
    "thrust_ratio": 100.0,
    "thrust": false
   },
@@ -524,6 +545,7 @@
    "nifty50": null,
    "nifty500": null,
    "distribution": false,
+   "accumulation": false,
    "thrust_ratio": 100.0,
    "thrust": false
   },
@@ -543,6 +565,7 @@
    "nifty50": null,
    "nifty500": null,
    "distribution": false,
+   "accumulation": false,
    "thrust_ratio": 100.0,
    "thrust": false
   },
@@ -562,6 +585,7 @@
    "nifty50": null,
    "nifty500": null,
    "distribution": false,
+   "accumulation": false,
    "thrust_ratio": 100.0,
    "thrust": false
   },
@@ -581,6 +605,7 @@
    "nifty50": null,
    "nifty500": null,
    "distribution": false,
+   "accumulation": false,
    "thrust_ratio": 100.0,
    "thrust": false
   },
@@ -600,6 +625,7 @@
    "nifty50": null,
    "nifty500": null,
    "distribution": false,
+   "accumulation": false,
    "thrust_ratio": 100.0,
    "thrust": false
   },
@@ -619,6 +645,7 @@
    "nifty50": null,
    "nifty500": null,
    "distribution": false,
+   "accumulation": false,
    "thrust_ratio": 100.0,
    "thrust": false
   },
@@ -638,6 +665,7 @@
    "nifty50": null,
    "nifty500": null,
    "distribution": false,
+   "accumulation": false,
    "thrust_ratio": 100.0,
    "thrust": false
   },
@@ -657,6 +685,7 @@
    "nifty50": null,
    "nifty500": null,
    "distribution": false,
+   "accumulation": false,
    "thrust_ratio": 100.0,
    "thrust": false
   },
@@ -676,6 +705,7 @@
    "nifty50": null,
    "nifty500": null,
    "distribution": false,
+   "accumulation": false,
    "thrust_ratio": 100.0,
    "thrust": false
   },
@@ -695,6 +725,7 @@
    "nifty50": null,
    "nifty500": null,
    "distribution": false,
+   "accumulation": false,
    "thrust_ratio": 100.0,
    "thrust": false
   },
@@ -714,6 +745,7 @@
    "nifty50": null,
    "nifty500": null,
    "distribution": false,
+   "accumulation": false,
    "thrust_ratio": 100.0,
    "thrust": false
   },
@@ -733,6 +765,7 @@
    "nifty50": null,
    "nifty500": null,
    "distribution": false,
+   "accumulation": false,
    "thrust_ratio": 100.0,
    "thrust": false
   },
@@ -752,6 +785,7 @@
    "nifty50": null,
    "nifty500": null,
    "distribution": false,
+   "accumulation": false,
    "thrust_ratio": 100.0,
    "thrust": false
   },
@@ -771,6 +805,7 @@
    "nifty50": null,
    "nifty500": null,
    "distribution": false,
+   "accumulation": false,
    "thrust_ratio": 100.0,
    "thrust": false
   },
@@ -790,6 +825,7 @@
    "nifty50": null,
    "nifty500": null,
    "distribution": false,
+   "accumulation": false,
    "thrust_ratio": 100.0,
    "thrust": false
   },
@@ -809,6 +845,7 @@
    "nifty50": null,
    "nifty500": null,
    "distribution": false,
+   "accumulation": false,
    "thrust_ratio": 100.0,
    "thrust": false
   },
@@ -828,6 +865,7 @@
    "nifty50": null,
    "nifty500": null,
    "distribution": false,
+   "accumulation": false,
    "thrust_ratio": 100.0,
    "thrust": false
   },
@@ -847,6 +885,7 @@
    "nifty50": null,
    "nifty500": null,
    "distribution": false,
+   "accumulation": false,
    "thrust_ratio": 100.0,
    "thrust": false
   },
@@ -866,6 +905,7 @@
    "nifty50": null,
    "nifty500": null,
    "distribution": false,
+   "accumulation": false,
    "thrust_ratio": 100.0,
    "thrust": false
   },
@@ -885,6 +925,7 @@
    "nifty50": null,
    "nifty500": null,
    "distribution": false,
+   "accumulation": false,
    "thrust_ratio": 100.0,
    "thrust": false
   },
@@ -904,6 +945,7 @@
    "nifty50": null,
    "nifty500": null,
    "distribution": false,
+   "accumulation": false,
    "thrust_ratio": 100.0,
    "thrust": false
   },
@@ -923,6 +965,7 @@
    "nifty50": null,
    "nifty500": null,
    "distribution": false,
+   "accumulation": false,
    "thrust_ratio": 100.0,
    "thrust": false
   },
@@ -942,6 +985,7 @@
    "nifty50": null,
    "nifty500": null,
    "distribution": false,
+   "accumulation": false,
    "thrust_ratio": 100.0,
    "thrust": false
   },
@@ -961,6 +1005,7 @@
    "nifty50": null,
    "nifty500": null,
    "distribution": false,
+   "accumulation": false,
    "thrust_ratio": 100.0,
    "thrust": false
   },
@@ -980,6 +1025,7 @@
    "nifty50": null,
    "nifty500": null,
    "distribution": false,
+   "accumulation": false,
    "thrust_ratio": 100.0,
    "thrust": false
   },
@@ -999,6 +1045,7 @@
    "nifty50": null,
    "nifty500": null,
    "distribution": false,
+   "accumulation": false,
    "thrust_ratio": 100.0,
    "thrust": false
   },
@@ -1018,6 +1065,7 @@
    "nifty50": null,
    "nifty500": null,
    "distribution": false,
+   "accumulation": false,
    "thrust_ratio": 100.0,
    "thrust": false
   },
@@ -1037,6 +1085,7 @@
    "nifty50": null,
    "nifty500": null,
    "distribution": false,
+   "accumulation": false,
    "thrust_ratio": 100.0,
    "thrust": false
   },
@@ -1056,6 +1105,7 @@
    "nifty50": null,
    "nifty500": null,
    "distribution": false,
+   "accumulation": false,
    "thrust_ratio": 100.0,
    "thrust": false
   },
@@ -1075,6 +1125,7 @@
    "nifty50": null,
    "nifty500": null,
    "distribution": false,
+   "accumulation": false,
    "thrust_ratio": 100.0,
    "thrust": false
   },
@@ -1094,6 +1145,7 @@
    "nifty50": null,
    "nifty500": null,
    "distribution": false,
+   "accumulation": false,
    "thrust_ratio": 100.0,
    "thrust": false
   },
@@ -1113,6 +1165,7 @@
    "nifty50": null,
    "nifty500": null,
    "distribution": false,
+   "accumulation": false,
    "thrust_ratio": 100.0,
    "thrust": false
   },
@@ -1132,6 +1185,7 @@
    "nifty50": null,
    "nifty500": null,
    "distribution": false,
+   "accumulation": false,
    "thrust_ratio": 100.0,
    "thrust": false
   },
@@ -1151,6 +1205,7 @@
    "nifty50": null,
    "nifty500": null,
    "distribution": false,
+   "accumulation": false,
    "thrust_ratio": 100.0,
    "thrust": false
   },
@@ -1170,6 +1225,7 @@
    "nifty50": null,
    "nifty500": null,
    "distribution": false,
+   "accumulation": false,
    "thrust_ratio": 100.0,
    "thrust": false
   },
@@ -1189,6 +1245,7 @@
    "nifty50": null,
    "nifty500": null,
    "distribution": false,
+   "accumulation": false,
    "thrust_ratio": 100.0,
    "thrust": false
   },
@@ -1208,6 +1265,7 @@
    "nifty50": null,
    "nifty500": null,
    "distribution": false,
+   "accumulation": false,
    "thrust_ratio": 100.0,
    "thrust": false
   },
@@ -1227,6 +1285,7 @@
    "nifty50": null,
    "nifty500": null,
    "distribution": false,
+   "accumulation": false,
    "thrust_ratio": 100.0,
    "thrust": false
   },
@@ -1246,6 +1305,7 @@
    "nifty50": null,
    "nifty500": null,
    "distribution": false,
+   "accumulation": false,
    "thrust_ratio": 100.0,
    "thrust": false
   },
@@ -1265,6 +1325,7 @@
    "nifty50": null,
    "nifty500": null,
    "distribution": false,
+   "accumulation": false,
    "thrust_ratio": 100.0,
    "thrust": false
   },
@@ -1284,6 +1345,7 @@
    "nifty50": null,
    "nifty500": null,
    "distribution": false,
+   "accumulation": false,
    "thrust_ratio": 100.0,
    "thrust": false
   },
@@ -1303,6 +1365,7 @@
    "nifty50": null,
    "nifty500": null,
    "distribution": false,
+   "accumulation": false,
    "thrust_ratio": 100.0,
    "thrust": false
   },
@@ -1322,6 +1385,7 @@
    "nifty50": null,
    "nifty500": null,
    "distribution": false,
+   "accumulation": false,
    "thrust_ratio": 100.0,
    "thrust": false
   },
@@ -1341,6 +1405,7 @@
    "nifty50": null,
    "nifty500": null,
    "distribution": false,
+   "accumulation": false,
    "thrust_ratio": 100.0,
    "thrust": false
   },
@@ -1360,6 +1425,7 @@
    "nifty50": null,
    "nifty500": null,
    "distribution": false,
+   "accumulation": false,
    "thrust_ratio": 100.0,
    "thrust": false
   },
@@ -1379,6 +1445,7 @@
    "nifty50": null,
    "nifty500": null,
    "distribution": false,
+   "accumulation": false,
    "thrust_ratio": 100.0,
    "thrust": false
   },
@@ -1398,6 +1465,7 @@
    "nifty50": null,
    "nifty500": null,
    "distribution": false,
+   "accumulation": false,
    "thrust_ratio": 100.0,
    "thrust": false
   },
@@ -1417,6 +1485,7 @@
    "nifty50": null,
    "nifty500": null,
    "distribution": false,
+   "accumulation": false,
    "thrust_ratio": 100.0,
    "thrust": false
   },
@@ -1436,6 +1505,7 @@
    "nifty50": null,
    "nifty500": null,
    "distribution": false,
+   "accumulation": false,
    "thrust_ratio": 100.0,
    "thrust": false
   },
@@ -1455,6 +1525,7 @@
    "nifty50": null,
    "nifty500": null,
    "distribution": false,
+   "accumulation": false,
    "thrust_ratio": 100.0,
    "thrust": false
   },
@@ -1474,6 +1545,7 @@
    "nifty50": null,
    "nifty500": null,
    "distribution": false,
+   "accumulation": false,
    "thrust_ratio": 100.0,
    "thrust": false
   },
@@ -1493,6 +1565,7 @@
    "nifty50": null,
    "nifty500": null,
    "distribution": false,
+   "accumulation": false,
    "thrust_ratio": 100.0,
    "thrust": false
   },
@@ -1512,6 +1585,7 @@
    "nifty50": null,
    "nifty500": null,
    "distribution": false,
+   "accumulation": false,
    "thrust_ratio": 100.0,
    "thrust": false
   },
@@ -1531,6 +1605,7 @@
    "nifty50": null,
    "nifty500": null,
    "distribution": false,
+   "accumulation": false,
    "thrust_ratio": 100.0,
    "thrust": false
   },
@@ -1550,6 +1625,7 @@
    "nifty50": null,
    "nifty500": null,
    "distribution": false,
+   "accumulation": false,
    "thrust_ratio": 100.0,
    "thrust": false
   },
@@ -1569,6 +1645,7 @@
    "nifty50": null,
    "nifty500": null,
    "distribution": false,
+   "accumulation": false,
    "thrust_ratio": 100.0,
    "thrust": false
   },
@@ -1588,6 +1665,7 @@
    "nifty50": null,
    "nifty500": null,
    "distribution": false,
+   "accumulation": false,
    "thrust_ratio": 100.0,
    "thrust": false
   },
@@ -1607,6 +1685,7 @@
    "nifty50": null,
    "nifty500": null,
    "distribution": false,
+   "accumulation": false,
    "thrust_ratio": 100.0,
    "thrust": false
   },
@@ -1626,6 +1705,7 @@
    "nifty50": null,
    "nifty500": null,
    "distribution": false,
+   "accumulation": false,
    "thrust_ratio": 100.0,
    "thrust": false
   },
@@ -1645,6 +1725,7 @@
    "nifty50": null,
    "nifty500": null,
    "distribution": false,
+   "accumulation": false,
    "thrust_ratio": 100.0,
    "thrust": false
   },
@@ -1664,6 +1745,7 @@
    "nifty50": null,
    "nifty500": null,
    "distribution": false,
+   "accumulation": false,
    "thrust_ratio": 100.0,
    "thrust": false
   },
@@ -1683,6 +1765,7 @@
    "nifty50": null,
    "nifty500": null,
    "distribution": false,
+   "accumulation": false,
    "thrust_ratio": 100.0,
    "thrust": false
   },
@@ -1702,6 +1785,7 @@
    "nifty50": null,
    "nifty500": null,
    "distribution": false,
+   "accumulation": false,
    "thrust_ratio": 100.0,
    "thrust": false
   },
@@ -1721,6 +1805,7 @@
    "nifty50": null,
    "nifty500": null,
    "distribution": false,
+   "accumulation": false,
    "thrust_ratio": 100.0,
    "thrust": false
   },
@@ -1740,6 +1825,7 @@
    "nifty50": null,
    "nifty500": null,
    "distribution": false,
+   "accumulation": false,
    "thrust_ratio": 100.0,
    "thrust": false
   },
@@ -1759,6 +1845,7 @@
    "nifty50": null,
    "nifty500": null,
    "distribution": false,
+   "accumulation": false,
    "thrust_ratio": 100.0,
    "thrust": false
   },
@@ -1778,6 +1865,7 @@
    "nifty50": null,
    "nifty500": null,
    "distribution": false,
+   "accumulation": false,
    "thrust_ratio": 100.0,
    "thrust": false
   },
@@ -1797,6 +1885,7 @@
    "nifty50": null,
    "nifty500": null,
    "distribution": false,
+   "accumulation": false,
    "thrust_ratio": 100.0,
    "thrust": false
   },
@@ -1816,6 +1905,7 @@
    "nifty50": null,
    "nifty500": null,
    "distribution": false,
+   "accumulation": false,
    "thrust_ratio": 100.0,
    "thrust": false
   },
@@ -1835,6 +1925,7 @@
    "nifty50": null,
    "nifty500": null,
    "distribution": false,
+   "accumulation": false,
    "thrust_ratio": 100.0,
    "thrust": false
   },
@@ -1854,6 +1945,7 @@
    "nifty50": null,
    "nifty500": null,
    "distribution": false,
+   "accumulation": false,
    "thrust_ratio": 100.0,
    "thrust": false
   },
@@ -1873,6 +1965,7 @@
    "nifty50": null,
    "nifty500": null,
    "distribution": false,
+   "accumulation": false,
    "thrust_ratio": 100.0,
    "thrust": false
   },
@@ -1892,6 +1985,7 @@
    "nifty50": null,
    "nifty500": null,
    "distribution": false,
+   "accumulation": false,
    "thrust_ratio": 100.0,
    "thrust": false
   },
@@ -1911,6 +2005,7 @@
    "nifty50": null,
    "nifty500": null,
    "distribution": false,
+   "accumulation": false,
    "thrust_ratio": 100.0,
    "thrust": false
   },
@@ -1930,6 +2025,7 @@
    "nifty50": null,
    "nifty500": null,
    "distribution": false,
+   "accumulation": false,
    "thrust_ratio": 100.0,
    "thrust": false
   },
@@ -1949,6 +2045,7 @@
    "nifty50": null,
    "nifty500": null,
    "distribution": false,
+   "accumulation": false,
    "thrust_ratio": 100.0,
    "thrust": false
   },
@@ -1968,6 +2065,7 @@
    "nifty50": null,
    "nifty500": null,
    "distribution": false,
+   "accumulation": false,
    "thrust_ratio": 100.0,
    "thrust": false
   },
@@ -1987,6 +2085,7 @@
    "nifty50": null,
    "nifty500": null,
    "distribution": false,
+   "accumulation": false,
    "thrust_ratio": 100.0,
    "thrust": false
   },
@@ -2006,6 +2105,7 @@
    "nifty50": 100.0,
    "nifty500": 100.0,
    "distribution": false,
+   "accumulation": false,
    "thrust_ratio": 100.0,
    "thrust": false
   },
@@ -2025,6 +2125,7 @@
    "nifty50": 100.05,
    "nifty500": 100.02777777777779,
    "distribution": false,
+   "accumulation": false,
    "thrust_ratio": 100.0,
    "thrust": false
   },
@@ -2044,6 +2145,7 @@
    "nifty50": 100.1,
    "nifty500": 100.05555555555557,
    "distribution": false,
+   "accumulation": false,
    "thrust_ratio": 100.0,
    "thrust": false
   },
@@ -2063,6 +2165,7 @@
    "nifty50": 100.15,
    "nifty500": 100.08333333333333,
    "distribution": false,
+   "accumulation": false,
    "thrust_ratio": 100.0,
    "thrust": false
   },
@@ -2082,6 +2185,7 @@
    "nifty50": 100.2,
    "nifty500": 100.1111111111111,
    "distribution": false,
+   "accumulation": false,
    "thrust_ratio": 100.0,
    "thrust": false
   },
@@ -2101,6 +2205,7 @@
    "nifty50": 100.25,
    "nifty500": 100.13888888888889,
    "distribution": false,
+   "accumulation": false,
    "thrust_ratio": 100.0,
    "thrust": false
   },
@@ -2120,6 +2225,7 @@
    "nifty50": 100.29999999999998,
    "nifty500": 100.16666666666667,
    "distribution": false,
+   "accumulation": false,
    "thrust_ratio": 100.0,
    "thrust": false
   },
@@ -2139,6 +2245,7 @@
    "nifty50": 100.35000000000001,
    "nifty500": 100.19444444444446,
    "distribution": false,
+   "accumulation": false,
    "thrust_ratio": 100.0,
    "thrust": false
   },
@@ -2158,6 +2265,7 @@
    "nifty50": 100.4,
    "nifty500": 100.22222222222221,
    "distribution": false,
+   "accumulation": false,
    "thrust_ratio": 100.0,
    "thrust": false
   },
@@ -2177,6 +2285,7 @@
    "nifty50": 100.44999999999999,
    "nifty500": 100.25,
    "distribution": false,
+   "accumulation": false,
    "thrust_ratio": 100.0,
    "thrust": false
   },
@@ -2196,6 +2305,7 @@
    "nifty50": 100.49999999999999,
    "nifty500": 100.27777777777777,
    "distribution": false,
+   "accumulation": false,
    "thrust_ratio": 100.0,
    "thrust": false
   },
@@ -2215,6 +2325,7 @@
    "nifty50": 100.55000000000001,
    "nifty500": 100.30555555555556,
    "distribution": false,
+   "accumulation": false,
    "thrust_ratio": 100.0,
    "thrust": false
   },
@@ -2234,6 +2345,7 @@
    "nifty50": 100.6,
    "nifty500": 100.33333333333334,
    "distribution": false,
+   "accumulation": false,
    "thrust_ratio": 100.0,
    "thrust": false
   },
@@ -2253,6 +2365,7 @@
    "nifty50": 100.64999999999999,
    "nifty500": 100.3611111111111,
    "distribution": false,
+   "accumulation": false,
    "thrust_ratio": 100.0,
    "thrust": false
   },
@@ -2272,6 +2385,7 @@
    "nifty50": 100.69999999999999,
    "nifty500": 100.38888888888889,
    "distribution": false,
+   "accumulation": false,
    "thrust_ratio": 100.0,
    "thrust": false
   },
@@ -2291,6 +2405,7 @@
    "nifty50": 100.75,
    "nifty500": 100.41666666666667,
    "distribution": false,
+   "accumulation": false,
    "thrust_ratio": 100.0,
    "thrust": false
   },
@@ -2310,6 +2425,7 @@
    "nifty50": 100.8,
    "nifty500": 100.44444444444444,
    "distribution": false,
+   "accumulation": false,
    "thrust_ratio": 100.0,
    "thrust": false
   },
@@ -2329,6 +2445,7 @@
    "nifty50": 100.85,
    "nifty500": 100.47222222222223,
    "distribution": false,
+   "accumulation": false,
    "thrust_ratio": 100.0,
    "thrust": false
   },
@@ -2348,6 +2465,7 @@
    "nifty50": 100.89999999999999,
    "nifty500": 100.49999999999999,
    "distribution": false,
+   "accumulation": false,
    "thrust_ratio": 100.0,
    "thrust": false
   },
@@ -2367,6 +2485,7 @@
    "nifty50": 100.95,
    "nifty500": 100.52777777777777,
    "distribution": false,
+   "accumulation": false,
    "thrust_ratio": 100.0,
    "thrust": false
   },
@@ -2386,6 +2505,7 @@
    "nifty50": 101.0,
    "nifty500": 100.55555555555556,
    "distribution": false,
+   "accumulation": false,
    "thrust_ratio": 100.0,
    "thrust": false
   },
@@ -2405,6 +2525,7 @@
    "nifty50": 101.05,
    "nifty500": 100.58333333333334,
    "distribution": false,
+   "accumulation": false,
    "thrust_ratio": 100.0,
    "thrust": false
   },
@@ -2424,6 +2545,7 @@
    "nifty50": 101.1,
    "nifty500": 100.61111111111111,
    "distribution": false,
+   "accumulation": false,
    "thrust_ratio": 100.0,
    "thrust": false
   },
@@ -2443,6 +2565,7 @@
    "nifty50": 101.15,
    "nifty500": 100.6388888888889,
    "distribution": false,
+   "accumulation": false,
    "thrust_ratio": 100.0,
    "thrust": false
   },
@@ -2462,6 +2585,7 @@
    "nifty50": 101.2,
    "nifty500": 100.66666666666666,
    "distribution": false,
+   "accumulation": false,
    "thrust_ratio": 100.0,
    "thrust": false
   },
@@ -2481,6 +2605,7 @@
    "nifty50": 101.25,
    "nifty500": 100.69444444444444,
    "distribution": false,
+   "accumulation": false,
    "thrust_ratio": 100.0,
    "thrust": false
   },
@@ -2500,6 +2625,7 @@
    "nifty50": 101.29999999999998,
    "nifty500": 100.72222222222223,
    "distribution": false,
+   "accumulation": false,
    "thrust_ratio": 100.0,
    "thrust": false
   },
@@ -2519,6 +2645,7 @@
    "nifty50": 101.35000000000001,
    "nifty500": 100.75,
    "distribution": false,
+   "accumulation": false,
    "thrust_ratio": 100.0,
    "thrust": false
   },
@@ -2538,6 +2665,7 @@
    "nifty50": 101.4,
    "nifty500": 100.77777777777779,
    "distribution": false,
+   "accumulation": false,
    "thrust_ratio": 100.0,
    "thrust": false
   },
@@ -2557,6 +2685,7 @@
    "nifty50": 101.44999999999999,
    "nifty500": 100.80555555555554,
    "distribution": false,
+   "accumulation": false,
    "thrust_ratio": 100.0,
    "thrust": false
   }
