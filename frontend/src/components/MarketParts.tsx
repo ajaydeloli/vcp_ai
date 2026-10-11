@@ -39,10 +39,12 @@ export const BOX = {
   sectors: `border-2 border-[#2dd4bf]/60 bg-gradient-to-br from-[#2dd4bf]/10 to-panel2 ${SIZE}`,
 };
 
-export function Inner({ title, box, children }: { title: string; box: string; children: ReactNode }) {
+/** `fill`: the card is a column whose title stays put while one child (with `min-h-0 flex-1
+ *  overflow-auto`) scrolls, like the Recent activity card. */
+export function Inner({ title, box, children, fill = false }: { title: string; box: string; children: ReactNode; fill?: boolean }) {
   return (
-    <section aria-label={title} className={`min-w-0 rounded-lg p-4 ${box}`}>
-      <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-mute">{title}</h3>
+    <section aria-label={title} className={`min-w-0 rounded-lg p-4 ${fill ? "flex flex-col" : ""} ${box}`}>
+      <h3 className="mb-3 shrink-0 text-xs font-semibold uppercase tracking-wide text-mute">{title}</h3>
       {children}
     </section>
   );

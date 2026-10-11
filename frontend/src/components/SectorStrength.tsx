@@ -15,14 +15,15 @@ export function SectorCard({ sectors, box }: { sectors: Health["sectors"]; box: 
   const classified = sectors.filter((s) => s.sector !== null);
   const rest = sectors.find((s) => s.sector === null);
   return (
-    <Inner title="Sector strength" box={box}>
+    <Inner title="Sector strength" box={box} fill>
       {sectors.length === 0 ? (
         <Empty>No sector data yet.</Empty>
       ) : (
         <>
-          <div className="overflow-x-auto">
+          {/* only the rows scroll: the card's title and the column headings stay in place */}
+          <div className="min-h-0 max-h-72 flex-1 overflow-auto lg:max-h-none" data-testid="sector-scroll">
             <table className="w-full min-w-[560px] text-right text-xs tabular-nums">
-              <thead className="text-[10px] uppercase text-mute">
+              <thead className="sticky top-0 z-10 bg-panel2 text-[10px] uppercase text-mute">
                 <tr>
                   <th scope="col" className="py-1 pr-2 text-left font-medium">Sector</th>
                   <th scope="col" className="px-1 py-1 font-medium">Stocks</th>
@@ -76,7 +77,7 @@ export function SectorCard({ sectors, box }: { sectors: Health["sectors"]; box: 
             </table>
           </div>
           {rest ? (
-            <p className="mt-2 text-[11px] text-mute">
+            <p className="mt-2 shrink-0 text-[11px] text-mute">
               {fmtInt(rest.stocks)} stocks are not classified yet; NSE&apos;s per-stock sector lookup fills them in later.
             </p>
           ) : null}

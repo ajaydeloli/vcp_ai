@@ -490,14 +490,14 @@ export function MarketHealth() {
             )}
             <StageCard stages={d.stages} box={BOX.stage} />
             <SetupFlowCard flow={d.flow} box={BOX.flow} />
-            <SetupCounts box={BOX.setups} />
+            <SectorCard sectors={d.sectors} box={BOX.sectors} />
             {fb && (
               <Inner title={fb.title} box={BOX.feedback}>
                 <Charts d={d} id="feedback" />
                 <Readings group={fb} />
               </Inner>
             )}
-            <SectorCard sectors={d.sectors} box={BOX.sectors} />
+            <SetupCounts box={BOX.setups} />
           </div>
         </>
       )}

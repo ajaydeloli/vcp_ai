@@ -94,7 +94,7 @@ describe("dashboard page (market view)", () => {
     expect(new Set(colours).size).toBe(8); // every card has its own border colour
     expect(names).toEqual([
       "Index price action", "Leadership", "Breadth", "Market stage", "Setups and breakouts",
-      "Setups today", "Feedback loop", "Sector strength",
+      "Sector strength", "Feedback loop", "Setups today",
     ]);
     expect(await within(overview).findByText(/Most setups are/)).toBeInTheDocument();
     expect(within(overview).queryByText("Details")).not.toBeInTheDocument(); // no Details link on any card
@@ -268,6 +268,11 @@ describe("dashboard page (market view)", () => {
     expect(cap).toHaveTextContent("Capital Goods10%0 pp91"); // 1 stock, 0 %, no change, RS 91
     expect(cap).toHaveTextContent("+2.1%"); // Nifty Capital Goods over 21 sessions
     expect(card).toHaveTextContent("61 stocks are not classified yet");
+    // only the rows scroll: the title sits outside the scrolling box, the column headings stick
+    const scroll = within(card).getByTestId("sector-scroll");
+    expect(scroll.className).toMatch(/overflow-auto/);
+    expect(scroll).not.toContainElement(within(card).getByRole("heading", { name: "Sector strength" }));
+    expect(within(scroll).getAllByRole("rowgroup")[0]!.className).toMatch(/sticky top-0/);
   });
 
   it("breadth charts the thrust ratio with both lines and names the last thrust", async () => {
