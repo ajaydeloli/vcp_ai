@@ -269,7 +269,8 @@ def build_main_db(db: Path, ctx: Context) -> None:
         # NSE index closes (Market Overview step 3) for the last 30 sessions only: the NIFTY
         # lines start at 100 on their first stored day, later than the chart's first day.
         for k, d in enumerate(SESSIONS[-30:]):
-            for name, close in (("Nifty 50", 20000.0 + 10 * k), ("Nifty 500", 18000.0 + 5 * k)):
+            for name, close in (("Nifty 50", 20000.0 + 10 * k), ("Nifty 500", 18000.0 + 5 * k),
+                                ("Nifty Capital Goods", 1000.0 + k)):  # fmt: skip
                 put(c, "index_daily", index_name=name, trade_date=d, close=close)
         # --- paper ledger -----------------------------------------------------------------------
         repo = DuckDBPaperRepository(store)

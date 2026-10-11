@@ -2814,5 +2814,40 @@
   }
  ],
  "warnings": [],
- "new_highs": []
+ "new_highs": [],
+ "sectors": [
+  {
+   "sector": "Capital Goods",
+   "stocks": 1,
+   "above50_pct": 0.0,
+   "above50_change": 0.0,
+   "median_rs": 91.0,
+   "breakouts": 0,
+   "new_highs": 0,
+   "index_name": "Nifty Capital Goods",
+   "index_change_pct": 2.083333333333326
+  },
+  {
+   "sector": "Healthcare",
+   "stocks": 1,
+   "above50_pct": 0.0,
+   "above50_change": 0.0,
+   "median_rs": 85.0,
+   "breakouts": 1,
+   "new_highs": 0,
+   "index_name": "Nifty Healthcare Index",
+   "index_change_pct": null
+  },
+  {
+   "sector": null,
+   "stocks": 61,
+   "above50_pct": 32.78688524590164,
+   "above50_change": -40.98360655737705,
+   "median_rs": 49.0,
+   "breakouts": 0,
+   "new_highs": 0,
+   "index_name": null,
+   "index_change_pct": null
+  }
+ ]
 }

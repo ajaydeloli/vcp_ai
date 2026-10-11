@@ -165,3 +165,24 @@ def test_markers_match_the_distribution_count(ro_env: Any) -> None:
     window = body["index_days"]["window"]
     marked = sum(p["distribution"] for p in body["points"][-window:])
     assert marked == body["index_days"]["distribution"]
+
+
+# --- step 5: sector strength -------------------------------------------------------------------
+
+
+def test_sector_rows_known_answers(ro_env: Any) -> None:
+    """Fixture: ALPHA is Capital Goods (RS 91), BETA Healthcare (RS 85, a VCP breakout on the
+    last day), GAMMA and the fillers not classified. The named stocks close below their 50-day
+    average on both days compared; Nifty Capital Goods rises 1 a session."""
+    sectors = {s["sector"]: s for s in ro_env.client.get("/api/v1/market/health").json()["sectors"]}
+    cap = sectors["Capital Goods"]
+    assert (cap["stocks"], cap["above50_pct"], cap["above50_change"]) == (1, 0.0, 0.0)
+    assert cap["median_rs"] == 91 and cap["breakouts"] == 0
+    assert cap["index_name"] == "Nifty Capital Goods"
+    assert cap["index_change_pct"] == pytest.approx((1029 / 1008 - 1) * 100)  # 21 sessions
+    health_ = sectors["Healthcare"]
+    assert health_["breakouts"] == 1 and health_["median_rs"] == 85
+    assert health_["index_change_pct"] is None  # no Healthcare index stored in the fixture
+    rest = sectors[None]  # not classified yet: one row, listed last
+    assert rest["stocks"] == 61  # 60 fillers and GAMMA
+    assert list(sectors)[-1] is None

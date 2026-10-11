@@ -38,6 +38,20 @@ YEAR = 252  # sessions in 52 weeks
 NEAR_HIGH = 0.03  # the index within 3 % of its 52-week high
 DIVERGENCE_GAP = 0.25  # a line "clearly below" its 52-week high: by a quarter of its range
 NSE_LINES = {"nifty50": "Nifty 50", "nifty500": "Nifty 500"}  # index_daily names
+SECTOR_MONTH = 21  # sessions in "a month" for the sector table
+#: NSE's sector (the Industry column of its index lists) -> its sector index in the daily file.
+#: Diversified, Forest Materials, Textiles and Utilities have none.
+SECTOR_INDEX = {
+    "Automobile and Auto Components": "Nifty Auto", "Capital Goods": "Nifty Capital Goods",
+    "Chemicals": "Nifty Chemicals", "Construction": "Nifty Construction",
+    "Construction Materials": "Nifty Cement", "Consumer Durables": "Nifty Consumer Durables",
+    "Consumer Services": "Nifty Consumer Services", "Fast Moving Consumer Goods": "Nifty FMCG",
+    "Financial Services": "Nifty Financial Services", "Healthcare": "Nifty Healthcare Index",
+    "Information Technology": "Nifty IT", "Media Entertainment & Publication": "Nifty Media",
+    "Metals & Mining": "Nifty Metal", "Oil Gas & Consumable Fuels": "Nifty Oil & Gas",
+    "Power": "Nifty Power", "Realty": "Nifty Realty", "Services": "Nifty Services Sector",
+    "Telecommunication": "Nifty Telecommunications",
+}  # fmt: skip
 
 _DAILY_SQL = """
 WITH runs AS (
@@ -462,6 +476,106 @@ def _new_highs_today(cur: Cur, ctx: Context, end: date) -> list[m.HealthNewHigh]
     return out
 
 
+_SECTOR_SQL = """
+WITH snap AS (
+    SELECT universe_snapshot_id FROM scan_runs
+    WHERE scan_type = 'TREND_TEMPLATE' AND status = 'COMPLETED'
+      AND scan_config_hash = ? AND data_snapshot_id = ? AND as_of_date <= ?
+    ORDER BY as_of_date DESC, completed_at DESC LIMIT 1
+)
+SELECT f.instrument_id, f.trade_date,
+       f.sma_50 IS NOT NULL AND p.close_adj > f.sma_50,
+       f.sma_50 IS NOT NULL,
+       f.high_252 IS NOT NULL AND p.high_adj >= f.high_252 * 0.99999
+FROM technical_features_daily f
+JOIN universe_memberships mem ON mem.instrument_id = f.instrument_id AND mem.eligible
+ AND mem.universe_snapshot_id = (SELECT universe_snapshot_id FROM snap)
+JOIN daily_prices_adjusted_current p ON p.instrument_id = f.instrument_id
+ AND p.trade_date = f.trade_date AND p.computed_from_snapshot_id = ?
+WHERE f.trade_date IN (?, ?) AND f.calculation_version = ? AND f.data_snapshot_id = ?
+"""
+
+
+def _sectors(cur: Cur, ctx: Context, sessions: list[date]) -> list[m.HealthSector]:
+    """Today's universe by NSE sector: share above the 50-day average now and a month ago (the
+    same stocks both days), median RS, stocks with a breakout in the month, new highs today, and
+    the sector index's change. Unclassified stocks form one row of their own."""
+    end = sessions[-1]
+    then = sessions[-1 - SECTOR_MONTH] if len(sessions) > SECTOR_MONTH else sessions[0]
+    rows = cur.execute(
+        _SECTOR_SQL,
+        [ctx.scan_hash, LIVE, end, LIVE, end, then, FEATURES_CALCULATION_VERSION, LIVE],
+    ).fetchall()
+    if not rows:
+        return []
+    now: dict[str, tuple[bool, bool, bool]] = {}
+    past: dict[str, tuple[bool, bool]] = {}
+    for iid, d, above, has_ma, high in rows:
+        if d == end:
+            now[str(iid)] = (bool(above), bool(has_ma), bool(high))
+        else:
+            past[str(iid)] = (bool(above), bool(has_ma))
+    ids = sorted(now)
+    sector_of = {i: s for i, (s, _ind) in classification(cur, ids).items()}
+    rs = {
+        str(r[0]): int(r[1])
+        for r in cur.execute(
+            "SELECT instrument_id, rs_rank FROM trend_template_results WHERE config_hash = ?"
+            " AND data_snapshot_id = ? AND rs_rank IS NOT NULL AND as_of_date = ("
+            "SELECT max(as_of_date) FROM trend_template_results WHERE config_hash = ?"
+            " AND data_snapshot_id = ? AND as_of_date <= ?)",
+            [ctx.scan_hash, LIVE, ctx.scan_hash, LIVE, end],
+        ).fetchall()
+    }
+    broke: set[str] = set()
+    since = sessions[-SECTOR_MONTH] if len(sessions) >= SECTOR_MONTH else sessions[0]
+    for spec in ctx.strategies:
+        broke |= {
+            str(r[0])
+            for r in cur.execute(
+                "SELECT DISTINCT instrument_id FROM breakout_events WHERE strategy_id = ?"
+                " AND config_hash = ? AND breakout_date BETWEEN ? AND ?",
+                [spec.strategy_id, spec.config_hash, since, end],
+            ).fetchall()
+        }
+    index_change: dict[str, float] = {}
+    exists = cur.execute(
+        "SELECT count(*) FROM information_schema.tables WHERE table_name = 'index_daily'"
+    ).fetchone()
+    if exists and exists[0]:
+        closes: dict[str, dict[date, float]] = defaultdict(dict)
+        for name, d, c in cur.execute(
+            "SELECT index_name, trade_date, close FROM index_daily WHERE trade_date IN (?, ?)"
+            " AND index_name IN (SELECT unnest(?))",
+            [end, then, list(SECTOR_INDEX.values())],
+        ).fetchall():
+            closes[str(name)][d] = float(c)
+        index_change = {n: _pct(v[end], v[then]) for n, v in closes.items()
+                        if end in v and then in v and v[then]}  # fmt: skip
+    groups: dict[str | None, list[str]] = defaultdict(list)
+    for iid in ids:
+        groups[sector_of.get(iid)].append(iid)
+    out: list[m.HealthSector] = []
+    for sector, members in groups.items():
+        with_ma = [i for i in members if now[i][1]]
+        above = sum(now[i][0] for i in with_ma)
+        pct = 100.0 * above / len(with_ma) if with_ma else None
+        before = [i for i in with_ma if i in past and past[i][1]]
+        pct_then = 100.0 * sum(past[i][0] for i in before) / len(before) if before else None
+        ranks = sorted(rs[i] for i in members if i in rs)
+        median = None if not ranks else (ranks[(len(ranks) - 1) // 2] + ranks[len(ranks) // 2]) / 2
+        name = SECTOR_INDEX.get(sector or "")
+        out.append(m.HealthSector(
+            sector=sector, stocks=len(with_ma), above50_pct=pct,
+            above50_change=None if pct is None or pct_then is None else pct - pct_then,
+            median_rs=median, breakouts=sum(i in broke for i in members),
+            new_highs=sum(now[i][2] for i in members), index_name=name,
+            index_change_pct=index_change.get(name) if name else None,
+        ))  # fmt: skip
+    out.sort(key=lambda x: (x.sector is None, -(x.above50_pct or -1.0), x.sector or ""))
+    return out
+
+
 def _leaders(cur: Cur, ctx: Context, sessions: list[date], index: list[float]) -> m.HealthItem:
     if len(sessions) <= LEADER_DAYS:
         return _item("leaders", "Leaders vs the index", "grey", "Not enough history.")
@@ -800,5 +914,5 @@ def market_health(cur: Cur, ctx: Context, end: date, data_time: datetime) -> m.M
         trades=_trades(cur, ctx), verdict=_verdict(groups),
         index_days=_index_days(index, mean_ret, volume), stages=_stage_history(cur, ctx, end),
         flow=_flow(cur, ctx, sessions), warnings=_warnings(rows, index),
-        new_highs=_new_highs_today(cur, ctx, end),
+        new_highs=_new_highs_today(cur, ctx, end), sectors=_sectors(cur, ctx, sessions),
     )  # fmt: skip

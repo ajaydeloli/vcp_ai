@@ -399,6 +399,19 @@ export const marketHealth = z.object({
   ),
   warnings: z.array(z.object({ id: z.string(), text: z.string() })),
   new_highs: z.array(z.object({ symbol: z.string(), rs_rank: num, sector: z.string().nullable() })),
+  sectors: z.array(
+    z.object({
+      sector: z.string().nullable(),
+      stocks: z.number(),
+      above50_pct: num,
+      above50_change: num,
+      median_rs: num,
+      breakouts: z.number(),
+      new_highs: z.number(),
+      index_name: z.string().nullable(),
+      index_change_pct: num,
+    }),
+  ),
   trades: z.array(z.object({ day: z.string(), ret_pct: z.number() })),
   stages: z.array(
     z.object({

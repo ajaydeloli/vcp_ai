@@ -7,6 +7,7 @@ import type { MarketHealth as Health } from "@/lib/schemas";
 import { SetupCounts } from "./SetupCounts";
 import { MiniLineChart, type MiniSeries } from "./MiniLineChart";
 import { SetupFlowCard } from "./MarketFlow";
+import { SectorCard } from "./SectorStrength";
 import { BOX, C, Figure, Inner, Legend, NSE } from "./MarketParts";
 import { Empty, ErrorBox, Loading } from "./ui";
 
@@ -462,6 +463,7 @@ export function MarketHealth() {
                 <Readings group={fb} />
               </Inner>
             )}
+            <SectorCard sectors={d.sectors} box={BOX.sectors} />
           </div>
         </>
       )}

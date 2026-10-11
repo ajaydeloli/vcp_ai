@@ -216,6 +216,20 @@ class HealthNewHigh(BaseModel):
     sector: str | None
 
 
+class HealthSector(BaseModel):
+    """One NSE sector of today's universe (display only). ``sector`` None: not classified yet."""
+
+    sector: str | None
+    stocks: int  # universe stocks of the sector with a 50-day average today
+    above50_pct: float | None
+    above50_change: float | None  # percentage points against SECTOR_MONTH sessions ago
+    median_rs: float | None
+    breakouts: int  # stocks with a breakout (any strategy) in the last SECTOR_MONTH sessions
+    new_highs: int  # stocks at a new 52-week high today
+    index_name: str | None  # NSE's sector index, when there is one
+    index_change_pct: float | None  # its change over SECTOR_MONTH sessions
+
+
 class HealthTrade(BaseModel):
     day: date
     ret_pct: float
@@ -241,6 +255,7 @@ class MarketHealthResponse(Stamped):
     flow: list[HealthFlowPoint] = []  # from the first stored scan on
     warnings: list[HealthWarning] = []
     new_highs: list[HealthNewHigh] = []  # universe stocks at a new 52-week high on as_of
+    sectors: list[HealthSector] = []  # strongest first; not classified last
 
 
 class SearchHit(BaseModel):

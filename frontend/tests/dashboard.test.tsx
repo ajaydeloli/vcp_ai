@@ -91,10 +91,10 @@ describe("dashboard page (market view)", () => {
       .getAllByRole("region")
       .map((r) => r.getAttribute("aria-label") ?? within(r).queryByRole("heading")?.textContent);
     const colours = within(overview).getAllByRole("region").map((r) => /border-\[(#\w+)\]/.exec(r.className)?.[1]);
-    expect(new Set(colours).size).toBe(7); // every card has its own border colour
+    expect(new Set(colours).size).toBe(8); // every card has its own border colour
     expect(names).toEqual([
       "Index price action", "Leadership", "Breadth", "Market stage", "Setups and breakouts",
-      "Setups today", "Feedback loop",
+      "Setups today", "Feedback loop", "Sector strength",
     ]);
     expect(await within(overview).findByText(/Most setups are/)).toBeInTheDocument();
     expect(within(overview).queryByText("Details")).not.toBeInTheDocument(); // no Details link on any card
@@ -231,6 +231,19 @@ describe("dashboard page (market view)", () => {
     await waitFor(() => expect(chart.series[0]?.markers).toHaveLength(2));
     const vqi = chart.series[0]!;
     expect(vqi.markers.map((m) => m.time)).toEqual(points.slice(-2).map((p) => p.day));
+  });
+
+  it("sector strength lists the sectors strongest first and the unclassified stocks last", async () => {
+    mockApi();
+    renderApp(<Dashboard />);
+    const card = await screen.findByRole("region", { name: "Sector strength" });
+    const rows = within(card).getAllByRole("rowheader").map((r) => r.textContent);
+    expect(rows.at(-1)).toBe("Not classified yet");
+    expect(rows).toContain("Capital Goods");
+    const cap = within(card).getByRole("rowheader", { name: "Capital Goods" }).closest("tr")!;
+    expect(cap).toHaveTextContent("Capital Goods10%0 pp91"); // 1 stock, 0 %, no change, RS 91
+    expect(cap).toHaveTextContent("+2.1%"); // Nifty Capital Goods over 21 sessions
+    expect(card).toHaveTextContent("61 stocks are not classified yet");
   });
 
   it("reports an unreachable API instead of an empty page", async () => {
