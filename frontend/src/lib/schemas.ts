@@ -404,6 +404,15 @@ export const marketHealth = z.object({
       total: z.number(),
     }),
   ),
+  flow: z.array(
+    z.object({
+      day: z.string(),
+      new_setups: num,
+      breakouts: z.number(),
+      failed_pct: num,
+      judged: z.number(),
+    }),
+  ),
   index_days: z
     .object({ pct_from_50: num, pct_from_200: num, accumulation: z.number(), distribution: z.number(), window: z.number() })
     .nullable(),

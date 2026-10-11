@@ -10,6 +10,10 @@ export type MiniSeries = {
   name: string;
   color: string;
   data: { time: string; value: number }[];
+  /** "bar": a histogram from zero (daily counts); default a line */
+  kind?: "line" | "bar";
+  /** small marks on this series, e.g. distribution days on the index line */
+  markers?: { time: string; color: string; text?: string; position?: "aboveBar" | "belowBar" }[];
 };
 
 type Props = {
@@ -27,7 +31,7 @@ type Props = {
 export function MiniLineChart({ series, height = 120, threshold, label, plain, whole }: Props) {
   const box = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
-  const linesRef = useRef<ISeriesApi<"Line">[]>([]);
+  const linesRef = useRef<ISeriesApi<"Line" | "Histogram">[]>([]);
 
   useEffect(() => {
     const el = box.current;
@@ -57,17 +61,30 @@ export function MiniLineChart({ series, height = 120, threshold, label, plain, w
     if (!chart) return;
     for (const s of linesRef.current) chart.removeSeries(s);
     linesRef.current = series.map((s, i) => {
-      const line = chart.addLineSeries({
+      const common = {
         color: s.color,
-        lineWidth: 2,
         // the first series shows its latest value on the axis; a second line next to it would
         // print over it
         lastValueVisible: plain || i === 0,
         priceLineVisible: false,
         title: plain ? "" : s.name,
         ...(whole ? { priceFormat: { type: "price" as const, precision: 0, minMove: 1 } } : {}),
-      });
+      };
+      const line: ISeriesApi<"Line" | "Histogram"> =
+        s.kind === "bar" ? chart.addHistogramSeries(common) : chart.addLineSeries({ ...common, lineWidth: 2 });
       line.setData(s.data.map((p) => ({ time: p.time as Time, value: p.value })));
+      if (s.markers?.length) {
+        line.setMarkers(
+          s.markers.map((mk) => ({
+            time: mk.time as Time,
+            position: mk.position ?? "aboveBar",
+            color: mk.color,
+            shape: "circle" as const,
+            size: 0.6,
+            text: mk.text ?? "",
+          })),
+        );
+      }
       if (i === 0 && threshold) {
         line.createPriceLine({
           price: threshold.value,

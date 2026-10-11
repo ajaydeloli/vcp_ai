@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useActivity } from "@/lib/api";
 import { fmtDay, strategyLabel } from "@/lib/fmt";
-import { BOX } from "./MarketHealth";
+import { BOX } from "./MarketParts";
 import { Card, Empty, ErrorBox, Loading } from "./ui";
 
 const ICON: Record<string, { sym: string; cls: string }> = {

@@ -32,6 +32,7 @@ LEADER_DAYS = 20
 STAGE_WEEKS = 52  # weeks drawn in the stage chart
 STAGE_FETCH_WEEKS = 124  # the 30-week average and its own 30-week look-back, on top of the chart
 TRADES_JUDGED = 10  # last closed paper trades looked at; fewer: no colour
+FLOW_WINDOW = 20  # sessions of judged breakouts behind each point of the failure-rate line
 
 _DAILY_SQL = """
 WITH runs AS (
@@ -263,6 +264,87 @@ def _failed_breakouts(cur: Cur, ctx: Context, sessions: list[date], end: date) -
         f"below their pivot within {FAIL_WITHIN} sessions ({rate:.0f}%); {pending} too recent "
         "to judge.", rate, _ramp(rate, 60, 10),
     )  # fmt: skip
+
+
+def _judge(
+    closes: dict[date, float], sessions: list[date], i: int, pivot: float
+) -> tuple[bool, int] | None:
+    """(failed, index of the session the result is known) of a breakout at ``sessions[i]``, or
+    None while it is too recent: failed on the first close below the pivot within FAIL_WITHIN
+    sessions, held once FAIL_WITHIN sessions have closed above it. Known only from that day on,
+    so a chart point never uses a later close."""
+    for k in range(i + 1, min(i + 1 + FAIL_WITHIN, len(sessions))):
+        if closes.get(sessions[k], pivot) < pivot:
+            return True, k
+    return (False, i + FAIL_WITHIN) if i + FAIL_WITHIN < len(sessions) else None
+
+
+def _flow(cur: Cur, ctx: Context, sessions: list[date]) -> list[m.HealthFlowPoint]:
+    """New setups and breakouts per session and the failure rate of recent breakouts, from the
+    first stored scan on (earlier days hold only the breakouts the first scans found looking
+    back, so they would undercount)."""
+    scans: dict[str, list[date]] = {}
+    eligible: dict[tuple[str, date], set[str]] = defaultdict(set)
+    for spec in ctx.strategies:
+        rows = cur.execute(
+            "SELECT as_of_date, instrument_id, eligible FROM setup_scores WHERE strategy_id = ?"
+            " AND config_hash = ? AND data_snapshot_id = ?",
+            [spec.strategy_id, spec.config_hash, LIVE],
+        ).fetchall()
+        scans[spec.strategy_id] = sorted({d for d, _i, _e in rows})
+        for d, iid, ok in rows:
+            if ok:
+                eligible[(spec.strategy_id, d)].add(str(iid))
+    first = min((d[0] for d in scans.values() if d), default=None)
+    if first is None:
+        return []
+    days = [d for d in sessions if d >= first]
+    new: dict[date, int] = defaultdict(int)
+    scanned: set[date] = set()
+    for sid, dates in scans.items():
+        scanned.update(dates)
+        for prev, d in zip(dates, dates[1:], strict=False):
+            new[d] += len(eligible[(sid, d)] - eligible[(sid, prev)])
+    events: list[tuple[str, date, float]] = []
+    for spec in ctx.strategies:
+        events += [
+            (str(iid), d, float(pivot))
+            for iid, d, pivot in cur.execute(
+                "SELECT instrument_id, breakout_date, pivot_price FROM breakout_events"
+                " WHERE strategy_id = ? AND config_hash = ? AND breakout_date >= ?"
+                " AND pivot_price IS NOT NULL",
+                [spec.strategy_id, spec.config_hash, first],
+            ).fetchall()
+        ]  # fmt: skip
+    closes: dict[str, dict[date, float]] = defaultdict(dict)
+    ids = sorted({e[0] for e in events})
+    if ids:
+        for iid, d, c in cur.execute(
+            "SELECT instrument_id, trade_date, close_adj FROM daily_prices_adjusted_current"
+            " WHERE computed_from_snapshot_id = ? AND trade_date >= ?"
+            " AND instrument_id IN (SELECT unnest(?))",
+            [LIVE, first, ids],
+        ).fetchall():
+            if c is not None:
+                closes[str(iid)][d] = float(c)
+    pos = {d: i for i, d in enumerate(sessions)}
+    count: dict[date, int] = defaultdict(int)
+    known: list[tuple[int, bool]] = []  # (session index the result is known, failed)
+    for iid, d, pivot in events:
+        count[d] += 1
+        i = pos.get(d)
+        if i is not None and (result := _judge(closes[iid], sessions, i, pivot)) is not None:
+            known.append((result[1], result[0]))
+    out = []
+    for d in days:
+        i = pos[d]
+        recent = [failed for k, failed in known if i - FLOW_WINDOW < k <= i]
+        out.append(m.HealthFlowPoint(
+            day=d, new_setups=None if d == first or d not in scanned else new[d],
+            breakouts=count[d], judged=len(recent),
+            failed_pct=100.0 * sum(recent) / len(recent) if len(recent) >= MIN_JUDGED else None,
+        ))  # fmt: skip
+    return out
 
 
 def _leaders(cur: Cur, ctx: Context, sessions: list[date], index: list[float]) -> m.HealthItem:
@@ -564,4 +646,5 @@ def market_health(cur: Cur, ctx: Context, end: date, data_time: datetime) -> m.M
         as_of=sessions[-1], data_time=data_time, groups=groups,
         points=_points(rows, index), trades=_trades(cur, ctx), verdict=_verdict(groups),
         index_days=_index_days(index, mean_ret, volume), stages=_stage_history(cur, ctx, end),
+        flow=_flow(cur, ctx, sessions),
     )  # fmt: skip

@@ -188,6 +188,16 @@ class HealthStagePoint(BaseModel):
     total: int  # stocks with a stage that week (the five counts add up to this)
 
 
+class HealthFlowPoint(BaseModel):
+    """Setups and breakouts of one session, all five strategies together (display only)."""
+
+    day: date
+    new_setups: int | None  # eligible today, not on the strategy's previous scan; None: no scan
+    breakouts: int  # breakout events dated this session
+    failed_pct: float | None  # failed share of the breakouts judged in the last FLOW_WINDOW
+    judged: int  # breakouts judged in that window (None rate below MIN_JUDGED)
+
+
 class HealthTrade(BaseModel):
     day: date
     ret_pct: float
@@ -210,6 +220,7 @@ class MarketHealthResponse(Stamped):
     verdict: HealthVerdict | None
     index_days: HealthIndexDays | None
     stages: list[HealthStagePoint] = []
+    flow: list[HealthFlowPoint] = []  # from the first stored scan on
 
 
 class SearchHit(BaseModel):

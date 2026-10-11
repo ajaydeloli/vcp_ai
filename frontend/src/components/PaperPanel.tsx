@@ -2,7 +2,7 @@
 
 import { usePaper } from "@/lib/api";
 import { DASH, fmtDay, fmtNum, fmtPct, fmtPrice, strategyLabel, tone } from "@/lib/fmt";
-import { BOX } from "./MarketHealth";
+import { BOX } from "./MarketParts";
 import { Card, ErrorBox, Loading } from "./ui";
 
 export function PaperPanel() {

@@ -80,7 +80,7 @@ describe("dashboard page (market view)", () => {
     expect(within(card).getAllByRole("img", { name: /^(green|amber|red|grey)$/ }).length).toBeGreaterThanOrEqual(1); // the index, leadership and breadth cards show figures, not dots
   });
 
-  it("market health has no outer card; two columns: index and leadership, breadth and stage, feedback and setups", async () => {
+  it("market health has no outer card; two columns: index and leadership, breadth and stage, setup flow and setups, feedback", async () => {
     mockApi();
     renderApp(<Dashboard />);
     const overview = await screen.findByRole("region", { name: "Market health overview" });
@@ -91,9 +91,10 @@ describe("dashboard page (market view)", () => {
       .getAllByRole("region")
       .map((r) => r.getAttribute("aria-label") ?? within(r).queryByRole("heading")?.textContent);
     const colours = within(overview).getAllByRole("region").map((r) => /border-\[(#\w+)\]/.exec(r.className)?.[1]);
-    expect(new Set(colours).size).toBe(6); // every card has its own border colour
+    expect(new Set(colours).size).toBe(7); // every card has its own border colour
     expect(names).toEqual([
-      "Index price action", "Leadership", "Breadth", "Market stage", "Feedback loop", "Setups today",
+      "Index price action", "Leadership", "Breadth", "Market stage", "Setups and breakouts",
+      "Setups today", "Feedback loop",
     ]);
     expect(await within(overview).findByText(/Most setups are/)).toBeInTheDocument();
     expect(within(overview).queryByText("Details")).not.toBeInTheDocument(); // no Details link on any card
@@ -170,6 +171,19 @@ describe("dashboard page (market view)", () => {
     expect(screen.getByTestId("mini-trades-chart")).toBeInTheDocument();
     expect(await screen.findByTestId("mini-paper-progress")).toHaveTextContent("1 / 30");
     expect(await screen.findByTestId("mini-open-positions")).toHaveTextContent("BETA");
+  });
+
+  it("the setups and breakouts card counts today's breakouts and says since when it has data", async () => {
+    mockApi();
+    renderApp(<Dashboard />);
+    const card = await screen.findByRole("region", { name: "Setups and breakouts" });
+    expect(await within(card).findByTestId("mini-setup-flow-chart")).toBeInTheDocument();
+    const fig = within(within(card).getByRole("complementary", { name: "Setup flow figures" }));
+    expect(fig.getByText("Breakouts").parentElement?.parentElement).toHaveTextContent("Breakouts1today");
+    // the first stored scan has nothing to compare with: no count of new setups, a dash
+    expect(fig.getByText("New setups").parentElement?.parentElement).toHaveTextContent("New setups—today");
+    expect(card).toHaveTextContent("Failure rate: too few breakouts judged yet.");
+    expect(card).toHaveTextContent("Since 5 Oct 2026, the first stored scan");
   });
 
   it("reports an unreachable API instead of an empty page", async () => {

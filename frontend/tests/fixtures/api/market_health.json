@@ -2158,5 +2158,14 @@
    "transition": 0,
    "total": 4
   }
+ ],
+ "flow": [
+  {
+   "day": "2026-10-05",
+   "new_setups": null,
+   "breakouts": 1,
+   "failed_pct": null,
+   "judged": 0
+  }
  ]
 }
