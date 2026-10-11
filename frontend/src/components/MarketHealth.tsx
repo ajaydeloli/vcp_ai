@@ -287,18 +287,18 @@ function Charts({ d, id }: { d: Health; id: string }) {
       series("200-day", C.down, pts, (p) => p.ma200),
       series("NIFTY 50", NSE.nifty50, pts, (p) => p.nifty50),
       series("NIFTY 500", NSE.nifty500, pts, (p) => p.nifty500),
-      // accumulation (green, upper row) and distribution days (red, lower row) as small dots
-      // above the dates: VQI up / down 0.2 % or more on higher volume (the counts beside the
-      // chart). The row carries the meaning too, not the colour alone.
+      // accumulation (green) and distribution days (red) as small dots on one line above the
+      // dates: VQI up / down 0.2 % or more on higher volume (the counts beside the chart). A day
+      // is one or the other or neither, never both, so one line is enough.
       {
         name: "Volume days",
         color: C.up,
         kind: "dots" as const,
         data: pts.flatMap((p) =>
           p.accumulation
-            ? [{ time: p.day, value: 1, color: C.up }]
+            ? [{ time: p.day, value: 0, color: C.up }]
             : p.distribution
-              ? [{ time: p.day, value: -1, color: C.down }]
+              ? [{ time: p.day, value: 0, color: C.down }]
               : [],
         ),
       },
@@ -334,8 +334,8 @@ function Charts({ d, id }: { d: Health; id: string }) {
             ["VQI", C.ink],
             ["its 50-day", C.warn],
             ["its 200-day", C.down],
-            ["● accumulation day (upper row)", C.up],
-            ["● distribution day (lower row)", C.down],
+            ["● accumulation day", C.up],
+            ["● distribution day", C.down],
             ...(hasNse ? ([["NIFTY 50", NSE.nifty50], ["NIFTY 500", NSE.nifty500]] as [string, string][]) : []),
           ]}
         />

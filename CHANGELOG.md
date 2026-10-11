@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-- Index chart: accumulation days (small green dots, upper row) and distribution days (small red dots, lower row) in a band above the dates instead of red dots on the VQI line; `accumulation` on the market-health points.
+- Index chart: accumulation days (small green dots) and distribution days (small red dots) on one line above the dates instead of red dots on the VQI line; `accumulation` on the market-health points.
 
 - Market Overview review (owner): each figure in one place. The failure rate leaves the Leadership card (the score reads the Setups and breakouts number: 20 sessions, no breakouts found looking back); the Leadership card shows net new highs (10-day average) instead of today's highs (the list has them) and a new **Leaders** figure (Trend Template pass, RS 80+, change over 20 sessions); the Feedback loop no longer repeats the progress toward the review. Breakouts count each stock once per day (lowest pivot); the setup-flow chart keeps 250 sessions.
 

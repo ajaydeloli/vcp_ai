@@ -11,9 +11,9 @@ export type MiniSeries = {
   color: string;
   /** `color` per point: only for "dots" (each dot its own colour) */
   data: { time: string; value: number; color?: string }[];
-  /** "bar": a histogram from zero (daily counts); "dots": small round dots in a band at the
-   *  bottom of the chart, just above the dates, on a scale of their own (value +1 the upper row,
-   *  -1 the lower row), so they never cover a line; default a line */
+  /** "bar": a histogram from zero (daily counts); "dots": small round dots on one line in a band
+   *  at the bottom of the chart, just above the dates, on a scale of their own (value 0), so they
+   *  never cover a line; default a line */
   kind?: "line" | "bar" | "dots";
   /** small marks on this series, e.g. distribution days on the index line */
   markers?: { time: string; color: string; text?: string; position?: "aboveBar" | "belowBar" }[];
@@ -75,8 +75,8 @@ export function MiniLineChart({ series, height = 120, threshold, label, plain, w
           lastValueVisible: false,
           priceLineVisible: false,
           crosshairMarkerVisible: false,
-          // a fixed range: the +1 and -1 rows stay apart even when only one kind is present
-          autoscaleInfoProvider: () => ({ priceRange: { minValue: -1.6, maxValue: 1.6 } }),
+          // a fixed range, so the dots sit in the middle of the band
+          autoscaleInfoProvider: () => ({ priceRange: { minValue: -1, maxValue: 1 } }),
         });
         chart.priceScale("band").applyOptions({ scaleMargins: { top: 0.86, bottom: 0.02 }, visible: false });
         dots.setData(s.data.map((p) => ({ time: p.time as Time, value: p.value })));

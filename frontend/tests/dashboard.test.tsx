@@ -223,7 +223,7 @@ describe("dashboard page (market view)", () => {
     expect(box).toHaveTextContent(`Divergence: ${text}`);
   });
 
-  it("shows accumulation and distribution days as small dots above the dates, not on the VQI line", async () => {
+  it("shows accumulation and distribution days as small dots on one line above the dates, not on the VQI line", async () => {
     const n = fx.marketHealth.points.length;
     const points = fx.marketHealth.points.map((p, i) => ({
       ...p,
@@ -233,8 +233,8 @@ describe("dashboard page (market view)", () => {
     mockApi({ "market/health": { ...fx.marketHealth, points } });
     renderApp(<Dashboard />);
     const card = await screen.findByRole("region", { name: "Index price action" });
-    expect(card).toHaveTextContent("● accumulation day (upper row)");
-    expect(card).toHaveTextContent("● distribution day (lower row)");
+    expect(card).toHaveTextContent("● accumulation day");
+    expect(card).toHaveTextContent("● distribution day");
     const chart = await waitFor(() => {
       const c = liveCharts().find((x) => x.el.dataset.testid === "mini-index-price-chart");
       expect(c?.series.some((s) => s.options.priceScaleId === "band")).toBe(true);
@@ -242,9 +242,9 @@ describe("dashboard page (market view)", () => {
     });
     const band = chart.series.find((s) => s.options.priceScaleId === "band")!;
     expect(band.options.lineVisible).toBe(false); // only the dots show
-    // accumulation in the upper row, distribution in the lower: the row as well as the colour
+    // one line: a day is accumulation or distribution or neither, never both
     expect(band.data.map((d) => [d.time, d.value])).toEqual([
-      [points[n - 3]!.day, 1], [points[n - 2]!.day, -1], [points[n - 1]!.day, -1],
+      [points[n - 3]!.day, 0], [points[n - 2]!.day, 0], [points[n - 1]!.day, 0],
     ]); // fmt: skip
     expect(band.markers.map((m) => [m.shape, m.color])).toEqual([
       ["circle", "#26a69a"], ["circle", "#ef5350"], ["circle", "#ef5350"],
