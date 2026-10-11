@@ -246,3 +246,27 @@ def test_failed_sanity_check_is_stored_as_invalid(env: Any) -> None:
     assert store.conn.execute("SELECT data_status FROM fundamental_snapshots").fetchall() == [
         ("INVALID",)
     ]
+
+
+def test_bank_filing_with_undefined_period_contexts_uses_the_listing_period_end() -> None:
+    """Some 2022-23 bank filings (here AU Small Finance Bank, Dec 2022) put every fact in
+    contexts OneD / FourD without defining them. The listing's period end fills the gap: the
+    quarter ending there and the fiscal year to date from 1 April."""
+    data = load("aubank_q3fy23_undefined_contexts")
+    with pytest.raises(FilingParseError, match="OneD"):
+        parse_xbrl(data)
+    p = parse_xbrl(data, period_end=date(2022, 12, 31))
+    assert (p.period.start, p.period.end, p.period_type) == (
+        date(2022, 10, 1),
+        date(2022, 12, 31),
+        "QUARTER",
+    )
+    assert p.is_financial and p.period.items["revenue"] == 24129642000.0  # total income
+    assert p.period.items["eps"] == 5.90
+    assert p.ytd is not None and p.ytd.start == date(2022, 4, 1)
+    assert p.ytd.items["revenue"] == 66319603000.0
+
+
+def test_defined_contexts_ignore_the_listing_period_end() -> None:
+    p = parse_xbrl(load("reliance_q3fy25_con"), period_end=date(2025, 3, 31))
+    assert (p.period.start, p.period.end) == (date(2024, 10, 1), date(2024, 12, 31))

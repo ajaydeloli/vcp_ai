@@ -12,7 +12,13 @@ from collections.abc import Sequence
 from datetime import UTC, date, datetime, timedelta
 
 from vcp_scanner.data.storage.duckdb_store import DuckDBStore
-from vcp_scanner.fundamentals.base import STATUS_PARSE_ERROR, FilingRef, FilingRow, StoredFiling
+from vcp_scanner.fundamentals.base import (
+    STATUS_OK,
+    STATUS_PARSE_ERROR,
+    FilingRef,
+    FilingRow,
+    StoredFiling,
+)
 from vcp_scanner.fundamentals.metrics import FundamentalView, ShareAction, SnapshotData
 from vcp_scanner.fundamentals.snapshots import PROVIDER, Fact, SnapshotRow
 
@@ -115,6 +121,18 @@ class DuckDBFundamentalRepository:
             "UPDATE fundamental_filings SET status = ? WHERE filing_id = ?",
             [STATUS_PARSE_ERROR, filing_id],
         )
+
+    def retry_parse_errors(self) -> int:
+        """Mark filings that failed to parse as downloaded again, so the next parse retries
+        them (after a parser fix). Returns how many."""
+        row = self._conn.execute(
+            "SELECT count(*) FROM fundamental_filings WHERE status = ?", [STATUS_PARSE_ERROR]
+        ).fetchone()
+        self._conn.execute(
+            "UPDATE fundamental_filings SET status = ? WHERE status = ?",
+            [STATUS_OK, STATUS_PARSE_ERROR],
+        )
+        return int(row[0]) if row else 0
 
     def set_parsed_attributes(self, filing_id: str, period_type: str, basis: str) -> None:
         row = self.filing(filing_id)

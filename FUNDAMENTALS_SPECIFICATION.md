@@ -58,6 +58,8 @@ XBRL facts (old feed): RevenueFromOperations, ProfitLossForPeriod, ProfitOrLossA
 - (b) Other income is `OtherIncome`. Also confirmed: `RevenueFromOperations`, `FinanceCosts`, `ProfitBeforeTax`, `DepreciationDepletionAndAmortisationExpense`, `ProfitLossForPeriod`, `BasicEarningsLossPerShareFromContinuingAndDiscontinuedOperations`, `DebtEquityRatio`.
 - (c) **One parser is enough.** The integrated feed also links an XBRL file (`xbrl`, namespace `in-capmkt`, same tag names and `OneD`/`FourD` contexts). The inline-XBRL HTML (`ixbrl`) is not needed and not fetched.
 - (d) Balance-sheet tags (`Equity`, `EquityAttributableToOwnersOfParent`, `BorrowingsCurrent`, `BorrowingsNoncurrent`) appear only in half-yearly (Sep, Mar) and annual filings; the Jun and Dec quarterly filings have no balance sheet. ROE and debt/equity therefore update twice a year.
+- (e) **Undefined contexts (backfill 2026-10-11).** 108 bank filings of 2022-23 (old feed, `BANKING_*` files) put every fact in `OneD`/`FourD` but never define those contexts. The parser then takes the period from the listing: `OneD` is the quarter ending on the listed period end, `FourD` runs from 1 April of that fiscal year. Only used when the file itself has no definition (checked: AUBANK Mar-23 EPS 6.37).
+- (f) **Half-yearly results** (182-184 days, mostly SME companies; ~210 filings in the backfill) and the odd 15-month period are not read: only quarter and annual periods are supported. They stay `PARSE_ERROR`.
 - (e) **Banks** (feed flag `bank = B`, `Non-Ind-AS` format) use another tag set (`InterestEarned`, `Income`, `BasicEarningsPerShareAfterExtraordinaryItems`); the Ind-AS names are absent. Handled as §5.5 (version 1: total income, EPS as filed).
 - (f) **Date-range queries.** The old feed answers an all-equities range (647 rows for 1–10 Nov 2024). The integrated feed returns 20 rows by default but pages: `type=Integrated Filing- Financials` keeps only results, `size` up to 1000, `page` 1-based, `totalCount` in the answer (F4 probe, 2026-10-10: 2,976 result filings for 1–14 Aug 2026). So both the backfill and the daily update list all stocks by date range, month by month; a window that fails or returns fewer rows than `totalCount` is reported and listed again by the next run.
 - Old-feed filings before about 2013 have no XBRL file (the link ends in `/xbrl/-`); they are not listed.
@@ -200,7 +202,7 @@ Each step is a branch with the full checks, a CHANGELOG entry and a spec update,
 
 # 14. Risks
 
-- **NSE access:** the site rate-limits and changes endpoints. Mitigation: one request a second, raw cache, resumable, a warning rather than a failure.
+- **NSE access:** the site rate-limits and changes endpoints. Mitigation: one request every 2 seconds, raw cache, resumable, a warning rather than a failure. Every request also has a wall-clock limit (`total_timeout`, 180 s): on 2026-10-11 one archive download stalled for 20 minutes without the per-read timeout firing; such an attempt is now abandoned and retried.
 - **Parsing variety:** companies tag the same item differently; banks differ. Mitigation: known-answer tests on real samples, an `INVALID` status instead of a guess, a report of the parse-error rate.
 - **Gaps:** ROE and debt will be missing for many stocks (equity is filed half-yearly). They show "N/A" and the score drops them (SCORING §7), so coverage is reported, not hidden.
 - **History:** the old feed ends in Jan 2025 and the new one starts in Feb 2025; the join must not drop or double a quarter. Test: no gap or duplicate period per stock across the boundary.

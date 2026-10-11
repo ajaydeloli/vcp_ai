@@ -107,8 +107,22 @@ def _basis(text: str | None) -> str | None:
     return None
 
 
-def parse_xbrl(data: bytes) -> ParsedFiling:
-    """Parse a filing. Raises ``FilingParseError`` for anything unreadable or without a period."""
+def _months_back(end: date, months: int) -> date:
+    """First day of the period of ``months`` whole months ending on ``end`` (a month end)."""
+    month = end.month - months + 1
+    year = end.year
+    while month < 1:
+        month += 12
+        year -= 1
+    return date(year, month, 1)
+
+
+def parse_xbrl(data: bytes, *, period_end: date | None = None) -> ParsedFiling:
+    """Parse a filing. Raises ``FilingParseError`` for anything unreadable or without a period.
+
+    ``period_end`` (from the filing listing) is only used when the file references the
+    contexts ``OneD``/``FourD`` without defining them.
+    """
     if b"<!DOCTYPE" in data[:2000].upper() or b"<!ENTITY" in data[:5000].upper():
         raise FilingParseError("DTD or entity declarations are not accepted")
     try:
@@ -149,10 +163,21 @@ def parse_xbrl(data: bytes) -> ParsedFiling:
                     break
         return out
 
+    # Some 2022-23 bank filings use contexts OneD / FourD in their facts but never define
+    # them. With the period end from the filing listing, OneD is the quarter ending there
+    # and FourD runs from the start of the Indian fiscal year (1 April).
+    fallback: dict[str, tuple[date, date]] = {}
+    if period_end is not None:
+        q_start = _months_back(period_end, 3)
+        fy_start = date(period_end.year if period_end.month >= 4 else period_end.year - 1, 4, 1)
+        fallback = {"OneD": (q_start, period_end), "FourD": (fy_start, period_end)}
+
     def period_of(ctx: str) -> PeriodFacts | None:
         start = _date(text("DateOfStartOfReportingPeriod", ctx))
         end = _date(text("DateOfEndOfReportingPeriod", ctx))
         c_start, c_end = ctx_dates.get(ctx, (None, None))
+        if ctx not in ctx_dates and ctx in fallback and any(r == ctx for _, r in facts):
+            c_start, c_end = fallback[ctx]
         start, end = start or c_start, end or c_end
         if start is None or end is None or end < start:
             return None

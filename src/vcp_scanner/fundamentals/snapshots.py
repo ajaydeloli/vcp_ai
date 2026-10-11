@@ -171,7 +171,7 @@ def parse_filings(
             data = (cache_root / (row.cache_path or "")).read_bytes()
             if row.sha256 and sha256_hex(data) != row.sha256:
                 raise FilingParseError("cached file does not match its SHA-256")
-            parsed = parse_xbrl(data)
+            parsed = parse_xbrl(data, period_end=row.period_end)
             period_type = parsed.period_type
             if period_type is None:
                 raise FilingParseError(f"unsupported period length {parsed.period.days} days")

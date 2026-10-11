@@ -8,13 +8,15 @@ FUNDAMENTALS_SPECIFICATION §3. Two public feeds, same XBRL tag set:
   ``size`` up to 1000 and ``page`` (1-based), with ``totalCount`` in the answer (verified
   2026-10-10: 2,976 result filings for 1-14 Aug 2026 in three pages of 1,000).
 
-One request per second at most; HTTP 403/429 and timeouts are retried with a growing pause and a
+One request per second at most; HTTP 403/429 and timeouts (also a request that has not finished
+after ``total_timeout`` seconds) are retried with a growing pause and a
 fresh session cookie. Nothing is parsed here.
 """
 
 from __future__ import annotations
 
 import logging
+import threading
 import time
 from collections.abc import Callable
 from datetime import date, datetime
@@ -42,6 +44,10 @@ NEW_FEED_PAGE_SIZE = 1000
 NEW_FEED_MAX_PAGES = 50
 _FINANCIALS = "Integrated Filing- Financials"
 _BACKOFF_SECONDS = (5.0, 20.0, 60.0)
+
+
+class _NoAnswer(Exception):
+    """A request that did not finish within the provider's wall-clock limit."""
 
 
 def _dt(text: str | None) -> datetime | None:
@@ -138,10 +144,12 @@ class NseFilingProvider:
         session: requests.Session | None = None,
         sleep: Callable[[float], None] = time.sleep,
         timeout: float = 40.0,
+        total_timeout: float = 180.0,
     ) -> None:
         self._interval = interval_seconds
         self._sleep = sleep
         self._timeout = timeout
+        self._total_timeout = total_timeout
         self._last = 0.0
         self._session = session or requests.Session()
         self._session.headers.update(
@@ -160,6 +168,35 @@ class NseFilingProvider:
             logger.warning("NSE session cookie request failed: %s", exc)
         self._primed = True
 
+    def _call(self, url: str, params: dict[str, str] | None) -> requests.Response:
+        """One request with a wall-clock limit. ``timeout`` only bounds each wait for data, so a
+        connection that stalls without closing could otherwise hold a run for good (2026-10-11
+        a backfill sat 20 minutes on one archive download). The request runs in a helper
+        thread; when it does not finish in ``total_timeout`` seconds the attempt counts as a
+        timeout (retried like one), the session's pooled connections are dropped and the stuck
+        helper thread is left behind (a daemon; it ends with its socket or the process)."""
+        result: dict[str, Any] = {}
+
+        def run() -> None:
+            try:
+                result["response"] = self._session.get(url, params=params, timeout=self._timeout)
+            except BaseException as exc:  # handed to the calling thread
+                result["error"] = exc
+
+        worker = threading.Thread(target=run, name="nse-request", daemon=True)
+        worker.start()
+        worker.join(self._total_timeout)
+        if worker.is_alive():
+            close = getattr(self._session, "close", None)
+            if callable(close):
+                close()  # pooled connections are dropped; the next request opens a new one
+            self._primed = False
+            raise _NoAnswer(f"no complete answer within {self._total_timeout:.0f} s")
+        if "error" in result:
+            raise result["error"]
+        response: requests.Response = result["response"]
+        return response
+
     def _get(self, url: str, params: dict[str, str] | None = None) -> requests.Response:
         # Only the website's API needs the session cookie; the XBRL files come from the archive
         # host, so a download never touches www.nseindia.com (which rate-limits: 2026-10-10 it
@@ -174,8 +211,8 @@ class NseFilingProvider:
                 self._sleep(wait)
             self._last = time.monotonic()
             try:
-                response = self._session.get(url, params=params, timeout=self._timeout)
-            except requests.RequestException as exc:
+                response = self._call(url, params)
+            except (requests.RequestException, _NoAnswer) as exc:
                 last_error = f"{type(exc).__name__}: {exc}"
             else:
                 if response.status_code == 200:

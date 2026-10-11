@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Fundamentals backfill complete (2026-10-11): 22,954 filings since Oct 2023, 22,696 read, 1,360 stocks, 20,366 stored views. 51 files are missing on NSE's archive (404); 207 are half-yearly results (not supported). Fixes from the run: a request that does not finish within 180 s is abandoned and retried (a stalled download held the run 20 minutes); 108 bank filings of 2022-23 with undefined `OneD`/`FourD` contexts are read using the listed period end; `vcp fundamentals parse --retry-errors` re-reads failed filings after a parser fix and now also stores the views.
+
 - Sectors (S1): `vcp classify update` reads NSE's Nifty Total Market list into the new `instrument_classification` (validity dates, nothing overwritten); 679 of 1,272 eligible stocks classified on the first run. Runs on Fridays in `vcp run daily`. The stock page shows the sector; the Screener gains a Sector column and filter (`sector=`). Display only.
 
 - FRONTEND_SPECIFICATION §67.28 (plan): Market Overview update after F5 — NIFTY 50/500 next to VQI from NSE's daily index file on the archive host (probed: 168 indices), distribution-day markers, A/D and net-new-highs divergence warnings, net new highs with a 10-day average, setups/breakouts per day with the failure rate, sector strength after S1, a breadth thrust line. Docs only.

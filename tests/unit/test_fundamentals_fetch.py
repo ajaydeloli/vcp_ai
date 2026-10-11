@@ -259,3 +259,37 @@ def test_404_is_a_missing_file_not_retried() -> None:
     with pytest.raises(FileMissingError):
         provider.download("https://nsearchives.nseindia.com/corporate/xbrl/x.xml")
     assert len(session.calls) == 1
+
+
+def test_a_request_that_never_finishes_is_abandoned_and_retried() -> None:
+    """2026-10-11 a download sat 20 minutes on a stalled connection: the per-read timeout
+    never fired. A wall-clock limit abandons the attempt and the retry gets the file."""
+    import threading
+
+    release = threading.Event()
+
+    class StallingSession(FakeSession):
+        closed = 0
+
+        def get(self, url: str, params: dict[str, str] | None = None, timeout: float = 0) -> Any:
+            self.calls.append((url, params))
+            if len(self.calls) == 1:
+                release.wait(5)  # the first attempt hangs
+            return FakeResponse(content=b"<xbrl/>")
+
+        def close(self) -> None:
+            StallingSession.closed += 1
+
+    session = StallingSession({})
+    provider = NseFilingProvider(
+        session=session,  # type: ignore[arg-type]
+        sleep=lambda _s: None,
+        total_timeout=0.2,
+    )
+    try:
+        assert provider.download("https://nsearchives.nseindia.com/corporate/xbrl/a.xml") == (
+            b"<xbrl/>"
+        )
+    finally:
+        release.set()
+    assert len(session.calls) == 2 and StallingSession.closed == 1

@@ -31,6 +31,12 @@ def add_fundamentals_parser(subparsers: argparse._SubParsersAction) -> None:  # 
     s.add_argument("--interval", type=float, default=1.0, help="Seconds between requests")
     q = sub.add_parser("parse", help="Turn stored filings into quarterly values")
     q.add_argument("--db", default="data/vcp_scanner.duckdb")
+    q.add_argument("--config-dir", default="config")
+    q.add_argument(
+        "--retry-errors",
+        action="store_true",
+        help="Parse again the filings that failed before (after a parser fix)",
+    )
     for name, text in (
         ("backfill", "Fetch, parse and compute everything since history_from (resumable)"),
         ("update", "Fetch, parse and compute the filings of the last days (daily step)"),
@@ -111,19 +117,30 @@ def run_fundamentals(args: argparse.Namespace) -> int:
 
 
 def _run_parse(args: argparse.Namespace) -> int:
+    from vcp_scanner.config.loader import load_scanner_config
     from vcp_scanner.data.repositories.duckdb_fundamental_repository import (
         DuckDBFundamentalRepository,
     )
     from vcp_scanner.data.storage.duckdb_store import DuckDBStore
+    from vcp_scanner.fundamentals.pipeline import update_views
     from vcp_scanner.fundamentals.snapshots import parse_filings
 
+    config = load_scanner_config(args.config_dir)
     db = Path(args.db).resolve()
     store = DuckDBStore(db)
     store.migrate()
-    report = parse_filings(DuckDBFundamentalRepository(store), db.parent / "raw" / "fundamentals")
+    repo = DuckDBFundamentalRepository(store)
+    if getattr(args, "retry_errors", False):
+        print(f"Retrying {repo.retry_parse_errors()} filings that failed to parse before")
+    report = parse_filings(repo, db.parent / "raw" / "fundamentals")
+    views = update_views(
+        repo,
+        staleness_days=config.data.fundamentals.max_staleness_days,
+        min_availability=config.strategy.scoring.fundamentals_min_availability,
+    )
     print(
         f"Snapshots created {report.parsed}, estimated {report.estimated}, "
-        f"invalid {report.invalid}, parse errors {report.errors}"
+        f"invalid {report.invalid}, parse errors {report.errors}; views written {views}"
     )
     for message in report.messages[:20]:
         print(f"  {message}")
