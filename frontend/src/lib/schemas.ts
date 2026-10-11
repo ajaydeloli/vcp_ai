@@ -392,6 +392,8 @@ export const marketHealth = z.object({
       ad_ma50: num,
       net_highs: z.number(),
       net_highs_avg10: num,
+      nifty50: num,
+      nifty500: num,
     }),
   ),
   warnings: z.array(z.object({ id: z.string(), text: z.string() })),

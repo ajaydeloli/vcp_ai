@@ -5,6 +5,10 @@ import type { ReactNode } from "react";
 
 export const C = { ink: "#e6e9ef", up: "#26a69a", down: "#ef5350", warn: "#f5a524", violet: "#a78bfa", blue: "#5b9dff" };
 
+/** NIFTY 50 / 500 on the index chart: steps of the validated reference palette (blue, aqua) that
+ *  pass every colour check together on the dark card surface, including colour-blind vision. */
+export const NSE = { nifty50: "#3987e5", nifty500: "#1baf7a" };
+
 export function Legend({ items }: { items: [string, string][] }) {
   return (
     <p className="mt-1 flex flex-wrap gap-x-3 text-[11px] text-mute">

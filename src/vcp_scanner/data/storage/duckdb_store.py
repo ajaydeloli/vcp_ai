@@ -1171,6 +1171,29 @@ CREATE TABLE IF NOT EXISTS instrument_classification (
 )
 """
 
+# NSE's daily closing values of every index (Market Overview, FRONTEND_SPECIFICATION §67.28):
+# NIFTY 50 / 500 next to VQI and the sector indices. Display only. ``index_files`` records which
+# days were asked for (NOT_FOUND: no file that day), so a day is fetched once.
+_DDL_INDEX_DAILY = """
+CREATE TABLE IF NOT EXISTS index_daily (
+    index_name   VARCHAR NOT NULL,   -- as NSE writes it, e.g. 'Nifty 50'
+    trade_date   DATE NOT NULL,
+    open DOUBLE, high DOUBLE, low DOUBLE,
+    close        DOUBLE NOT NULL,
+    volume DOUBLE, turnover_cr DOUBLE, pe DOUBLE, pb DOUBLE, div_yield DOUBLE,
+    PRIMARY KEY (index_name, trade_date)
+)
+"""
+_DDL_INDEX_FILES = """
+CREATE TABLE IF NOT EXISTS index_files (
+    trade_date  DATE PRIMARY KEY,
+    status      VARCHAR NOT NULL,    -- OK | NOT_FOUND
+    sha256      VARCHAR,
+    rows        INTEGER NOT NULL,
+    fetched_at  TIMESTAMPTZ NOT NULL
+)
+"""
+
 _ALL_VIEWS: list[tuple[str, str]] = [
     ("setups", _VIEW_SETUPS),
     ("breakout_events", _VIEW_BREAKOUT_EVENTS),
@@ -1233,6 +1256,8 @@ _ALL_DDL: list[tuple[str, str]] = [
     ("fundamental_fetch_runs", _DDL_FUNDAMENTAL_FETCH_RUNS),
     ("fundamental_stock_history", _DDL_FUNDAMENTAL_STOCK_HISTORY),
     ("instrument_classification", _DDL_INSTRUMENT_CLASSIFICATION),
+    ("index_daily", _DDL_INDEX_DAILY),
+    ("index_files", _DDL_INDEX_FILES),
 ]
 
 

@@ -37,6 +37,7 @@ NET_HIGHS_AVG = 10  # sessions in the average of net new highs (the reading scor
 YEAR = 252  # sessions in 52 weeks
 NEAR_HIGH = 0.03  # the index within 3 % of its 52-week high
 DIVERGENCE_GAP = 0.25  # a line "clearly below" its 52-week high: by a quarter of its range
+NSE_LINES = {"nifty50": "Nifty 50", "nifty500": "Nifty 500"}  # index_daily names
 
 _DAILY_SQL = """
 WITH runs AS (
@@ -523,11 +524,40 @@ def _net_highs(rows: list[tuple[Any, ...]]) -> list[float]:
     return [float(int(r[9]) - int(r[10])) for r in rows]
 
 
-def _points(rows: list[tuple[Any, ...]], index: list[float]) -> list[m.HealthPoint]:
+def _nse_closes(cur: Cur, start: date, end: date) -> dict[str, dict[date, float]]:
+    """NIFTY 50 / 500 closes by day (empty before ``vcp indices update`` has run)."""
+    exists = cur.execute(
+        "SELECT count(*) FROM information_schema.tables WHERE table_name = 'index_daily'"
+    ).fetchone()
+    out: dict[str, dict[date, float]] = {k: {} for k in NSE_LINES}
+    if not exists or not exists[0]:
+        return out
+    names = {v.lower(): k for k, v in NSE_LINES.items()}
+    for name, d, close in cur.execute(
+        "SELECT index_name, trade_date, close FROM index_daily WHERE trade_date BETWEEN ? AND ?"
+        " AND lower(index_name) IN (SELECT unnest(?))",
+        [start, end, list(names)],
+    ).fetchall():
+        out[names[str(name).lower()]][d] = float(close)
+    return out
+
+
+def _rebased(closes: dict[date, float], days: list[date]) -> list[float | None]:
+    """The closes of ``days``, 100 at the first day that has one; None where a day has none."""
+    base = next((closes[d] for d in days if d in closes), None)
+    return [None if base is None or d not in closes else closes[d] / base * 100.0 for d in days]
+
+
+def _points(
+    rows: list[tuple[Any, ...]], index: list[float],
+    nse: dict[str, dict[date, float]] | None = None,
+) -> list[m.HealthPoint]:  # fmt: skip
     line = _ad_line(rows)
     net = _net_highs(rows)
     first = len(rows) - CHART_DAYS if len(rows) > CHART_DAYS else 0
     base = index[first] or 1.0
+    days = [r[0] for r in rows[first:]]
+    lines = {k: _rebased((nse or {}).get(k, {}), days) for k in NSE_LINES}
     out: list[m.HealthPoint] = []
     for i in range(first, len(rows)):
         r = rows[i]
@@ -545,6 +575,8 @@ def _points(rows: list[tuple[Any, ...]], index: list[float]) -> list[m.HealthPoi
                 ad_ma50=_sma(line, 50, i),
                 net_highs=int(r[9]) - int(r[10]),
                 net_highs_avg10=_sma(net, NET_HIGHS_AVG, i),
+                nifty50=lines["nifty50"][i - first],
+                nifty500=lines["nifty500"][i - first],
             )
         )
     return out
@@ -754,7 +786,8 @@ def market_health(cur: Cur, ctx: Context, end: date, data_time: datetime) -> m.M
     _shorts(groups, last)
     return m.MarketHealthResponse(
         as_of=sessions[-1], data_time=data_time, groups=groups,
-        points=_points(rows, index), trades=_trades(cur, ctx), verdict=_verdict(groups),
+        points=_points(rows, index, _nse_closes(cur, sessions[0], end)),
+        trades=_trades(cur, ctx), verdict=_verdict(groups),
         index_days=_index_days(index, mean_ret, volume), stages=_stage_history(cur, ctx, end),
         flow=_flow(cur, ctx, sessions), warnings=_warnings(rows, index),
         new_highs=_new_highs_today(cur, ctx, end),

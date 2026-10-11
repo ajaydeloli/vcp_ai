@@ -159,6 +159,9 @@ def run_daily(args: argparse.Namespace, cli_main: Callable[[list[str]], int]) ->
          "--config-dir", cfg, "--env-file", env],
     )  # fmt: skip
     step("adjusted prices", ["ingest", "adjusted-prices", "--db", db])
+    # NSE index closes (Market Overview, display only): a failed request is a warning inside
+    # the step and the day is fetched on the next run.
+    step("index closes", ["indices", "update", "--db", db])
     step("features", ["compute", "features", "--db", db])
 
     try:

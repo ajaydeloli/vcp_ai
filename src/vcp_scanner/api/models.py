@@ -176,6 +176,8 @@ class HealthPoint(BaseModel):
     ad_ma50: float | None
     net_highs: int  # new 52-week highs minus new lows
     net_highs_avg10: float | None  # its 10-session average
+    nifty50: float | None = None  # NSE's NIFTY 50, 100 at its first value in the chart
+    nifty500: float | None = None  # NIFTY 500, likewise; None: no index file stored that day
 
 
 class HealthStagePoint(BaseModel):

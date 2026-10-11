@@ -7,7 +7,7 @@ import type { MarketHealth as Health } from "@/lib/schemas";
 import { SetupCounts } from "./SetupCounts";
 import { MiniLineChart, type MiniSeries } from "./MiniLineChart";
 import { SetupFlowCard } from "./MarketFlow";
-import { BOX, C, Figure, Inner, Legend } from "./MarketParts";
+import { BOX, C, Figure, Inner, Legend, NSE } from "./MarketParts";
 import { Empty, ErrorBox, Loading } from "./ui";
 
 const DOT: Record<string, string> = {
@@ -285,9 +285,16 @@ function StageCard({ stages, box }: { stages: Health["stages"]; box: string }) {
 function Charts({ d, id }: { d: Health; id: string }) {
   const pts = d.points;
   const index = useMemo(
-    () => [series("VQI", C.ink, pts, (p) => p.index), series("50-day", C.warn, pts, (p) => p.ma50), series("200-day", C.down, pts, (p) => p.ma200)],
+    () => [
+      series("VQI", C.ink, pts, (p) => p.index),
+      series("50-day", C.warn, pts, (p) => p.ma50),
+      series("200-day", C.down, pts, (p) => p.ma200),
+      series("NIFTY 50", NSE.nifty50, pts, (p) => p.nifty50),
+      series("NIFTY 500", NSE.nifty500, pts, (p) => p.nifty500),
+    ],
     [pts],
   );
+  const hasNse = pts.some((p) => p.nifty50 !== null || p.nifty500 !== null);
   const highs = useMemo(
     () => [
       { ...series("Net new highs", C.blue, pts, (p) => p.net_highs), kind: "bar" as const },
@@ -301,7 +308,19 @@ function Charts({ d, id }: { d: Health; id: string }) {
     return (
       <>
         <MiniLineChart series={index} height={262} plain label="index-price-chart" />
-        <Legend items={[["VQI", C.ink], ["50-day", C.warn], ["200-day", C.down]]} />
+        <Legend
+          items={[
+            ["VQI", C.ink],
+            ["its 50-day", C.warn],
+            ["its 200-day", C.down],
+            ...(hasNse ? ([["NIFTY 50", NSE.nifty50], ["NIFTY 500", NSE.nifty500]] as [string, string][]) : []),
+          ]}
+        />
+        <p className="text-[11px] text-mute">
+          {hasNse
+            ? "All lines start at 100. NIFTY rising while VQI lags: a few large stocks carry the market."
+            : "NIFTY lines appear once the index closes are fetched (vcp indices update)."}
+        </p>
       </>
     );
   if (id === "leadership")

@@ -113,6 +113,10 @@ describe("dashboard page (market view)", () => {
     expect(within(card).queryByText("Details")).not.toBeInTheDocument();
     expect(within(card).queryByTitle("score out of 100")).not.toBeInTheDocument();
     expect(within(card).getByTestId("mini-index-price-chart")).toBeInTheDocument();
+    // NIFTY 50 and NIFTY 500 next to VQI, all starting at 100
+    expect(card).toHaveTextContent("NIFTY 50");
+    expect(card).toHaveTextContent("NIFTY 500");
+    expect(card).toHaveTextContent("All lines start at 100.");
   });
 
   it("the market stage card charts the four stages and shows today's share of each", async () => {

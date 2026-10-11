@@ -113,3 +113,35 @@ def test_divergence_warnings_need_the_index_near_its_high() -> None:
     assert health._warnings(rows, far) == []
     healthy = [row(30, 10, 20, 0) for _ in range(n)]  # breadth confirms the high
     assert health._warnings(healthy, near) == []
+
+
+# --- step 3: NIFTY lines -----------------------------------------------------------------------
+
+
+def test_rebased_is_100_at_the_first_day_with_a_close() -> None:
+    d = SESSIONS
+    closes = {d[1]: 200.0, d[2]: 210.0, d[4]: 190.0}
+    assert health._rebased(closes, d[:5]) == [None, 100.0, 105.0, None, 95.0]
+    assert health._rebased({}, d[:3]) == [None, None, None]
+
+
+def test_nse_closes_reads_nifty_50_and_500_by_name(db: Any) -> None:
+    store, _ctx = db
+    c = store.conn
+    for name, close in (("Nifty 50", 22520.45), ("NIFTY 500", 21866.65), ("Nifty IT", 1.0)):
+        c.execute(
+            "INSERT INTO index_daily (index_name, trade_date, close) VALUES (?, ?, ?)",
+            [name, SESSIONS[0], close],
+        )
+    got = health._nse_closes(c, SESSIONS[0], SESSIONS[-1])
+    assert got == {"nifty50": {SESSIONS[0]: 22520.45}, "nifty500": {SESSIONS[0]: 21866.65}}
+
+
+def test_market_health_points_carry_rebased_nifty_lines(ro_env: Any) -> None:
+    pts = ro_env.client.get("/api/v1/market/health").json()["points"]
+    with_nifty = [p for p in pts if p["nifty50"] is not None]
+    assert with_nifty and with_nifty[0]["nifty50"] == 100.0 and with_nifty[0]["nifty500"] == 100.0
+    assert len(with_nifty) == 30  # only the stored days; earlier points have none
+    last = with_nifty[-1]
+    assert last["nifty50"] == pytest.approx((20000 + 290) / 20000 * 100)
+    assert last["day"] == pts[-1]["day"]

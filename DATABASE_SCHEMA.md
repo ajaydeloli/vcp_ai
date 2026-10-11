@@ -3011,3 +3011,8 @@ This makes the system:
 - resilient to strategy changes.
 
 The database is therefore not merely a place to save scanner results. It is the **historical research foundation of the entire Minervini AI system**.
+
+
+# 85. Index Closes (Market Overview, 2026-10-11)
+
+`index_daily (index_name, trade_date, open, high, low, close, volume, turnover_cr, pe, pb, div_yield)`, primary key `(index_name, trade_date)`: NSE's daily closing values of every index as NSE names them ("Nifty 50", "Nifty 500", sector indices). `index_files (trade_date PK, status OK | NOT_FOUND, sha256, rows, fetched_at)`: each day asked for, so a day is fetched once. Filled by `vcp indices update`; display only (FRONTEND_SPECIFICATION §67.31).
