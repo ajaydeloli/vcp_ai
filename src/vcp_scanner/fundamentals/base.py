@@ -11,6 +11,8 @@ from dataclasses import dataclass, field
 from datetime import date, datetime
 from typing import Protocol
 
+from vcp_scanner.domain.errors import ProviderError
+
 FEED_OLD = "NSE_FINANCIAL_RESULTS"  # api/corporates-financial-results (filings to Jan 2025)
 FEED_INTEGRATED = "NSE_INTEGRATED_FILING"  # api/integrated-filing-results (from Feb 2025)
 
@@ -18,6 +20,13 @@ STATUS_OK = "OK"
 STATUS_FETCH_ERROR = "FETCH_ERROR"
 STATUS_PARSE_ERROR = "PARSE_ERROR"
 STATUS_NOT_APPLICABLE = "NOT_APPLICABLE"
+
+
+class FileMissingError(ProviderError):
+    """The source answered that the file does not exist (HTTP 404): permanent, not a refusal.
+
+    NSE lists some filings whose XBRL file is gone (e.g. bank filings of 2023,
+    ``.../BANKING_91272_..._06052023101423.xml``), so 404s come in runs for one stock."""
 
 
 @dataclass(frozen=True)

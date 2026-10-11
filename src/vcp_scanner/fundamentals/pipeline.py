@@ -20,6 +20,7 @@ from vcp_scanner.domain.errors import ProviderError
 from vcp_scanner.fundamentals.base import (
     STATUS_FETCH_ERROR,
     STATUS_OK,
+    FileMissingError,
     FilingManifest,
     FilingRef,
     FundamentalProvider,
@@ -183,6 +184,9 @@ def download_missing(
                 _write_atomic(path, provider.download(ref.url))
                 fetched += 1
                 streak = 0
+            except FileMissingError as exc:  # permanent: recorded, does not count as a refusal
+                out.append(Downloaded(ref, iid, None, None, str(exc)))
+                continue
             except (ProviderError, OSError) as exc:
                 out.append(Downloaded(ref, iid, None, None, str(exc)))
                 streak += 1

@@ -28,6 +28,7 @@ from vcp_scanner.domain.errors import ProviderError
 from vcp_scanner.fundamentals.base import (
     FEED_INTEGRATED,
     FEED_OLD,
+    FileMissingError,
     FilingListing,
     FilingRef,
 )
@@ -180,6 +181,8 @@ class NseFilingProvider:
                 if response.status_code == 200:
                     return response
                 last_error = f"HTTP {response.status_code}"
+                if response.status_code == 404:  # the file does not exist: not a refusal
+                    raise FileMissingError(f"NSE request failed (HTTP 404): {url}")
                 if response.status_code not in (403, 429, 500, 502, 503, 504):
                     break
             if attempt < len(_BACKOFF_SECONDS):

@@ -250,3 +250,12 @@ def test_archive_downloads_do_not_touch_the_website() -> None:
     )
     assert provider.download("https://nsearchives.nseindia.com/corporate/xbrl/x.xml") == b"<a/>"
     assert all("www.nseindia.com" not in url for url, _ in session.calls)
+
+
+def test_404_is_a_missing_file_not_retried() -> None:
+    from vcp_scanner.fundamentals.base import FileMissingError
+
+    provider, session = _provider({"x.xml": [FakeResponse(404)]})
+    with pytest.raises(FileMissingError):
+        provider.download("https://nsearchives.nseindia.com/corporate/xbrl/x.xml")
+    assert len(session.calls) == 1

@@ -274,3 +274,19 @@ def test_history_listing_stops_when_the_source_refuses() -> None:
     provider.fail_symbols = {f"S{i}" for i in range(10)}
     listing = list_histories(provider, [f"S{i}" for i in range(10)])
     assert len(listing.incomplete) == 4 and "3 failures in a row" in listing.incomplete[-1]
+
+
+def test_missing_files_do_not_stop_the_downloads(tmp_path: Path) -> None:
+    from vcp_scanner.fundamentals.base import FileMissingError
+
+    refs = [old_ref(str(i), "31-Dec-2024", "Quarterly", "Consolidated", "16-Jan-2025 20:15:20")
+            for i in range(30)]  # fmt: skip
+
+    class Gone(Provider):
+        def download(self, url: str) -> bytes:
+            self.downloads.append(url)
+            raise FileMissingError("HTTP 404")
+
+    provider = Gone(refs, {})
+    out = download_missing(provider, [(r, "I") for r in refs], tmp_path, stop_after_failures=5)
+    assert len(provider.downloads) == 30 and len(out) == 30  # all tried, no stop
