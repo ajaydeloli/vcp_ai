@@ -134,6 +134,20 @@ def build_main_db(db: Path, ctx: Context) -> None:
             put(c, "scan_runs", scan_run_id=f"tt-{d}", scan_type="TREND_TEMPLATE", as_of_date=d,
                 scan_id=f"tt-{d}", data_snapshot_id="LIVE", universe_snapshot_id="U1",
                 scan_config_hash=ctx.scan_hash, status="COMPLETED", completed_at=T0)  # fmt: skip
+        # Sector classification (S1): ALPHA and BETA classified, GAMMA not yet.
+        put(c, "instrument_classification", instrument_id=iid("ALPHA"),
+            macro_sector="Industrials", sector="Capital Goods", industry="Electrical Equipment",
+            basic_industry="Heavy Electrical Equipment", classification_source="NSE_QUOTE",
+            valid_from=AS_OF, fetched_at=T0)  # fmt: skip
+        put(
+            c,
+            "instrument_classification",
+            instrument_id=iid("BETA"),
+            sector="Healthcare",
+            classification_source="NSE_INDEX_LIST",
+            valid_from=AS_OF,
+            fetched_at=T0,
+        )
         for sym, rank in (("ALPHA", 91), ("BETA", 85), ("GAMMA", 78)):
             put(c, "trend_template_results", scan_id=f"tt-{AS_OF}", instrument_id=iid(sym),
                 as_of_date=AS_OF, status="PASS", trend_template_pass=True,

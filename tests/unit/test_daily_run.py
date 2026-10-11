@@ -5,11 +5,15 @@ from __future__ import annotations
 import argparse
 from datetime import UTC, date, datetime
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 from vcp_scanner.daily import run_daily, sessions_to_scan
 from vcp_scanner.data.storage.duckdb_store import DuckDBStore
 
 T0 = datetime(2026, 9, 25, 13, tzinfo=UTC)
+
+
+IST = ZoneInfo("Asia/Kolkata")
 
 
 def _db(tmp_path: Path, ok_days: list[date], scanned: date | None) -> str:
@@ -73,8 +77,10 @@ def test_run_daily_chains_the_steps_from_the_last_settled_day(tmp_path: Path) ->
         "compute vcp",
         "compute scores",
     ] + [n for _ in paper for n in ("compute setups", "compute scores")]
-    assert names[5:] == per_date + ["compute labels"] * 5 + ["paper update",
-                                                        "fundamentals update"]  # fmt: skip
+    # sector lists are read on Fridays only (the run's own date decides)
+    friday = ["classify update"] if datetime.now(IST).date().weekday() == 4 else []
+    assert names[5:] == (per_date + ["compute labels"] * 5
+                         + ["paper update", "fundamentals update"] + friday)  # fmt: skip
     assert all("2026-09-25" in a for a in calls[5 : 5 + len(per_date)])
     # Monitoring phase (spec 21.2): every enabled strategy after VCP, labels per strategy.
     strategy_args = [a[a.index("--strategy") + 1] for a in calls if "--strategy" in a]

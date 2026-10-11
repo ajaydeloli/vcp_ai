@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useLiveQuotes, useScreener, useStrategies } from "@/lib/api";
 import { DASH, fmtInt, fmtNum, fmtPct, fmtPrice, strategyLabel, tone } from "@/lib/fmt";
 import { pageNumbers } from "@/lib/lists";
-import { DEFAULT_QUERY, STAGES, type ScreenerQuery } from "@/lib/screener";
+import { DEFAULT_QUERY, SECTORS, STAGES, type ScreenerQuery } from "@/lib/screener";
 import type { LiveQuote, ScreenerRow } from "@/lib/schemas";
 import { LiveCell, LiveNotice } from "./Live";
 import { Nav } from "./Nav";
@@ -68,6 +68,13 @@ export const COLS: Col[] = [
           {r.outside_reason ?? "No"}
         </span>
       ),
+  },
+  {
+    key: "sector",
+    align: "left",
+    w: 170,
+    label: "Sector",
+    render: (r) => (r.sector ? <span className="block truncate" title={r.sector}>{r.sector}</span> : DASH),
   },
   { key: "stage", label: "Stage", render: (r) => (r.stage ? stageLabel(r.stage) : DASH) },
   {
@@ -151,6 +158,7 @@ function Filters({
     q.minGrade !== undefined ||
     q.status !== undefined ||
     q.minStrategies !== undefined ||
+    q.sector !== undefined ||
     q.strategy !== DEFAULT_QUERY.strategy ||
     !q.universeOnly ||
     !q.eqOnly;
@@ -285,6 +293,18 @@ function Filters({
             Reset filters
           </button>
         </div>
+        {open ? (
+          <Field id="scr-sector" label="Sector" className="col-span-2">
+            <select id="scr-sector" value={q.sector ?? ""} onChange={(e) => onChange({ sector: e.target.value || undefined })} className={FIELD}>
+              <option value="">Any</option>
+              {SECTORS.map((s) => (
+                <option key={s} value={s}>
+                  {s}
+                </option>
+              ))}
+            </select>
+          </Field>
+        ) : null}
         {open ? (
           <fieldset className="col-span-full">
             <legend className="mb-1 block text-[11px] uppercase text-mute">Weekly stage</legend>

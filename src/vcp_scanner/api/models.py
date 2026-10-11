@@ -244,7 +244,8 @@ class ScreenerRow(BaseModel):
     pivot_distance_pct: float | None
     eligible: bool | None
     in_universe: bool = True
-    outside_reason: str | None = None  # why a stock outside the universe is outside (if recorded)
+    outside_reason: str | None = None  # why a stock outside the universe is outside
+    sector: str | None = None  # NSE sector (S1); None: not classified yet
 
 
 class ScreenerResponse(Stamped):
@@ -329,6 +330,8 @@ class StockSetup(BaseModel):
 class StockSetupsResponse(Stamped):
     symbol: str
     company: str | None
+    sector: str | None = None
+    industry: str | None = None
     close: float | None
     weekly_stage: str | None
     weekly_stage2_pass: bool | None

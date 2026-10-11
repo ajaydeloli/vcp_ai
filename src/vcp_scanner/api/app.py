@@ -193,6 +193,7 @@ def create_app(
         status: Annotated[str | None, Query(max_length=40)] = None,
         classification: Annotated[str | None, Query(max_length=40)] = None,
         min_strategies: Annotated[int | None, Query(ge=2, le=10)] = None,
+        sector: Annotated[str | None, Query(max_length=60)] = None,
         sort: Annotated[str, Query(pattern="^(" + "|".join(q.SCREENER_SORTS) + ")$")] = "rs_rank",
         direction: Annotated[str, Query(pattern="^(asc|desc)$")] = "desc",
         page: Annotated[int, Query(ge=1, le=1000)] = 1,
@@ -204,7 +205,7 @@ def create_app(
             stages=stage or [], tt_pass=tt_pass, near_high=near_high, min_rs=min_rs,
             min_conditions=min_conditions, has_setup=has_setup, min_grade=min_grade,
             status=status, classification=classification, min_strategies=min_strategies,
-            universe_only=universe_only, eq_only=eq_only,
+            universe_only=universe_only, eq_only=eq_only, sector=sector,
             sort=sort, descending=direction == "desc", page=page,
             page_size=page_size,
         )  # fmt: skip

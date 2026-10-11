@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Sectors (S1): `vcp classify update` reads NSE's Nifty Total Market list into the new `instrument_classification` (validity dates, nothing overwritten); 679 of 1,272 eligible stocks classified on the first run. Runs on Fridays in `vcp run daily`. The stock page shows the sector; the Screener gains a Sector column and filter (`sector=`). Display only.
+
 - FRONTEND_SPECIFICATION §67.28 (plan): Market Overview update after F5 — NIFTY 50/500 next to VQI from NSE's daily index file on the archive host (probed: 168 indices), distribution-day markers, A/D and net-new-highs divergence warnings, net new highs with a 10-day average, setups/breakouts per day with the failure rate, sector strength after S1, a breadth thrust line. Docs only.
 
 - DATA_SPECIFICATION §48.1 (plan): sector and industry classification from NSE (index constituent lists on the archive host, 679 of 1,272 eligible stocks, then per-stock classification after the rate limit lifts), table `instrument_classification` with validity dates, display only. Step S1, before the Fundamentals page. Docs only.

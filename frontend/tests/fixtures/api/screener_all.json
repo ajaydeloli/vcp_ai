@@ -32,7 +32,8 @@
    "pivot_distance_pct": 1.2,
    "eligible": true,
    "in_universe": true,
-   "outside_reason": null
+   "outside_reason": null,
+   "sector": "Capital Goods"
   },
   {
    "instrument_id": "NSE_EQ|BETA",
@@ -55,7 +56,8 @@
    "pivot_distance_pct": 1.2,
    "eligible": true,
    "in_universe": true,
-   "outside_reason": null
+   "outside_reason": null,
+   "sector": "Healthcare"
   },
   {
    "instrument_id": "NSE_EQ|GAMMA",
@@ -78,7 +80,8 @@
    "pivot_distance_pct": null,
    "eligible": false,
    "in_universe": true,
-   "outside_reason": null
+   "outside_reason": null,
+   "sector": null
   },
   {
    "instrument_id": "NSE_EQ|F00",
@@ -101,7 +104,8 @@
    "pivot_distance_pct": null,
    "eligible": null,
    "in_universe": true,
-   "outside_reason": null
+   "outside_reason": null,
+   "sector": null
   },
   {
    "instrument_id": "NSE_EQ|F01",
@@ -124,7 +128,8 @@
    "pivot_distance_pct": null,
    "eligible": null,
    "in_universe": false,
-   "outside_reason": null
+   "outside_reason": null,
+   "sector": null
   },
   {
    "instrument_id": "NSE_EQ|F02",
@@ -147,7 +152,8 @@
    "pivot_distance_pct": null,
    "eligible": null,
    "in_universe": false,
-   "outside_reason": null
+   "outside_reason": null,
+   "sector": null
   },
   {
    "instrument_id": "NSE_EQ|F03",
@@ -170,7 +176,8 @@
    "pivot_distance_pct": null,
    "eligible": null,
    "in_universe": false,
-   "outside_reason": null
+   "outside_reason": null,
+   "sector": null
   },
   {
    "instrument_id": "NSE_EQ|F04",
@@ -193,7 +200,8 @@
    "pivot_distance_pct": null,
    "eligible": null,
    "in_universe": false,
-   "outside_reason": null
+   "outside_reason": null,
+   "sector": null
   },
   {
    "instrument_id": "NSE_EQ|F05",
@@ -216,7 +224,8 @@
    "pivot_distance_pct": null,
    "eligible": null,
    "in_universe": false,
-   "outside_reason": null
+   "outside_reason": null,
+   "sector": null
   },
   {
    "instrument_id": "NSE_EQ|F06",
@@ -239,7 +248,8 @@
    "pivot_distance_pct": null,
    "eligible": null,
    "in_universe": false,
-   "outside_reason": null
+   "outside_reason": null,
+   "sector": null
   },
   {
    "instrument_id": "NSE_EQ|F07",
@@ -262,7 +272,8 @@
    "pivot_distance_pct": null,
    "eligible": null,
    "in_universe": false,
-   "outside_reason": null
+   "outside_reason": null,
+   "sector": null
   },
   {
    "instrument_id": "NSE_EQ|F08",
@@ -285,7 +296,8 @@
    "pivot_distance_pct": null,
    "eligible": null,
    "in_universe": false,
-   "outside_reason": null
+   "outside_reason": null,
+   "sector": null
   },
   {
    "instrument_id": "NSE_EQ|F09",
@@ -308,7 +320,8 @@
    "pivot_distance_pct": null,
    "eligible": null,
    "in_universe": false,
-   "outside_reason": null
+   "outside_reason": null,
+   "sector": null
   },
   {
    "instrument_id": "NSE_EQ|F10",
@@ -331,7 +344,8 @@
    "pivot_distance_pct": null,
    "eligible": null,
    "in_universe": false,
-   "outside_reason": null
+   "outside_reason": null,
+   "sector": null
   },
   {
    "instrument_id": "NSE_EQ|F11",
@@ -354,7 +368,8 @@
    "pivot_distance_pct": null,
    "eligible": null,
    "in_universe": false,
-   "outside_reason": null
+   "outside_reason": null,
+   "sector": null
   },
   {
    "instrument_id": "NSE_EQ|F12",
@@ -377,7 +392,8 @@
    "pivot_distance_pct": null,
    "eligible": null,
    "in_universe": false,
-   "outside_reason": null
+   "outside_reason": null,
+   "sector": null
   },
   {
    "instrument_id": "NSE_EQ|F13",
@@ -400,7 +416,8 @@
    "pivot_distance_pct": null,
    "eligible": null,
    "in_universe": false,
-   "outside_reason": null
+   "outside_reason": null,
+   "sector": null
   },
   {
    "instrument_id": "NSE_EQ|F14",
@@ -423,7 +440,8 @@
    "pivot_distance_pct": null,
    "eligible": null,
    "in_universe": false,
-   "outside_reason": null
+   "outside_reason": null,
+   "sector": null
   },
   {
    "instrument_id": "NSE_EQ|F15",
@@ -446,7 +464,8 @@
    "pivot_distance_pct": null,
    "eligible": null,
    "in_universe": false,
-   "outside_reason": null
+   "outside_reason": null,
+   "sector": null
   },
   {
    "instrument_id": "NSE_EQ|F16",
@@ -469,7 +488,8 @@
    "pivot_distance_pct": null,
    "eligible": null,
    "in_universe": false,
-   "outside_reason": null
+   "outside_reason": null,
+   "sector": null
   },
   {
    "instrument_id": "NSE_EQ|F17",
@@ -492,7 +512,8 @@
    "pivot_distance_pct": null,
    "eligible": null,
    "in_universe": false,
-   "outside_reason": null
+   "outside_reason": null,
+   "sector": null
   },
   {
    "instrument_id": "NSE_EQ|F18",
@@ -515,7 +536,8 @@
    "pivot_distance_pct": null,
    "eligible": null,
    "in_universe": false,
-   "outside_reason": null
+   "outside_reason": null,
+   "sector": null
   },
   {
    "instrument_id": "NSE_EQ|F19",
@@ -538,7 +560,8 @@
    "pivot_distance_pct": null,
    "eligible": null,
    "in_universe": false,
-   "outside_reason": null
+   "outside_reason": null,
+   "sector": null
   },
   {
    "instrument_id": "NSE_EQ|F20",
@@ -561,7 +584,8 @@
    "pivot_distance_pct": null,
    "eligible": null,
    "in_universe": false,
-   "outside_reason": null
+   "outside_reason": null,
+   "sector": null
   },
   {
    "instrument_id": "NSE_EQ|F21",
@@ -584,7 +608,8 @@
    "pivot_distance_pct": null,
    "eligible": null,
    "in_universe": false,
-   "outside_reason": null
+   "outside_reason": null,
+   "sector": null
   },
   {
    "instrument_id": "NSE_EQ|F22",
@@ -607,7 +632,8 @@
    "pivot_distance_pct": null,
    "eligible": null,
    "in_universe": false,
-   "outside_reason": null
+   "outside_reason": null,
+   "sector": null
   },
   {
    "instrument_id": "NSE_EQ|F23",
@@ -630,7 +656,8 @@
    "pivot_distance_pct": null,
    "eligible": null,
    "in_universe": false,
-   "outside_reason": null
+   "outside_reason": null,
+   "sector": null
   },
   {
    "instrument_id": "NSE_EQ|F24",
@@ -653,7 +680,8 @@
    "pivot_distance_pct": null,
    "eligible": null,
    "in_universe": false,
-   "outside_reason": null
+   "outside_reason": null,
+   "sector": null
   },
   {
    "instrument_id": "NSE_EQ|F25",
@@ -676,7 +704,8 @@
    "pivot_distance_pct": null,
    "eligible": null,
    "in_universe": false,
-   "outside_reason": null
+   "outside_reason": null,
+   "sector": null
   },
   {
    "instrument_id": "NSE_EQ|F26",
@@ -699,7 +728,8 @@
    "pivot_distance_pct": null,
    "eligible": null,
    "in_universe": false,
-   "outside_reason": null
+   "outside_reason": null,
+   "sector": null
   },
   {
    "instrument_id": "NSE_EQ|F27",
@@ -722,7 +752,8 @@
    "pivot_distance_pct": null,
    "eligible": null,
    "in_universe": false,
-   "outside_reason": null
+   "outside_reason": null,
+   "sector": null
   },
   {
    "instrument_id": "NSE_EQ|F28",
@@ -745,7 +776,8 @@
    "pivot_distance_pct": null,
    "eligible": null,
    "in_universe": false,
-   "outside_reason": null
+   "outside_reason": null,
+   "sector": null
   },
   {
    "instrument_id": "NSE_EQ|F29",
@@ -768,7 +800,8 @@
    "pivot_distance_pct": null,
    "eligible": null,
    "in_universe": false,
-   "outside_reason": null
+   "outside_reason": null,
+   "sector": null
   },
   {
    "instrument_id": "NSE_EQ|F30",
@@ -791,7 +824,8 @@
    "pivot_distance_pct": null,
    "eligible": null,
    "in_universe": false,
-   "outside_reason": null
+   "outside_reason": null,
+   "sector": null
   },
   {
    "instrument_id": "NSE_EQ|F31",
@@ -814,7 +848,8 @@
    "pivot_distance_pct": null,
    "eligible": null,
    "in_universe": false,
-   "outside_reason": null
+   "outside_reason": null,
+   "sector": null
   },
   {
    "instrument_id": "NSE_EQ|F32",
@@ -837,7 +872,8 @@
    "pivot_distance_pct": null,
    "eligible": null,
    "in_universe": false,
-   "outside_reason": null
+   "outside_reason": null,
+   "sector": null
   },
   {
    "instrument_id": "NSE_EQ|F33",
@@ -860,7 +896,8 @@
    "pivot_distance_pct": null,
    "eligible": null,
    "in_universe": false,
-   "outside_reason": null
+   "outside_reason": null,
+   "sector": null
   },
   {
    "instrument_id": "NSE_EQ|F34",
@@ -883,7 +920,8 @@
    "pivot_distance_pct": null,
    "eligible": null,
    "in_universe": false,
-   "outside_reason": null
+   "outside_reason": null,
+   "sector": null
   },
   {
    "instrument_id": "NSE_EQ|F35",
@@ -906,7 +944,8 @@
    "pivot_distance_pct": null,
    "eligible": null,
    "in_universe": false,
-   "outside_reason": null
+   "outside_reason": null,
+   "sector": null
   },
   {
    "instrument_id": "NSE_EQ|F36",
@@ -929,7 +968,8 @@
    "pivot_distance_pct": null,
    "eligible": null,
    "in_universe": false,
-   "outside_reason": null
+   "outside_reason": null,
+   "sector": null
   },
   {
    "instrument_id": "NSE_EQ|F37",
@@ -952,7 +992,8 @@
    "pivot_distance_pct": null,
    "eligible": null,
    "in_universe": false,
-   "outside_reason": null
+   "outside_reason": null,
+   "sector": null
   },
   {
    "instrument_id": "NSE_EQ|F38",
@@ -975,7 +1016,8 @@
    "pivot_distance_pct": null,
    "eligible": null,
    "in_universe": false,
-   "outside_reason": null
+   "outside_reason": null,
+   "sector": null
   },
   {
    "instrument_id": "NSE_EQ|F39",
@@ -998,7 +1040,8 @@
    "pivot_distance_pct": null,
    "eligible": null,
    "in_universe": false,
-   "outside_reason": null
+   "outside_reason": null,
+   "sector": null
   },
   {
    "instrument_id": "NSE_EQ|F40",
@@ -1021,7 +1064,8 @@
    "pivot_distance_pct": null,
    "eligible": null,
    "in_universe": false,
-   "outside_reason": null
+   "outside_reason": null,
+   "sector": null
   },
   {
    "instrument_id": "NSE_EQ|F41",
@@ -1044,7 +1088,8 @@
    "pivot_distance_pct": null,
    "eligible": null,
    "in_universe": false,
-   "outside_reason": null
+   "outside_reason": null,
+   "sector": null
   },
   {
    "instrument_id": "NSE_EQ|F42",
@@ -1067,7 +1112,8 @@
    "pivot_distance_pct": null,
    "eligible": null,
    "in_universe": false,
-   "outside_reason": null
+   "outside_reason": null,
+   "sector": null
   },
   {
    "instrument_id": "NSE_EQ|F43",
@@ -1090,7 +1136,8 @@
    "pivot_distance_pct": null,
    "eligible": null,
    "in_universe": false,
-   "outside_reason": null
+   "outside_reason": null,
+   "sector": null
   },
   {
    "instrument_id": "NSE_EQ|F44",
@@ -1113,7 +1160,8 @@
    "pivot_distance_pct": null,
    "eligible": null,
    "in_universe": false,
-   "outside_reason": null
+   "outside_reason": null,
+   "sector": null
   },
   {
    "instrument_id": "NSE_EQ|F45",
@@ -1136,7 +1184,8 @@
    "pivot_distance_pct": null,
    "eligible": null,
    "in_universe": false,
-   "outside_reason": null
+   "outside_reason": null,
+   "sector": null
   },
   {
    "instrument_id": "NSE_EQ|F46",
@@ -1159,7 +1208,8 @@
    "pivot_distance_pct": null,
    "eligible": null,
    "in_universe": false,
-   "outside_reason": null
+   "outside_reason": null,
+   "sector": null
   },
   {
    "instrument_id": "NSE_EQ|F47",
@@ -1182,7 +1232,8 @@
    "pivot_distance_pct": null,
    "eligible": null,
    "in_universe": false,
-   "outside_reason": null
+   "outside_reason": null,
+   "sector": null
   },
   {
    "instrument_id": "NSE_EQ|F48",
@@ -1205,7 +1256,8 @@
    "pivot_distance_pct": null,
    "eligible": null,
    "in_universe": false,
-   "outside_reason": null
+   "outside_reason": null,
+   "sector": null
   },
   {
    "instrument_id": "NSE_EQ|F49",
@@ -1228,7 +1280,8 @@
    "pivot_distance_pct": null,
    "eligible": null,
    "in_universe": false,
-   "outside_reason": null
+   "outside_reason": null,
+   "sector": null
   },
   {
    "instrument_id": "NSE_EQ|F50",
@@ -1251,7 +1304,8 @@
    "pivot_distance_pct": null,
    "eligible": null,
    "in_universe": false,
-   "outside_reason": null
+   "outside_reason": null,
+   "sector": null
   },
   {
    "instrument_id": "NSE_EQ|F51",
@@ -1274,7 +1328,8 @@
    "pivot_distance_pct": null,
    "eligible": null,
    "in_universe": false,
-   "outside_reason": null
+   "outside_reason": null,
+   "sector": null
   },
   {
    "instrument_id": "NSE_EQ|F52",
@@ -1297,7 +1352,8 @@
    "pivot_distance_pct": null,
    "eligible": null,
    "in_universe": false,
-   "outside_reason": null
+   "outside_reason": null,
+   "sector": null
   },
   {
    "instrument_id": "NSE_EQ|F53",
@@ -1320,7 +1376,8 @@
    "pivot_distance_pct": null,
    "eligible": null,
    "in_universe": false,
-   "outside_reason": null
+   "outside_reason": null,
+   "sector": null
   },
   {
    "instrument_id": "NSE_EQ|F54",
@@ -1343,7 +1400,8 @@
    "pivot_distance_pct": null,
    "eligible": null,
    "in_universe": false,
-   "outside_reason": null
+   "outside_reason": null,
+   "sector": null
   },
   {
    "instrument_id": "NSE_EQ|F55",
@@ -1366,7 +1424,8 @@
    "pivot_distance_pct": null,
    "eligible": null,
    "in_universe": false,
-   "outside_reason": null
+   "outside_reason": null,
+   "sector": null
   },
   {
    "instrument_id": "NSE_EQ|F56",
@@ -1389,7 +1448,8 @@
    "pivot_distance_pct": null,
    "eligible": null,
    "in_universe": false,
-   "outside_reason": null
+   "outside_reason": null,
+   "sector": null
   },
   {
    "instrument_id": "NSE_EQ|F57",
@@ -1412,7 +1472,8 @@
    "pivot_distance_pct": null,
    "eligible": null,
    "in_universe": false,
-   "outside_reason": null
+   "outside_reason": null,
+   "sector": null
   },
   {
    "instrument_id": "NSE_EQ|F58",
@@ -1435,7 +1496,8 @@
    "pivot_distance_pct": null,
    "eligible": null,
    "in_universe": false,
-   "outside_reason": null
+   "outside_reason": null,
+   "sector": null
   },
   {
    "instrument_id": "NSE_EQ|F59",
@@ -1458,7 +1520,8 @@
    "pivot_distance_pct": null,
    "eligible": null,
    "in_universe": false,
-   "outside_reason": null
+   "outside_reason": null,
+   "sector": null
   },
   {
    "instrument_id": "NSE_EQ|NEWCO",
@@ -1481,7 +1544,8 @@
    "pivot_distance_pct": null,
    "eligible": null,
    "in_universe": false,
-   "outside_reason": null
+   "outside_reason": null,
+   "sector": null
   }
  ]
 }

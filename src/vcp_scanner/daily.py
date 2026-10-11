@@ -195,6 +195,10 @@ def run_daily(args: argparse.Namespace, cli_main: Callable[[list[str]], int]) ->
     # NSE is a warning inside the step (exit 0); only a real error fails it.
     if fundamentals_daily(cfg):
         step("fundamentals", ["fundamentals", "update", "--db", db, "--config-dir", cfg])
+    # Sector lists (S1): NSE publishes only today's lists; weekly is enough. A read failure is
+    # a warning inside the step.
+    if today.weekday() == 4:
+        step("sector classification", ["classify", "update", "--db", db])
 
     if getattr(args, "serving_copy", False):
         target = Path(getattr(args, "serving_path", None) or default_serving_path(db))

@@ -113,6 +113,7 @@ describe("stock panel", () => {
     expect(screen.getByText("Score").nextElementSibling).toHaveTextContent("91");
     expect(screen.getByText("Pivot").nextElementSibling).toHaveTextContent("120.00");
     expect(screen.getByText("A+ VCP")).toBeInTheDocument();
+    expect(screen.getByTitle("NSE classification")).toHaveTextContent("Capital Goods · Heavy Electrical Equipment");
     for (const name of ["VCP", "Flat base", "Cup & handle"]) {
       expect(screen.getByRole("button", { name })).toBeInTheDocument();
     }

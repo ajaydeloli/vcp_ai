@@ -2369,3 +2369,7 @@ Left out on purpose: McClellan oscillator, TRIN and similar oscillators (noise f
 
 Order of work: (1) setups/breakouts with failure rate, (2) net new highs with its average and both divergence warnings, (3) NIFTY lines from the index file, (4) distribution-day markers, (5) sector strength after S1, (6) breadth thrust. Each step: API change with contract tests, the chart, the health item's rule in STRATEGY_SPECIFICATION §21.10 updated, CHANGELOG.
 
+### 67.29 Sector on the stock page and the Screener (S1)
+
+The stock page shows the NSE sector under the company name, with the basic industry when it is known ("Capital Goods · Heavy Electrical Equipment"); nothing when the stock is not classified yet. The Screener has a Sector column (not sortable) and, under "More", a Sector filter with NSE's sectors (`sector=` query parameter, exact match).
+

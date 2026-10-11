@@ -32,7 +32,8 @@
    "pivot_distance_pct": 1.2,
    "eligible": true,
    "in_universe": true,
-   "outside_reason": null
+   "outside_reason": null,
+   "sector": "Capital Goods"
   },
   {
    "instrument_id": "NSE_EQ|BETA",
@@ -55,7 +56,8 @@
    "pivot_distance_pct": 1.2,
    "eligible": true,
    "in_universe": true,
-   "outside_reason": null
+   "outside_reason": null,
+   "sector": "Healthcare"
   },
   {
    "instrument_id": "NSE_EQ|GAMMA",
@@ -78,7 +80,8 @@
    "pivot_distance_pct": null,
    "eligible": false,
    "in_universe": true,
-   "outside_reason": null
+   "outside_reason": null,
+   "sector": null
   },
   {
    "instrument_id": "NSE_EQ|F00",
@@ -101,7 +104,8 @@
    "pivot_distance_pct": null,
    "eligible": null,
    "in_universe": true,
-   "outside_reason": null
+   "outside_reason": null,
+   "sector": null
   }
  ]
 }

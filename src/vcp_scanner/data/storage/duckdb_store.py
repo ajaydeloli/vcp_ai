@@ -1156,6 +1156,21 @@ CREATE TABLE IF NOT EXISTS fundamental_research_scores (
 """
 
 
+# Sector and industry per stock with validity dates (DATA_SPECIFICATION §48.1, step S1).
+_DDL_INSTRUMENT_CLASSIFICATION = """
+CREATE TABLE IF NOT EXISTS instrument_classification (
+    instrument_id          VARCHAR NOT NULL,
+    macro_sector           VARCHAR,
+    sector                 VARCHAR NOT NULL,
+    industry               VARCHAR,
+    basic_industry         VARCHAR,
+    classification_source  VARCHAR NOT NULL,   -- NSE_INDEX_LIST | NSE_QUOTE
+    valid_from             DATE NOT NULL,      -- first fetch that saw it (NSE has no history)
+    valid_to               DATE,               -- NULL: current
+    fetched_at             TIMESTAMPTZ NOT NULL
+)
+"""
+
 _ALL_VIEWS: list[tuple[str, str]] = [
     ("setups", _VIEW_SETUPS),
     ("breakout_events", _VIEW_BREAKOUT_EVENTS),
@@ -1217,6 +1232,7 @@ _ALL_DDL: list[tuple[str, str]] = [
     ("fundamental_research_scores", _DDL_FUNDAMENTAL_RESEARCH_SCORES),
     ("fundamental_fetch_runs", _DDL_FUNDAMENTAL_FETCH_RUNS),
     ("fundamental_stock_history", _DDL_FUNDAMENTAL_STOCK_HISTORY),
+    ("instrument_classification", _DDL_INSTRUMENT_CLASSIFICATION),
 ]
 
 

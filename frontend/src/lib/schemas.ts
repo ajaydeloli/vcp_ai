@@ -185,6 +185,8 @@ export const stockSetups = z.object({
   ...stamp,
   symbol: z.string(),
   company: z.string().nullable(),
+  sector: z.string().nullable().optional(),
+  industry: z.string().nullable().optional(),
   close: num,
   weekly_stage: z.string().nullable(),
   weekly_stage2_pass: z.boolean().nullable(),
@@ -347,6 +349,7 @@ export const screenerRow = z.object({
   eligible: z.boolean().nullable(),
   in_universe: z.boolean(),
   outside_reason: z.string().nullable(),
+  sector: z.string().nullable().optional(),
 });
 
 export const screener = z.object({

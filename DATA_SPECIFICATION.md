@@ -1561,6 +1561,8 @@ Display and research only, like fundamentals (FUNDAMENTALS_SPECIFICATION §2): n
 
 **Refresh.** Weekly in the daily run (Fridays), guarded like the fundamentals step: a failure is a warning.
 
+**Status (S1, 2026-10-11).** Built: `instrument_classification`, `vcp classify update` (reads the Nifty Total Market list; matches by ISIN, then symbol), a Friday step in `vcp run daily`, the sector on the stock page (with the industry when known) and a Sector column and filter on the Screener (`GET /api/v1/screener?sector=`). First run: 755 listed, 747 matched, **679 of the 1,272 eligible stocks** classified. Open: the per-stock source. `api/quote-equity` answered 403 on 2026-10-11 while the website and the results API worked, so it is tried again after the results backfill, slowly; until then the other 593 stocks show no sector.
+
 **Display.** Sector and industry on the Stock Analysis page and as Screener columns and filter; sector of each name in the new-highs and breakout lists; sector strength (median RS, share above the 50-day average, breakouts per sector) on Market Overview; "breakouts this week by sector" in the weekly report.
 
 ---

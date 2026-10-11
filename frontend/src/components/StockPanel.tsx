@@ -91,6 +91,12 @@ function StockView({
               <span className="text-2xl font-semibold text-ink">{selection.symbol}</span>
               <WatchStar symbol={selection.symbol} />
               {company ? <span className="text-sm text-mute">{company}</span> : null}
+              {stock.data?.sector ? (
+                <span className="text-xs text-mute" title="NSE classification">
+                  {stock.data.sector}
+                  {stock.data.industry ? ` · ${stock.data.industry}` : ""}
+                </span>
+              ) : null}
               {onStockPage ? null : (
                 <a href={`/stocks/${encodeURIComponent(selection.symbol)}`} className="text-xs text-accent hover:underline">
                   Full analysis →

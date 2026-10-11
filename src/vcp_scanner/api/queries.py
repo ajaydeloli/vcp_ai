@@ -48,6 +48,25 @@ def ledger_through(cur: Cur, rule_set: str, spec: StrategySpec) -> date | None:
     return row[0] if row else None
 
 
+def classification(cur: Cur, ids: list[str]) -> dict[str, tuple[str, str | None]]:
+    """instrument_id -> (sector, industry), current rows; empty before the table exists."""
+    if not ids:
+        return {}
+    exists = cur.execute(
+        "SELECT count(*) FROM information_schema.tables"
+        " WHERE table_name = 'instrument_classification'"
+    ).fetchone()
+    if not exists or not exists[0]:
+        return {}
+    rows = cur.execute(
+        "SELECT instrument_id, sector, coalesce(basic_industry, industry)"
+        " FROM instrument_classification WHERE valid_to IS NULL"
+        " AND instrument_id IN (SELECT unnest(?))",
+        [ids],
+    ).fetchall()
+    return {str(r[0]): (str(r[1]), r[2]) for r in rows}
+
+
 def resolve_symbol(cur: Cur, symbol: str) -> tuple[str, str, str | None] | None:
     """(instrument id, symbol, company) of a symbol or instrument id, active listing first."""
     row = cur.execute(
@@ -333,9 +352,13 @@ def screener(
             f.classification is None
             or (x.classification or "").upper() == f.classification.upper(),
             several is None or x.instrument_id in several,
+            not getattr(f, "sector", None) or (x.sector or "").upper() == f.sector.upper(),
         )
         return all(checks)
 
+    sectors = classification(cur, [x.instrument_id for x in rows])
+    for x in rows:
+        x.sector = sectors.get(x.instrument_id, (None, None))[0]
     kept = [x for x in rows if keep(x)]
     key = f.sort
     present = [x for x in kept if getattr(x, key) is not None]
@@ -555,8 +578,10 @@ def stock_setups(
             )
         )  # fmt: skip
     today = chart.get(day)
+    sector, industry = classification(cur, [instrument_id]).get(instrument_id, (None, None))
     return m.StockSetupsResponse(
         as_of=day, data_time=data_time, symbol=symbol, company=company,
+        sector=sector, industry=industry,
         close=None if today is None else today.close,
         weekly_stage=None if tt is None else tt[0],
         weekly_stage2_pass=None if tt is None or tt[1] is None else bool(tt[1]),

@@ -595,6 +595,9 @@ def build_parser() -> argparse.ArgumentParser:
     from vcp_scanner.cli_fundamentals import add_fundamentals_parser
 
     add_fundamentals_parser(subparsers)
+    from vcp_scanner.cli_classify import add_classify_parser
+
+    add_classify_parser(subparsers)
     from vcp_scanner.cli_api import add_api_parser
 
     add_api_parser(subparsers)
@@ -1059,6 +1062,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         from vcp_scanner.cli_paper import run_paper
 
         return run_paper(args)
+    if args.command == "classify":
+        from vcp_scanner.cli_classify import run_classify
+
+        return run_classify(args)
     if args.command == "fundamentals":
         from vcp_scanner.cli_fundamentals import run_fundamentals
 

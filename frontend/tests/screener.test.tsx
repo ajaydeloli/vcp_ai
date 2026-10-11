@@ -86,6 +86,13 @@ describe("screener page", () => {
     expect(reset).toBeDisabled();
   });
 
+  it("shows each stock's sector", async () => {
+    mockApi();
+    renderApp(<Screener />);
+    expect(await screen.findByTitle("Capital Goods")).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: "Sector" })).toBeInTheDocument();
+  });
+
   it("builds the query string from the filters", () => {
     const q = { ...DEFAULT_QUERY, q: "alp", ttPass: true };
     expect(paths.screener(q)).toBe("screener?strategy=vcp&q=alp&tt_pass=true&sort=rs_rank&direction=desc&page=1&page_size=15");
@@ -93,5 +100,6 @@ describe("screener page", () => {
       "screener?strategy=vcp&universe_only=false&eq_only=false&sort=rs_rank&direction=desc&page=1&page_size=15",
     );
     expect(paths.screener(DEFAULT_QUERY)).toBe("screener?strategy=vcp&sort=rs_rank&direction=desc&page=1&page_size=15");
+    expect(paths.screener({ ...DEFAULT_QUERY, sector: "Capital Goods" })).toContain("sector=Capital%20Goods");
   });
 });

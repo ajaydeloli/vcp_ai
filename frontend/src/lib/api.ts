@@ -78,7 +78,7 @@ export const paths = {
         strategy: f.strategy, q: f.q, symbols: f.symbols?.join(","), tt_pass: f.ttPass, near_high: f.nearHigh, min_rs: f.minRs,
         min_conditions: f.minConditions, universe_only: f.universeOnly ? undefined : false, eq_only: f.eqOnly ? undefined : false, has_setup: f.hasSetup || undefined,
         min_grade: f.minGrade, status: f.status, classification: f.classification,
-        min_strategies: f.minStrategies, sort: f.sort, direction: f.direction,
+        min_strategies: f.minStrategies, sector: f.sector, sort: f.sort, direction: f.direction,
         page: f.page, page_size: f.pageSize,
       })}${stages}`;
   },
