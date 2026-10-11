@@ -256,6 +256,7 @@ describe("paper panel", () => {
     renderApp(<PaperPanel />);
     expect(await screen.findByText(/Rule set paper-v1/)).toBeInTheDocument();
     expect(screen.getByText(/Review from 1 Apr 2027/)).toBeInTheDocument();
+    expect(screen.getByText(/No real money/)).toBeInTheDocument(); // the honest label travels with the panel
     const results = screen.getAllByRole("table")[0]!;
     const vcp = within(results).getByRole("cell", { name: "VCP" }).closest("tr")!;
     expect(vcp).toHaveTextContent("1 / 30");

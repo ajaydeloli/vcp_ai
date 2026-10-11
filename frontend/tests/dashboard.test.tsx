@@ -19,7 +19,7 @@ describe("dashboard page (market view)", () => {
     expect(await within(breadthCard).findByText("OFF")).toBeInTheDocument(); // the regime
     expect(within(breadthCard).getByText("31.7%")).toBeInTheDocument();
     expect(screen.queryByText("Market overview")).not.toBeInTheDocument();
-    expect(await screen.findByText("Paper trading")).toBeInTheDocument();
+    expect(screen.queryByText("Paper trading")).not.toBeInTheDocument(); // its own page, /paper
     await waitFor(() => expect(liveCharts().length).toBeGreaterThanOrEqual(4)); // the four market health charts
 
     // moved to other pages
@@ -30,7 +30,7 @@ describe("dashboard page (market view)", () => {
     // honest labels
     expect(screen.getByText("Research tool, not financial advice")).toBeInTheDocument();
     expect(screen.getAllByText(/not NIFTY/).length).toBeGreaterThanOrEqual(1); // the index tile
-    expect(screen.getByText(/No real money/)).toBeInTheDocument();
+    // "No real money" is on the Paper Trading page with the paper panel (tests/components.test.tsx)
 
     // navigation
     const nav = screen.getByRole("navigation", { name: "Main" });
@@ -137,15 +137,15 @@ describe("dashboard page (market view)", () => {
     expect(await screen.findByText(/Joined the universe: was out before for price ₹19.8, below the ₹20 minimum/)).toBeInTheDocument();
   });
 
-  it("paper trading and recent activity have their own colours and all eight cards are one size", async () => {
+  it("recent activity has its own colour, the full width and the cards' height; no paper trading panel", async () => {
     mockApi();
     renderApp(<Dashboard />);
-    const paper = (await screen.findByText("Paper trading")).closest("section") as HTMLElement;
     const act = (await screen.findByText("Recent activity")).closest("section") as HTMLElement;
-    expect(paper.className).toMatch(/border-\[#fb923c\]/);
     expect(act.className).toMatch(/border-\[#a3e635\]/);
-    for (const card of [paper, act, await screen.findByRole("region", { name: "Setups today" })])
+    expect(act.parentElement?.className ?? "").not.toMatch(/grid-cols-2/); // alone in its row
+    for (const card of [act, await screen.findByRole("region", { name: "Setups today" })])
       expect(card.className).toMatch(/lg:h-\[23rem\]/);
+    expect(screen.queryByText("Paper trading")).not.toBeInTheDocument();
   });
 
   it("market health states a verdict with a 0 to 100 score", async () => {
@@ -177,7 +177,7 @@ describe("dashboard page (market view)", () => {
     for (const t of ["Regime", "Above 50-day average", "Above 200-day average", "Net advancers"])
       expect(bf.getByText(t)).toBeInTheDocument();
     expect(screen.getByTestId("mini-trades-chart")).toBeInTheDocument();
-    // the progress toward the review is the Paper trading panel's Closed column, not repeated here
+    // the progress toward the review is on the Paper Trading page, not repeated here
     expect(screen.queryByTestId("mini-paper-progress")).toBeNull();
     expect(await screen.findByTestId("mini-open-positions")).toHaveTextContent("BETA");
   });
