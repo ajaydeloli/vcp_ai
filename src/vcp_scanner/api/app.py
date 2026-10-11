@@ -12,7 +12,7 @@ from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse
 
-from vcp_scanner.api import backtests, health, ipos, report_files, reports
+from vcp_scanner.api import backtests, fundamentals, health, ipos, report_files, reports
 from vcp_scanner.api import models as m
 from vcp_scanner.api import queries as q
 from vcp_scanner.api.context import Context, StrategySpec, build_context
@@ -194,6 +194,8 @@ def create_app(
         classification: Annotated[str | None, Query(max_length=40)] = None,
         min_strategies: Annotated[int | None, Query(ge=2, le=10)] = None,
         sector: Annotated[str | None, Query(max_length=60)] = None,
+        min_eps_yoy: Annotated[float | None, Query(ge=-1000, le=100000)] = None,
+        min_sales_yoy: Annotated[float | None, Query(ge=-1000, le=100000)] = None,
         sort: Annotated[str, Query(pattern="^(" + "|".join(q.SCREENER_SORTS) + ")$")] = "rs_rank",
         direction: Annotated[str, Query(pattern="^(asc|desc)$")] = "desc",
         page: Annotated[int, Query(ge=1, le=1000)] = 1,
@@ -206,8 +208,8 @@ def create_app(
             min_conditions=min_conditions, has_setup=has_setup, min_grade=min_grade,
             status=status, classification=classification, min_strategies=min_strategies,
             universe_only=universe_only, eq_only=eq_only, sector=sector,
-            sort=sort, descending=direction == "desc", page=page,
-            page_size=page_size,
+            min_eps_yoy=min_eps_yoy, min_sales_yoy=min_sales_yoy, sort=sort,
+            descending=direction == "desc", page=page, page_size=page_size,
         )  # fmt: skip
         with db.cursor() as cur:
             day = on or q.screener_day(cur, ctx)
@@ -217,6 +219,38 @@ def create_app(
                     total=0, page=page, page_size=page_size, stage_counts={}, rows=[],
                 )  # fmt: skip
             return q.screener(cur, ctx, spec, day, f, db.data_time())
+
+    @app.get(f"{api}/fundamentals", response_model=m.FundamentalsResponse)
+    def fundamentals_table(
+        on: DateParam = None,
+        q_: Annotated[str | None, Query(alias="q", max_length=40)] = None,
+        sector: Annotated[str | None, Query(max_length=60)] = None,
+        min_eps_yoy: Annotated[float | None, Query(ge=-1000, le=100000)] = None,
+        min_sales_yoy: Annotated[float | None, Query(ge=-1000, le=100000)] = None,
+        min_availability: Annotated[float | None, Query(ge=0, le=1)] = None,
+        accelerating: bool = False, current_only: bool = False,
+        sort: Annotated[
+            str, Query(pattern="^(" + "|".join(fundamentals.FUNDAMENTALS_SORTS) + ")$")
+        ] = "eps_yoy",
+        direction: Annotated[str, Query(pattern="^(asc|desc)$")] = "desc",
+        page: Annotated[int, Query(ge=1, le=1000)] = 1,
+        page_size: Annotated[int, Query(ge=1, le=100)] = 50,
+    ) -> m.FundamentalsResponse:  # fmt: skip
+        """Fundamentals of the scan universe (display only, FUNDAMENTALS_SPECIFICATION §2)."""
+        f = SimpleNamespace(
+            q=q_, sector=sector, min_eps_yoy=min_eps_yoy, min_sales_yoy=min_sales_yoy,
+            min_availability=min_availability, accelerating=accelerating,
+            current_only=current_only, sort=sort, descending=direction == "desc", page=page,
+            page_size=page_size,
+        )  # fmt: skip
+        with db.cursor() as cur:
+            day = on or q.screener_day(cur, ctx)
+            if day is None:
+                return m.FundamentalsResponse(
+                    as_of=None, data_time=db.data_time(), universe=0, covered=0, total=0,
+                    page=page, page_size=page_size, rows=[],
+                )  # fmt: skip
+            return fundamentals.fundamentals_list(cur, ctx, day, f, db.data_time())
 
     @app.get(f"{api}/search", response_model=m.SearchResponse)
     def search(
@@ -252,6 +286,15 @@ def create_app(
                     trend_template_pass=None, conditions=[], setups=[],
                 )  # fmt: skip
             return q.stock_setups(cur, ctx, iid, sym, company, day, db.data_time())
+
+    @app.get(f"{api}/stocks/{{symbol}}/fundamentals", response_model=m.StockFundamentalsResponse)
+    def stock_fundamentals(symbol: str, on: DateParam = None) -> m.StockFundamentalsResponse:
+        """The stock's fundamental view and its last quarters as known at the close of ``date``
+        (default: the latest price day). Display only."""
+        with db.cursor() as cur:
+            iid, sym, company = stock_or_404(cur, symbol)
+            day = on or q.latest_prices_date(cur) or clock().date()
+            return fundamentals.stock_fundamentals(cur, iid, sym, company, day, db.data_time())
 
     @app.get(f"{api}/stocks/{{symbol}}/history", response_model=m.ActivityResponse)
     def stock_history(

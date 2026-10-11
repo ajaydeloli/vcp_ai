@@ -187,12 +187,28 @@ describe("setup overview", () => {
     expect(card).toHaveTextContent("Stage 2");
   });
 
-  it("says fundamentals are not available instead of showing numbers", async () => {
+  it("shows the latest quarter's fundamentals; a missing metric is a dash with its reason, never 0", async () => {
     mockApi();
     overview();
     const card = (await screen.findByText("Fundamentals")).closest("section")!;
-    expect(card).toHaveTextContent("Not available");
-    expect(card).toHaveTextContent("ROE—");
+    await waitFor(() => expect(card).toHaveTextContent("Jun 26 quarter · consolidated · published 20 Jul 2026"));
+    expect(card).toHaveTextContent("● Current");
+    expect(card).toHaveTextContent("EPS (quarter / TTM)3.00 / 10.50");
+    expect(card).toHaveTextContent("EPS growth YoY+50.0%");
+    expect(card).toHaveTextContent("Sales growth YoY+25.0%");
+    expect(card).toHaveTextContent("Debt / Equity0.25");
+    expect(card).toHaveTextContent("ROE (TTM)2.6%"); // a level: no sign, no up/down colour
+    // no Mar-25 quarter: EPS growth a quarter ago is unknown, so acceleration is missing
+    expect(card).toHaveTextContent("EPS acceleration—");
+    expect(within(card).getByLabelText("Not available: Not enough quarters filed yet")).toBeInTheDocument();
+    expect(card).toHaveTextContent("Data: 6 of 7 metrics");
+  });
+
+  it("a stock without results says so instead of showing numbers", async () => {
+    mockApi();
+    renderApp(<SetupOverview selection={{ symbol: "GAMMA", strategy: "vcp" }} />);
+    const card = (await screen.findByText("Fundamentals")).closest("section")!;
+    await waitFor(() => expect(card).toHaveTextContent("No results filed yet"));
     expect(card).not.toHaveTextContent("0.0");
   });
 

@@ -34,6 +34,10 @@ PNL_TAGS: dict[str, tuple[str, ...]] = {
         "BasicEarningsPerShareBeforeExtraordinaryItems",
     ),
 }
+#: Profit attributable to minority (non-controlling) interests: owners + this = profit.
+MINORITY_TAG = "ProfitOrLossAttributableToNonControllingInterests"
+#: Rounding slack when checking owners + minority = profit (Rs 1 crore), plus 1 % of profit.
+OWNERS_TOLERANCE_RUPEES = 1e7
 #: Total income, the revenue of a financial company (no ``RevenueFromOperations``).
 TOTAL_INCOME_TAG = "Income"
 #: Balance-sheet items (context ``OneI``).
@@ -108,6 +112,24 @@ def _basis(text: str | None) -> str | None:
     return None
 
 
+def _reconcile_owners(items: dict[str, float], minority: float | None) -> None:
+    """Profit attributable to owners + to minority interests must equal the period's profit.
+
+    When the filing has all three and they do not add up, or owners is left at 0 while the
+    profit is not, owners is taken as profit - minority (backfill 2026-10-11: CGPOWER's
+    Sep-25 half year files owners Rs 44.62 cr against profit 551.31 and minority 0.33; about
+    a fifth of consolidated filings leave owners at 0). Owners well below profit with a
+    matching minority share (GRASIM, GMRAIRPORT) is real and kept.
+    """
+    owners, profit = items.get("profit_owners"), items.get("net_profit")
+    if minority is None or profit is None:
+        return
+    expected = profit - minority
+    tolerance = 0.01 * abs(profit) + OWNERS_TOLERANCE_RUPEES
+    if owners is None or (owners == 0 and profit != 0) or abs(owners - expected) > tolerance:
+        items["profit_owners"] = expected
+
+
 def _months_back(end: date, months: int) -> date:
     """First day of the period of ``months`` whole months ending on ``end`` (a month end)."""
     month = end.month - months + 1
@@ -162,6 +184,7 @@ def parse_xbrl(data: bytes, *, period_end: date | None = None) -> ParsedFiling:
                 if value is not None:
                     out[item] = value
                     break
+        _reconcile_owners(out, _number(text(MINORITY_TAG, ctx)))
         return out
 
     # Some 2022-23 bank filings use contexts OneD / FourD in their facts but never define

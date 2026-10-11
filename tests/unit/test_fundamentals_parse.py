@@ -17,7 +17,7 @@ from vcp_scanner.data.storage.duckdb_store import DuckDBStore
 from vcp_scanner.fundamentals.base import FilingListing, FilingRef
 from vcp_scanner.fundamentals.fetch import fetch_filings
 from vcp_scanner.fundamentals.snapshots import parse_filings
-from vcp_scanner.fundamentals.xbrl import FilingParseError, parse_xbrl
+from vcp_scanner.fundamentals.xbrl import FilingParseError, _reconcile_owners, parse_xbrl
 
 FIX = Path(__file__).resolve().parents[1] / "fixtures" / "fundamentals"
 NOW = datetime(2026, 10, 10, tzinfo=UTC)
@@ -316,3 +316,37 @@ def test_half_year_period_is_read_as_a_quarter_without_values() -> None:
         {},
     )
     assert p.period_type == "QUARTER" and p.ytd is not None and p.ytd.days == 183
+
+
+def test_owners_profit_that_does_not_add_up_is_rebuilt_from_profit_and_minority() -> None:
+    """CGPOWER's Sep-25 half year files owners Rs 44.62 cr against profit 551.31 cr and a
+    minority share of 0.33 cr; owners + minority must equal profit, so owners is 550.98."""
+    p = parse_xbrl(load("cgpower_h1fy26_owners_mismatch"), period_end=date(2025, 9, 30))
+    assert p.ytd is not None
+    assert p.ytd.items["net_profit"] == pytest.approx(551.31e7, rel=1e-4)
+    assert p.ytd.items["profit_owners"] == pytest.approx(550.98e7, rel=1e-4)
+
+
+@pytest.mark.parametrize(
+    ("owners", "profit", "minority", "expected"),
+    [
+        (44.62e7, 551.31e7, 0.33e7, 550.98e7),  # does not add up: rebuilt
+        (0.0, 96.14e7, 0.0, 96.14e7),  # left at 0: rebuilt
+        (4966.5e7, 10300.3e7, 5333.8e7, 4966.5e7),  # large minority, adds up: kept (GRASIM)
+        (99.5e7, 100e7, 0.0, 99.5e7),  # within rounding: kept
+        (0.0, 0.0, 0.0, 0.0),  # a zero profit: kept
+        (None, 50e7, 2e7, 48e7),  # owners not filed but profit and minority are
+    ],
+)
+def test_reconcile_owners(
+    owners: float | None, profit: float, minority: float, expected: float
+) -> None:
+    items = {"net_profit": profit} | ({} if owners is None else {"profit_owners": owners})
+    _reconcile_owners(items, minority)
+    assert items["profit_owners"] == pytest.approx(expected)
+
+
+def test_without_a_minority_figure_owners_is_kept_as_filed() -> None:
+    items = {"net_profit": 100e7, "profit_owners": 10e7}
+    _reconcile_owners(items, None)  # standalone filings have no minority line
+    assert items["profit_owners"] == 10e7

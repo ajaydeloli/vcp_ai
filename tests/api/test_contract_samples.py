@@ -39,6 +39,9 @@ CASES = {
     "screener_all": "screener?universe_only=false&page_size=100",
     "backtests": "backtests",
     "reports": "reports",
+    "stock_fundamentals": "stocks/ALPHA/fundamentals",
+    "stock_fundamentals_none": "stocks/GAMMA/fundamentals",
+    "fundamentals": "fundamentals",
 }
 
 

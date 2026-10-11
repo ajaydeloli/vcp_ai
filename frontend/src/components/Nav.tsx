@@ -5,7 +5,6 @@ import { TopBar } from "./TopBar";
 
 const LATER = [
   "Trend Template",
-  "Fundamentals",
   "Alerts",
   "Research & Notes",
   "Settings",
@@ -14,6 +13,7 @@ const LATER = [
 const PAGES = [
   ["Market Overview", "/dashboard"],
   ["Screener", "/screener"],
+  ["Fundamentals", "/fundamentals"],
   ["Stock Analysis", "/stocks"],
   ["Recent IPOs", "/ipos"],
   ["Watchlist", "/watchlist"],

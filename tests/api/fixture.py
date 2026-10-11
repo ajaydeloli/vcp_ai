@@ -14,9 +14,14 @@ from pathlib import Path
 from typing import Any
 
 from vcp_scanner.api.context import Context, build_context
+from vcp_scanner.data.repositories.duckdb_fundamental_repository import (
+    DuckDBFundamentalRepository,
+)
 from vcp_scanner.data.repositories.duckdb_paper_repository import DuckDBPaperRepository
 from vcp_scanner.data.storage.duckdb_store import DuckDBStore
 from vcp_scanner.domain.features import FEATURES_CALCULATION_VERSION
+from vcp_scanner.fundamentals.pipeline import update_views
+from vcp_scanner.fundamentals.snapshots import Fact, SnapshotRow
 from vcp_scanner.paper.ledger import RULE_SET, PaperEvent
 from vcp_scanner.serving import refresh_serving_copy
 
@@ -63,6 +68,41 @@ def put(conn: Any, table: str, **row: Any) -> None:
 
 def iid(symbol: str) -> str:
     return f"NSE_EQ|{symbol}"
+
+
+def add_fundamentals(store: DuckDBStore) -> None:
+    """Fundamentals (F5), through the real repository and view writer. ALPHA: five quarters
+    Jun-25..Jun-26 (Mar-26 estimated, balance sheet on Mar-26) and a Sep-26 quarter published
+    after AS_OF, which no response may show. BETA: one quarter. GAMMA: none."""
+    repo = DuckDBFundamentalRepository(store)
+    cr = 1e7  # one crore
+    alpha = [  # period end, EPS, revenue (crore), status
+        (date(2025, 6, 30), 2.0, 100.0, "OK"),
+        (date(2025, 9, 30), 2.2, 110.0, "OK"),
+        (date(2025, 12, 31), 2.5, 120.0, "OK"),
+        (date(2026, 3, 31), 2.8, 130.0, "ESTIMATED"),
+        (date(2026, 6, 30), 3.0, 125.0, "OK"),
+        (date(2026, 9, 30), 9.9, 999.0, "OK"),  # published 20 Oct 2026, after AS_OF
+    ]
+    rows = [(iid("ALPHA"), *x) for x in alpha] + [(iid("BETA"), date(2026, 6, 30), 4.0, 80.0, "OK")]
+    for inst, end, eps, revenue, status in rows:
+        published = datetime.combine(end + timedelta(days=20), datetime.min.time(), UTC)
+        published = published.replace(hour=12, minute=30)  # 18:00 IST, after the close
+        sid = f"{inst}-{end}"
+        items = {"revenue": revenue * cr, "eps": eps, "pbt": 15 * cr, "finance_costs": 2 * cr,
+                 "depreciation": 3 * cr, "other_income": 0.0, "net_profit": eps * cr,
+                 "profit_owners": eps * cr}  # fmt: skip
+        facts = [Fact("QUARTER", k, v, status == "ESTIMATED", end - timedelta(days=90), end)
+                 for k, v in items.items()]  # fmt: skip
+        if end == date(2026, 3, 31) and inst == iid("ALPHA"):
+            facts += [Fact("INSTANT", "equity", 400 * cr, False, None, end),
+                      Fact("INSTANT", "borrowings", 100 * cr, False, None, end)]  # fmt: skip
+        repo.add_snapshot(
+            SnapshotRow(sid, inst, end, "QUARTER", "CONSOLIDATED", 0, published.date(),
+                        published, "INR", status, f"F-{sid}"),
+            facts,
+        )  # fmt: skip
+    update_views(repo, staleness_days=120, min_availability=0.5)
 
 
 def build_main_db(db: Path, ctx: Context) -> None:
@@ -225,6 +265,7 @@ def build_main_db(db: Path, ctx: Context) -> None:
               '{"left_lip_date": "2026-08-03", "bottom_date": "2026-08-20"}')  # fmt: skip
         strat("three_weeks_tight", "GAMMA", "NONE", 0, False, 10.0)
         strat("double_bottom", "GAMMA", "NONE", 0, False, 10.0)
+        add_fundamentals(store)
         # --- paper ledger -----------------------------------------------------------------------
         repo = DuckDBPaperRepository(store)
         for sid in spec:

@@ -111,11 +111,24 @@ export const COLS: Col[] = [
     key: "pivot_distance_pct",
     label: "To pivot", render: (r) => fmtPct(r.pivot_distance_pct, 1, true),
   },
+  // Fundamentals (F5), shown with the "Fundamentals" box: display and filter only.
+  {
+    key: "eps_yoy",
+    label: "EPS YoY",
+    render: (r) => <span className={tone(r.eps_yoy ?? null)}>{fmtPct(r.eps_yoy ?? null, 1, true)}</span>,
+  },
+  {
+    key: "sales_yoy",
+    label: "Sales YoY",
+    render: (r) => <span className={tone(r.sales_yoy ?? null)}>{fmtPct(r.sales_yoy ?? null, 1, true)}</span>,
+  },
 ];
+
+export const FUNDAMENTAL_COLS = new Set(["eps_yoy", "sales_yoy"]);
 
 export const SORTABLE = new Set([
   "symbol", "rs_rank", "conditions_passed", "close", "change_pct", "score", "grade",
-  "pivot_distance_pct",
+  "pivot_distance_pct", "eps_yoy", "sales_yoy",
 ]); // fmt: skip
 
 const triState = (v: boolean | undefined): string => (v === undefined ? "" : v ? "yes" : "no");
@@ -140,12 +153,16 @@ function Filters({
   strategyIds,
   onChange,
   onReset,
+  showFundamentals,
+  onShowFundamentals,
 }: {
   strategyIds: string[];
   q: ScreenerQuery;
   stageCounts: Record<string, number>;
   onChange: (next: Partial<ScreenerQuery>) => void;
   onReset: () => void;
+  showFundamentals: boolean;
+  onShowFundamentals: (on: boolean) => void;
 }) {
   const [open, setOpen] = useState(false);
   const changed =
@@ -159,6 +176,8 @@ function Filters({
     q.status !== undefined ||
     q.minStrategies !== undefined ||
     q.sector !== undefined ||
+    q.minEpsYoy !== undefined ||
+    q.minSalesYoy !== undefined ||
     q.strategy !== DEFAULT_QUERY.strategy ||
     !q.universeOnly ||
     !q.eqOnly;
@@ -186,6 +205,13 @@ function Filters({
               onChange={(e) => onChange({ eqOnly: e.target.checked })}
             />
             EQ only
+          </label>
+          <label
+            className="flex cursor-pointer items-center gap-1.5"
+            title="EPS and sales growth of the latest quarter, year on year (display only)"
+          >
+            <input type="checkbox" checked={showFundamentals} onChange={(e) => onShowFundamentals(e.target.checked)} />
+            Fundamentals
           </label>
           <button
             type="button"
@@ -306,6 +332,32 @@ function Filters({
           </Field>
         ) : null}
         {open ? (
+          <Field id="scr-eps" label="Min EPS growth YoY %">
+            <input
+              id="scr-eps"
+              type="number"
+              step={5}
+              value={q.minEpsYoy ?? ""}
+              onChange={(e) => onChange({ minEpsYoy: numOrUndef(e.target.value) })}
+              className={FIELD}
+              placeholder="e.g. 25"
+            />
+          </Field>
+        ) : null}
+        {open ? (
+          <Field id="scr-sales" label="Min sales growth YoY %">
+            <input
+              id="scr-sales"
+              type="number"
+              step={5}
+              value={q.minSalesYoy ?? ""}
+              onChange={(e) => onChange({ minSalesYoy: numOrUndef(e.target.value) })}
+              className={FIELD}
+              placeholder="e.g. 20"
+            />
+          </Field>
+        ) : null}
+        {open ? (
           <fieldset className="col-span-full">
             <legend className="mb-1 block text-[11px] uppercase text-mute">Weekly stage</legend>
             <div className="flex flex-wrap gap-1.5">
@@ -396,7 +448,12 @@ export function Screener() {
   const result = useScreener(query);
   const data = result.data;
   const live = useLiveQuotes(data?.rows.map((r) => r.symbol) ?? [], !!data);
-  const cols = COLS.filter((c) => c.key !== "universe" || !query.universeOnly);
+  const [showFundamentals, setShowFundamentals] = useState(false);
+  const cols = COLS.filter(
+    (c) =>
+      (c.key !== "universe" || !query.universeOnly) &&
+      (showFundamentals || !FUNDAMENTAL_COLS.has(c.key) || query.minEpsYoy !== undefined || query.minSalesYoy !== undefined),
+  );
   const change = (next: Partial<ScreenerQuery>) => setQuery((q) => ({ ...q, ...next, page: 1 }));
 
   return (
@@ -404,7 +461,7 @@ export function Screener() {
       <Nav active="Screener" />
       <main className="min-w-0 flex-1 space-y-4 p-4 pb-16">
         <h1 className="sr-only">Screener</h1>
-        <Filters q={query} stageCounts={data?.stage_counts ?? {}} strategyIds={strategyIds} onChange={change} onReset={() => setQuery(DEFAULT_QUERY)} />
+        <Filters q={query} stageCounts={data?.stage_counts ?? {}} strategyIds={strategyIds} onChange={change} onReset={() => setQuery(DEFAULT_QUERY)} showFundamentals={showFundamentals} onShowFundamentals={setShowFundamentals} />
         <div className="min-w-0 space-y-3">
           <LiveNotice />
             <Card

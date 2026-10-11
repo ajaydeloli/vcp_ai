@@ -216,7 +216,7 @@ def overlap(cur: Cur, ctx: Context, day: date) -> list[m.OverlapRow]:
 
 SCREENER_SORTS = (
     "symbol", "rs_rank", "trend_score", "conditions_passed", "close", "change_pct", "score",
-    "grade", "pivot_distance_pct",
+    "grade", "pivot_distance_pct", "eps_yoy", "sales_yoy",
 )  # fmt: skip
 
 _SCREENER_SQL = """
@@ -295,6 +295,10 @@ def _outside_rows(cur: Cur, day: date, inside: set[str], eq_only: bool) -> list[
     return out
 
 
+def _at_least(value: float | None, floor: float | None) -> bool:
+    return floor is None or (value is not None and value >= floor)
+
+
 def screener(
     cur: Cur, ctx: Context, spec: StrategySpec, day: date, f: SimpleNamespace,
     data_time: datetime,
@@ -353,12 +357,21 @@ def screener(
             or (x.classification or "").upper() == f.classification.upper(),
             several is None or x.instrument_id in several,
             not getattr(f, "sector", None) or (x.sector or "").upper() == f.sector.upper(),
+            _at_least(x.eps_yoy, getattr(f, "min_eps_yoy", None)),
+            _at_least(x.sales_yoy, getattr(f, "min_sales_yoy", None)),
         )
         return all(checks)
 
-    sectors = classification(cur, [x.instrument_id for x in rows])
+    from vcp_scanner.api.fundamentals import views_as_of as fundamental_views  # (cycle)
+
+    all_ids = [x.instrument_id for x in rows]
+    sectors = classification(cur, all_ids)
+    views = fundamental_views(cur, all_ids, day)
     for x in rows:
         x.sector = sectors.get(x.instrument_id, (None, None))[0]
+        v = views.get(x.instrument_id)
+        if v is not None:
+            x.eps_yoy, x.sales_yoy = v.eps_yoy, v.sales_yoy
     kept = [x for x in rows if keep(x)]
     key = f.sort
     present = [x for x in kept if getattr(x, key) is not None]

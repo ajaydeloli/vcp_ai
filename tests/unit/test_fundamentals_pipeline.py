@@ -290,3 +290,36 @@ def test_missing_files_do_not_stop_the_downloads(tmp_path: Path) -> None:
     provider = Gone(refs, {})
     out = download_missing(provider, [(r, "I") for r in refs], tmp_path, stop_after_failures=5)
     assert len(provider.downloads) == 30 and len(out) == 30  # all tried, no stop
+
+
+def test_clear_parsed_forgets_snapshots_and_views_but_keeps_the_manifest() -> None:
+    from vcp_scanner.data.repositories.duckdb_fundamental_repository import (
+        DuckDBFundamentalRepository,
+    )
+    from vcp_scanner.data.storage.duckdb_store import DuckDBStore
+
+    store = DuckDBStore(":memory:")
+    store.migrate()
+    c = store.conn
+    c.execute(
+        "INSERT INTO fundamental_filings (filing_id, instrument_id, period_end, period_type,"
+        " statement_basis, revision_number, broadcast_at, source_feed, source_record_id, url,"
+        " fetched_at, status) VALUES ('F1', 'I', DATE '2026-06-30', 'QUARTER', 'CONSOLIDATED',"
+        " 0, now(), 'X', '1', 'u', now(), 'PARSE_ERROR'), ('F2', 'I', DATE '2026-03-31',"
+        " 'QUARTER', 'CONSOLIDATED', 0, now(), 'X', '2', 'u', now(), 'OK')"
+    )
+    c.execute(
+        "INSERT INTO fundamental_snapshots (fundamental_snapshot_id, instrument_id, period_end,"
+        " period_type, statement_basis, revision_number, available_at, provider, data_status)"
+        " VALUES ('S', 'I', DATE '2026-03-31', 'QUARTER', 'CONSOLIDATED', 0, now(), 'P', 'OK')"
+    )
+    c.execute(
+        "INSERT INTO fundamental_facts VALUES ('S', 'QUARTER', 'eps', 1.0, false, NULL, NULL)"
+    )
+    assert DuckDBFundamentalRepository(store).clear_parsed() == 1
+    count = lambda t: c.execute(f"SELECT count(*) FROM {t}").fetchone()[0]  # noqa: E731
+    assert count("fundamental_snapshots") == count("fundamental_facts") == 0
+    assert c.execute("SELECT status FROM fundamental_filings ORDER BY 1").fetchall() == [
+        ("OK",),
+        ("OK",),
+    ]

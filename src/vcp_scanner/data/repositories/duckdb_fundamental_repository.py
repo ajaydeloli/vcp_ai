@@ -11,6 +11,8 @@ import json
 from collections.abc import Sequence
 from datetime import UTC, date, datetime, timedelta
 
+import duckdb
+
 from vcp_scanner.data.storage.duckdb_store import DuckDBStore
 from vcp_scanner.fundamentals.base import (
     STATUS_OK,
@@ -21,6 +23,40 @@ from vcp_scanner.fundamentals.base import (
 )
 from vcp_scanner.fundamentals.metrics import FundamentalView, ShareAction, SnapshotData
 from vcp_scanner.fundamentals.snapshots import PROVIDER, Fact, SnapshotRow
+
+
+def load_snapshots(conn: duckdb.DuckDBPyConnection, instrument_id: str) -> list[SnapshotData]:
+    """Every snapshot of a stock with its facts (all revisions; selection is the caller's).
+    Module level so the read-only dashboard API can use it on its own cursor (F5)."""
+    heads = conn.execute(
+        "SELECT fundamental_snapshot_id, period_end, period_type, statement_basis,"
+        " revision_number, available_at, data_status FROM fundamental_snapshots"
+        " WHERE instrument_id = ? ORDER BY period_end, revision_number",
+        [instrument_id],
+    ).fetchall()
+    facts: dict[str, dict[str, dict[str, float]]] = {}
+    for sid, scope, item, value in conn.execute(
+        "SELECT f.fundamental_snapshot_id, f.scope, f.item, f.value FROM fundamental_facts f"
+        " JOIN fundamental_snapshots s USING (fundamental_snapshot_id)"
+        " WHERE s.instrument_id = ?",
+        [instrument_id],
+    ).fetchall():
+        facts.setdefault(sid, {}).setdefault(scope, {})[item] = value
+    return [SnapshotData(h[0], h[1], h[2], h[3], h[4], h[5], h[6], facts.get(h[0], {}))
+            for h in heads]  # fmt: skip
+
+
+def load_share_actions(conn: duckdb.DuckDBPyConnection, instrument_id: str) -> list[ShareAction]:
+    """Splits and bonus issues (current knowledge) as price factors."""
+    rows = conn.execute(
+        "SELECT DISTINCT r.ex_date, a.price_factor FROM corporate_action_adjustments a"
+        " JOIN corporate_action_resolution r USING (resolution_id)"
+        " WHERE a.instrument_id = ? AND a.known_to IS NULL AND r.known_to IS NULL"
+        " AND r.action_type IN ('SPLIT', 'BONUS') AND r.ex_date IS NOT NULL"
+        " ORDER BY r.ex_date",
+        [instrument_id],
+    ).fetchall()
+    return [ShareAction(d, float(f)) for d, f in rows]
 
 
 class DuckDBFundamentalRepository:
@@ -122,6 +158,26 @@ class DuckDBFundamentalRepository:
             [STATUS_PARSE_ERROR, filing_id],
         )
 
+    def clear_parsed(self) -> int:
+        """Forget every snapshot, fact and stored view, and mark failed filings as downloaded
+        again, so the next parse rebuilds everything from the raw cache (after a parser change).
+        The manifest and the cache are kept. Returns the number of snapshots removed."""
+        row = self._conn.execute("SELECT count(*) FROM fundamental_snapshots").fetchone()
+        self._conn.execute("BEGIN")
+        try:
+            for table in ("fundamental_facts", "fundamental_snapshots", "fundamental_metrics",
+                          "fundamental_data_quality"):  # fmt: skip
+                self._conn.execute(f"DELETE FROM {table}")
+            self._conn.execute(
+                "UPDATE fundamental_filings SET status = ? WHERE status = ?",
+                [STATUS_OK, STATUS_PARSE_ERROR],
+            )
+            self._conn.execute("COMMIT")
+        except Exception:
+            self._conn.execute("ROLLBACK")
+            raise
+        return int(row[0]) if row else 0
+
     def retry_parse_errors(self) -> int:
         """Mark filings that failed to parse as downloaded again, so the next parse retries
         them (after a parser fix). Returns how many."""
@@ -204,34 +260,11 @@ class DuckDBFundamentalRepository:
 
     def snapshots_for(self, instrument_id: str) -> list[SnapshotData]:
         """Every snapshot of a stock with its facts (all revisions; selection is the caller's)."""
-        heads = self._conn.execute(
-            "SELECT fundamental_snapshot_id, period_end, period_type, statement_basis,"
-            " revision_number, available_at, data_status FROM fundamental_snapshots"
-            " WHERE instrument_id = ? ORDER BY period_end, revision_number",
-            [instrument_id],
-        ).fetchall()
-        facts: dict[str, dict[str, dict[str, float]]] = {}
-        for sid, scope, item, value in self._conn.execute(
-            "SELECT f.fundamental_snapshot_id, f.scope, f.item, f.value FROM fundamental_facts f"
-            " JOIN fundamental_snapshots s USING (fundamental_snapshot_id)"
-            " WHERE s.instrument_id = ?",
-            [instrument_id],
-        ).fetchall():
-            facts.setdefault(sid, {}).setdefault(scope, {})[item] = value
-        return [SnapshotData(h[0], h[1], h[2], h[3], h[4], h[5], h[6], facts.get(h[0], {}))
-                for h in heads]  # fmt: skip
+        return load_snapshots(self._conn, instrument_id)
 
     def share_actions(self, instrument_id: str) -> list[ShareAction]:
         """Splits and bonus issues (current knowledge) as price factors."""
-        rows = self._conn.execute(
-            "SELECT DISTINCT r.ex_date, a.price_factor FROM corporate_action_adjustments a"
-            " JOIN corporate_action_resolution r USING (resolution_id)"
-            " WHERE a.instrument_id = ? AND a.known_to IS NULL AND r.known_to IS NULL"
-            " AND r.action_type IN ('SPLIT', 'BONUS') AND r.ex_date IS NOT NULL"
-            " ORDER BY r.ex_date",
-            [instrument_id],
-        ).fetchall()
-        return [ShareAction(d, float(f)) for d, f in rows]
+        return load_share_actions(self._conn, instrument_id)
 
     # --- stored views and scope (F4) ------------------------------------------------------------
 

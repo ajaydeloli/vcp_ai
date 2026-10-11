@@ -25,10 +25,13 @@ import status from "./fixtures/api/status.json";
 import stockSetups from "./fixtures/api/stock_setups.json";
 import strategies from "./fixtures/api/strategies.json";
 import summary from "./fixtures/api/summary.json";
+import fundamentals from "./fixtures/api/fundamentals.json";
+import stockFundamentals from "./fixtures/api/stock_fundamentals.json";
+import stockFundamentalsNone from "./fixtures/api/stock_fundamentals_none.json";
 
 export const fx = {
   activity, backtests, bars, history, ipos, reports, liveIndices, liveQuotes, liveStatus, market, marketHealth, overlap, paper, search, screener, setupsFlat, setupsVcp, status,
-  stockSetups, strategies, summary,
+  stockSetups, strategies, summary, fundamentals, stockFundamentals, stockFundamentalsNone,
 }; // fmt: skip
 
 /** What the API would answer for a path ("setups?strategy=vcp"); undefined: no such sample. */
@@ -49,6 +52,7 @@ export function sample(rel: string): unknown {
     case "reports/generate": return { ...fx.reports.files[0], name: "2026-10-01.html", label: "Daily report 2026-10-01" };
     case "search": return fx.search;
     case "screener": return fx.screener;
+    case "fundamentals": return fx.fundamentals;
     case "live/indices": return fx.liveIndices;
     case "live/status": return fx.liveStatus;
     case "live/quotes": {
@@ -63,9 +67,12 @@ export function sample(rel: string): unknown {
       return { ...base, strategy_id: id, rows: id === "vcp" || id === "flat_base" ? rows : [] };
     }
   }
-  const m = /^stocks\/([^/]+)\/(bars|setups|history)$/.exec(path);
+  const m = /^stocks\/([^/]+)\/(bars|setups|history|fundamentals)$/.exec(path);
   if (m) {
     const symbol = decodeURIComponent(m[1] ?? "");
+    // ALPHA has five quarters of results; any other symbol none
+    if (m[2] === "fundamentals")
+      return symbol === "ALPHA" ? fx.stockFundamentals : { ...fx.stockFundamentalsNone, symbol };
     if (m[2] === "bars") return { ...fx.bars, symbol };
     if (m[2] === "history") return { ...fx.history, events: symbol === "BETA" ? fx.history.events : [] };
     // ALPHA has setups in three strategies; any other symbol only the VCP one

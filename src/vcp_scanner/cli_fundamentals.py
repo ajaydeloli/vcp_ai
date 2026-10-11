@@ -37,6 +37,11 @@ def add_fundamentals_parser(subparsers: argparse._SubParsersAction) -> None:  # 
         action="store_true",
         help="Parse again the filings that failed before (after a parser fix)",
     )
+    q.add_argument(
+        "--rebuild",
+        action="store_true",
+        help="Forget all snapshots and views and parse every cached filing again",
+    )
     for name, text in (
         ("backfill", "Fetch, parse and compute everything since history_from (resumable)"),
         ("update", "Fetch, parse and compute the filings of the last days (daily step)"),
@@ -130,7 +135,9 @@ def _run_parse(args: argparse.Namespace) -> int:
     store = DuckDBStore(db)
     store.migrate()
     repo = DuckDBFundamentalRepository(store)
-    if getattr(args, "retry_errors", False):
+    if getattr(args, "rebuild", False):
+        print(f"Rebuilding: {repo.clear_parsed()} snapshots removed; parsing every cached filing")
+    elif getattr(args, "retry_errors", False):
         print(f"Retrying {repo.retry_parse_errors()} filings that failed to parse before")
     report = parse_filings(repo, db.parent / "raw" / "fundamentals")
     views = update_views(

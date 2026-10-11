@@ -165,6 +165,82 @@ def operating_margin(s: SnapshotData) -> Metric:
     return Metric((pbt + finance + depreciation - other) / revenue * 100.0, AVAILABLE)
 
 
+def _quarter_series(
+    snaps: Sequence[SnapshotData],
+) -> tuple[str, SnapshotData, dict[date, SnapshotData], set[date]] | None:
+    """Basis policy prefer_consolidated, decided by the latest usable quarter: (basis, latest
+    quarter, quarters of that basis by period end, period ends found only on the other basis)."""
+    quarters = [s for s in snaps if s.period_type == "QUARTER"]
+    if not quarters:
+        return None
+    latest_end = max(s.period_end for s in quarters)
+    at_latest = {s.basis: s for s in quarters if s.period_end == latest_end}
+    basis = "CONSOLIDATED" if "CONSOLIDATED" in at_latest else "STANDALONE"
+    series = {s.period_end: s for s in quarters if s.basis == basis}
+    other = {s.period_end for s in quarters if s.basis != basis}
+    return basis, at_latest[basis], series, other
+
+
+@dataclass(frozen=True)
+class QuarterRow:
+    """One quarter as shown on the stock page (F5): as known at the close of ``as_of``."""
+
+    period_end: date
+    available_at: datetime
+    basis: str
+    revision: int
+    estimated: bool  # derived from year-to-date values
+    revenue: float | None
+    eps: float | None  # on the share basis of the latest quarter (splits and bonuses applied)
+    eps_as_filed: float | None
+    operating_margin: float | None
+    net_margin: float | None
+    eps_yoy: Metric
+    sales_yoy: Metric
+
+
+def quarter_history(
+    snapshots: Iterable[SnapshotData],
+    as_of: date,
+    actions: Sequence[ShareAction] = (),
+    *,
+    limit: int = 12,
+) -> list[QuarterRow]:
+    """The last ``limit`` quarters of the basis ``compute_view`` uses, oldest first, each with
+    its year-on-year EPS and sales growth. Same point-in-time rules as ``compute_view``: only
+    filings available at the close of ``as_of``, the highest revision of each period."""
+    chosen = _quarter_series(usable(snapshots, cutoff_for(as_of)))
+    if chosen is None:
+        return []
+    _basis, latest, series, other = chosen
+
+    def eps_now(s: SnapshotData) -> float | None:
+        eps = s.quarter("eps")
+        f = share_factor(actions, s.available_at, latest.available_at)
+        return None if eps is None else eps * f
+
+    rows = []
+    for end in sorted(series)[-limit:]:
+        s = series[end]
+        then_end = month_end_shift(end, -12)
+        then = series.get(then_end)
+        missing = Metric(None, BASIS_CHANGE if then_end in other else MISSING)
+        revenue, net = s.quarter("revenue"), s.quarter("net_profit")
+        rows.append(
+            QuarterRow(
+                period_end=end, available_at=s.available_at, basis=s.basis,
+                revision=s.revision, estimated=s.data_status == "ESTIMATED", revenue=revenue,
+                eps=eps_now(s), eps_as_filed=s.quarter("eps"),
+                operating_margin=operating_margin(s).value,
+                net_margin=(net / revenue * 100.0
+                            if net is not None and revenue is not None and revenue > 0 else None),
+                eps_yoy=_pct_change(eps_now(s), eps_now(then)) if then else missing,
+                sales_yoy=(_pct_change(revenue, then.quarter("revenue")) if then else missing),
+            )
+        )  # fmt: skip
+    return rows
+
+
 # --- the view -----------------------------------------------------------------------------------
 
 
@@ -179,19 +255,13 @@ def compute_view(
     """All metrics of one stock as known at the close of ``as_of``."""
     view = FundamentalView(as_of=as_of)
     snaps = usable(snapshots, cutoff_for(as_of))
-    quarters = [s for s in snaps if s.period_type == "QUARTER"]
-    if not quarters:
+    chosen = _quarter_series(snaps)
+    if chosen is None:
         view.metrics = {m: Metric(None, MISSING) for m in SCORE_METRICS}
         view.gate_reason = "NO_DATA"
         return view
-
-    # Basis policy prefer_consolidated, decided by the latest quarter.
-    latest_end = max(s.period_end for s in quarters)
-    at_latest = {s.basis: s for s in quarters if s.period_end == latest_end}
-    basis = "CONSOLIDATED" if "CONSOLIDATED" in at_latest else "STANDALONE"
-    latest = at_latest[basis]
-    series = {s.period_end: s for s in quarters if s.basis == basis}
-    other_series = {s.period_end for s in quarters if s.basis != basis}
+    basis, latest, series, other_series = chosen
+    latest_end = latest.period_end
 
     def find(end: date) -> SnapshotData | None:
         return series.get(end)

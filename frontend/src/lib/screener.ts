@@ -20,6 +20,9 @@ export type ScreenerQuery = {
   minStrategies?: number;
   /** NSE sector (S1) */
   sector?: string;
+  /** fundamentals (F5), display and filter only: minimum EPS / sales growth year on year, % */
+  minEpsYoy?: number;
+  minSalesYoy?: number;
   sort: string;
   direction: "asc" | "desc";
   page: number;

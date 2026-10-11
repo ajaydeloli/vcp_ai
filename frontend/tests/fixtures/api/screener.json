@@ -33,7 +33,9 @@
    "eligible": true,
    "in_universe": true,
    "outside_reason": null,
-   "sector": "Capital Goods"
+   "sector": "Capital Goods",
+   "eps_yoy": 50.0,
+   "sales_yoy": 25.0
   },
   {
    "instrument_id": "NSE_EQ|BETA",
@@ -57,7 +59,9 @@
    "eligible": true,
    "in_universe": true,
    "outside_reason": null,
-   "sector": "Healthcare"
+   "sector": "Healthcare",
+   "eps_yoy": null,
+   "sales_yoy": null
   },
   {
    "instrument_id": "NSE_EQ|GAMMA",
@@ -81,7 +85,9 @@
    "eligible": false,
    "in_universe": true,
    "outside_reason": null,
-   "sector": null
+   "sector": null,
+   "eps_yoy": null,
+   "sales_yoy": null
   },
   {
    "instrument_id": "NSE_EQ|F00",
@@ -105,7 +111,9 @@
    "eligible": null,
    "in_universe": true,
    "outside_reason": null,
-   "sector": null
+   "sector": null,
+   "eps_yoy": null,
+   "sales_yoy": null
   }
  ]
 }

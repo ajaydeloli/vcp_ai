@@ -3,6 +3,7 @@
 import { useSetups, useStockSetups } from "@/lib/api";
 import { DASH, daysBetween, fmtDay, fmtInt, fmtNum, fmtPct, fmtPrice, sentence } from "@/lib/fmt";
 import type { StockSetup, StockSetups } from "@/lib/schemas";
+import { FundamentalsCard } from "./Fundamentals";
 import { ScoreRing, type Arc } from "./Rings";
 import type { Selection } from "@/lib/selection";
 import { Card, ErrorBox, Loading, TINT } from "./ui";
@@ -172,23 +173,6 @@ function TrendCard({ stock }: { stock: StockSetups }) {
   );
 }
 
-const FUNDAMENTALS = ["EPS (TTM)", "Sales (TTM)", "ROE", "ROCE", "Debt / Equity", "Operating margin", "Net profit margin"];
-
-function FundamentalsCard() {
-  return (
-    <Card title="Fundamentals" box={TINT.amber} right={<span className="text-[11px] text-mute">Not available</span>}>
-      <dl className="text-xs">
-        {FUNDAMENTALS.map((k) => (
-          <Row key={k} k={k} v={DASH} />
-        ))}
-      </dl>
-      <p className="mt-3 text-[11px] text-mute">
-        Company fundamentals are not stored yet, so no values are shown (—, not 0).
-      </p>
-    </Card>
-  );
-}
-
 function ScoreCard({ setup }: { setup: StockSetup | null }) {
   const totals = setup ? componentTotals(setup) : [];
   let extra = 0;
@@ -242,7 +226,7 @@ export function SetupOverview({ selection }: { selection: Selection | null }) {
     <div className="grid auto-rows-fr gap-4 md:grid-cols-2 xl:grid-cols-4 [&>section]:h-full [&>section]:min-w-0">
       <PatternCard stock={stock.data} setup={setup} baseDays={row?.base_days ?? null} distance={row?.pivot_distance_pct ?? null} />
       <TrendCard stock={stock.data} />
-      <FundamentalsCard />
+      <FundamentalsCard symbol={selection.symbol} />
       <ScoreCard setup={setup} />
     </div>
   );

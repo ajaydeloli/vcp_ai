@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useSetups } from "@/lib/api";
 import { Nav } from "./Nav";
+import { QuarterlyResultsCard } from "./Fundamentals";
 import { SetupOverview } from "./SetupOverview";
 import { StatusBar } from "./StatusBar";
 import { StockPanel } from "./StockPanel";
@@ -34,6 +35,7 @@ export function StockAnalysis({ symbol: given }: { symbol: string | null }) {
           <>
             <StockPanel key={symbol} selection={{ symbol, strategy }} onSelect={(s) => setStrategy(s.strategy)} onStockPage />
             <SetupOverview selection={{ symbol, strategy }} />
+            <QuarterlyResultsCard symbol={symbol} />
             <div className="grid gap-4 xl:grid-cols-2">
               <StrategiesCard symbol={symbol} strategy={strategy} onSelect={setStrategy} />
               <HistoryCard symbol={symbol} />

@@ -350,6 +350,8 @@ export const screenerRow = z.object({
   in_universe: z.boolean(),
   outside_reason: z.string().nullable(),
   sector: z.string().nullable().optional(),
+  eps_yoy: num.optional(),
+  sales_yoy: num.optional(),
 });
 
 export const screener = z.object({
@@ -446,6 +448,90 @@ export type Search = z.infer<typeof search>;
 export type ScreenerRow = z.infer<typeof screenerRow>;
 export type Screener = z.infer<typeof screener>;
 export type MarketHealth = z.infer<typeof marketHealth>;
+
+// ---- Fundamentals (F5), display only: they never change a score or the paper ledger ------------
+// Amounts in rupees; growth and margins in %; acceleration and expansion in percentage points.
+// `statuses` says why a null metric is null (MISSING, NEGATIVE_BASE, BASIS_CHANGE, NOT_APPLICABLE).
+const fundamentalFields = {
+  view_date: day,
+  period_end: day,
+  available_at: z.string().nullable(),
+  basis: z.string(),
+  revenue: num,
+  eps: num,
+  ttm_eps: num,
+  operating_margin: num,
+  net_margin: num,
+  revenue_qoq: num,
+  eps_yoy: num,
+  eps_qoq: num,
+  sales_yoy: num,
+  eps_acceleration: num,
+  margin_expansion: num,
+  roe: num,
+  debt_to_equity: num,
+  statuses: z.record(z.string()),
+  availability: z.number(),
+  quarters_available: z.number(),
+  stale: z.boolean(),
+  stale_after: day,
+  estimated: z.boolean(),
+  restated: z.boolean(),
+  gate_pass: z.boolean(),
+  gate_reason: z.string().nullable(),
+};
+export const fundamentalSummary = z.object(fundamentalFields);
+
+export const fundamentalQuarter = z.object({
+  period_end: day,
+  available_at: z.string(),
+  basis: z.string(),
+  revision: z.number(),
+  estimated: z.boolean(),
+  revenue: num,
+  eps: num,
+  eps_as_filed: num,
+  operating_margin: num,
+  net_margin: num,
+  eps_yoy: num,
+  eps_yoy_status: z.string(),
+  sales_yoy: num,
+  sales_yoy_status: z.string(),
+});
+
+export const stockFundamentals = z.object({
+  ...stamp,
+  symbol: z.string(),
+  company: z.string().nullable(),
+  summary: fundamentalSummary.nullable(),
+  quarters: z.array(fundamentalQuarter),
+  reason: z.string().nullable(),
+});
+
+export const fundamentalsRow = z.object({
+  ...fundamentalFields,
+  instrument_id: z.string(),
+  symbol: z.string(),
+  company: z.string().nullable(),
+  sector: z.string().nullable(),
+  rs_rank: z.number().nullable(),
+});
+
+export const fundamentals = z.object({
+  ...stamp,
+  universe: z.number(),
+  covered: z.number(),
+  total: z.number(),
+  page: z.number(),
+  page_size: z.number(),
+  rows: z.array(fundamentalsRow),
+});
+
+export type FundamentalSummary = z.infer<typeof fundamentalSummary>;
+export type FundamentalQuarter = z.infer<typeof fundamentalQuarter>;
+export type StockFundamentals = z.infer<typeof stockFundamentals>;
+export type FundamentalsRow = z.infer<typeof fundamentalsRow>;
+export type Fundamentals = z.infer<typeof fundamentals>;
 
 // ---- Live prices (display only), src/vcp_scanner/api/live_routes.py ----------------------------
 // `as_of` is the session the prices belong to, `data_time` when the newest was received, `mode`

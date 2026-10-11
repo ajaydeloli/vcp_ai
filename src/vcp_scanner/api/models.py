@@ -246,6 +246,9 @@ class ScreenerRow(BaseModel):
     in_universe: bool = True
     outside_reason: str | None = None  # why a stock outside the universe is outside
     sector: str | None = None  # NSE sector (S1); None: not classified yet
+    # Fundamentals (F5), display and filter only: the stock's view as of the scan day.
+    eps_yoy: float | None = None
+    sales_yoy: float | None = None
 
 
 class ScreenerResponse(Stamped):
@@ -559,3 +562,82 @@ class ReportRequest(BaseModel):
 
     kind: Literal["daily", "weekly"]
     date: date  # a trading day (daily), or any day of the week (weekly)
+
+
+# --- fundamentals (F5; display only, FUNDAMENTALS_SPECIFICATION §2 and §11) --------------------
+
+
+class FundamentalSummary(BaseModel):
+    """A stock's fundamental view as of a date: the stored row with the greatest date on or
+    before it. Amounts in rupees; growth and margins in %; ``*_acceleration`` / ``*_expansion``
+    in percentage points. ``statuses`` says why a NULL metric is NULL (MISSING, NEGATIVE_BASE,
+    BASIS_CHANGE, NOT_APPLICABLE)."""
+
+    view_date: date  # the date this view first applied (a filing became usable)
+    period_end: date  # the latest quarter
+    available_at: datetime | None  # when that quarter's filing was published (IST)
+    basis: str  # CONSOLIDATED | STANDALONE
+    revenue: float | None
+    eps: float | None
+    ttm_eps: float | None
+    operating_margin: float | None
+    net_margin: float | None
+    revenue_qoq: float | None
+    eps_yoy: float | None
+    eps_qoq: float | None
+    sales_yoy: float | None
+    eps_acceleration: float | None
+    margin_expansion: float | None
+    roe: float | None
+    debt_to_equity: float | None
+    statuses: dict[str, str]
+    availability: float  # share of the seven metrics present, 0..1
+    quarters_available: int
+    stale: bool  # the latest quarter is older than the staleness limit on the asked date
+    stale_after: date
+    estimated: bool  # the latest quarter was derived from year-to-date values
+    restated: bool
+    gate_pass: bool  # shown only, never applied (§2)
+    gate_reason: str | None
+
+
+class FundamentalQuarter(BaseModel):
+    period_end: date
+    available_at: datetime  # publication (broadcast) time, IST
+    basis: str
+    revision: int
+    estimated: bool
+    revenue: float | None
+    eps: float | None  # on the latest share basis (splits and bonuses applied)
+    eps_as_filed: float | None
+    operating_margin: float | None
+    net_margin: float | None
+    eps_yoy: float | None
+    eps_yoy_status: str
+    sales_yoy: float | None
+    sales_yoy_status: str
+
+
+class StockFundamentalsResponse(Stamped):
+    symbol: str
+    company: str | None
+    summary: FundamentalSummary | None  # None: no usable results filed by ``as_of``
+    quarters: list[FundamentalQuarter]  # oldest first
+    reason: str | None  # why there is no summary
+
+
+class FundamentalsRow(FundamentalSummary):
+    instrument_id: str
+    symbol: str
+    company: str | None
+    sector: str | None
+    rs_rank: int | None
+
+
+class FundamentalsResponse(Stamped):
+    universe: int  # stocks of the scan universe on ``as_of``
+    covered: int  # of which with fundamentals
+    total: int  # after the filters
+    page: int
+    page_size: int
+    rows: list[FundamentalsRow]

@@ -20,6 +20,7 @@ from vcp_scanner.fundamentals.metrics import (
     compute_view,
     cutoff_for,
     month_end_shift,
+    quarter_history,
     share_factor,
     usable,
 )
@@ -230,3 +231,44 @@ def test_reliance_q3_fy25_eps_growth_across_the_bonus(tmp_path: Path) -> None:
     assert v.value("eps_yoy") == pytest.approx((13.70 - 12.76) / 12.76 * 100)
     assert round(v.value("eps_yoy") or 0, 2) == 7.37
     assert compute_view(snaps, date(2025, 1, 16), bonus).period_end == date(2023, 12, 31)
+
+
+# --- quarter history (F5, stock page) -----------------------------------------------------------
+
+
+def test_quarter_history_matches_the_view_and_is_point_in_time() -> None:
+    snaps = series([10, 11, 12, 13, 15, 0], [1000, 1100, 1200, 1300, 1250, 1500])
+    on = date(2024, 9, 1)  # Jun-24 known (broadcast 20 Jul); Sep-24 not yet filed
+    rows = quarter_history(snaps, on)
+    assert [r.period_end for r in rows] == ENDS[:5]  # oldest first, Sep-24 not known yet
+    last = rows[-1]
+    view = compute_view(snaps, on)
+    assert last.period_end == view.period_end and last.eps == view.eps == 15
+    assert last.eps_yoy.value == pytest.approx(50.0)  # 15 against 10 a year earlier
+    assert last.eps_yoy.value == pytest.approx(view.value("eps_yoy"))
+    assert last.sales_yoy.value == pytest.approx(25.0)  # 1250 against 1000
+    assert rows[0].eps_yoy.status == MISSING  # no quarter a year before the first
+    assert last.operating_margin == pytest.approx((150 + 20 + 30) / 1250 * 100)
+    assert quarter_history(snaps, on, limit=2)[0].period_end == ENDS[3]
+    assert quarter_history(snaps, date(2023, 7, 1)) == []  # nothing filed yet
+
+
+def test_quarter_history_puts_eps_on_the_latest_share_basis() -> None:
+    snaps = series([20, 22, 24, 26, 12])  # a 1:1 bonus between Mar-24 and Jun-24 filings
+    bonus = [ShareAction(date(2024, 6, 1), 0.5)]
+    rows = quarter_history(snaps, date(2024, 9, 1), bonus)
+    assert [r.eps_as_filed for r in rows] == [20, 22, 24, 26, 12]
+    assert [r.eps for r in rows] == [10, 11, 12, 13, 12]
+    assert rows[-1].eps_yoy.value == pytest.approx(20.0)  # 12 against 20 x 0.5
+
+
+def test_quarter_history_marks_estimated_and_basis_gaps() -> None:
+    snaps = series([10, 11, 12, 13, 14])
+    snaps[1] = q(ENDS[1], 11, status="ESTIMATED")
+    snaps[0] = q(ENDS[0], 10, basis="STANDALONE")  # the year-ago quarter only standalone
+    rows = quarter_history(snaps, date(2024, 9, 1))
+    # the standalone Jun-23 quarter is not part of the consolidated series
+    assert [r.period_end for r in rows] == ENDS[1:5]
+    assert [r.estimated for r in rows] == [True, False, False, False]
+    assert rows[-1].eps_yoy.status == BASIS_CHANGE  # Jun-23 exists only on the other basis
+    assert rows[-1].eps_yoy.value is None

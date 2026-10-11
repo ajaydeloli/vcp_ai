@@ -33,7 +33,9 @@
    "eligible": true,
    "in_universe": true,
    "outside_reason": null,
-   "sector": "Capital Goods"
+   "sector": "Capital Goods",
+   "eps_yoy": 50.0,
+   "sales_yoy": 25.0
   },
   {
    "instrument_id": "NSE_EQ|BETA",
@@ -57,7 +59,9 @@
    "eligible": true,
    "in_universe": true,
    "outside_reason": null,
-   "sector": "Healthcare"
+   "sector": "Healthcare",
+   "eps_yoy": null,
+   "sales_yoy": null
   },
   {
    "instrument_id": "NSE_EQ|GAMMA",
@@ -81,7 +85,9 @@
    "eligible": false,
    "in_universe": true,
    "outside_reason": null,
-   "sector": null
+   "sector": null,
+   "eps_yoy": null,
+   "sales_yoy": null
   },
   {
    "instrument_id": "NSE_EQ|F00",
@@ -105,7 +111,9 @@
    "eligible": null,
    "in_universe": true,
    "outside_reason": null,
-   "sector": null
+   "sector": null,
+   "eps_yoy": null,
+   "sales_yoy": null
   },
   {
    "instrument_id": "NSE_EQ|F01",
@@ -129,7 +137,9 @@
    "eligible": null,
    "in_universe": false,
    "outside_reason": null,
-   "sector": null
+   "sector": null,
+   "eps_yoy": null,
+   "sales_yoy": null
   },
   {
    "instrument_id": "NSE_EQ|F02",
@@ -153,7 +163,9 @@
    "eligible": null,
    "in_universe": false,
    "outside_reason": null,
-   "sector": null
+   "sector": null,
+   "eps_yoy": null,
+   "sales_yoy": null
   },
   {
    "instrument_id": "NSE_EQ|F03",
@@ -177,7 +189,9 @@
    "eligible": null,
    "in_universe": false,
    "outside_reason": null,
-   "sector": null
+   "sector": null,
+   "eps_yoy": null,
+   "sales_yoy": null
   },
   {
    "instrument_id": "NSE_EQ|F04",
@@ -201,7 +215,9 @@
    "eligible": null,
    "in_universe": false,
    "outside_reason": null,
-   "sector": null
+   "sector": null,
+   "eps_yoy": null,
+   "sales_yoy": null
   },
   {
    "instrument_id": "NSE_EQ|F05",
@@ -225,7 +241,9 @@
    "eligible": null,
    "in_universe": false,
    "outside_reason": null,
-   "sector": null
+   "sector": null,
+   "eps_yoy": null,
+   "sales_yoy": null
   },
   {
    "instrument_id": "NSE_EQ|F06",
@@ -249,7 +267,9 @@
    "eligible": null,
    "in_universe": false,
    "outside_reason": null,
-   "sector": null
+   "sector": null,
+   "eps_yoy": null,
+   "sales_yoy": null
   },
   {
    "instrument_id": "NSE_EQ|F07",
@@ -273,7 +293,9 @@
    "eligible": null,
    "in_universe": false,
    "outside_reason": null,
-   "sector": null
+   "sector": null,
+   "eps_yoy": null,
+   "sales_yoy": null
   },
   {
    "instrument_id": "NSE_EQ|F08",
@@ -297,7 +319,9 @@
    "eligible": null,
    "in_universe": false,
    "outside_reason": null,
-   "sector": null
+   "sector": null,
+   "eps_yoy": null,
+   "sales_yoy": null
   },
   {
    "instrument_id": "NSE_EQ|F09",
@@ -321,7 +345,9 @@
    "eligible": null,
    "in_universe": false,
    "outside_reason": null,
-   "sector": null
+   "sector": null,
+   "eps_yoy": null,
+   "sales_yoy": null
   },
   {
    "instrument_id": "NSE_EQ|F10",
@@ -345,7 +371,9 @@
    "eligible": null,
    "in_universe": false,
    "outside_reason": null,
-   "sector": null
+   "sector": null,
+   "eps_yoy": null,
+   "sales_yoy": null
   },
   {
    "instrument_id": "NSE_EQ|F11",
@@ -369,7 +397,9 @@
    "eligible": null,
    "in_universe": false,
    "outside_reason": null,
-   "sector": null
+   "sector": null,
+   "eps_yoy": null,
+   "sales_yoy": null
   },
   {
    "instrument_id": "NSE_EQ|F12",
@@ -393,7 +423,9 @@
    "eligible": null,
    "in_universe": false,
    "outside_reason": null,
-   "sector": null
+   "sector": null,
+   "eps_yoy": null,
+   "sales_yoy": null
   },
   {
    "instrument_id": "NSE_EQ|F13",
@@ -417,7 +449,9 @@
    "eligible": null,
    "in_universe": false,
    "outside_reason": null,
-   "sector": null
+   "sector": null,
+   "eps_yoy": null,
+   "sales_yoy": null
   },
   {
    "instrument_id": "NSE_EQ|F14",
@@ -441,7 +475,9 @@
    "eligible": null,
    "in_universe": false,
    "outside_reason": null,
-   "sector": null
+   "sector": null,
+   "eps_yoy": null,
+   "sales_yoy": null
   },
   {
    "instrument_id": "NSE_EQ|F15",
@@ -465,7 +501,9 @@
    "eligible": null,
    "in_universe": false,
    "outside_reason": null,
-   "sector": null
+   "sector": null,
+   "eps_yoy": null,
+   "sales_yoy": null
   },
   {
    "instrument_id": "NSE_EQ|F16",
@@ -489,7 +527,9 @@
    "eligible": null,
    "in_universe": false,
    "outside_reason": null,
-   "sector": null
+   "sector": null,
+   "eps_yoy": null,
+   "sales_yoy": null
   },
   {
    "instrument_id": "NSE_EQ|F17",
@@ -513,7 +553,9 @@
    "eligible": null,
    "in_universe": false,
    "outside_reason": null,
-   "sector": null
+   "sector": null,
+   "eps_yoy": null,
+   "sales_yoy": null
   },
   {
    "instrument_id": "NSE_EQ|F18",
@@ -537,7 +579,9 @@
    "eligible": null,
    "in_universe": false,
    "outside_reason": null,
-   "sector": null
+   "sector": null,
+   "eps_yoy": null,
+   "sales_yoy": null
   },
   {
    "instrument_id": "NSE_EQ|F19",
@@ -561,7 +605,9 @@
    "eligible": null,
    "in_universe": false,
    "outside_reason": null,
-   "sector": null
+   "sector": null,
+   "eps_yoy": null,
+   "sales_yoy": null
   },
   {
    "instrument_id": "NSE_EQ|F20",
@@ -585,7 +631,9 @@
    "eligible": null,
    "in_universe": false,
    "outside_reason": null,
-   "sector": null
+   "sector": null,
+   "eps_yoy": null,
+   "sales_yoy": null
   },
   {
    "instrument_id": "NSE_EQ|F21",
@@ -609,7 +657,9 @@
    "eligible": null,
    "in_universe": false,
    "outside_reason": null,
-   "sector": null
+   "sector": null,
+   "eps_yoy": null,
+   "sales_yoy": null
   },
   {
    "instrument_id": "NSE_EQ|F22",
@@ -633,7 +683,9 @@
    "eligible": null,
    "in_universe": false,
    "outside_reason": null,
-   "sector": null
+   "sector": null,
+   "eps_yoy": null,
+   "sales_yoy": null
   },
   {
    "instrument_id": "NSE_EQ|F23",
@@ -657,7 +709,9 @@
    "eligible": null,
    "in_universe": false,
    "outside_reason": null,
-   "sector": null
+   "sector": null,
+   "eps_yoy": null,
+   "sales_yoy": null
   },
   {
    "instrument_id": "NSE_EQ|F24",
@@ -681,7 +735,9 @@
    "eligible": null,
    "in_universe": false,
    "outside_reason": null,
-   "sector": null
+   "sector": null,
+   "eps_yoy": null,
+   "sales_yoy": null
   },
   {
    "instrument_id": "NSE_EQ|F25",
@@ -705,7 +761,9 @@
    "eligible": null,
    "in_universe": false,
    "outside_reason": null,
-   "sector": null
+   "sector": null,
+   "eps_yoy": null,
+   "sales_yoy": null
   },
   {
    "instrument_id": "NSE_EQ|F26",
@@ -729,7 +787,9 @@
    "eligible": null,
    "in_universe": false,
    "outside_reason": null,
-   "sector": null
+   "sector": null,
+   "eps_yoy": null,
+   "sales_yoy": null
   },
   {
    "instrument_id": "NSE_EQ|F27",
@@ -753,7 +813,9 @@
    "eligible": null,
    "in_universe": false,
    "outside_reason": null,
-   "sector": null
+   "sector": null,
+   "eps_yoy": null,
+   "sales_yoy": null
   },
   {
    "instrument_id": "NSE_EQ|F28",
@@ -777,7 +839,9 @@
    "eligible": null,
    "in_universe": false,
    "outside_reason": null,
-   "sector": null
+   "sector": null,
+   "eps_yoy": null,
+   "sales_yoy": null
   },
   {
    "instrument_id": "NSE_EQ|F29",
@@ -801,7 +865,9 @@
    "eligible": null,
    "in_universe": false,
    "outside_reason": null,
-   "sector": null
+   "sector": null,
+   "eps_yoy": null,
+   "sales_yoy": null
   },
   {
    "instrument_id": "NSE_EQ|F30",
@@ -825,7 +891,9 @@
    "eligible": null,
    "in_universe": false,
    "outside_reason": null,
-   "sector": null
+   "sector": null,
+   "eps_yoy": null,
+   "sales_yoy": null
   },
   {
    "instrument_id": "NSE_EQ|F31",
@@ -849,7 +917,9 @@
    "eligible": null,
    "in_universe": false,
    "outside_reason": null,
-   "sector": null
+   "sector": null,
+   "eps_yoy": null,
+   "sales_yoy": null
   },
   {
    "instrument_id": "NSE_EQ|F32",
@@ -873,7 +943,9 @@
    "eligible": null,
    "in_universe": false,
    "outside_reason": null,
-   "sector": null
+   "sector": null,
+   "eps_yoy": null,
+   "sales_yoy": null
   },
   {
    "instrument_id": "NSE_EQ|F33",
@@ -897,7 +969,9 @@
    "eligible": null,
    "in_universe": false,
    "outside_reason": null,
-   "sector": null
+   "sector": null,
+   "eps_yoy": null,
+   "sales_yoy": null
   },
   {
    "instrument_id": "NSE_EQ|F34",
@@ -921,7 +995,9 @@
    "eligible": null,
    "in_universe": false,
    "outside_reason": null,
-   "sector": null
+   "sector": null,
+   "eps_yoy": null,
+   "sales_yoy": null
   },
   {
    "instrument_id": "NSE_EQ|F35",
@@ -945,7 +1021,9 @@
    "eligible": null,
    "in_universe": false,
    "outside_reason": null,
-   "sector": null
+   "sector": null,
+   "eps_yoy": null,
+   "sales_yoy": null
   },
   {
    "instrument_id": "NSE_EQ|F36",
@@ -969,7 +1047,9 @@
    "eligible": null,
    "in_universe": false,
    "outside_reason": null,
-   "sector": null
+   "sector": null,
+   "eps_yoy": null,
+   "sales_yoy": null
   },
   {
    "instrument_id": "NSE_EQ|F37",
@@ -993,7 +1073,9 @@
    "eligible": null,
    "in_universe": false,
    "outside_reason": null,
-   "sector": null
+   "sector": null,
+   "eps_yoy": null,
+   "sales_yoy": null
   },
   {
    "instrument_id": "NSE_EQ|F38",
@@ -1017,7 +1099,9 @@
    "eligible": null,
    "in_universe": false,
    "outside_reason": null,
-   "sector": null
+   "sector": null,
+   "eps_yoy": null,
+   "sales_yoy": null
   },
   {
    "instrument_id": "NSE_EQ|F39",
@@ -1041,7 +1125,9 @@
    "eligible": null,
    "in_universe": false,
    "outside_reason": null,
-   "sector": null
+   "sector": null,
+   "eps_yoy": null,
+   "sales_yoy": null
   },
   {
    "instrument_id": "NSE_EQ|F40",
@@ -1065,7 +1151,9 @@
    "eligible": null,
    "in_universe": false,
    "outside_reason": null,
-   "sector": null
+   "sector": null,
+   "eps_yoy": null,
+   "sales_yoy": null
   },
   {
    "instrument_id": "NSE_EQ|F41",
@@ -1089,7 +1177,9 @@
    "eligible": null,
    "in_universe": false,
    "outside_reason": null,
-   "sector": null
+   "sector": null,
+   "eps_yoy": null,
+   "sales_yoy": null
   },
   {
    "instrument_id": "NSE_EQ|F42",
@@ -1113,7 +1203,9 @@
    "eligible": null,
    "in_universe": false,
    "outside_reason": null,
-   "sector": null
+   "sector": null,
+   "eps_yoy": null,
+   "sales_yoy": null
   },
   {
    "instrument_id": "NSE_EQ|F43",
@@ -1137,7 +1229,9 @@
    "eligible": null,
    "in_universe": false,
    "outside_reason": null,
-   "sector": null
+   "sector": null,
+   "eps_yoy": null,
+   "sales_yoy": null
   },
   {
    "instrument_id": "NSE_EQ|F44",
@@ -1161,7 +1255,9 @@
    "eligible": null,
    "in_universe": false,
    "outside_reason": null,
-   "sector": null
+   "sector": null,
+   "eps_yoy": null,
+   "sales_yoy": null
   },
   {
    "instrument_id": "NSE_EQ|F45",
@@ -1185,7 +1281,9 @@
    "eligible": null,
    "in_universe": false,
    "outside_reason": null,
-   "sector": null
+   "sector": null,
+   "eps_yoy": null,
+   "sales_yoy": null
   },
   {
    "instrument_id": "NSE_EQ|F46",
@@ -1209,7 +1307,9 @@
    "eligible": null,
    "in_universe": false,
    "outside_reason": null,
-   "sector": null
+   "sector": null,
+   "eps_yoy": null,
+   "sales_yoy": null
   },
   {
    "instrument_id": "NSE_EQ|F47",
@@ -1233,7 +1333,9 @@
    "eligible": null,
    "in_universe": false,
    "outside_reason": null,
-   "sector": null
+   "sector": null,
+   "eps_yoy": null,
+   "sales_yoy": null
   },
   {
    "instrument_id": "NSE_EQ|F48",
@@ -1257,7 +1359,9 @@
    "eligible": null,
    "in_universe": false,
    "outside_reason": null,
-   "sector": null
+   "sector": null,
+   "eps_yoy": null,
+   "sales_yoy": null
   },
   {
    "instrument_id": "NSE_EQ|F49",
@@ -1281,7 +1385,9 @@
    "eligible": null,
    "in_universe": false,
    "outside_reason": null,
-   "sector": null
+   "sector": null,
+   "eps_yoy": null,
+   "sales_yoy": null
   },
   {
    "instrument_id": "NSE_EQ|F50",
@@ -1305,7 +1411,9 @@
    "eligible": null,
    "in_universe": false,
    "outside_reason": null,
-   "sector": null
+   "sector": null,
+   "eps_yoy": null,
+   "sales_yoy": null
   },
   {
    "instrument_id": "NSE_EQ|F51",
@@ -1329,7 +1437,9 @@
    "eligible": null,
    "in_universe": false,
    "outside_reason": null,
-   "sector": null
+   "sector": null,
+   "eps_yoy": null,
+   "sales_yoy": null
   },
   {
    "instrument_id": "NSE_EQ|F52",
@@ -1353,7 +1463,9 @@
    "eligible": null,
    "in_universe": false,
    "outside_reason": null,
-   "sector": null
+   "sector": null,
+   "eps_yoy": null,
+   "sales_yoy": null
   },
   {
    "instrument_id": "NSE_EQ|F53",
@@ -1377,7 +1489,9 @@
    "eligible": null,
    "in_universe": false,
    "outside_reason": null,
-   "sector": null
+   "sector": null,
+   "eps_yoy": null,
+   "sales_yoy": null
   },
   {
    "instrument_id": "NSE_EQ|F54",
@@ -1401,7 +1515,9 @@
    "eligible": null,
    "in_universe": false,
    "outside_reason": null,
-   "sector": null
+   "sector": null,
+   "eps_yoy": null,
+   "sales_yoy": null
   },
   {
    "instrument_id": "NSE_EQ|F55",
@@ -1425,7 +1541,9 @@
    "eligible": null,
    "in_universe": false,
    "outside_reason": null,
-   "sector": null
+   "sector": null,
+   "eps_yoy": null,
+   "sales_yoy": null
   },
   {
    "instrument_id": "NSE_EQ|F56",
@@ -1449,7 +1567,9 @@
    "eligible": null,
    "in_universe": false,
    "outside_reason": null,
-   "sector": null
+   "sector": null,
+   "eps_yoy": null,
+   "sales_yoy": null
   },
   {
    "instrument_id": "NSE_EQ|F57",
@@ -1473,7 +1593,9 @@
    "eligible": null,
    "in_universe": false,
    "outside_reason": null,
-   "sector": null
+   "sector": null,
+   "eps_yoy": null,
+   "sales_yoy": null
   },
   {
    "instrument_id": "NSE_EQ|F58",
@@ -1497,7 +1619,9 @@
    "eligible": null,
    "in_universe": false,
    "outside_reason": null,
-   "sector": null
+   "sector": null,
+   "eps_yoy": null,
+   "sales_yoy": null
   },
   {
    "instrument_id": "NSE_EQ|F59",
@@ -1521,7 +1645,9 @@
    "eligible": null,
    "in_universe": false,
    "outside_reason": null,
-   "sector": null
+   "sector": null,
+   "eps_yoy": null,
+   "sales_yoy": null
   },
   {
    "instrument_id": "NSE_EQ|NEWCO",
@@ -1545,7 +1671,9 @@
    "eligible": null,
    "in_universe": false,
    "outside_reason": null,
-   "sector": null
+   "sector": null,
+   "eps_yoy": null,
+   "sales_yoy": null
   }
  ]
 }

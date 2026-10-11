@@ -2,6 +2,7 @@
 // /api/v1/* path, which next.config.mjs forwards to `vcp api serve`.
 import { useQuery } from "@tanstack/react-query";
 import type { z } from "zod";
+import type { FundamentalsQuery } from "./fundamentals";
 import type { ScreenerQuery } from "./screener";
 import * as s from "./schemas";
 
@@ -78,10 +79,19 @@ export const paths = {
         strategy: f.strategy, q: f.q, symbols: f.symbols?.join(","), tt_pass: f.ttPass, near_high: f.nearHigh, min_rs: f.minRs,
         min_conditions: f.minConditions, universe_only: f.universeOnly ? undefined : false, eq_only: f.eqOnly ? undefined : false, has_setup: f.hasSetup || undefined,
         min_grade: f.minGrade, status: f.status, classification: f.classification,
-        min_strategies: f.minStrategies, sector: f.sector, sort: f.sort, direction: f.direction,
+        min_strategies: f.minStrategies, sector: f.sector, min_eps_yoy: f.minEpsYoy,
+        min_sales_yoy: f.minSalesYoy, sort: f.sort, direction: f.direction,
         page: f.page, page_size: f.pageSize,
       })}${stages}`;
   },
+  stockFundamentals: (symbol: string) => `stocks/${encodeURIComponent(symbol)}/fundamentals`,
+  fundamentals: (f: FundamentalsQuery) =>
+    `fundamentals${query({
+      q: f.q, sector: f.sector, min_eps_yoy: f.minEpsYoy, min_sales_yoy: f.minSalesYoy,
+      min_availability: f.minAvailability, accelerating: f.accelerating || undefined,
+      current_only: f.currentOnly || undefined, sort: f.sort, direction: f.direction,
+      page: f.page, page_size: f.pageSize,
+    })}`,
   search: (text: string) => `search${query({ q: text, limit: 8 })}`,
   liveQuotes: (symbols: string[]) => `live/quotes${query({ symbols: symbols.join(",") })}`,
   liveIndices: () => "live/indices",
@@ -164,6 +174,20 @@ export const useScreener = (f: ScreenerQuery, enabled = true) =>
     queryFn: () => getJson(paths.screener(f), s.screener),
     placeholderData: (prev) => prev,
     enabled,
+    ...opts,
+  });
+export const useStockFundamentals = (symbol: string | null) =>
+  useQuery({
+    queryKey: ["stockFundamentals", symbol],
+    queryFn: () => getJson(paths.stockFundamentals(symbol ?? ""), s.stockFundamentals),
+    enabled: symbol !== null,
+    ...opts,
+  });
+export const useFundamentals = (f: FundamentalsQuery) =>
+  useQuery({
+    queryKey: ["fundamentals", f],
+    queryFn: () => getJson(paths.fundamentals(f), s.fundamentals),
+    placeholderData: (prev) => prev,
     ...opts,
   });
 export const useStockHistory = (symbol: string | null, days = 180) =>
