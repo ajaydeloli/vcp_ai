@@ -2447,3 +2447,21 @@ Also fixed: a small line chart first drawn while its column was still narrow kep
 **Review 2026-10-12 (owner): a gauge on the score card.** The score card shows the raw score on a half-circle gauge with five bands, one per label (Adverse 0–34 red, Weak 35–49 orange, Mixed 50–64 amber, Constructive 65–79 light green, Strong 80–100 green; each band names itself on hover), a needle at the raw score, the number under it and the label after the caps in a pill of its colour. A line under the gauge gives the raw score's own label and says when a cap lowered it.
 
 **Review 2026-10-12 (owner): card layout.** The score history takes half the card's width (the pillar bars are shorter); the caps ("At most …") sit under the pillar bars, side by side, so the card is no taller.
+
+### 67.34 As built: the cards read the score (2026-10-12, owner review)
+
+The cards under the Market health score card used other indices, other stock sets and other rules than the score (on 9 Oct the Index card read VQI 5.1 % above a rising 200-day average while the score read NIFTY 500 4.6 % below a falling one). Now each card shows the score's own readings, from the stored daily score data (`market_health_daily`), so a card never tells a different story from the score:
+
+| Card | Charts | Figures beside them |
+|---|---|---|
+| **Index trend** (was Index price action) | NIFTY 500 with its 50/150/200-day averages, NIFTY 50 and Smallcap 250, all rebased to 100; dots: NIFTY 500 accumulation and distribution days on its own volume | the Index trend and Accumulation / distribution readings |
+| **Leadership** | new highs / (highs + lows), 10-day averages (dashed 20 % and 80 %); stocks passing the Trend Template, % (dashed 3 % and 20 %); new highs today (list) | the Leadership readings (leaders followed forward, no hindsight) |
+| **Breadth** | % above the 50/150/200-day (dashed 30 % and 70 %); net advances over 20 sessions; VQI against NIFTY 500; breadth thrust | the Breadth readings, and the **Strategy regime (frozen rule)** on the scan's universe, labelled as the strategies' rule, not a health reading |
+| **Setups and breakouts** | our strategies' breakouts and failure rate (unchanged) | the score's breakout readings on top ("Breakout environment (score, N judged)"), then "Our strategies" |
+| **Sector strength** | — | a header line with the score's sector reading and the count per horizon; ▲/▼ per sector index for 1, 3 and 6 months by the score's test |
+
+- Readings are shown with the score's labels and coloured by their points (green 65+, amber 50–64, red below 50), the same as the pillar bars.
+- The divergence warning above the cards is the score's divergence cap, word for word.
+- The stock set is the score's rebuilt universe (MARKET_HEALTH_SPECIFICATION §2): it can differ by the ASM/GSM stocks (about 70) from the scan's universe in the scan tile and the Screener.
+- API: `score_points` (the readings per session), `score.judged`, `sectors[].index_uptrend`; removed `points`, `index_days`, `leader_count`, `leader_change` and the old index, leadership and breadth groups with their own thresholds. The feedback loop keeps the paper-trade reading (not part of the score).
+- Display only. Market stage, Sector rotation, Setups today and the Feedback loop measure other things and are unchanged.

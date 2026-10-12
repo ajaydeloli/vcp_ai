@@ -87,88 +87,6 @@ def row(adv: int, dec: int, highs: int, lows: int) -> tuple[Any, ...]:
     return (None, 0, 0, 0, 0, 0.0, 0.0, adv, dec, highs, lows)
 
 
-def test_highs_lows_reads_the_ten_day_average_not_one_day() -> None:
-    rows = [row(0, 0, 30, 5)] * 9 + [row(0, 0, 0, 40)]  # one bad day after nine good ones
-    item = health._highs_lows(rows)
-    assert item.value == pytest.approx((9 * 30 - 9 * 5 - 40) / 10)  # net 18.5 a day
-    assert item.status == "green"  # 27 highs against 8.5 lows on average
-    assert "0 new 52-week highs against 40 new lows today" in item.text
-
-
-def test_below_own_high() -> None:
-    assert health._below_own_high([0.0, 10.0, 9.0]) == (False, pytest.approx(0.1))
-    assert health._below_own_high([0.0, 10.0, 5.0]) == (True, pytest.approx(0.5))
-    assert health._below_own_high([None, 3.0]) is None  # one value: no range
-    assert health._below_own_high([2.0, 2.0]) is None
-
-
-def test_divergence_warnings_need_the_index_near_its_high() -> None:
-    n = 60
-    # breadth: the A/D line rises for 40 sessions, then falls; new highs dry up likewise
-    rows = [row(30, 10, 20, 0) for _ in range(40)] + [row(10, 30, 0, 20) for _ in range(20)]
-    near = [100.0 + k * 0.1 for k in range(n)]  # VQI keeps making new highs
-    ids = [w.id for w in health._warnings(rows, near)]
-    assert ids == ["ad_divergence", "highs_divergence"]
-    far = near[:-1] + [near[-2] * 0.9]  # VQI 10 % off its high: no divergence to speak of
-    assert health._warnings(rows, far) == []
-    healthy = [row(30, 10, 20, 0) for _ in range(n)]  # breadth confirms the high
-    assert health._warnings(healthy, near) == []
-
-
-# --- step 3: NIFTY lines -----------------------------------------------------------------------
-
-
-def test_rebased_is_100_at_the_first_day_with_a_close() -> None:
-    d = SESSIONS
-    closes = {d[1]: 200.0, d[2]: 210.0, d[4]: 190.0}
-    assert health._rebased(closes, d[:5]) == [None, 100.0, 105.0, None, 95.0]
-    assert health._rebased({}, d[:3]) == [None, None, None]
-
-
-def test_nse_closes_reads_nifty_50_and_500_by_name(db: Any) -> None:
-    store, _ctx = db
-    c = store.conn
-    for name, close in (("Nifty 50", 22520.45), ("NIFTY 500", 21866.65), ("Nifty IT", 1.0)):
-        c.execute(
-            "INSERT INTO index_daily (index_name, trade_date, close) VALUES (?, ?, ?)",
-            [name, SESSIONS[0], close],
-        )
-    got = health._nse_closes(c, SESSIONS[0], SESSIONS[-1])
-    assert got == {"nifty50": {SESSIONS[0]: 22520.45}, "nifty500": {SESSIONS[0]: 21866.65}}
-
-
-def test_market_health_points_carry_rebased_nifty_lines(ro_env: Any) -> None:
-    pts = ro_env.client.get("/api/v1/market/health").json()["points"]
-    with_nifty = [p for p in pts if p["nifty50"] is not None]
-    assert with_nifty and with_nifty[0]["nifty50"] == 100.0 and with_nifty[0]["nifty500"] == 100.0
-    assert len(with_nifty) == 30  # only the stored days; earlier points have none
-    last = with_nifty[-1]
-    assert last["nifty50"] == pytest.approx((20000 + 290) / 20000 * 100)
-    assert last["day"] == pts[-1]["day"]
-
-
-# --- step 4: distribution days -----------------------------------------------------------------
-
-
-def test_day_kinds_one_rule_for_the_count_and_the_markers() -> None:
-    rets = [None, -0.003, -0.003, 0.004, 0.001, -0.001]
-    vols = [100.0, 120.0, 110.0, 130.0, 140.0, 150.0]
-    # day 1: down 0.3 % on more volume; day 2: down on less; day 3: up 0.4 % on more;
-    # day 4: up 0.1 % on more (less than 0.2 %: neither); day 5: down 0.1 %: neither
-    assert health._day_kinds(rets, vols) == [
-        None, "distribution", None, "accumulation", None, None,
-    ]  # fmt: skip
-
-
-def test_markers_match_the_distribution_count(ro_env: Any) -> None:
-    body = ro_env.client.get("/api/v1/market/health").json()
-    window = body["index_days"]["window"]
-    recent = body["points"][-window:]
-    assert sum(p["distribution"] for p in recent) == body["index_days"]["distribution"]
-    assert sum(p["accumulation"] for p in recent) == body["index_days"]["accumulation"]
-    assert not any(p["distribution"] and p["accumulation"] for p in body["points"])
-
-
 # --- step 5: sector strength -------------------------------------------------------------------
 
 
@@ -188,26 +106,27 @@ def test_sector_rows_known_answers(ro_env: Any) -> None:
     rest = sectors[None]  # not classified yet: one row, listed last
     assert rest["stocks"] == 61  # 60 fillers and GAMMA
     assert list(sectors)[-1] is None
+    # the score's sector test per horizon: 1, 3 and 6 months; None without enough history
+    assert len(cap["index_uptrend"]) == 3 and all(u in (None, True) for u in cap["index_uptrend"])
+    assert health_["index_uptrend"] == []  # no index for the row's sector stored
 
 
-# --- step 6: breadth thrust --------------------------------------------------------------------
+def test_index_uptrend_is_the_scores_sector_test() -> None:
+    days = [date(2026, 1, 1) + timedelta(days=k) for k in range(200)]
+    rising = {d: 100.0 + k for k, d in enumerate(days)}
+    assert health._index_uptrend(rising, days[-1]) == [True, True, True]
+    falling = {d: 300.0 - k for k, d in enumerate(days)}
+    assert health._index_uptrend(falling, days[-1]) == [False, False, False]
+    short = {d: c for d, c in list(rising.items())[-60:]}
+    assert health._index_uptrend(short, days[-1]) == [True, None, None]
+    assert health._index_uptrend(rising, date(2030, 1, 1)) == [None, None, None]
 
 
-def test_thrust_signals_once_on_a_fast_swing_from_weak_to_strong() -> None:
-    weak = [row(30, 70, 0, 0)] * 12  # 30 % advancing: the 10-day ratio settles at 30 %
-    strong = [row(95, 5, 0, 0)] * 12  # 95 % advancing
-    ratio, signal = health._thrust(weak + strong)
-    assert ratio[8] is None and ratio[9] == pytest.approx(30.0)  # ten sessions needed
-    first = next(i for i, r in enumerate(ratio) if r is not None and r > health.THRUST_HIGH)
-    assert signal[first] and sum(signal) == 1  # signalled once, on the crossing day
-    assert ratio[first - 1] is not None and ratio[first - 1] <= health.THRUST_HIGH
+def test_sector_horizons_match_the_score_settings() -> None:
+    from vcp_scanner.market_health.settings import load_settings
 
-
-def test_a_slow_climb_is_not_a_thrust() -> None:
-    # from 30 % to 70 % advancing over 40 sessions: the ratio passes 40 % long before 61.5 %
-    rows = [row(30 + k, 70 - k, 0, 0) for k in range(41)]
-    _ratio, signal = health._thrust(rows)
-    assert not any(signal)
+    s = load_settings(Path(CONFIG_DIR) / "market_health.yaml")
+    assert list(health.SECTOR_HORIZONS) == s.leadership.sector_horizons
 
 
 # --- review 2026-10-11: one failure rate on the page, each stock once per breakout day ---------
@@ -237,24 +156,6 @@ def test_a_stock_breaking_out_in_two_strategies_counts_once(db: Any) -> None:
     assert (known.judged, known.failed) == (1, 0)  # still above its lowest pivot: held
 
 
-def test_the_score_reads_the_same_failure_rate_as_the_card(db: Any) -> None:
-    points = [
-        health.m.HealthFlowPoint(day=SESSIONS[0], new_setups=None, breakouts=3,
-                                 failed_pct=75.0, judged=8, failed=6),
-    ]  # fmt: skip
-    item = health._failure_item(points)
-    assert (item.value, item.status, item.score) == (75.0, "red", 0.0)
-    assert item.text.startswith("6 of 8 breakouts judged in the last 20 sessions")
-    thin = health._failure_item([points[0].model_copy(update={"failed_pct": None, "judged": 3})])
-    assert thin.status == "grey" and thin.score is None
-
-
-def test_leader_count_from_the_current_scan_config(ro_env: Any) -> None:
-    body = ro_env.client.get("/api/v1/market/health").json()
-    assert body["leader_count"] == 2  # ALPHA (RS 91) and BETA (RS 85) pass with RS 80+
-    assert body["leader_change"] is None  # no scan 20 sessions earlier in the fixture
-
-
 # --- leaders vs the index: the leaders of 20 sessions ago, followed forward --------------------
 
 
@@ -262,24 +163,3 @@ def _tt(c: Any, ctx: Any, sym: str, d: date, rs: int) -> None:
     put(c, "trend_template_results", scan_id=f"tt-{d}", instrument_id=sym, as_of_date=d,
         status="PASS", trend_template_pass=True, rs_rank=rs, calculation_version="1",
         config_hash=ctx.scan_hash, data_snapshot_id="LIVE")  # fmt: skip
-
-
-def test_leaders_are_followed_forward_once_the_old_scan_exists(db: Any, monkeypatch: Any) -> None:
-    store, ctx = db
-    c = store.conn
-    monkeypatch.setattr(health, "LEADER_DAYS", 3)
-    s = SESSIONS[:5]
-    d0, d1 = s[-4], s[-1]
-    index = [100.0, 100.0, 100.0, 100.0, 102.0]  # VQI +2 % from d0 to d1
-    # OLD led on d0 and then rose 10 %; NEW leads only today and rose 30 % (the hindsight case)
-    for sym, p0, p1 in (("OLD", 100.0, 110.0), ("NEW", 100.0, 130.0)):
-        close(c, sym, d0, p0)
-        close(c, sym, d1, p1)
-    _tt(c, ctx, "NEW", d1, 95)
-    back = health._leaders(c, ctx, s, index)  # no scan of d0 yet: today's leaders measured back
-    assert back.value == pytest.approx(28.0) and back.text.startswith("Today's 1 leaders")
-    assert "Measured back from today's scan" in back.text
-    _tt(c, ctx, "OLD", d0, 85)  # the scan of d0 is stored: its leaders, followed forward
-    fwd = health._leaders(c, ctx, s, index)
-    assert fwd.value == pytest.approx(8.0)  # +10 % against +2 %: no hindsight
-    assert fwd.text.startswith(f"The 1 leaders of {d0:%d %b}") and "Measured back" not in fwd.text

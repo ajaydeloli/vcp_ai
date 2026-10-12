@@ -316,34 +316,20 @@ def test_stock_history_is_the_activity_feed_cut_to_one_stock(ro_env: Env) -> Non
     get(ro_env, "/api/v1/stocks/BETA/history?days=0", 422)
 
 
-def test_market_health_reads_the_four_groups_and_says_when_data_is_too_thin(ro_env: Env) -> None:
+def test_market_health_reads_the_paper_group_and_says_when_data_is_too_thin(ro_env: Env) -> None:
     body = get(ro_env, "/api/v1/market/health")
     groups = {g["id"]: g for g in body["groups"]}
-    assert list(groups) == ["index", "leadership", "breadth", "feedback"]
+    assert list(groups) == ["feedback"]
     items = {i["id"]: i for g in body["groups"] for i in g["items"]}
     assert {i["status"] for i in items.values()} <= {"green", "amber", "red", "grey"}
-    # the synthetic database holds only a few sessions and one closed paper trade: no colour
-    assert items["index_ma"]["status"] == "grey"
+    # the cards' readings come from the score; only our paper trades are read here
+    assert list(items) == ["paper"]
     assert items["paper"]["status"] == "grey" and "1 closed paper trade" in items["paper"]["text"]
-    assert {"distribution", "highs_lows", "failed_breakouts", "leaders", "above50", "above200",
-            "ad"} <= set(items)  # fmt: skip
-    assert items["above50"]["value"] is not None
-    assert items["above200"]["status"] == "grey"
-    pts = body["points"]
-    assert pts and pts[0]["index"] == 100.0 and pts[-1]["day"] == body["as_of"]
-    assert pts[-1]["ma200"] is None and pts[-1]["ma50"] is not None  # short history: no line
     assert [t["ret_pct"] for t in body["trades"]] == [-5.15]
-    assert all(i["short"] for i in items.values())  # every reading has its one-line form
-    assert items["highs_lows"]["short"] == "net +0.0 a day (10 sessions)"  # 10-day average
-    days = body["index_days"]
-    assert "pct_from_50" in days
-    assert days["window"] == 25 and days["accumulation"] >= 0 and days["distribution"] >= 0
+    assert items["paper"]["short"] == "not enough data yet"
+    assert "points" not in body and "index_days" not in body
     stages = body["stages"]  # the weekly stage of the scanned stocks, one point a week
     assert stages and stages[-1]["day"] == body["as_of"]
-    assert all(
-        s["total"] == s["stage1"] + s["stage2"] + s["stage3"] + s["stage4"] + s["transition"]
-        for s in stages
-    )  # fmt: skip
     assert body["score"]["label"] == "Mixed" and "verdict" not in body  # MHS 2 replaced it
     assert items["paper"]["score"] is None  # grey readings carry no score
     assert all(0 <= i["score"] <= 100 for i in items.values() if i["score"] is not None)

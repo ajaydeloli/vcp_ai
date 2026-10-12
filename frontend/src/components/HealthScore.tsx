@@ -45,9 +45,7 @@ function PillarRow({ p }: { p: Pillar }) {
           {p.title} <span className="text-mute">{p.weight}%</span>
         </span>
         <span className="relative h-2 min-w-0 flex-1 rounded bg-line" aria-hidden="true">
-          {p.score !== null && (
-            <span className="absolute inset-y-0 left-0 rounded" style={{ width: `${p.score}%`, background: barColor(p.score) }} />
-          )}
+          {p.score !== null && <span className="absolute inset-y-0 left-0 rounded" style={{ width: `${p.score}%`, background: barColor(p.score) }} />}
         </span>
         <span className="w-9 shrink-0 text-right tabular-nums text-ink">{p.score === null ? "—" : Math.round(p.score)}</span>
         <span className="w-12 shrink-0 text-right tabular-nums text-mute" title="Points this pillar adds to the raw score">

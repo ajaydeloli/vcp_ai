@@ -7,12 +7,13 @@ import { fmtDay, fmtInt, fmtPct } from "@/lib/fmt";
 import type { MarketHealth as Health } from "@/lib/schemas";
 import { C, Figure, Inner, Legend } from "./MarketParts";
 import { MiniLineChart, type MiniSeries } from "./MiniLineChart";
+import { type Pillar, ScoreReadings } from "./ScoreReadings";
 import { Empty } from "./ui";
 
 const FLOW_WINDOW = 20; // sessions behind each point of the failure line (api/health.py)
 const FAIL_WITHIN = 5;
 
-export function SetupFlowCard({ flow, box }: { flow: Health["flow"]; box: string }) {
+export function SetupFlowCard({ flow, box, pillar, judged }: { flow: Health["flow"]; box: string; pillar?: Pillar; judged?: number }) {
   const counts = useMemo<MiniSeries[]>(
     () => [
       { name: "Breakouts", color: C.up, kind: "bar", data: flow.map((p) => ({ time: p.day, value: p.breakouts })) },
@@ -44,21 +45,40 @@ export function SetupFlowCard({ flow, box }: { flow: Health["flow"]; box: string
         <div className="flex gap-4">
           <div className="min-w-0 flex-1">
             <MiniLineChart series={counts} height={130} plain whole label="setup-flow-chart" />
-            <Legend items={[["Breakouts per day", C.up], ["New setups per day", C.blue]]} />
+            <Legend
+              items={[
+                ["Breakouts per day", C.up],
+                ["New setups per day", C.blue],
+              ]}
+            />
             {failed[0]?.data.length ? (
               <MiniLineChart series={failed} height={95} plain threshold={{ value: 50, title: "50%" }} label="failed-breakouts-chart" />
             ) : (
               <p className="py-6 text-center text-[11px] text-mute">Failure rate: too few breakouts judged yet.</p>
             )}
-            <Legend items={[[`Failed within ${FAIL_WITHIN} sessions, last ${FLOW_WINDOW} sessions`, C.down], ["dashed: 50%", C.warn]]} />
-            <p className="mt-1 text-[11px] text-mute">Since {fmtDay(flow[0]?.day)}, the first stored scan; all five strategies.</p>
+            <Legend
+              items={[
+                [`Failed within ${FAIL_WITHIN} sessions, last ${FLOW_WINDOW} sessions`, C.down],
+                ["dashed: 50%", C.warn],
+              ]}
+            />
+            <p className="mt-1 text-[11px] text-mute">
+              Charts and the figures under &ldquo;Our strategies&rdquo;: our five strategies&apos; own breakouts since {fmtDay(flow[0]?.day)}, the first stored scan. The
+              score&apos;s breakout readings use one price rule back to 2022, so the two failure rates differ.
+            </p>
           </div>
-          <aside aria-label="Setup flow figures" className="w-40 shrink-0 space-y-3 border-l border-line pl-4">
+          <aside aria-label="Setup flow figures" className="w-56 shrink-0 space-y-3 border-l border-line pl-4">
+            {/* the score's breakout readings: one price rule over all history (MARKET_HEALTH_SPECIFICATION §2) */}
+            <ScoreReadings pillar={pillar} title={`Breakout environment (score${judged ? `, ${judged} judged` : ""})`} />
+            <p className="border-t border-line pt-2 text-[10px] font-semibold uppercase tracking-wide text-mute">Our strategies</p>
             <Figure label="Breakouts" value={fmtInt(last.breakouts)} sub="today" color="text-up" />
             <div className="border-t border-line pt-3">
               <Figure label="New setups" value={last.new_setups === null ? "—" : fmtInt(last.new_setups)} sub="today" color="text-accent" />
             </div>
-            <div className="border-t border-line pt-3" title={`Breakouts that closed back below their pivot within ${FAIL_WITHIN} sessions, of those judged in the last ${FLOW_WINDOW} sessions`}>
+            <div
+              className="border-t border-line pt-3"
+              title={`Breakouts that closed back below their pivot within ${FAIL_WITHIN} sessions, of those judged in the last ${FLOW_WINDOW} sessions`}
+            >
               <Figure
                 label="Failed breakouts"
                 value={rate === null ? "—" : fmtPct(rate, 0)}

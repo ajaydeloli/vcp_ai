@@ -83,17 +83,22 @@ def _pillars(raw: list[dict[str, Any]]) -> list[m.HealthScorePillar]:
     return out
 
 
-def health_score(cur: Cur, end: date) -> m.HealthScore | None:
-    """The latest stored day on or before ``end`` under the settings version that scored it,
-    with the history of that version."""
+def _version(cur: Cur, end: date) -> str | None:
+    """The settings version of the latest stored day on or before ``end``."""
     top = cur.execute(
         "SELECT settings_version FROM market_health_daily WHERE trade_date <= ?"
         " ORDER BY trade_date DESC, computed_at DESC LIMIT 1",
         [end],
     ).fetchone()
-    if top is None:
+    return None if top is None else str(top[0])
+
+
+def health_score(cur: Cur, end: date) -> m.HealthScore | None:
+    """The latest stored day on or before ``end`` under the settings version that scored it,
+    with the history of that version."""
+    version = _version(cur, end)
+    if version is None:
         return None
-    version = str(top[0])
     rows = cur.execute(
         "SELECT trade_date, raw_score, raw_label, label, thrust FROM market_health_daily"
         " WHERE settings_version = ? AND trade_date <= ? ORDER BY trade_date DESC LIMIT ?",
@@ -101,7 +106,7 @@ def health_score(cur: Cur, end: date) -> m.HealthScore | None:
     ).fetchall()[::-1]
     last = cur.execute(
         "SELECT trade_date, raw_score, raw_label, label, complete, exposure, pillars_json,"
-        " caps_json, missing_json FROM market_health_daily"
+        " caps_json, missing_json, features_json FROM market_health_daily"
         " WHERE settings_version = ? AND trade_date = ?",
         [version, rows[-1][0]],
     ).fetchone()
@@ -112,6 +117,82 @@ def health_score(cur: Cur, end: date) -> m.HealthScore | None:
         complete=bool(last[4]), exposure=last[5], pillars=_pillars(json.loads(last[6])),
         caps=[m.HealthScoreCap(**c) for c in json.loads(last[7])],
         missing=json.loads(last[8]), last_thrust=thrusts[-1] if thrusts else None,
+        judged=int(json.loads(last[9]).get("judged") or 0),
         history=[m.HealthScoreDay(day=r[0], raw=r[1], raw_label=r[2], label=r[3],
                                   thrust=bool(r[4])) for r in rows],
     )  # fmt: skip
+
+
+CHART_DAYS = 250  # sessions in the cards' charts
+NIFTY50, SMALLCAP = "Nifty 50", "Nifty Smallcap 250"
+
+
+def _rebase(values: list[float | None], base: float | None) -> list[float | None]:
+    return [None if v is None or not base else 100.0 * v / base for v in values]
+
+
+def score_points(cur: Cur, end: date) -> list[m.HealthScorePoint]:
+    """The score's own readings per session (the latest settings version), oldest first, for
+    the cards: one source for the score and the charts beside it."""
+    version = _version(cur, end)
+    if version is None:
+        return []
+    rows = cur.execute(
+        "SELECT trade_date, vqi, features_json FROM market_health_daily"
+        " WHERE settings_version = ? AND trade_date <= ? ORDER BY trade_date DESC LIMIT ?",
+        [version, end, CHART_DAYS],
+    ).fetchall()[::-1]
+    if not rows:
+        return []
+    days = [r[0] for r in rows]
+    feats = [json.loads(r[2]) for r in rows]
+    closes: dict[str, dict[date, float]] = {NIFTY50: {}, SMALLCAP: {}}
+    for name, d, c in cur.execute(
+        "SELECT index_name, trade_date, close FROM index_daily WHERE trade_date BETWEEN ? AND ?"
+        " AND close > 0 AND index_name IN (?, ?)",
+        [days[0], days[-1], NIFTY50, SMALLCAP],
+    ).fetchall():
+        closes[str(name)][d] = float(c)
+
+    def first(values: list[float | None]) -> float | None:
+        return next((v for v in values if v), None)
+
+    n500 = [f.get("n500_close") for f in feats]
+    base = first(n500)
+    n50 = [closes[NIFTY50].get(d) for d in days]
+    small = [closes[SMALLCAP].get(d) for d in days]
+    vqi = [None if r[1] is None else float(r[1]) for r in rows]
+    series = {
+        "nifty500": _rebase(n500, base),
+        "n500_ma50": _rebase([f.get("n500_sma50") for f in feats], base),
+        "n500_ma150": _rebase([f.get("n500_sma150") for f in feats], base),
+        "n500_ma200": _rebase([f.get("n500_sma200") for f in feats], base),
+        "nifty50": _rebase(n50, first(n50)),
+        "smallcap250": _rebase(small, first(small)),
+        "vqi": _rebase(vqi, first(vqi)),
+    }
+    out = []
+    for i, (d, f) in enumerate(zip(days, feats, strict=True)):
+        hi, lo = f.get("new_highs"), f.get("new_lows")
+        share = f.get("highs_lows")
+        out.append(m.HealthScorePoint(
+            day=d, **{k: v[i] for k, v in series.items()}, kind=f.get("n500_kind"),
+            above50=f.get("pct_above_50"), above150=f.get("pct_above_150"),
+            above200=f.get("pct_above_200"), ad_ratio=f.get("ad_ratio"),
+            ad_line=f.get("ad_line"), thrust_ratio=f.get("thrust_ratio"),
+            thrust=bool(f.get("thrust")),
+            net_highs=None if hi is None or lo is None else float(hi - lo),
+            highs_share=None if share is None else 100.0 * share,
+            tt_share=f.get("tt_share"), leaders=f.get("leaders"),
+        ))  # fmt: skip
+    return out
+
+
+def score_warnings(score: m.HealthScore | None) -> list[m.HealthWarning]:
+    """The divergence warning above the cards is the score's divergence cap, word for word, so
+    the warning and the cap always agree."""
+    if score is None:
+        return []
+    return [
+        m.HealthWarning(id="divergence", text=c.reason) for c in score.caps if c.id == "divergence"
+    ]

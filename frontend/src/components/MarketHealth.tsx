@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { type ReactNode, useMemo } from "react";
 import { useMarket, useMarketHealth, usePaper } from "@/lib/api";
 import { fmtDay, fmtInt, fmtPct, strategyLabel } from "@/lib/fmt";
 import type { MarketHealth as Health } from "@/lib/schemas";
@@ -8,6 +8,7 @@ import { SetupCounts } from "./SetupCounts";
 import { MiniLineChart, type MiniSeries } from "./MiniLineChart";
 import { SetupFlowCard } from "./MarketFlow";
 import { HealthScoreCard } from "./HealthScore";
+import { ScoreReadings } from "./ScoreReadings";
 import { SectorRotationCard } from "./SectorRotation";
 import { SectorCard } from "./SectorStrength";
 import { BOX, C, Figure, Inner, Legend, NSE } from "./MarketParts";
@@ -19,16 +20,6 @@ const DOT: Record<string, string> = {
   red: "bg-down",
   grey: "bg-mute/60",
 };
-
-
-function series(name: string, color: string, pts: Health["points"], pick: (p: Health["points"][number]) => number | null): MiniSeries {
-  const data: { time: string; value: number }[] = [];
-  for (const p of pts) {
-    const v = pick(p);
-    if (v !== null) data.push({ time: p.day, value: v });
-  }
-  return { name, color, data };
-}
 
 /** How the open paper positions are doing (their count and the progress toward the review are in
  *  the Paper trading panel). */
@@ -55,14 +46,9 @@ function OpenPositions() {
                   </span>
                   <span className="relative h-2 rounded bg-bg">
                     <span className="absolute inset-y-0 left-1/2 w-px bg-line" />
-                    <span
-                      className={`absolute inset-y-0 ${v >= 0 ? "left-1/2 bg-up" : "right-1/2 bg-down"}`}
-                      style={{ width: `${(Math.abs(v) / max) * 50}%` }}
-                    />
+                    <span className={`absolute inset-y-0 ${v >= 0 ? "left-1/2 bg-up" : "right-1/2 bg-down"}`} style={{ width: `${(Math.abs(v) / max) * 50}%` }} />
                   </span>
-                  <span className={`text-right tabular-nums ${v >= 0 ? "text-up" : "text-down"}`}>
-                    {o.open_pct === null ? "—" : `${v >= 0 ? "+" : ""}${v.toFixed(1)}%`}
-                  </span>
+                  <span className={`text-right tabular-nums ${v >= 0 ? "text-up" : "text-down"}`}>{o.open_pct === null ? "—" : `${v >= 0 ? "+" : ""}${v.toFixed(1)}%`}</span>
                 </li>
               );
             })}
@@ -81,12 +67,8 @@ function Trades({ trades }: { trades: Health["trades"] }) {
       <div className="flex h-24 items-center gap-1">
         {trades.map((t, i) => (
           <div key={i} className="flex h-full flex-1 flex-col justify-center" title={`${fmtDay(t.day)}: ${t.ret_pct.toFixed(1)}%`}>
-            <div className="flex h-1/2 items-end">
-              {t.ret_pct > 0 && <div className="w-full bg-up" style={{ height: `${(t.ret_pct / max) * 100}%` }} />}
-            </div>
-            <div className="flex h-1/2 items-start">
-              {t.ret_pct <= 0 && <div className="w-full bg-down" style={{ height: `${(-t.ret_pct / max) * 100}%` }} />}
-            </div>
+            <div className="flex h-1/2 items-end">{t.ret_pct > 0 && <div className="w-full bg-up" style={{ height: `${(t.ret_pct / max) * 100}%` }} />}</div>
+            <div className="flex h-1/2 items-start">{t.ret_pct <= 0 && <div className="w-full bg-down" style={{ height: `${(-t.ret_pct / max) * 100}%` }} />}</div>
           </div>
         ))}
       </div>
@@ -102,11 +84,7 @@ function Readings({ group }: { group: Health["groups"][number] }) {
       <ul className="mt-3 divide-y divide-line/60 text-xs">
         {group.items.map((i) => (
           <li key={i.id} className="flex items-center gap-2 py-1.5" title={i.text}>
-            <span
-              role="img"
-              aria-label={i.status}
-              className={`h-2.5 w-2.5 shrink-0 rounded-full ${DOT[i.status] ?? DOT.grey}`}
-            />
+            <span role="img" aria-label={i.status} className={`h-2.5 w-2.5 shrink-0 rounded-full ${DOT[i.status] ?? DOT.grey}`} />
             <span className="min-w-0 flex-1 truncate text-ink">{i.label}</span>
             <span className="shrink-0 text-right text-mute">{i.short}</span>
             <span className="w-7 shrink-0 text-right tabular-nums text-ink" title="score out of 100">
@@ -119,114 +97,35 @@ function Readings({ group }: { group: Health["groups"][number] }) {
   );
 }
 
-/** The figures beside the index chart: distance from the 50-day and 200-day averages, accumulation days, distribution days. */
-function IndexFigures({ days }: { days: NonNullable<Health["index_days"]> }) {
-  const last = `(last ${days.window} sessions)`;
-  const away = (label: string, v: number | null, first = false) => (
-    <div className={first ? "" : "border-t border-line pt-3"}>
-      <Figure
-        label={label}
-        value={v === null ? "—" : `${v >= 0 ? "+" : ""}${v.toFixed(1)}%`}
-        color={v === null ? "text-ink" : v >= 0 ? "text-up" : "text-down"}
-      />
-    </div>
-  );
-  return (
-    <aside aria-label="Index figures" className="w-40 shrink-0 space-y-3 border-l border-line pl-4">
-      {away("VQI vs 50-day MA", days.pct_from_50, true)}
-      {away("VQI vs 200-day MA", days.pct_from_200)}
-      <div className="border-t border-line pt-3">
-        <Figure label="Accumulation days" value={String(days.accumulation)} sub={last} color="text-up" />
-      </div>
-      <div className="border-t border-line pt-3">
-        <Figure label="Distribution days" value={String(days.distribution)} sub={last} color="text-down" />
-      </div>
-    </aside>
-  );
-}
-
-/** The figures beside the leadership chart: net new highs (the reading's 10-day average), new lows
- *  today, how many leaders there are and how they do against the index. Today's new highs are the
- *  list under the chart and the failure rate is on the Setups and breakouts card (one place each). */
-function LeadershipFigures({ group, lows, leaders, change }: {
-  group: Health["groups"][number];
-  lows: number | null;
-  leaders: number | null;
-  change: number | null;
-}) {
-  const num = (id: string) => group.items.find((i) => i.id === id)?.value ?? null;
-  const net = num("highs_lows");
-  const lead = num("leaders");
-  return (
-    <aside aria-label="Leadership figures" className="w-40 shrink-0 space-y-3 border-l border-line pl-4">
-      <div title="New 52-week highs minus new lows, average of the last 10 sessions">
-        <Figure
-          label="Net new highs"
-          value={net === null ? "—" : `${net >= 0 ? "+" : ""}${net.toFixed(1)}`}
-          sub="a day, 10-day avg"
-          color={net === null ? "text-ink" : net >= 0 ? "text-up" : "text-down"}
-        />
-      </div>
-      <div className="border-t border-line pt-3">
-        <Figure label="New 52-week lows" value={lows === null ? "—" : String(lows)} sub="today" color="text-down" />
-      </div>
-      <div className="border-t border-line pt-3" title="Stocks passing the Trend Template with RS 80 or more; the change against the scan 20 sessions earlier">
-        <Figure
-          label="Leaders"
-          value={leaders === null ? "—" : String(leaders)}
-          sub={change === null ? "(TT pass, RS 80+)" : `${change >= 0 ? "+" : ""}${change} in 20 sessions`}
-          color={change === null ? "text-ink" : change >= 0 ? "text-up" : "text-down"}
-        />
-      </div>
-      <div className="border-t border-line pt-3">
-        <Figure
-          label="Leaders vs index"
-          value={lead === null ? "—" : `${lead >= 0 ? "+" : ""}${lead.toFixed(1)}`}
-          sub="points"
-          color={lead === null ? "text-ink" : lead >= 0 ? "text-up" : "text-down"}
-        />
-      </div>
-    </aside>
-  );
-}
-
-/** The figures beside the breadth charts: the scanner's regime, the two breadth shares, net advancers. */
-function BreadthFigures({ group }: { group: Health["groups"][number] }) {
+/** The strategies' frozen regime rule (not a health reading): on when at least the threshold
+ *  of the scan's universe closes above its 50-day average. */
+function StrategyRegime() {
   const market = useMarket(250);
   const m = market.data;
   const last = m?.days[m.days.length - 1];
-  const num = (id: string) => group.items.find((i) => i.id === id)?.value ?? null;
-  const pct = (v: number | null) => (v === null ? "—" : `${v.toFixed(1)}%`);
-  const above = (v: number | null) => (v === null ? "text-ink" : v >= 50 ? "text-up" : v >= 40 ? "text-warn" : "text-down");
-  const a50 = num("above50");
-  const a200 = num("above200");
-  const net = num("ad");
   return (
-    <aside aria-label="Breadth figures" className="w-40 shrink-0 space-y-3 border-l border-line pl-4">
-      <div
-        title={m ? `The regime is ${m.regime_rule}: on when at least ${m.breadth_threshold_pct}% of the universe closes above its 50-day average (the dashed line).` : undefined}
-      >
-        <Figure
-          label="Regime"
-          value={last ? (last.regime_on ? "ON" : "OFF") : "—"}
-          sub={m ? `(${m.regime_days_on_last_20}/20 days on)` : undefined}
-          color={last ? (last.regime_on ? "text-up" : "text-down") : "text-ink"}
-        />
-      </div>
-      <div className="border-t border-line pt-3">
-        <Figure label="Above 50-day average" value={pct(a50)} color={above(a50)} />
-      </div>
-      <div className="border-t border-line pt-3">
-        <Figure label="Above 200-day average" value={pct(a200)} color={above(a200)} />
-      </div>
-      <div className="border-t border-line pt-3">
-        <Figure
-          label="Net advancers"
-          value={net === null ? "—" : `${net >= 0 ? "+" : ""}${net.toFixed(0)}`}
-          sub="today"
-          color={net === null ? "text-ink" : net >= 0 ? "text-up" : "text-down"}
-        />
-      </div>
+    <div
+      className="border-t border-line pt-2"
+      title={
+        m
+          ? `The strategies' regime is ${m.regime_rule}: on when at least ${m.breadth_threshold_pct}% of the scan's universe closes above its 50-day average. A frozen rule, not part of the health score.`
+          : undefined
+      }
+    >
+      <Figure
+        label="Strategy regime (frozen rule)"
+        value={last ? (last.regime_on ? "ON" : "OFF") : "—"}
+        sub={m ? `(${m.regime_days_on_last_20}/20 days on)` : undefined}
+        color={last ? (last.regime_on ? "text-up" : "text-down") : "text-ink"}
+      />
+    </div>
+  );
+}
+
+function FigureColumn({ children, label }: { children: ReactNode; label: string }) {
+  return (
+    <aside aria-label={label} className="w-56 shrink-0 space-y-3 border-l border-line pl-4">
+      {children}
     </aside>
   );
 }
@@ -235,7 +134,12 @@ const STAGES = [
   { key: "stage1", label: "Stage 1: base", color: C.blue, text: "text-accent" },
   { key: "stage2", label: "Stage 2: uptrend", color: C.up, text: "text-up" },
   { key: "stage3", label: "Stage 3: top", color: C.warn, text: "text-warn" },
-  { key: "stage4", label: "Stage 4: downtrend", color: C.down, text: "text-down" },
+  {
+    key: "stage4",
+    label: "Stage 4: downtrend",
+    color: C.down,
+    text: "text-down",
+  },
 ] as const;
 
 /** The scanned stocks by weekly stage: the share in each of the four stages week by week, and today's shares. */
@@ -264,12 +168,7 @@ function StageCard({ stages, box }: { stages: Health["stages"]; box: string }) {
             <aside aria-label="Stage figures" className="w-40 shrink-0 space-y-3 border-l border-line pl-4">
               {STAGES.map((st, i) => (
                 <div key={st.key} className={i ? "border-t border-line pt-3" : ""}>
-                  <Figure
-                    label={st.label}
-                    value={fmtPct((last[st.key] / last.total) * 100, 0)}
-                    sub={`(${fmtInt(last[st.key])} stocks)`}
-                    color={st.text}
-                  />
+                  <Figure label={st.label} value={fmtPct((last[st.key] / last.total) * 100, 0)} sub={`(${fmtInt(last[st.key])} stocks)`} color={st.text} />
                 </div>
               ))}
             </aside>
@@ -280,48 +179,69 @@ function StageCard({ stages, box }: { stages: Health["stages"]; box: string }) {
   );
 }
 
+type SP = Health["score_points"][number];
+
+function line(name: string, color: string, pts: SP[], pick: (p: SP) => number | null): MiniSeries {
+  const data: { time: string; value: number }[] = [];
+  for (const p of pts) {
+    const v = pick(p);
+    if (v !== null) data.push({ time: p.day, value: v });
+  }
+  return { name, color, data };
+}
+
+const SMALLCAP = "#f472b6";
+
+/** The cards' charts: the Market Health Score's own readings per session (FRONTEND_SPECIFICATION
+ *  §67.34), so a chart never tells a different story from the score. The feedback loop is our
+ *  paper trades (not part of the score). */
 function Charts({ d, id }: { d: Health; id: string }) {
-  const pts = d.points;
+  const pts = d.score_points;
   const index = useMemo(
     () => [
-      series("VQI", C.ink, pts, (p) => p.index),
-      series("50-day", C.warn, pts, (p) => p.ma50),
-      series("200-day", C.down, pts, (p) => p.ma200),
-      series("NIFTY 50", NSE.nifty50, pts, (p) => p.nifty50),
-      series("NIFTY 500", NSE.nifty500, pts, (p) => p.nifty500),
-      // accumulation (green) and distribution days (red) as small dots on one line above the
-      // dates: VQI up / down 0.2 % or more on higher volume (the counts beside the chart). A day
-      // is one or the other or neither, never both, so one line is enough.
+      line("NIFTY 500", NSE.nifty500, pts, (p) => p.nifty500),
+      line("50-day", C.warn, pts, (p) => p.n500_ma50),
+      line("150-day", C.violet, pts, (p) => p.n500_ma150),
+      line("200-day", C.down, pts, (p) => p.n500_ma200),
+      line("NIFTY 50", NSE.nifty50, pts, (p) => p.nifty50),
+      line("Smallcap 250", SMALLCAP, pts, (p) => p.smallcap250),
+      // accumulation (green) and distribution days (red) of NIFTY 500 with its own volume, as
+      // small dots on one line above the dates (the score's rule)
       {
         name: "Volume days",
         color: C.up,
         kind: "dots" as const,
         data: pts.flatMap((p) =>
-          p.accumulation
-            ? [{ time: p.day, value: 0, color: C.up }]
-            : p.distribution
-              ? [{ time: p.day, value: 0, color: C.down }]
-              : [],
+          p.kind === "accumulation" ? [{ time: p.day, value: 0, color: C.up }] : p.kind === "distribution" ? [{ time: p.day, value: 0, color: C.down }] : [],
         ),
       },
     ],
     [pts],
   );
-  const hasNse = pts.some((p) => p.nifty50 !== null || p.nifty500 !== null);
-  const highs = useMemo(
+  const highs = useMemo(() => [line("Highs share %", C.blue, pts, (p) => p.highs_share)], [pts]);
+  const tt = useMemo(() => [line("Trend Template %", C.up, pts, (p) => p.tt_share)], [pts]);
+  const breadth = useMemo(
     () => [
-      { ...series("Net new highs", C.blue, pts, (p) => p.net_highs), kind: "bar" as const },
-      series("10-day average", C.warn, pts, (p) => p.net_highs_avg10),
+      line("Above 50-day %", C.blue, pts, (p) => p.above50),
+      line("Above 150-day %", C.warn, pts, (p) => p.above150),
+      line("Above 200-day %", C.violet, pts, (p) => p.above200),
     ],
     [pts],
   );
-  const breadth = useMemo(() => [series("Above 50-day %", C.blue, pts, (p) => p.above50), series("Above 200-day %", C.violet, pts, (p) => p.above200)], [pts]);
-  const ad = useMemo(() => [series("A/D line", C.ink, pts, (p) => p.ad_line), series("50-day avg", C.warn, pts, (p) => p.ad_ma50)], [pts]);
+  const net = useMemo(() => [line("Net advances %", C.ink, pts, (p) => (p.ad_ratio === null ? null : 100 * p.ad_ratio))], [pts]);
+  const gap = useMemo(() => [line("VQI", C.ink, pts, (p) => p.vqi), line("NIFTY 500", NSE.nifty500, pts, (p) => p.nifty500)], [pts]);
   const thrust = useMemo(
     () => [
       {
-        ...series("Breadth thrust", C.blue, pts, (p) => p.thrust_ratio),
-        markers: pts.filter((p) => p.thrust).map((p) => ({ time: p.day, color: C.up, position: "aboveBar" as const, text: "thrust" })),
+        ...line("Breadth thrust", C.blue, pts, (p) => p.thrust_ratio),
+        markers: pts
+          .filter((p) => p.thrust)
+          .map((p) => ({
+            time: p.day,
+            color: C.up,
+            position: "aboveBar" as const,
+            text: "thrust",
+          })),
       },
     ],
     [pts],
@@ -333,39 +253,104 @@ function Charts({ d, id }: { d: Health; id: string }) {
         <MiniLineChart series={index} height={262} plain label="index-price-chart" />
         <Legend
           items={[
-            ["VQI", C.ink],
+            ["NIFTY 500", NSE.nifty500],
             ["its 50-day", C.warn],
+            ["its 150-day", C.violet],
             ["its 200-day", C.down],
+            ["NIFTY 50", NSE.nifty50],
+            ["Smallcap 250", SMALLCAP],
             ["● accumulation day", C.up],
             ["● distribution day", C.down],
-            ...(hasNse ? ([["NIFTY 50", NSE.nifty50], ["NIFTY 500", NSE.nifty500]] as [string, string][]) : []),
           ]}
         />
-        <p className="text-[11px] text-mute">
-          {hasNse
-            ? "All lines start at 100. NIFTY rising while VQI lags: a few large stocks carry the market."
-            : "NIFTY lines appear once the index closes are fetched (vcp indices update)."}
-        </p>
+        <p className="text-[11px] text-mute">All lines start at 100. Dots: NIFTY 500 up or down 0.2% or more on higher volume than the day before.</p>
       </>
     );
   if (id === "leadership")
     return (
       <>
-        <MiniLineChart series={highs} height={200} plain label="highs-lows-chart" />
-        <Legend items={[["Net new 52-week highs (highs − lows) a day", C.blue], ["its 10-day average", C.warn]]} />
+        <MiniLineChart
+          series={highs}
+          height={110}
+          plain
+          threshold={[
+            { value: 20, title: "20" },
+            { value: 80, title: "80" },
+          ]}
+          label="highs-lows-chart"
+        />
+        <Legend
+          items={[
+            ["New 52-week highs / (highs + lows), 10-day averages, %", C.blue],
+            ["dashed: 20% and 80%, where it scores 0 and 100", C.warn],
+          ]}
+        />
+        <MiniLineChart
+          series={tt}
+          height={90}
+          plain
+          threshold={[
+            { value: 3, title: "3" },
+            { value: 20, title: "20" },
+          ]}
+          label="trend-template-chart"
+        />
+        <Legend
+          items={[
+            ["Stocks passing the Trend Template, %", C.up],
+            ["dashed: 3% and 20%", C.warn],
+          ]}
+        />
         <NewHighsList highs={d.new_highs} />
       </>
     );
   if (id === "breadth")
     return (
       <>
-        <MiniLineChart series={breadth} height={88} plain threshold={{ value: 40, title: "40%" }} label="breadth-chart" />
-        <Legend items={[["% above 50-day", C.blue], ["% above 200-day", C.violet], ["dashed: regime on at 40%", C.warn]]} />
-        <MiniLineChart series={ad} height={80} plain label="ad-line-chart" />
-        <Legend items={[["Advance/decline line", C.ink], ["its 50-day average", C.warn]]} />
+        <MiniLineChart
+          series={breadth}
+          height={88}
+          plain
+          threshold={[
+            { value: 30, title: "30%" },
+            { value: 70, title: "70%" },
+          ]}
+          label="breadth-chart"
+        />
+        <Legend
+          items={[
+            ["% above 50-day", C.blue],
+            ["% above 150-day", C.warn],
+            ["% above 200-day", C.violet],
+            ["dashed: 30% and 70%", C.warn],
+          ]}
+        />
+        <MiniLineChart
+          series={net}
+          height={64}
+          plain
+          threshold={[
+            { value: -15, title: "-15" },
+            { value: 15, title: "15" },
+          ]}
+          label="ad-line-chart"
+        />
+        <Legend
+          items={[
+            ["Net advances over 20 sessions, % of all moves", C.ink],
+            ["dashed: ±15%", C.warn],
+          ]}
+        />
+        <MiniLineChart series={gap} height={64} plain label="vqi-gap-chart" />
+        <Legend
+          items={[
+            ["VQI (the average stock)", C.ink],
+            ["NIFTY 500", NSE.nifty500],
+          ]}
+        />
         <MiniLineChart
           series={thrust}
-          height={72}
+          height={64}
           plain
           threshold={[
             { value: 40, title: "40%" },
@@ -373,7 +358,12 @@ function Charts({ d, id }: { d: Health; id: string }) {
           ]}
           label="thrust-chart"
         />
-        <Legend items={[["Breadth thrust: 10-day average of advancers / (advancers + decliners), %", C.blue], ["dashed: 40% and 61.5%", C.warn]]} />
+        <Legend
+          items={[
+            ["Breadth thrust: 10-day average of advancers / (advancers + decliners), %", C.blue],
+            ["dashed: 40% and 61.5%", C.warn],
+          ]}
+        />
         <p className="text-[11px] text-mute" data-testid="thrust-note">
           {lastThrust
             ? `Last thrust ${fmtDay(lastThrust.day)}: from below 40% to above 61.5% within 10 sessions, a classic end-of-correction signal.`
@@ -423,7 +413,9 @@ function Warnings({ warnings }: { warnings: Health["warnings"] }) {
     <ul aria-label="Divergence warnings" className="mb-4 space-y-1 rounded-lg border border-warn/50 bg-warn/10 p-3 text-xs text-ink">
       {warnings.map((w) => (
         <li key={w.id} className="flex gap-2">
-          <span aria-hidden="true" className="text-warn">⚠</span>
+          <span aria-hidden="true" className="text-warn">
+            ⚠
+          </span>
           <span>
             <span className="font-medium text-warn">Divergence: </span>
             {w.text}
@@ -438,62 +430,62 @@ function Warnings({ warnings }: { warnings: Health["warnings"] }) {
 export function MarketHealth() {
   const health = useMarketHealth();
   const d = health.data;
-  const by = (id: string) => d?.groups.find((g) => g.id === id);
-  const idx = by("index");
-  const lead = by("leadership");
-  const br = by("breadth");
-  const fb = by("feedback");
+  const fb = d?.groups.find((g) => g.id === "feedback");
+  const pillar = (id: string) => d?.score?.pillars.find((p) => p.id === id);
   return (
     <section className="min-w-0" aria-label="Market health overview">
       {health.isError ? (
         <ErrorBox error={health.error} />
       ) : !d ? (
         <Loading what="market health" />
-      ) : d.groups.length === 0 ? (
+      ) : d.as_of === null ? (
         <Empty>No market data to read yet.</Empty>
       ) : (
         <>
           <Warnings warnings={d.warnings} />
           <div className="grid gap-4 lg:grid-cols-2">
             <HealthScoreCard score={d.score} />
-            {idx && (
-              <Inner title={idx.title} box={BOX.index}>
+            {
+              <Inner title="Index trend" box={BOX.index}>
                 <div className="flex gap-4">
                   <div className="min-w-0 flex-1">
                     <Charts d={d} id="index" />
                   </div>
-                  {d.index_days && <IndexFigures days={d.index_days} />}
+                  <FigureColumn label="Index figures">
+                    <ScoreReadings pillar={pillar("index_trend")} />
+                    <ScoreReadings pillar={pillar("accumulation")} />
+                  </FigureColumn>
                 </div>
               </Inner>
-            )}
-            {lead && (
-              <Inner title={lead.title} box={BOX.leadership}>
+            }
+            {
+              <Inner title="Leadership" box={BOX.leadership}>
                 <div className="flex gap-4">
                   <div className="min-w-0 flex-1">
                     <Charts d={d} id="leadership" />
                   </div>
-                  <LeadershipFigures
-                    group={lead}
-                    lows={d.points.at(-1)?.lows ?? null}
-                    leaders={d.leader_count}
-                    change={d.leader_change}
-                  />
+                  <FigureColumn label="Leadership figures">
+                    <ScoreReadings pillar={pillar("leadership")} />
+                  </FigureColumn>
                 </div>
               </Inner>
-            )}
-            {br && (
-              <Inner title={br.title} box={BOX.breadth}>
+            }
+            {
+              <Inner title="Breadth" box={BOX.breadth}>
                 <div className="flex gap-4">
                   <div className="min-w-0 flex-1">
                     <Charts d={d} id="breadth" />
                   </div>
-                  <BreadthFigures group={br} />
+                  <FigureColumn label="Breadth figures">
+                    <ScoreReadings pillar={pillar("breadth")} />
+                    <StrategyRegime />
+                  </FigureColumn>
                 </div>
               </Inner>
-            )}
+            }
             <StageCard stages={d.stages} box={BOX.stage} />
-            <SetupFlowCard flow={d.flow} box={BOX.flow} />
-            <SectorCard sectors={d.sectors} box={BOX.sectors} />
+            <SetupFlowCard flow={d.flow} box={BOX.flow} pillar={pillar("breakouts")} judged={d.score?.judged} />
+            <SectorCard sectors={d.sectors} box={BOX.sectors} reading={pillar("leadership")?.parts.find((x) => x.id === "sectors")} />
             <SectorRotationCard rotation={d.rotation} />
             {fb && (
               <Inner title={fb.title} box={BOX.feedback}>

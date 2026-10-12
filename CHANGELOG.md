@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Market Overview cards read the Market Health Score (FRONTEND_SPECIFICATION §67.34): Index trend (NIFTY 500 with its 50/150/200-day averages, NIFTY 50, Smallcap 250, NIFTY 500 volume days), Breadth (50/150/200-day shares, net advances, VQI vs NIFTY 500, thrust) and Leadership (highs share, Trend Template share) chart and list the score's own readings, coloured by their points; the breakout and sector cards show the score's readings next to their own; the divergence warning is the score's cap. The regime figure is labelled as the strategies' frozen rule. API: `score_points`, `score.judged`, `sectors[].index_uptrend`; the old VQI-based points, index days, leader counts and reading groups are removed.
+
 - Market health score card layout: the history chart takes half the width; the caps sit side by side under the pillar bars.
 
 - Market health score card: the score on a half-circle gauge with the five label bands and a needle; the capped label in a coloured pill under the number.

@@ -271,10 +271,12 @@ def _sectors(idx: dict[str, Series], day: date, horizons: list[int]) -> float | 
     return sum(shares) / len(shares) if shares else None
 
 
-def _thrust(adv: list[int], dec: list[int], s: HealthSettings) -> list[bool]:
+def _thrust(
+    adv: list[int], dec: list[int], s: HealthSettings
+) -> tuple[list[float | None], list[bool]]:
     """Zweig's breadth thrust on our universe: the day the `sessions`-day average of
     advancers / (advancers + decliners) first closes above `high` with a reading below `low` in
-    the `sessions` sessions before it."""
+    the `sessions` sessions before it. Returns (the average per session, the thrust days)."""
     t = s.thrust
     share = [100.0 * a / (a + d) if a + d else None for a, d in zip(adv, dec, strict=True)]
     ratio = [_avg(share, i, t.sessions) for i in range(len(share))]
@@ -284,7 +286,7 @@ def _thrust(adv: list[int], dec: list[int], s: HealthSettings) -> list[bool]:
         if now is None or now <= t.high or (before is not None and before > t.high):
             continue
         out[i] = any(v is not None and v < t.low for v in ratio[max(0, i - t.sessions) : i])
-    return out
+    return ratio, out
 
 
 def compute_features(
@@ -342,7 +344,7 @@ def assemble(
             judged_at.setdefault(k + e.judge_sessions, []).append(o)
     n500 = idx.get(NIFTY500)
     n500_kind = n500.kinds(a.day_move) if n500 else []
-    thrust = _thrust([int(r["adv"]) for r in rows], [int(r["dec"]) for r in rows], s)
+    thrust_ratio, thrust = _thrust([int(r["adv"]) for r in rows], [int(r["dec"]) for r in rows], s)
     p50 = [pct("a50", "n50", i) for i in range(len(rows))]
     hi20 = [100.0 * r["hi20"] / r["n"] if big[i] else None for i, r in enumerate(rows)]
     hi52 = [100.0 * r["hi52"] / r["n"] if big[i] else None for i, r in enumerate(rows)]
@@ -352,6 +354,15 @@ def assemble(
     for i, d in enumerate(days):
         r = rows[i]
         f: dict[str, Any] = {"universe": n[i], "thrust": thrust[i]}
+        if big[i]:  # shown on the cards, not scored
+            f.update(
+                advancers=int(r["adv"]),
+                decliners=int(r["dec"]),
+                new_highs=int(r["hi52"]),
+                new_lows=int(r["lo52"]),
+                ad_line=ad_line[i],
+                thrust_ratio=thrust_ratio[i],
+            )
         # A. NIFTY 500 trend and the confirmations
         j = n500.pos.get(d) if n500 else None
         if n500 is not None and j is not None:
@@ -360,6 +371,7 @@ def assemble(
                      n500_high_252=max(n500.close[max(0, j - 251) : j + 1]))  # fmt: skip
             sl = s.index_trend.slope_sessions
             f["n500_sma200_prior"] = n500.sma(j - sl, 200) if j >= sl else None
+            f["n500_kind"] = n500_kind[j]
             if n500.volume[j] is not None and j >= a.window:
                 dist = _count(n500_kind, j, a.window, "distribution")
                 acc = _count(n500_kind, j, a.window, "accumulation")

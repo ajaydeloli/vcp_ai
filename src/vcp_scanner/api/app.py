@@ -145,9 +145,7 @@ def create_app(
                     as_of=None,
                     data_time=db.data_time(),
                     groups=[],
-                    points=[],
                     trades=[],
-                    index_days=None,
                 )
             result: m.MarketHealthResponse = db.cached(
                 ("health", end), lambda: health.market_health(cur, ctx, end, db.data_time())

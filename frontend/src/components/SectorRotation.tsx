@@ -237,9 +237,7 @@ export function SectorRotationCard({ rotation }: { rotation: Health["rotation"] 
           </div>
           <div className="min-w-0 space-y-2 text-xs" aria-label="Sectors by quadrant">
             {LIST_ORDER.map((q) => {
-              const rows = shown
-                .filter((r) => r.quadrant === q)
-                .sort((a, b) => (b.points.at(-1)?.ratio ?? 0) - (a.points.at(-1)?.ratio ?? 0));
+              const rows = shown.filter((r) => r.quadrant === q).sort((a, b) => (b.points.at(-1)?.ratio ?? 0) - (a.points.at(-1)?.ratio ?? 0));
               return (
                 <section key={q} aria-label={QUADRANT[q].name}>
                   <h4 className="mb-0.5 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-mute">
@@ -274,8 +272,8 @@ export function SectorRotationCard({ rotation }: { rotation: Health["rotation"] 
               );
             })}
             <p className="text-[11px] text-mute">
-              Sectors usually turn clockwise: Improving → Leading → Weakening → Lagging. RS-Ratio: the sector against NIFTY 500 vs its 10-week
-              trend; RS-Momentum: that ratio vs 4 weeks ago.
+              Sectors usually turn clockwise: Improving → Leading → Weakening → Lagging. RS-Ratio: the sector against NIFTY 500 vs its 10-week trend; RS-Momentum: that ratio vs 4
+              weeks ago.
               {short_.length > 0 ? ` Shorter tails: ${short_.map((r) => short(r.sector)).join(", ")} (NSE started these indices recently).` : ""} Display only.
             </p>
           </div>

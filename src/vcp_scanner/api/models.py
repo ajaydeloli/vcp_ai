@@ -176,6 +176,33 @@ class HealthScoreDay(BaseModel):
     thrust: bool
 
 
+class HealthScorePoint(BaseModel):
+    """One session of the score's own readings, for the cards' charts (FRONTEND_SPECIFICATION
+    §67.34). Indices are rebased to 100 at the first session shown; NIFTY 500's averages use
+    its factor. None where a reading cannot be measured."""
+
+    day: date
+    nifty500: float | None
+    n500_ma50: float | None
+    n500_ma150: float | None
+    n500_ma200: float | None
+    nifty50: float | None
+    smallcap250: float | None
+    vqi: float | None
+    kind: str | None  # NIFTY 500 distribution | accumulation day
+    above50: float | None
+    above150: float | None
+    above200: float | None
+    ad_ratio: float | None  # net advances over 20 sessions, share of all moves
+    ad_line: float | None
+    thrust_ratio: float | None
+    thrust: bool
+    net_highs: float | None  # new 52-week highs - new lows that day
+    highs_share: float | None  # highs / (highs + lows), 10-session averages, %
+    tt_share: float | None
+    leaders: int | None
+
+
 class HealthScore(BaseModel):
     """Market Health Score 2 (MARKET_HEALTH_SPECIFICATION): display, research and a shadow
     traffic light only."""
@@ -191,6 +218,7 @@ class HealthScore(BaseModel):
     caps: list[HealthScoreCap]
     missing: list[str]
     last_thrust: date | None  # the latest breadth thrust in the history shown
+    judged: int  # breakouts judged behind the breakout readings
     history: list[HealthScoreDay]  # oldest first
 
 
@@ -198,29 +226,6 @@ class HealthGroup(BaseModel):
     id: str
     title: str
     items: list[HealthItem]
-
-
-class HealthPoint(BaseModel):
-    day: date
-    index: float  # VQI (VCP Quality Index), 100 at the first chart day
-    ma50: float | None
-    ma200: float | None
-    highs: int
-    lows: int
-    above50: float | None
-    above200: float | None
-    ad_line: float
-    ad_ma50: float | None
-    net_highs: int  # new 52-week highs minus new lows
-    net_highs_avg10: float | None  # its 10-session average
-    nifty50: float | None = None  # NSE's NIFTY 50, 100 at its first value in the chart
-    nifty500: float | None = None  # NIFTY 500, likewise; None: no index file stored that day
-    distribution: bool = False  # a distribution day (the rule of the "Distribution days" reading)
-    accumulation: bool = False  # an accumulation day (VQI up as much on higher volume)
-    thrust_ratio: float | None = None  # 10-day average of advancers / (advancers + decliners), %
-    thrust: bool = (
-        False  # the ratio crossed THRUST_HIGH within THRUST_DAYS of being below THRUST_LOW
-    )
 
 
 class HealthStagePoint(BaseModel):
@@ -271,6 +276,8 @@ class HealthSector(BaseModel):
     new_highs: int  # stocks at a new 52-week high today
     index_name: str | None  # NSE's sector index, when there is one
     index_change_pct: float | None  # its change over SECTOR_MONTH sessions
+    # in an uptrend by the score's test (above its 50-day, up over the horizon), 1 / 3 / 6 months
+    index_uptrend: list[bool | None] = []
 
 
 class HealthRotationPoint(BaseModel):
@@ -293,30 +300,17 @@ class HealthTrade(BaseModel):
     ret_pct: float
 
 
-class HealthIndexDays(BaseModel):
-    """The index card: distance from the 50-day and 200-day averages, and heavy-volume days."""
-
-    pct_from_50: float | None
-    pct_from_200: float | None
-    accumulation: int  # index up 0.2 % or more on higher volume than the day before
-    distribution: int  # index down 0.2 % or more on higher volume than the day before
-    window: int  # sessions counted
-
-
 class MarketHealthResponse(Stamped):
     groups: list[HealthGroup]
-    points: list[HealthPoint]
     trades: list[HealthTrade]
     score: HealthScore | None = None  # Market Health Score 2; None until a day is stored
-    index_days: HealthIndexDays | None
+    score_points: list[HealthScorePoint] = []  # the score's readings per session, for the cards
     stages: list[HealthStagePoint] = []
     flow: list[HealthFlowPoint] = []  # from the first stored scan on
     warnings: list[HealthWarning] = []
     new_highs: list[HealthNewHigh] = []  # universe stocks at a new 52-week high on as_of
     sectors: list[HealthSector] = []  # strongest first; not classified last
     rotation: list[HealthRotation] = []  # sector indices vs NIFTY 500, weekly
-    leader_count: int | None = None  # Trend Template pass and RS 80+ in the latest scan
-    leader_change: int | None = None  # against the scan LEADER_DAYS sessions earlier
 
 
 class SearchHit(BaseModel):

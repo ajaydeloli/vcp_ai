@@ -378,32 +378,8 @@ export const healthItem = z.object({
 export const marketHealth = z.object({
   ...stamp,
   groups: z.array(z.object({ id: z.string(), title: z.string(), items: z.array(healthItem) })),
-  points: z.array(
-    z.object({
-      day: z.string(),
-      index: z.number(),
-      ma50: num,
-      ma200: num,
-      highs: z.number(),
-      lows: z.number(),
-      above50: num,
-      above200: num,
-      ad_line: z.number(),
-      ad_ma50: num,
-      net_highs: z.number(),
-      net_highs_avg10: num,
-      nifty50: num,
-      nifty500: num,
-      distribution: z.boolean(),
-      accumulation: z.boolean(),
-      thrust_ratio: num,
-      thrust: z.boolean(),
-    }),
-  ),
   warnings: z.array(z.object({ id: z.string(), text: z.string() })),
   new_highs: z.array(z.object({ symbol: z.string(), rs_rank: num, sector: z.string().nullable() })),
-  leader_count: num,
-  leader_change: num,
   sectors: z.array(
     z.object({
       sector: z.string().nullable(),
@@ -415,6 +391,7 @@ export const marketHealth = z.object({
       new_highs: z.number(),
       index_name: z.string().nullable(),
       index_change_pct: num,
+      index_uptrend: z.array(z.boolean().nullable()),
     }),
   ),
   rotation: z.array(
@@ -447,9 +424,31 @@ export const marketHealth = z.object({
       failed: z.number(),
     }),
   ),
-  index_days: z
-    .object({ pct_from_50: num, pct_from_200: num, accumulation: z.number(), distribution: z.number(), window: z.number() })
-    .nullable(),
+  /** the score's own readings per session, for the cards' charts (FRONTEND_SPECIFICATION §67.34) */
+  score_points: z.array(
+    z.object({
+      day: z.string(),
+      nifty500: num,
+      n500_ma50: num,
+      n500_ma150: num,
+      n500_ma200: num,
+      nifty50: num,
+      smallcap250: num,
+      vqi: num,
+      kind: z.string().nullable(),
+      above50: num,
+      above150: num,
+      above200: num,
+      ad_ratio: num,
+      ad_line: num,
+      thrust_ratio: num,
+      thrust: z.boolean(),
+      net_highs: num,
+      highs_share: num,
+      tt_share: num,
+      leaders: num,
+    }),
+  ),
   /** Market Health Score 2 (MARKET_HEALTH_SPECIFICATION); null until a day is stored */
   score: z
     .object({
@@ -474,6 +473,7 @@ export const marketHealth = z.object({
       caps: z.array(z.object({ id: z.string(), max: z.string(), reason: z.string() })),
       missing: z.array(z.string()),
       last_thrust: z.string().nullable(),
+      judged: z.number(),
       history: z.array(z.object({ day: z.string(), raw: num, raw_label: z.string().nullable(), label: z.string().nullable(), thrust: z.boolean() })),
     })
     .nullable(),

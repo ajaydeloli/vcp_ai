@@ -222,6 +222,10 @@ def test_assemble_reads_universe_indices_and_breakouts(s: HealthSettings) -> Non
     assert f.judged == len(known)
     assert f.median_return == pytest.approx(1.5)
     assert fds[0].features.n500_sma50 is None
+    # shown on the cards, not scored
+    assert (f.advancers, f.decliners, f.new_highs, f.new_lows) == (600, 400, 20, 5)
+    assert f.ad_line == 200 * 300 and f.thrust_ratio == pytest.approx(60)
+    assert f.n500_kind is None
 
 
 def test_nifty_distribution_days_need_higher_volume(s: HealthSettings) -> None:

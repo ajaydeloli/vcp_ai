@@ -1,5 +1,5 @@
-"""The stored Market Health Score on /market/health (MARKET_HEALTH_SPECIFICATION §7), and the
-straight-line ramp the readings of the cards still use."""
+"""The stored Market Health Score on /market/health (MARKET_HEALTH_SPECIFICATION §7) and the
+cards' readings taken from it (FRONTEND_SPECIFICATION §67.34)."""
 
 from __future__ import annotations
 
@@ -12,19 +12,11 @@ import pytest
 from tests.api.conftest import Env
 from tests.api.fixture import AS_OF, MHS_VERSION, PREV
 from tests.unit.test_market_health import CONFIG, healthy
-from vcp_scanner.api import health
 from vcp_scanner.market_health.build import _row
 from vcp_scanner.market_health.features import FeatureDay
 from vcp_scanner.market_health.scoring import score_day
 from vcp_scanner.market_health.settings import load_settings
 from vcp_scanner.serving import refresh_serving_copy
-
-
-def test_ramp_is_a_straight_line_held_flat_at_both_ends() -> None:
-    assert health._ramp(5, 8, 3) == 60.0  # distribution days: 3 or fewer is 100, 8 or more is 0
-    assert health._ramp(6, 8, 3) == 40.0 and health._ramp(2, 8, 3) == 100.0
-    assert health._ramp(9, 8, 3) == 0.0
-    assert health._ramp(40, 20, 60) == 50.0  # breadth: 20% is 0, 60% is 100
 
 
 def test_the_latest_stored_day_and_its_history(ro_env: Env) -> None:
@@ -66,3 +58,31 @@ def test_no_stored_day_gives_no_score(env: Env) -> None:
         con.execute("DELETE FROM market_health_daily")
     refresh_serving_copy(env.db)
     assert env.client.get("/api/v1/market/health").json()["score"] is None
+
+
+def test_the_cards_read_the_scores_own_points(ro_env: Env) -> None:
+    body = ro_env.client.get("/api/v1/market/health").json()
+    pts = body["score_points"]
+    assert [p["day"] for p in pts] == [h["day"] for h in body["score"]["history"]]
+    first, last = pts[0], pts[-1]
+    # NIFTY 500 and its averages rebased by the same factor, 100 at the first session
+    assert first["nifty500"] == 100.0
+    assert last["n500_ma50"] == pytest.approx(100 * 105 / 110)
+    assert last["above50"] == 72 and last["tt_share"] == 22 and last["highs_share"] == 90.0
+    assert [p["thrust"] for p in pts] == [False, True, False]
+    assert body["score"]["judged"] == 3
+
+
+def test_the_divergence_warning_is_the_scores_cap(env: Env) -> None:
+    s = load_settings(CONFIG)
+    f = healthy(ad_line_gap=0.4)  # NIFTY 500 near its high, the A/D line well below its own
+    later = datetime(2026, 10, 6, tzinfo=UTC)
+    with duckdb.connect(str(env.db)) as con:
+        con.execute(
+            f"INSERT INTO market_health_daily VALUES ({', '.join('?' * 15)})",
+            _row(FeatureDay(AS_OF, f, 1.0, 1.0), score_day(f, s), "v-div", later),
+        )
+    refresh_serving_copy(env.db)
+    body = env.client.get("/api/v1/market/health").json()
+    cap = next(c for c in body["score"]["caps"] if c["id"] == "divergence")
+    assert body["warnings"] == [{"id": "divergence", "text": cap["reason"]}]

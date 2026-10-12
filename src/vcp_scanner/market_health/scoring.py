@@ -70,6 +70,14 @@ class DayFeatures:
     near_pivot: float | None = None
     # events
     thrust: bool = False
+    # shown on the Market Overview cards, never scored (FRONTEND_SPECIFICATION §67.34)
+    advancers: int | None = None
+    decliners: int | None = None
+    new_highs: int | None = None  # new 52-week highs that day
+    new_lows: int | None = None
+    ad_line: float | None = None  # cumulative advancers - decliners
+    thrust_ratio: float | None = None  # 10-day average of advancers / (adv + dec), %
+    n500_kind: str | None = None  # NIFTY 500 that day: distribution | accumulation | None
 
 
 @dataclass(frozen=True)

@@ -16,8 +16,8 @@ describe("dashboard page (market view)", () => {
     await waitFor(() => expect(screen.getByText("symbols").previousElementSibling).toHaveTextContent("63"));
     expect(await screen.findByText("Recent activity")).toBeInTheDocument();
     const breadthCard = await screen.findByRole("region", { name: "Breadth" });
-    expect(await within(breadthCard).findByText("OFF")).toBeInTheDocument(); // the regime
-    expect(within(breadthCard).getByText("31.7%")).toBeInTheDocument();
+    expect(await within(breadthCard).findByText("OFF")).toBeInTheDocument(); // the strategies' regime
+    expect(within(breadthCard).getByTestId("reading-breadth-above_50")).toHaveTextContent("72.0"); // the score's reading
     expect(screen.queryByText("Market overview")).not.toBeInTheDocument();
     expect(screen.queryByText("Paper trading")).not.toBeInTheDocument(); // its own page, /paper
     await waitFor(() => expect(liveCharts().length).toBeGreaterThanOrEqual(4)); // the four market health charts
@@ -70,14 +70,22 @@ describe("dashboard page (market view)", () => {
     expect(screen.queryByText("Data of")).not.toBeInTheDocument();
   });
 
-  it("the market health card shows four groups, each reading with a colour and a plain sentence", async () => {
+  it("the cards show the score's own readings, coloured by their points", async () => {
     mockApi();
     renderApp(<Dashboard />);
     const card = await screen.findByRole("region", { name: "Market health overview" });
-    for (const title of ["Index price action", "Leadership", "Breadth", "Feedback loop"]) {
+    for (const title of ["Index trend", "Leadership", "Breadth", "Feedback loop"]) {
       expect(await within(card).findByRole("region", { name: title })).toBeInTheDocument();
     }
-    expect(within(card).getAllByRole("img", { name: /^(green|amber|red|grey)$/ }).length).toBeGreaterThanOrEqual(1); // the index, leadership and breadth cards show figures, not dots
+    // the same value and colour as the score card's pillar: 72% above the 50-day scores 100
+    const v = within(card).getByTestId("reading-breadth-above_50");
+    expect(v).toHaveTextContent("72.0");
+    expect(v.className).toMatch(/text-up/);
+    expect(within(card).getByTestId("reading-index_trend-nifty50")).toHaveTextContent("Yes");
+    expect(within(card).getByTestId("reading-index_trend-stacked")).toHaveTextContent("2 of 2");
+    expect(within(card).getByTestId("reading-leadership-leader_change")).toHaveTextContent("+45.0");
+    // the paper trades keep their own reading with a dot
+    expect(within(card).getAllByRole("img", { name: /^(green|amber|red|grey)$/ }).length).toBeGreaterThanOrEqual(1);
   });
 
   it("market health has no outer card; two columns: index and leadership, breadth and stage, setup flow and setups, feedback", async () => {
@@ -93,29 +101,24 @@ describe("dashboard page (market view)", () => {
     const colours = within(overview).getAllByRole("region").map((r) => /border-\[(#\w+)\]/.exec(r.className)?.[1]);
     expect(new Set(colours).size).toBe(10); // every card has its own border colour
     expect(names).toEqual([
-      "Market health score", "Index price action", "Leadership", "Breadth", "Market stage", "Setups and breakouts",
+      "Market health score", "Index trend", "Leadership", "Breadth", "Market stage", "Setups and breakouts",
       "Sector strength", "Sector rotation", "Feedback loop", "Setups today",
     ]);
     expect(await within(overview).findByText(/Most setups are/)).toBeInTheDocument();
     expect(within(overview).queryByText("Details")).not.toBeInTheDocument(); // no Details link on any card
   });
 
-  it("the index card has the chart on the left and three figures on the right, no score or details", async () => {
+  it("the index card is NIFTY 500 with its averages and the score's index and volume readings", async () => {
     mockApi();
     renderApp(<Dashboard />);
-    const card = await screen.findByRole("region", { name: "Index price action" });
+    const card = await screen.findByRole("region", { name: "Index trend" });
     const figures = await within(card).findByLabelText("Index figures");
-    expect(within(figures).getByText("VQI vs 200-day MA")).toBeInTheDocument();
-    expect(within(figures).getByText("VQI vs 50-day MA")).toBeInTheDocument();
-    expect(within(figures).getByText("Accumulation days")).toBeInTheDocument();
-    expect(within(figures).getByText("Distribution days")).toBeInTheDocument();
-    expect(within(figures).getAllByText("(last 25 sessions)")).toHaveLength(2);
-    expect(within(card).queryByText("Details")).not.toBeInTheDocument();
-    expect(within(card).queryByTitle("score out of 100")).not.toBeInTheDocument();
+    for (const t of ["Index trend", "Accumulation / distribution"]) expect(within(figures).getByRole("group", { name: `${t} readings` })).toBeInTheDocument();
+    expect(within(figures).getByText("NIFTY 500 vs its 200-day average, %")).toBeInTheDocument();
+    expect(within(figures).getByText("NIFTY 500 distribution days in 10")).toBeInTheDocument();
+    expect(card).not.toHaveTextContent("VQI vs"); // VQI is only in the blended distribution count
     expect(within(card).getByTestId("mini-index-price-chart")).toBeInTheDocument();
-    // NIFTY 50 and NIFTY 500 next to VQI, all starting at 100
-    expect(card).toHaveTextContent("NIFTY 50");
-    expect(card).toHaveTextContent("NIFTY 500");
+    for (const t of ["NIFTY 500", "its 150-day", "NIFTY 50", "Smallcap 250"]) expect(card).toHaveTextContent(t);
     expect(card).toHaveTextContent("All lines start at 100.");
   });
 
@@ -228,22 +231,17 @@ describe("dashboard page (market view)", () => {
   it("market health has four inner cards with charts", async () => {
     mockApi();
     renderApp(<Dashboard />);
-    for (const t of ["Index price action", "Leadership", "Breadth", "Feedback loop"])
+    for (const t of ["Index trend", "Leadership", "Breadth", "Feedback loop"])
       expect(await screen.findByRole("region", { name: t })).toBeInTheDocument();
-    for (const c of ["index-price-chart", "highs-lows-chart", "breadth-chart", "ad-line-chart"])
+    for (const c of ["index-price-chart", "highs-lows-chart", "trend-template-chart", "breadth-chart", "ad-line-chart", "vqi-gap-chart"])
       expect(await screen.findByTestId(`mini-${c}`)).toBeInTheDocument();
     const fig = within(await screen.findByRole("complementary", { name: "Leadership figures" }));
-    for (const t of ["Net new highs", "New 52-week lows", "Leaders", "Leaders vs index"])
+    for (const t of ["Stocks passing the Trend Template, %", "Leaders vs 20 sessions ago, %", "Leaders of 20 sessions ago vs VQI, pp"])
       expect(fig.getByText(t)).toBeInTheDocument();
-    // one place each: the failure rate is on the Setups and breakouts card, today's highs are the list
-    expect(fig.queryByText("Failed breakouts")).toBeNull();
-    expect(fig.queryByText("New 52-week highs")).toBeNull();
-    expect(fig.getByText("Leaders").parentElement?.parentElement).toHaveTextContent("Leaders2(TT pass, RS 80+)");
     const bf = within(await screen.findByRole("complementary", { name: "Breadth figures" }));
-    for (const t of ["Regime", "Above 50-day average", "Above 200-day average", "Net advancers"])
+    for (const t of ["Strategy regime (frozen rule)", "Stocks above their 150-day average, %", "VQI minus NIFTY 500 over a month, pp"])
       expect(bf.getByText(t)).toBeInTheDocument();
     expect(screen.getByTestId("mini-trades-chart")).toBeInTheDocument();
-    // the progress toward the review is on the Paper Trading page, not repeated here
     expect(screen.queryByTestId("mini-paper-progress")).toBeNull();
     expect(await screen.findByTestId("mini-open-positions")).toHaveTextContent("BETA");
   });
@@ -258,10 +256,13 @@ describe("dashboard page (market view)", () => {
     // the first stored scan has nothing to compare with: no count of new setups, a dash
     expect(fig.getByText("New setups").parentElement?.parentElement).toHaveTextContent("New setups—today");
     expect(card).toHaveTextContent("Failure rate: too few breakouts judged yet.");
-    expect(card).toHaveTextContent("Since 5 Oct 2026, the first stored scan");
+    expect(card).toHaveTextContent("since 5 Oct 2026, the first stored scan");
+    // the score's breakout readings sit above our strategies' own figures
+    expect(within(card).getByRole("group", { name: /Breakout environment \(score, 3 judged\) readings/ })).toBeInTheDocument();
+    expect(fig.getByText("Our strategies")).toBeInTheDocument();
   });
 
-  it("leadership charts net new highs with their 10-day average and lists today's new highs", async () => {
+  it("leadership charts the score's highs share and Trend Template share and lists today's new highs", async () => {
     const health = {
       ...fx.marketHealth,
       new_highs: [
@@ -273,7 +274,7 @@ describe("dashboard page (market view)", () => {
     renderApp(<Dashboard />);
     const card = await screen.findByRole("region", { name: "Leadership" });
     expect(await within(card).findByTestId("mini-highs-lows-chart")).toBeInTheDocument();
-    expect(card).toHaveTextContent("Net new 52-week highs (highs − lows) a day");
+    expect(card).toHaveTextContent("New 52-week highs / (highs + lows), 10-day averages, %");
     const list = within(card).getByTestId("new-highs-today");
     expect(list).toHaveTextContent("New highs today (2)");
     expect(within(list).getByRole("link", { name: /ALPHA/ })).toHaveAttribute("href", "/stocks/ALPHA");
@@ -282,23 +283,22 @@ describe("dashboard page (market view)", () => {
   });
 
   it("shows divergence warnings above the cards only when there are some", async () => {
-    const text = "VQI is 1.0% from its 52-week high, but the advance/decline line is 40% of its 52-week range below its own high: fewer stocks are taking part in the advance.";
-    mockApi({ "market/health": { ...fx.marketHealth, warnings: [{ id: "ad_divergence", text }] } });
+    const text = "NIFTY 500 is near its 52-week high but the advance/decline line is well below its own.";
+    mockApi({ "market/health": { ...fx.marketHealth, warnings: [{ id: "divergence", text }] } });
     renderApp(<Dashboard />);
     const box = await screen.findByRole("list", { name: "Divergence warnings" });
     expect(box).toHaveTextContent(`Divergence: ${text}`);
   });
 
-  it("shows accumulation and distribution days as small dots on one line above the dates, not on the VQI line", async () => {
-    const n = fx.marketHealth.points.length;
-    const points = fx.marketHealth.points.map((p, i) => ({
+  it("shows NIFTY 500's accumulation and distribution days as small dots on one line above the dates", async () => {
+    const n = fx.marketHealth.score_points.length;
+    const points = fx.marketHealth.score_points.map((p, i) => ({
       ...p,
-      accumulation: i === n - 3,
-      distribution: i >= n - 2,
+      kind: i === n - 3 ? "accumulation" : i >= n - 2 ? "distribution" : null,
     }));
-    mockApi({ "market/health": { ...fx.marketHealth, points } });
+    mockApi({ "market/health": { ...fx.marketHealth, score_points: points } });
     renderApp(<Dashboard />);
-    const card = await screen.findByRole("region", { name: "Index price action" });
+    const card = await screen.findByRole("region", { name: "Index trend" });
     expect(card).toHaveTextContent("● accumulation day");
     expect(card).toHaveTextContent("● distribution day");
     const chart = await waitFor(() => {
@@ -306,7 +306,6 @@ describe("dashboard page (market view)", () => {
       expect(c?.series.some((s) => s.options.priceScaleId === "band")).toBe(true);
       return c!;
     });
-    // one series per colour (each its own small dots), all on the band's single line
     const band = chart.series.filter((s) => s.options.priceScaleId === "band");
     const byColor = Object.fromEntries(band.map((s) => [s.options.color, s.data.map((d) => [d.time, d.value])]));
     expect(byColor).toEqual({
@@ -314,13 +313,12 @@ describe("dashboard page (market view)", () => {
       "#ef5350": [[points[n - 2]!.day, 0], [points[n - 1]!.day, 0]],
     });
     for (const s of band) {
-      expect(s.options.lineVisible).toBe(false); // only the dots show
+      expect(s.options.lineVisible).toBe(false);
       expect(s.options.pointMarkersVisible).toBe(true);
-      expect(s.options.pointMarkersRadius).toBeLessThanOrEqual(2); // small dots
+      expect(s.options.pointMarkersRadius).toBeLessThanOrEqual(2);
     }
-    expect(chart.scales["band"].scaleMargins.top).toBeGreaterThan(0.8); // a band at the bottom
-    const vqi = chart.series[0]!;
-    expect(vqi.markers).toHaveLength(0); // nothing on the VQI line
+    expect(chart.scales["band"].scaleMargins.top).toBeGreaterThan(0.8);
+    expect(chart.series[0]!.markers).toHaveLength(0); // nothing on the NIFTY 500 line
   });
 
   it("sector strength lists the sectors strongest first and the unclassified stocks last", async () => {
@@ -334,6 +332,8 @@ describe("dashboard page (market view)", () => {
     expect(cap).toHaveTextContent("Capital Goods10%0 pp91"); // 1 stock, 0 %, no change, RS 91
     expect(cap).toHaveTextContent("+2.1%"); // Nifty Capital Goods over 21 sessions
     expect(card).toHaveTextContent("61 stocks are not classified yet");
+    // the score's sector reading heads the table
+    expect(within(card).getByTestId("sector-uptrend")).toHaveTextContent(/Sector indices in an uptrend \(score\): 85%/);
     // only the rows scroll: the title sits outside the scrolling box, the column headings stick
     const scroll = within(card).getByTestId("sector-scroll");
     expect(scroll.className).toMatch(/overflow-auto/);
@@ -342,7 +342,8 @@ describe("dashboard page (market view)", () => {
   });
 
   it("breadth charts the thrust ratio with both lines and names the last thrust", async () => {
-    mockApi();
+    const points = fx.marketHealth.score_points.map((p) => ({ ...p, thrust: false, thrust_ratio: 50 }));
+    mockApi({ "market/health": { ...fx.marketHealth, score_points: points } });
     renderApp(<Dashboard />);
     const card = await screen.findByRole("region", { name: "Breadth" });
     expect(await within(card).findByTestId("mini-thrust-chart")).toBeInTheDocument();
@@ -356,8 +357,8 @@ describe("dashboard page (market view)", () => {
   });
 
   it("a thrust day is marked on the chart and named under it", async () => {
-    const points = fx.marketHealth.points.map((p, i, all) => ({ ...p, thrust: i === all.length - 1 }));
-    mockApi({ "market/health": { ...fx.marketHealth, points } });
+    const points = fx.marketHealth.score_points.map((p, i, all) => ({ ...p, thrust_ratio: 50 + i, thrust: i === all.length - 1 }));
+    mockApi({ "market/health": { ...fx.marketHealth, score_points: points } });
     renderApp(<Dashboard />);
     const note = await screen.findByTestId("thrust-note");
     expect(note).toHaveTextContent(/^Last thrust 5 Oct 2026/);

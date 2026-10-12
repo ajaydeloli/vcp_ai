@@ -69,11 +69,7 @@ export function ScoreGauge({ raw, label }: { raw: number | null; label: string |
       <p className="-mt-1 text-4xl font-semibold leading-none tabular-nums text-ink" data-testid="mhs-raw">
         {v === null ? "—" : Math.round(v)}
       </p>
-      <p
-        className="mt-2 rounded-full px-3 py-0.5 text-xs font-semibold uppercase tracking-wide"
-        style={{ color, background: `${color}26` }}
-        data-testid="mhs-label"
-      >
+      <p className="mt-2 rounded-full px-3 py-0.5 text-xs font-semibold uppercase tracking-wide" style={{ color, background: `${color}26` }} data-testid="mhs-label">
         {label ?? "No reading"}
       </p>
     </div>
