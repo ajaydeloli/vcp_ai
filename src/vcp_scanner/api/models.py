@@ -273,6 +273,21 @@ class HealthSector(BaseModel):
     index_change_pct: float | None  # its change over SECTOR_MONTH sessions
 
 
+class HealthRotationPoint(BaseModel):
+    day: date  # the last session of the week
+    ratio: float  # RS-Ratio: 100 x (sector / NIFTY 500) / its 10-week average
+    momentum: float  # RS-Momentum: 100 x RS-Ratio / RS-Ratio 4 weeks earlier
+
+
+class HealthRotation(BaseModel):
+    """One NSE sector index on the relative rotation graph (display only)."""
+
+    sector: str
+    index_name: str
+    quadrant: str  # leading | weakening | lagging | improving (of the latest point)
+    points: list[HealthRotationPoint]  # oldest first, up to 12 weeks
+
+
 class HealthTrade(BaseModel):
     day: date
     ret_pct: float
@@ -299,6 +314,7 @@ class MarketHealthResponse(Stamped):
     warnings: list[HealthWarning] = []
     new_highs: list[HealthNewHigh] = []  # universe stocks at a new 52-week high on as_of
     sectors: list[HealthSector] = []  # strongest first; not classified last
+    rotation: list[HealthRotation] = []  # sector indices vs NIFTY 500, weekly
     leader_count: int | None = None  # Trend Template pass and RS 80+ in the latest scan
     leader_change: int | None = None  # against the scan LEADER_DAYS sessions earlier
 

@@ -13,6 +13,7 @@ from vcp_scanner.api import models as m
 from vcp_scanner.api.context import Context
 from vcp_scanner.api.health_score import health_score
 from vcp_scanner.api.queries import Cur, _f, classification
+from vcp_scanner.api.rotation import sector_rotation
 from vcp_scanner.config.models import StageConfig
 from vcp_scanner.domain.enums import WeeklyStage
 from vcp_scanner.domain.features import FEATURES_CALCULATION_VERSION
@@ -931,4 +932,5 @@ def market_health(cur: Cur, ctx: Context, end: date, data_time: datetime) -> m.M
         flow=flow, warnings=_warnings(rows, index), leader_count=leader_count,
         leader_change=leader_change,
         new_highs=_new_highs_today(cur, ctx, end), sectors=_sectors(cur, ctx, sessions),
+        rotation=sector_rotation(cur, end),
     )  # fmt: skip

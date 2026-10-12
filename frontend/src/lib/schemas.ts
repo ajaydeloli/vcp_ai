@@ -417,6 +417,14 @@ export const marketHealth = z.object({
       index_change_pct: num,
     }),
   ),
+  rotation: z.array(
+    z.object({
+      sector: z.string(),
+      index_name: z.string(),
+      quadrant: z.enum(["leading", "weakening", "lagging", "improving"]),
+      points: z.array(z.object({ day: z.string(), ratio: z.number(), momentum: z.number() })),
+    }),
+  ),
   trades: z.array(z.object({ day: z.string(), ret_pct: z.number() })),
   stages: z.array(
     z.object({

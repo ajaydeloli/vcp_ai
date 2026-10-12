@@ -2427,3 +2427,17 @@ The old verdict (the plain average of the cards' readings, overridden to "Downtr
 - Until a day is stored the card says so and the tile shows a dash.
 
 Display, research and a shadow light only: nothing feeds the regime rule, a scan, a score, a strategy or the paper ledger. First fill 2026-10-12: 1,179 sessions from 7 Jan 2022 (2021 is the warm-up of the 253-session universe rule); 9 Oct 2026 reads raw 24, Adverse, capped by the downtrend and distribution rules.
+
+### 67.33 As built: Sector rotation (2026-10-12)
+
+A **Sector rotation** card (full width, yellow border) follows Sector strength: a relative rotation graph of NSE's 18 sector indices against NIFTY 500, one point a week (the last session of each calendar week; the current week uses the latest session).
+
+- **RS** = sector index / NIFTY 500. **RS-Ratio** (across) = 100 × RS / its 10-week average: above 100 the sector is stronger than its own recent trend against the market. **RS-Momentum** (up) = 100 × RS-Ratio / RS-Ratio 4 weeks earlier: above 100 that strength is rising.
+- Quadrants: **Leading** (both above 100, green), **Weakening** (ratio above, momentum not, amber), **Lagging** (both at or below, red), **Improving** (ratio at or below, momentum above, blue), each named in its outer corner. Sectors usually turn clockwise: Improving → Leading → Weakening → Lagging.
+- Each sector is a head (coloured by its quadrant, short name beside it, a thin line to the name when it had to move off a crowded spot) with a tail of its last 4, 6 (default) or 12 weeks. Hovering a head or a list row dims the others and shows the sector, its index, quadrant and both values.
+- Beside the chart, the sectors listed by quadrant with RS-Ratio / RS-Momentum (the table view of the chart), strongest ratio first.
+- Capital Goods, Construction, Consumer Services, Power and Telecommunication have indices only since June 2026, so their tails are shorter (named under the list); Cement since February 2026, Chemicals since March 2025.
+
+API: `rotation` on `/market/health` (`sector`, `index_name`, `quadrant`, up to 12 weekly `points` of `day`, `ratio`, `momentum`), from `index_daily` (`api/rotation.py`). Display only: it feeds no score (the Market Health Score's sector reading is separate, MARKET_HEALTH_SPECIFICATION §3 C).
+
+Also fixed: a small line chart first drawn while its column was still narrow kept that spacing and squeezed its lines to the right (seen on the score history); the charts now refit when their width changes.

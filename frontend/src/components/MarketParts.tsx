@@ -37,6 +37,7 @@ export const BOX = {
   activity: `border-2 border-[#a3e635]/60 bg-gradient-to-br from-[#a3e635]/10 to-panel2 ${SIZE}`,
   flow: `border-2 border-[#e879f9]/60 bg-gradient-to-br from-[#e879f9]/10 to-panel2 ${SIZE}`,
   sectors: `border-2 border-[#2dd4bf]/60 bg-gradient-to-br from-[#2dd4bf]/10 to-panel2 ${SIZE}`,
+  rotation: `border-2 border-[#fde047]/60 bg-gradient-to-br from-[#fde047]/10 to-panel2 lg:col-span-2`,
   score: `border-2 border-[#60a5fa]/60 bg-gradient-to-br from-[#60a5fa]/10 to-panel2 lg:col-span-2`,
 };
 

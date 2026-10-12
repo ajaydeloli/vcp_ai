@@ -91,10 +91,10 @@ describe("dashboard page (market view)", () => {
       .getAllByRole("region")
       .map((r) => r.getAttribute("aria-label") ?? within(r).queryByRole("heading")?.textContent);
     const colours = within(overview).getAllByRole("region").map((r) => /border-\[(#\w+)\]/.exec(r.className)?.[1]);
-    expect(new Set(colours).size).toBe(9); // every card has its own border colour
+    expect(new Set(colours).size).toBe(10); // every card has its own border colour
     expect(names).toEqual([
       "Market health score", "Index price action", "Leadership", "Breadth", "Market stage", "Setups and breakouts",
-      "Sector strength", "Feedback loop", "Setups today",
+      "Sector strength", "Sector rotation", "Feedback loop", "Setups today",
     ]);
     expect(await within(overview).findByText(/Most setups are/)).toBeInTheDocument();
     expect(within(overview).queryByText("Details")).not.toBeInTheDocument(); // no Details link on any card
@@ -176,6 +176,38 @@ describe("dashboard page (market view)", () => {
     expect(card.getByRole("button", { name: "6M" })).toHaveAttribute("aria-pressed", "true");
     await userEvent.click(card.getByRole("button", { name: "12M" }));
     expect(card.getByRole("button", { name: "12M" })).toHaveAttribute("aria-pressed", "true");
+  });
+
+  it("sector rotation: sectors on the four quadrants, tails, hover and the list", async () => {
+    const pt = (w: number, ratio: number, momentum: number) => ({ day: `2026-0${7 + Math.floor(w / 4)}-${String(1 + (w % 4) * 7).padStart(2, "0")}`, ratio, momentum });
+    const rotation = [
+      { sector: "Information Technology", index_name: "Nifty IT", quadrant: "leading", points: [pt(0, 98, 99), pt(1, 99, 101), pt(2, 101, 102)] },
+      { sector: "Metals & Mining", index_name: "Nifty Metal", quadrant: "lagging", points: [pt(0, 101, 99), pt(1, 99, 98), pt(2, 97, 96)] },
+      { sector: "Power", index_name: "Nifty Power", quadrant: "improving", points: [pt(2, 99, 100.5)] },
+    ];
+    mockApi({ "market/health": { ...fx.marketHealth, rotation } });
+    renderApp(<Dashboard />);
+    const card = within(await screen.findByRole("region", { name: "Sector rotation" }));
+    expect(card.getByTestId("rotation-chart")).toBeInTheDocument();
+    for (const q of ["Leading", "Improving", "Weakening", "Lagging"]) expect(card.getByRole("region", { name: q })).toBeInTheDocument();
+    expect(within(card.getByRole("region", { name: "Leading" })).getByText("Information Technology")).toBeInTheDocument();
+    expect(within(card.getByRole("region", { name: "Weakening" })).getByText("None")).toBeInTheDocument();
+    expect(card.getByText("IT")).toBeInTheDocument(); // the short label on the chart
+    expect(card.getByText(/Shorter tails: Power/)).toBeInTheDocument();
+    await userEvent.hover(card.getByTestId("rotation-Metals & Mining"));
+    const tip = card.getByRole("tooltip");
+    expect(tip).toHaveTextContent("Nifty Metal");
+    expect(tip).toHaveTextContent("RS-Ratio 97.00");
+    expect(card.getByRole("button", { name: "6w" })).toHaveAttribute("aria-pressed", "true");
+    await userEvent.click(card.getByRole("button", { name: "4w" }));
+    expect(card.getByRole("button", { name: "4w" })).toHaveAttribute("aria-pressed", "true");
+  });
+
+  it("sector rotation without history says so", async () => {
+    mockApi();
+    renderApp(<Dashboard />);
+    const card = within(await screen.findByRole("region", { name: "Sector rotation" }));
+    expect(card.getByText(/Not enough weekly history/)).toBeInTheDocument();
   });
 
   it("no stored score: the card says so and the tile shows a dash", async () => {

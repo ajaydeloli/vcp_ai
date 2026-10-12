@@ -8,6 +8,7 @@ import { SetupCounts } from "./SetupCounts";
 import { MiniLineChart, type MiniSeries } from "./MiniLineChart";
 import { SetupFlowCard } from "./MarketFlow";
 import { HealthScoreCard } from "./HealthScore";
+import { SectorRotationCard } from "./SectorRotation";
 import { SectorCard } from "./SectorStrength";
 import { BOX, C, Figure, Inner, Legend, NSE } from "./MarketParts";
 import { Empty, ErrorBox, Loading } from "./ui";
@@ -493,6 +494,7 @@ export function MarketHealth() {
             <StageCard stages={d.stages} box={BOX.stage} />
             <SetupFlowCard flow={d.flow} box={BOX.flow} />
             <SectorCard sectors={d.sectors} box={BOX.sectors} />
+            <SectorRotationCard rotation={d.rotation} />
             {fb && (
               <Inner title={fb.title} box={BOX.feedback}>
                 <Charts d={d} id="feedback" />
