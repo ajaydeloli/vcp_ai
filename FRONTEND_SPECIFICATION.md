@@ -2445,3 +2445,5 @@ Also fixed: a small line chart first drawn while its column was still narrow kep
 **Review 2026-10-12 (owner): the score once.** The small score tile in the first row repeated the Market health score card below it. It is replaced by a **NIFTY 500** tile like NIFTY 50 and SENSEX (live feed, "Live, delayed N s" or "Close of <date>", sparkline in NIFTY 500's colour from the index chart). The score, its label, caps and shadow light now appear only on the card.
 
 **Review 2026-10-12 (owner): a gauge on the score card.** The score card shows the raw score on a half-circle gauge with five bands, one per label (Adverse 0–34 red, Weak 35–49 orange, Mixed 50–64 amber, Constructive 65–79 light green, Strong 80–100 green; each band names itself on hover), a needle at the raw score, the number under it and the label after the caps in a pill of its colour. A line under the gauge gives the raw score's own label and says when a cap lowered it.
+
+**Review 2026-10-12 (owner): card layout.** The score history takes half the card's width (the pillar bars are shorter); the caps ("At most …") sit under the pillar bars, side by side, so the card is no taller.

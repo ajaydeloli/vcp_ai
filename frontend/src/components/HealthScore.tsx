@@ -117,12 +117,12 @@ export function HealthScoreCard({ score }: { score: Health["score"] }) {
   const capped = score.label !== score.raw_label;
   return (
     <Inner title="Market health score" box={BOX.score}>
-      <div className="grid gap-4 lg:grid-cols-[13rem_minmax(0,1fr)_minmax(0,1fr)]">
+      <div className="grid gap-4 lg:grid-cols-[13rem_minmax(0,1fr)_50%]">
         <div className="space-y-2">
           <ScoreGauge raw={score.raw} label={score.label} />
           <p className="text-center text-[11px] text-mute">
             Raw score {score.raw === null ? "—" : Math.round(score.raw)}, {score.raw_label ?? "—"}
-            {capped ? "; the label is capped (see below)" : ""}
+            {capped ? "; the label is capped (see the caps)" : ""}
           </p>
           {light && (
             <p className="flex items-center gap-1.5 text-xs text-ink" title="Shadow traffic light: logged next to the paper ledger, no trading effect">
@@ -132,8 +132,15 @@ export function HealthScoreCard({ score }: { score: Health["score"] }) {
           )}
           <p className="text-[11px] text-mute">As of {fmtDay(score.day)}</p>
           {score.last_thrust && <p className="text-[11px] text-up">Breadth thrust on {fmtDay(score.last_thrust)}</p>}
+        </div>
+        <div className="min-w-0 space-y-1" aria-label="Pillars">
+          {score.pillars.map((p) => (
+            <PillarRow key={p.id} p={p} />
+          ))}
+          <p className="pt-1 text-[11px] text-mute">Open a pillar for its readings. Highlighted: below {WEAK}. Display and research only.</p>
           {score.caps.length > 0 && (
-            <ul aria-label="Caps" className="space-y-1 text-[11px]">
+            // side by side, so the caps do not make the card taller
+            <ul aria-label="Caps" className="grid gap-x-4 gap-y-1 pt-1 text-[11px] sm:grid-cols-2">
               {score.caps.map((c) => (
                 <li key={c.id} className="text-warn">
                   At most {c.max}: <span className="text-mute">{c.reason}</span>
@@ -141,12 +148,6 @@ export function HealthScoreCard({ score }: { score: Health["score"] }) {
               ))}
             </ul>
           )}
-        </div>
-        <div className="min-w-0 space-y-1" aria-label="Pillars">
-          {score.pillars.map((p) => (
-            <PillarRow key={p.id} p={p} />
-          ))}
-          <p className="pt-1 text-[11px] text-mute">Open a pillar for its readings. Highlighted: below {WEAK}. Display and research only.</p>
         </div>
         <History history={score.history} />
       </div>

@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Market health score card layout: the history chart takes half the width; the caps sit side by side under the pillar bars.
+
 - Market health score card: the score on a half-circle gauge with the five label bands and a needle; the capped label in a coloured pill under the number.
 
 - First row of the Market Overview: a live NIFTY 500 tile replaces the small Market health score tile, so the score shows once (on its card).

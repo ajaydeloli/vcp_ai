@@ -172,6 +172,10 @@ describe("dashboard page (market view)", () => {
     expect(card.getByText(/Shadow light: Half size/)).toBeInTheDocument();
     expect(card.getByText(/Breadth thrust on/)).toBeInTheDocument();
     expect(card.getAllByText(/At most/)).toHaveLength(2);
+    // the caps sit under the pillar bars, side by side
+    const caps = card.getByRole("list", { name: "Caps" });
+    expect(caps.closest('[aria-label="Pillars"]')).not.toBeNull();
+    expect(caps.className).toMatch(/grid-cols-2/);
     for (const id of ["index_trend", "breadth", "leadership", "accumulation", "breakouts"])
       expect(card.getByTestId(`pillar-${id}`)).toBeInTheDocument();
     expect(card.getByTestId("pillar-breakouts")).toHaveTextContent("missing");
