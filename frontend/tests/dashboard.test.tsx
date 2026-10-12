@@ -162,8 +162,13 @@ describe("dashboard page (market view)", () => {
     renderApp(<Dashboard />);
     const card = within(await screen.findByRole("region", { name: "Market health score" }));
     expect(card.getByTestId("mhs-label")).toHaveTextContent("Mixed");
-    expect(card.getByText(/raw, Strong/)).toBeInTheDocument();
-    expect(card.getByText(/Capped from Strong/)).toBeInTheDocument();
+    expect(card.getByText(/, Strong; the label is capped/)).toBeInTheDocument();
+    // the gauge: five label bands, the needle at the raw score, the number under it
+    const gauge = card.getByTestId("mhs-gauge");
+    expect(gauge.querySelectorAll("path")).toHaveLength(5);
+    expect(card.getByTestId("mhs-needle")).toBeInTheDocument();
+    expect(gauge.getAttribute("aria-label")).toMatch(/Market health score \d+ of 100, Mixed/);
+    expect(Number(card.getByTestId("mhs-raw").textContent)).toBeGreaterThanOrEqual(80);
     expect(card.getByText(/Shadow light: Half size/)).toBeInTheDocument();
     expect(card.getByText(/Breadth thrust on/)).toBeInTheDocument();
     expect(card.getAllByText(/At most/)).toHaveLength(2);
@@ -213,6 +218,7 @@ describe("dashboard page (market view)", () => {
     mockApi({ "market/health": { ...fx.marketHealth, score: null } });
     renderApp(<Dashboard />);
     expect(await screen.findByText(/No score stored yet/)).toBeInTheDocument();
+    expect(screen.queryByTestId("mhs-needle")).not.toBeInTheDocument();
   });
 
   it("market health has four inner cards with charts", async () => {

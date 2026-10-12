@@ -2443,3 +2443,5 @@ API: `rotation` on `/market/health` (`sector`, `index_name`, `quadrant`, up to 1
 Also fixed: a small line chart first drawn while its column was still narrow kept that spacing and squeezed its lines to the right (seen on the score history); the charts now refit when their width changes.
 
 **Review 2026-10-12 (owner): the score once.** The small score tile in the first row repeated the Market health score card below it. It is replaced by a **NIFTY 500** tile like NIFTY 50 and SENSEX (live feed, "Live, delayed N s" or "Close of <date>", sparkline in NIFTY 500's colour from the index chart). The score, its label, caps and shadow light now appear only on the card.
+
+**Review 2026-10-12 (owner): a gauge on the score card.** The score card shows the raw score on a half-circle gauge with five bands, one per label (Adverse 0–34 red, Weak 35–49 orange, Mixed 50–64 amber, Constructive 65–79 light green, Strong 80–100 green; each band names itself on hover), a needle at the raw score, the number under it and the label after the caps in a pill of its colour. A line under the gauge gives the raw score's own label and says when a cap lowered it.

@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Market health score card: the score on a half-circle gauge with the five label bands and a needle; the capped label in a coloured pill under the number.
+
 - First row of the Market Overview: a live NIFTY 500 tile replaces the small Market health score tile, so the score shows once (on its card).
 
 - Sector rotation card (FRONTEND_SPECIFICATION §67.33), display only: a relative rotation graph of the 18 NSE sector indices against NIFTY 500, weekly (RS-Ratio vs its 10-week average, RS-Momentum over 4 weeks), quadrants Leading / Weakening / Lagging / Improving, 4-, 6- or 12-week tails, hover details and a list by quadrant. API: `rotation` on `/market/health`. Small line charts refit when their width changes (the score history was squeezed to the right).

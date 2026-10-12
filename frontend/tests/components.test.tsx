@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from "vitest";
 import { ChartView } from "@/components/ChartView";
 import { SetupCounts } from "@/components/SetupCounts";
 import { Tiles } from "@/components/Tiles";
+import { ScoreGauge } from "@/components/ScoreGauge";
 import { PaperPanel } from "@/components/PaperPanel";
 import { SetupOverview } from "@/components/SetupOverview";
 import { StatusBar } from "@/components/StatusBar";
@@ -328,5 +329,28 @@ describe("top bar search", () => {
     await userEvent.click(screen.getByRole("button", { name: "Search symbol or company" }));
     await userEvent.type(screen.getByRole("searchbox"), "zzz");
     expect(await screen.findByText("No match")).toBeInTheDocument();
+  });
+});
+
+describe("score gauge", () => {
+  const tip = () => screen.getByTestId("mhs-needle").getAttribute("points")?.split(" ")[0]?.split(",").map(Number) ?? [];
+  it("points the needle at the raw score: left at 0, up at 50, right at 100", () => {
+    const { rerender } = renderApp(<ScoreGauge raw={0} label="Adverse" />);
+    expect(tip()[0]).toBeLessThan(40);
+    expect(tip()[1]).toBeCloseTo(100, 0);
+    rerender(<ScoreGauge raw={50} label="Mixed" />);
+    expect(tip()[0]).toBeCloseTo(100, 0);
+    expect(tip()[1]).toBeLessThan(40);
+    rerender(<ScoreGauge raw={100} label="Strong" />);
+    expect(tip()[0]).toBeGreaterThan(160);
+    expect(screen.getByTestId("mhs-label")).toHaveTextContent("Strong");
+    expect(screen.getByTestId("mhs-raw")).toHaveTextContent("100");
+  });
+
+  it("without a score: no needle, a dash", () => {
+    renderApp(<ScoreGauge raw={null} label={null} />);
+    expect(screen.queryByTestId("mhs-needle")).not.toBeInTheDocument();
+    expect(screen.getByTestId("mhs-raw")).toHaveTextContent("—");
+    expect(screen.getByTestId("mhs-label")).toHaveTextContent("No reading");
   });
 });

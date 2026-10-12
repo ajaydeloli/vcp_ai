@@ -7,7 +7,8 @@ import { useMemo, useState } from "react";
 import { fmtDay } from "@/lib/fmt";
 import type { MarketHealth as Health } from "@/lib/schemas";
 import { MiniLineChart, type MiniSeries } from "./MiniLineChart";
-import { BOX, EXPOSURE, GREY, Inner, LABEL_COLOR } from "./MarketParts";
+import { BOX, EXPOSURE, Inner } from "./MarketParts";
+import { ScoreGauge } from "./ScoreGauge";
 
 type Score = NonNullable<Health["score"]>;
 type Pillar = Score["pillars"][number];
@@ -112,23 +113,17 @@ export function HealthScoreCard({ score }: { score: Health["score"] }) {
       </Inner>
     );
   }
-  const color = score.label ? (LABEL_COLOR[score.label] ?? GREY) : GREY;
   const light = score.exposure ? EXPOSURE[score.exposure] : undefined;
   const capped = score.label !== score.raw_label;
   return (
     <Inner title="Market health score" box={BOX.score}>
       <div className="grid gap-4 lg:grid-cols-[13rem_minmax(0,1fr)_minmax(0,1fr)]">
         <div className="space-y-2">
-          <p className="flex items-baseline gap-2">
-            <span className="text-4xl font-semibold tabular-nums text-ink" data-testid="mhs-raw">
-              {score.raw === null ? "—" : Math.round(score.raw)}
-            </span>
-            <span className="text-xs text-mute">raw, {score.raw_label ?? "—"}</span>
+          <ScoreGauge raw={score.raw} label={score.label} />
+          <p className="text-center text-[11px] text-mute">
+            Raw score {score.raw === null ? "—" : Math.round(score.raw)}, {score.raw_label ?? "—"}
+            {capped ? "; the label is capped (see below)" : ""}
           </p>
-          <p className="text-lg font-semibold" style={{ color }} data-testid="mhs-label">
-            {score.label ?? "No reading"}
-          </p>
-          {capped && <p className="text-[11px] text-mute">Capped from {score.raw_label}: see below.</p>}
           {light && (
             <p className="flex items-center gap-1.5 text-xs text-ink" title="Shadow traffic light: logged next to the paper ledger, no trading effect">
               <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ background: light.color }} aria-hidden="true" />
