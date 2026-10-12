@@ -2696,22 +2696,278 @@
    "ret_pct": -5.15
   }
  ],
- "verdict": {
-  "score": 68,
-  "label": "Uptrend under pressure",
-  "status": "amber",
-  "override": false,
-  "green": 2,
-  "amber": 2,
-  "red": 1,
-  "counted": 4,
-  "weakest": [
-   "Above 50-day average",
-   "Leaders vs the index"
+ "score": {
+  "day": "2026-10-05",
+  "settings_version": "mhs-2.0.0+fixture",
+  "raw": 96.5,
+  "raw_label": "Strong",
+  "label": "Mixed",
+  "complete": false,
+  "exposure": "half",
+  "pillars": [
+   {
+    "id": "index_trend",
+    "title": "Index trend",
+    "weight": 25.0,
+    "score": 100.0,
+    "contribution": 29.4,
+    "note": "",
+    "parts": [
+     {
+      "id": "above_50",
+      "label": "NIFTY 500 vs its 50-day average, %",
+      "reading": 4.762,
+      "points": 100.0,
+      "weight": 20.0
+     },
+     {
+      "id": "above_150",
+      "label": "NIFTY 500 vs its 150-day average, %",
+      "reading": 10.0,
+      "points": 100.0,
+      "weight": 20.0
+     },
+     {
+      "id": "above_200",
+      "label": "NIFTY 500 vs its 200-day average, %",
+      "reading": 15.789,
+      "points": 100.0,
+      "weight": 20.0
+     },
+     {
+      "id": "stacked",
+      "label": "Averages stacked 50 > 150 > 200 (of 2)",
+      "reading": 2.0,
+      "points": 100.0,
+      "weight": 20.0
+     },
+     {
+      "id": "rising_200",
+      "label": "200-day average over 20 sessions, %",
+      "reading": 1.064,
+      "points": 100.0,
+      "weight": 10.0
+     },
+     {
+      "id": "nifty50",
+      "label": "NIFTY 50 above its 50-day average",
+      "reading": 1.0,
+      "points": 100.0,
+      "weight": 5.0
+     },
+     {
+      "id": "smallcap250",
+      "label": "Smallcap 250 above its 50-day average",
+      "reading": 1.0,
+      "points": 100.0,
+      "weight": 5.0
+     }
+    ]
+   },
+   {
+    "id": "breadth",
+    "title": "Breadth",
+    "weight": 25.0,
+    "score": 100.0,
+    "contribution": 29.4,
+    "note": "",
+    "parts": [
+     {
+      "id": "above_50",
+      "label": "Stocks above their 50-day average, %",
+      "reading": 72.0,
+      "points": 100.0,
+      "weight": 20.0
+     },
+     {
+      "id": "above_150",
+      "label": "Stocks above their 150-day average, %",
+      "reading": 75.0,
+      "points": 100.0,
+      "weight": 15.0
+     },
+     {
+      "id": "above_200",
+      "label": "Stocks above their 200-day average, %",
+      "reading": 78.0,
+      "points": 100.0,
+      "weight": 15.0
+     },
+     {
+      "id": "ad_trend",
+      "label": "Net advances over 20 sessions, share",
+      "reading": 0.2,
+      "points": 100.0,
+      "weight": 15.0
+     },
+     {
+      "id": "highs_lows",
+      "label": "New highs / (highs + lows), 10-day",
+      "reading": 0.9,
+      "points": 100.0,
+      "weight": 15.0
+     },
+     {
+      "id": "change",
+      "label": "Change in stocks above the 50-day, 10 sessions, pp",
+      "reading": 20.0,
+      "points": 100.0,
+      "weight": 10.0
+     },
+     {
+      "id": "vqi_gap",
+      "label": "VQI minus NIFTY 500 over a month, pp",
+      "reading": 5.0,
+      "points": 100.0,
+      "weight": 10.0
+     }
+    ]
+   },
+   {
+    "id": "leadership",
+    "title": "Leadership",
+    "weight": 20.0,
+    "score": 100.0,
+    "contribution": 23.5,
+    "note": "",
+    "parts": [
+     {
+      "id": "tt_share",
+      "label": "Stocks passing the Trend Template, %",
+      "reading": 22.0,
+      "points": 100.0,
+      "weight": 25.0
+     },
+     {
+      "id": "leader_change",
+      "label": "Leaders vs 20 sessions ago, %",
+      "reading": 45.0,
+      "points": 100.0,
+      "weight": 20.0
+     },
+     {
+      "id": "highs_20",
+      "label": "Stocks at a 20-day high, %",
+      "reading": 13.0,
+      "points": 100.0,
+      "weight": 10.0
+     },
+     {
+      "id": "highs_52",
+      "label": "Stocks at a 52-week high, %",
+      "reading": 6.0,
+      "points": 100.0,
+      "weight": 10.0
+     },
+     {
+      "id": "sectors",
+      "label": "Sector indices in an uptrend, %",
+      "reading": 85.0,
+      "points": 100.0,
+      "weight": 20.0
+     },
+     {
+      "id": "leaders_vs_vqi",
+      "label": "Leaders of 20 sessions ago vs VQI, pp",
+      "reading": 6.0,
+      "points": 100.0,
+      "weight": 15.0
+     }
+    ]
+   },
+   {
+    "id": "accumulation",
+    "title": "Accumulation / distribution",
+    "weight": 15.0,
+    "score": 80.0,
+    "contribution": 14.1,
+    "note": "",
+    "parts": [
+     {
+      "id": "distribution",
+      "label": "Distribution days in 25 (NIFTY 500 60%, VQI 40%)",
+      "reading": 1.4,
+      "points": 100.0,
+      "weight": 30.0
+     },
+     {
+      "id": "accumulation_days",
+      "label": "NIFTY 500 accumulation days in 25",
+      "reading": 7.0,
+      "points": 100.0,
+      "weight": 20.0
+     },
+     {
+      "id": "up_down_value",
+      "label": "Traded value up / down, 10 sessions",
+      "reading": 1.6,
+      "points": 100.0,
+      "weight": 20.0
+     },
+     {
+      "id": "clustering",
+      "label": "NIFTY 500 distribution days in 10",
+      "reading": 5.0,
+      "points": 0.0,
+      "weight": 20.0
+     },
+     {
+      "id": "up_on_volume",
+      "label": "Accumulation share of volume days",
+      "reading": 0.8,
+      "points": 100.0,
+      "weight": 10.0
+     }
+    ]
+   },
+   {
+    "id": "breakouts",
+    "title": "Breakout environment",
+    "weight": 15.0,
+    "score": null,
+    "contribution": null,
+    "note": "3 breakouts judged in 20 sessions; 20 are needed.",
+    "parts": []
+   }
   ],
-  "strongest": [
-   "Advance / decline line",
-   "Distribution days"
+  "caps": [
+   {
+    "id": "distribution",
+    "max": "Mixed",
+    "reason": "5 NIFTY 500 distribution days in the last 10 sessions."
+   },
+   {
+    "id": "incomplete",
+    "max": "Mixed",
+    "reason": "A pillar could not be measured."
+   }
+  ],
+  "missing": [
+   "breakouts"
+  ],
+  "last_thrust": "2026-10-01",
+  "history": [
+   {
+    "day": "2026-09-30",
+    "raw": 100.0,
+    "raw_label": "Strong",
+    "label": "Strong",
+    "thrust": false
+   },
+   {
+    "day": "2026-10-01",
+    "raw": 100.0,
+    "raw_label": "Strong",
+    "label": "Strong",
+    "thrust": true
+   },
+   {
+    "day": "2026-10-05",
+    "raw": 96.5,
+    "raw_label": "Strong",
+    "label": "Mixed",
+    "thrust": false
+   }
   ]
  },
  "index_days": {

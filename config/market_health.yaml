@@ -1,0 +1,129 @@
+# market_health.yaml - Market Health Score (MHS 2), MARKET_HEALTH_SPECIFICATION.
+# Display and research only: nothing here feeds a scan, a score, a strategy, the paper ledger or
+# the regime rule (frozen until the April 2027 review). The traffic light is logged in shadow.
+#
+# A ladder is a list of [reading, points] pairs: points are interpolated in a straight line
+# between neighbouring pairs and held flat outside them. Points run 0..100.
+# Changing anything here changes `settings_version`; stored days keep the version they used.
+
+version: mhs-2.0.0
+
+pillars:            # weights of the five pillars; missing pillars are left out and the rest rescaled
+  index_trend: 25
+  breadth: 25
+  leadership: 20
+  accumulation: 15
+  breakouts: 15
+
+labels:             # lowest raw score of each label, best first
+  - [80, Strong]
+  - [65, Constructive]
+  - [50, Mixed]
+  - [35, Weak]
+  - [0, Adverse]
+
+exposure:           # shadow traffic light by (cap-adjusted) label; no trading effect
+  Strong: full
+  Constructive: full
+  Mixed: half
+  Weak: none
+  Adverse: none
+
+index_trend:        # A. NIFTY 500's own trend; NIFTY 50 and Smallcap 250 confirm
+  above_50: 20
+  above_150: 20
+  above_200: 20
+  stacked: 20         # 50 > 150 > 200; half for one of the two relationships
+  rising_200: 10      # the 200-day average higher than 20 sessions ago
+  slope_sessions: 20
+  confirm_nifty50: 5  # NIFTY 50 above its own 50-day average
+  confirm_smallcap: 5 # Smallcap 250 above its own 50-day average
+
+breadth:            # B. our universe (about 1,270 eligible stocks)
+  above_50:  {weight: 20, ladder: [[30, 0], [70, 100]]}
+  above_150: {weight: 15, ladder: [[30, 0], [70, 100]]}
+  above_200: {weight: 15, ladder: [[30, 0], [70, 100]]}
+  # (advancers - decliners) / (advancers + decliners), summed over `ad_sessions`
+  ad_trend:  {weight: 15, ladder: [[-0.15, 0], [0.15, 100]]}
+  ad_sessions: 20
+  # new 52-week highs / (highs + lows), 10-session averages; no highs and no lows scores 50
+  highs_lows: {weight: 15, ladder: [[0.2, 0], [0.8, 100]]}
+  highs_lows_sessions: 10
+  # change in the share above the 50-day average over `change_sessions`, percentage points
+  change:    {weight: 10, ladder: [[-15, 0], [15, 100]]}
+  change_sessions: 10
+  # VQI minus NIFTY 500 over `gap_sessions`, percentage points: broadening (+) or narrowing (-)
+  vqi_gap:   {weight: 10, ladder: [[-4, 0], [4, 100]]}
+  gap_sessions: 21
+
+leadership:         # C. leaders = Trend Template pass with RS rank `leader_rs`+
+  leader_rs: 80
+  # share of the universe passing the Trend Template, percent
+  tt_share:     {weight: 25, ladder: [[3, 0], [20, 100]]}
+  # change in the number of leaders over `leader_sessions`, percent
+  leader_change: {weight: 20, ladder: [[-40, 0], [40, 100]]}
+  leader_sessions: 20
+  # shares of the universe at a 20-day high and a 52-week high, 10-session averages (half each)
+  highs_20:     {weight: 10, ladder: [[2, 0], [12, 100]]}
+  highs_52:     {weight: 10, ladder: [[0.5, 0], [5, 100]]}
+  highs_sessions: 10
+  # share of sector indices in an uptrend: above their own 50-day average with a positive
+  # return over 1, 3 and 6 months (averaged over the three horizons), percent
+  sectors:      {weight: 20, ladder: [[20, 0], [80, 100]]}
+  sector_horizons: [21, 63, 126]
+  # the leaders of `leader_sessions` ago followed forward: their mean return minus VQI's, pp
+  leaders_vs_vqi: {weight: 15, ladder: [[-3, 0], [5, 100]]}
+
+accumulation:       # D. NIFTY 500 (its own volume) and VQI (our universe's volume)
+  day_move: 0.002     # a close 0.2 % down (up) on higher volume is a distribution (accumulation) day
+  window: 25
+  # distribution days in `window` sessions; NIFTY 500 counts `nifty_share`, VQI the rest
+  distribution: {weight: 30, ladder: [[2, 100], [4, 60], [5, 30], [6, 0]]}
+  nifty_share: 0.6
+  accumulation_days: {weight: 20, ladder: [[0, 0], [6, 100]]}
+  # traded value of advancing stocks / declining stocks over `value_sessions` (our universe)
+  up_down_value: {weight: 20, ladder: [[0.67, 0], [1.0, 50], [1.5, 100]]}
+  value_sessions: 10
+  # NIFTY 500 distribution days in the last `cluster_sessions`
+  clustering:   {weight: 20, ladder: [[0, 100], [4, 0]]}
+  cluster_sessions: 10
+  # accumulation / (accumulation + distribution) days of NIFTY 500 over `window`; none scores 50
+  up_on_volume: {weight: 10, ladder: [[0.3, 0], [0.7, 100]]}
+
+breakouts:          # E. a breakout = a Trend Template stock closing above its prior 50-day high
+  # (the pivot) on `volume_ratio` x its 50-day average volume, the first close above it.
+  # Judged `judge_sessions` later; the readings use breakouts judged in the last `window`.
+  # One rule over all history, so the score is comparable over time (our strategies' own
+  # breakouts exist only from 31 Aug 2026; their failure rate stays on the Setups card).
+  volume_ratio: 1.4
+  base_sessions: 10   # the pivot unchanged for 10 sessions before: a breakout from a base
+  judge_sessions: 10
+  window: 20
+  min_judged: 20      # fewer: the pillar is missing and the score is incomplete
+  follow_through: 0.05  # success: the close `judge_sessions` later at least 5 % above the pivot
+  hard_fail: 0.03       # failure: a close 3 % or more below the pivot within `judge_sessions`
+  hold_sessions: 5      # held: no close below the pivot in the first 5 sessions
+  success:      {weight: 30, ladder: [[15, 0], [50, 100]]}
+  held:         {weight: 25, ladder: [[30, 0], [70, 100]]}
+  failure:      {weight: 20, ladder: [[20, 100], [60, 0]]}
+  # median of the 5- and 10-session returns from the breakout close (their mean), percent
+  median_return: {weight: 15, ladder: [[-3, 0], [4, 100]]}
+  # share of the universe set up near a pivot: Trend Template, within 5 % below the 50-day high,
+  # 20-day volatility below the 50-day volatility, percent
+  near_pivot:   {weight: 10, ladder: [[1, 0], [6, 100]]}
+  near_pivot_gap: 0.05
+
+caps:               # the label can be no better than `max`, whatever the raw score
+  downtrend:        {max: Weak, above_50_below: 30}   # NIFTY 500 below a falling 200-day average
+  distribution:     {max: Mixed, days: 5}             # NIFTY 500 distribution days in 10 sessions
+  failures:         {max: Weak, rate_above: 60, min_judged: 10}  # breakouts not held 5 sessions
+  tt_collapse:      {max: Mixed, drop: 0.333, sessions: 10}       # Trend Template passes falling
+  divergence:       {max: Constructive, near_high: 0.03, gap: 0.25}  # index near its high, A/D not
+  incomplete:       {max: Mixed}                       # a pillar is missing
+
+thrust:             # breadth thrust: shown as an event, not scored
+  sessions: 10
+  low: 40
+  high: 61.5
+
+min_universe: 300   # fewer eligible stocks on a day: breadth and leadership are missing

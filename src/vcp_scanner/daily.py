@@ -163,6 +163,9 @@ def run_daily(args: argparse.Namespace, cli_main: Callable[[list[str]], int]) ->
     # the step and the day is fetched on the next run.
     step("index closes", ["indices", "update", "--db", db])
     step("features", ["compute", "features", "--db", db])
+    # Market Health Score (display, research and a shadow traffic light only): scores the
+    # sessions not stored yet; a failure marks the run but stops nothing.
+    step("market health", ["health", "build", "--db", db, "--config-dir", cfg])
 
     try:
         strategies = paper_strategies(cfg)

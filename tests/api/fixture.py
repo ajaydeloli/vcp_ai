@@ -105,6 +105,33 @@ def add_fundamentals(store: DuckDBStore) -> None:
     update_views(repo, staleness_days=120, min_availability=0.5)
 
 
+MHS_VERSION = "mhs-2.0.0+fixture"
+
+
+def add_market_health(store: DuckDBStore) -> None:
+    """Three stored Market Health Score days (the fixture's universe is too small to score):
+    a healthy day, a day with a breadth thrust, and AS_OF with its breakout pillar missing and
+    five distribution days in ten (capped at Mixed)."""
+    from tests.unit.test_market_health import CONFIG, healthy
+    from vcp_scanner.market_health.build import _row
+    from vcp_scanner.market_health.features import FeatureDay
+    from vcp_scanner.market_health.scoring import score_day
+    from vcp_scanner.market_health.settings import load_settings
+
+    s = load_settings(CONFIG)
+    now = datetime(2026, 10, 5, 13, 0, tzinfo=UTC)
+    days = [
+        (date(2026, 9, 30), healthy()),
+        (PREV, healthy(thrust=True)),
+        (AS_OF, healthy(judged=3, dist_cluster=5)),
+    ]
+    store.conn.executemany(
+        f"INSERT INTO market_health_daily VALUES ({', '.join('?' * 15)})",
+        [_row(FeatureDay(d, f, 100.0 + k, 20000.0 + k), score_day(f, s), MHS_VERSION, now)
+         for k, (d, f) in enumerate(days)],
+    )  # fmt: skip
+
+
 def build_main_db(db: Path, ctx: Context) -> None:
     spec = {s.strategy_id: s for s in ctx.strategies}
     with DuckDBStore(str(db)) as store:
@@ -266,6 +293,7 @@ def build_main_db(db: Path, ctx: Context) -> None:
         strat("three_weeks_tight", "GAMMA", "NONE", 0, False, 10.0)
         strat("double_bottom", "GAMMA", "NONE", 0, False, 10.0)
         add_fundamentals(store)
+        add_market_health(store)
         # NSE index closes (Market Overview step 3) for the last 30 sessions only: the NIFTY
         # lines start at 100 on their first stored day, later than the chart's first day.
         for k, d in enumerate(SESSIONS[-30:]):

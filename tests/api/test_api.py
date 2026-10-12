@@ -344,8 +344,6 @@ def test_market_health_reads_the_four_groups_and_says_when_data_is_too_thin(ro_e
         s["total"] == s["stage1"] + s["stage2"] + s["stage3"] + s["stage4"] + s["transition"]
         for s in stages
     )  # fmt: skip
-    verdict = body["verdict"]
-    assert 0 <= verdict["score"] <= 100 and verdict["counted"] >= 1
-    assert verdict["status"] in {"green", "amber", "orange", "red"}
+    assert body["score"]["label"] == "Mixed" and "verdict" not in body  # MHS 2 replaced it
     assert items["paper"]["score"] is None  # grey readings carry no score
     assert all(0 <= i["score"] <= 100 for i in items.values() if i["score"] is not None)

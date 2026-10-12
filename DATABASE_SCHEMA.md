@@ -3016,3 +3016,8 @@ The database is therefore not merely a place to save scanner results. It is the 
 # 85. Index Closes (Market Overview, 2026-10-11)
 
 `index_daily (index_name, trade_date, open, high, low, close, volume, turnover_cr, pe, pb, div_yield)`, primary key `(index_name, trade_date)`: NSE's daily closing values of every index as NSE names them ("Nifty 50", "Nifty 500", sector indices). `index_files (trade_date PK, status OK | NOT_FOUND, sha256, rows, fetched_at)`: each day asked for, so a day is fetched once. Filled by `vcp indices update`; display only (FRONTEND_SPECIFICATION §67.31).
+
+
+# 86. Market Health Score (2026-10-12)
+
+`market_health_daily`, primary key `(trade_date, settings_version)`: one row per session and settings version (MARKET_HEALTH_SPECIFICATION). `raw_score` (weighted mean of the pillars measured), `raw_label`, `label` (after the caps), `complete`, `exposure` (shadow traffic light: full | half | none), `thrust` (breadth thrust that day), `vqi`, `nifty500`, and JSON: `pillars_json` (each pillar's weight, score, note and readings with points), `caps_json` (id, max label, reason), `missing_json` (pillars not measured), `features_json` (every reading behind the score), `computed_at`. `settings_version` is `<version>+<hash of config/market_health.yaml's meaning>`. Written by `vcp health build` (daily step "market health"): days not yet stored for the version; a stored day is not recomputed (it keeps what it said that day); `--rebuild` replaces the version's days. Display, research and a shadow light only.

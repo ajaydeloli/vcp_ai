@@ -9,6 +9,7 @@ without a session. Display only: nothing here feeds a scan, a score or the paper
 
 from __future__ import annotations
 
+import contextlib
 import csv
 import hashlib
 import io
@@ -62,6 +63,14 @@ def _num(raw: str | None) -> float | None:
         return None
 
 
+def _dates(text: str) -> set[date]:
+    out = set()
+    for fmt in ("%d-%m-%Y", "%m-%d-%Y"):
+        with contextlib.suppress(ValueError):
+            out.add(datetime.strptime(text, fmt).date())  # noqa: DTZ007
+    return out
+
+
 def parse_index_closes(payload: bytes, trade_date: date) -> list[IndexClose]:
     """Every index of one day's file. A row of another date, or without a close, is skipped;
     a file with no row of ``trade_date`` at all is an error (a wrong or changed file)."""
@@ -71,12 +80,13 @@ def parse_index_closes(payload: bytes, trade_date: date) -> list[IndexClose]:
     for row in reader:
         row = {(k or "").strip(): (v or "").strip() for k, v in row.items()}
         name = row.get("Index Name", "")
-        try:
-            day = datetime.strptime(row.get("Index Date", ""), "%d-%m-%Y").date()  # noqa: DTZ007
-        except ValueError:
+        # NSE writes DD-MM-YYYY, but a few files of April 2023 are month first (04-06-2023
+        # for 6 April): a row counts when either reading is the file's own date.
+        if trade_date not in _dates(row.get("Index Date", "")):
             continue
+        day = trade_date
         close = _num(row.get("Closing Index Value"))
-        if not name or day != trade_date or close is None:
+        if not name or close is None:
             continue
         out.append(IndexClose(
             index_name=name, trade_date=day, open=_num(row.get("Open Index Value")),

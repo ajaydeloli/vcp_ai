@@ -91,9 +91,9 @@ describe("dashboard page (market view)", () => {
       .getAllByRole("region")
       .map((r) => r.getAttribute("aria-label") ?? within(r).queryByRole("heading")?.textContent);
     const colours = within(overview).getAllByRole("region").map((r) => /border-\[(#\w+)\]/.exec(r.className)?.[1]);
-    expect(new Set(colours).size).toBe(8); // every card has its own border colour
+    expect(new Set(colours).size).toBe(9); // every card has its own border colour
     expect(names).toEqual([
-      "Index price action", "Leadership", "Breadth", "Market stage", "Setups and breakouts",
+      "Market health score", "Index price action", "Leadership", "Breadth", "Market stage", "Setups and breakouts",
       "Sector strength", "Feedback loop", "Setups today",
     ]);
     expect(await within(overview).findByText(/Most setups are/)).toBeInTheDocument();
@@ -148,15 +148,41 @@ describe("dashboard page (market view)", () => {
     expect(screen.queryByText("Paper trading")).not.toBeInTheDocument();
   });
 
-  it("market health states a verdict with a 0 to 100 score", async () => {
+  it("the score tile shows the raw score and the label after the caps", async () => {
     mockApi();
     renderApp(<Dashboard />);
     await waitFor(() => expect(screen.getByTestId("verdict-score")).not.toHaveTextContent("—"));
-    expect(screen.getByTestId("verdict-label")).toBeInTheDocument();
     const score = Number(screen.getByTestId("verdict-score").textContent);
-    expect(score).toBeGreaterThanOrEqual(0);
-    expect(score).toBeLessThanOrEqual(100);
-    expect(screen.getByTitle(/Pulling it down/)).toBeInTheDocument();
+    expect(score).toBeGreaterThanOrEqual(80); // raw: Strong
+    expect(screen.getByTestId("verdict-label")).toHaveTextContent("Mixed"); // capped
+    expect(screen.getByTitle(/Raw label Strong/)).toBeInTheDocument();
+  });
+
+  it("the Market health score card: label, caps, shadow light, pillars and history", async () => {
+    mockApi();
+    renderApp(<Dashboard />);
+    const card = within(await screen.findByRole("region", { name: "Market health score" }));
+    expect(card.getByTestId("mhs-label")).toHaveTextContent("Mixed");
+    expect(card.getByText(/raw, Strong/)).toBeInTheDocument();
+    expect(card.getByText(/Capped from Strong/)).toBeInTheDocument();
+    expect(card.getByText(/Shadow light: Half size/)).toBeInTheDocument();
+    expect(card.getByText(/Breadth thrust on/)).toBeInTheDocument();
+    expect(card.getAllByText(/At most/)).toHaveLength(2);
+    for (const id of ["index_trend", "breadth", "leadership", "accumulation", "breakouts"])
+      expect(card.getByTestId(`pillar-${id}`)).toBeInTheDocument();
+    expect(card.getByTestId("pillar-breakouts")).toHaveTextContent("missing");
+    expect(card.getByText("Stocks above their 50-day average, %")).toBeInTheDocument();
+    expect(await screen.findByTestId("mini-market-health-score-history")).toBeInTheDocument();
+    expect(card.getByRole("button", { name: "6M" })).toHaveAttribute("aria-pressed", "true");
+    await userEvent.click(card.getByRole("button", { name: "12M" }));
+    expect(card.getByRole("button", { name: "12M" })).toHaveAttribute("aria-pressed", "true");
+  });
+
+  it("no stored score: the card says so and the tile shows a dash", async () => {
+    mockApi({ "market/health": { ...fx.marketHealth, score: null } });
+    renderApp(<Dashboard />);
+    expect(await screen.findByText(/No score stored yet/)).toBeInTheDocument();
+    expect(screen.getByTestId("verdict-score")).toHaveTextContent("—");
   });
 
   it("market health has four inner cards with charts", async () => {

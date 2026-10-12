@@ -144,17 +144,54 @@ class HealthItem(BaseModel):
     short: str  # the reading in a few words for the card; the full sentence is `text`
 
 
-class HealthVerdict(BaseModel):
-    score: int  # 0-100, the average of the scored readings
+class HealthScorePart(BaseModel):
+    id: str
     label: str
-    status: str  # green | amber | orange | red
-    override: bool  # the index is below its 200-day average: Downtrend whatever the score
-    green: int
-    amber: int
-    red: int
-    counted: int  # readings that carried a score
-    weakest: list[str]
-    strongest: list[str]
+    reading: float | None  # in the unit the label names; None: not measured
+    points: float | None  # 0-100
+    weight: float  # inside the pillar
+
+
+class HealthScorePillar(BaseModel):
+    id: str  # index_trend | breadth | leadership | accumulation | breakouts
+    title: str
+    weight: float  # the pillar's weight in the settings
+    score: float | None  # 0-100; None: missing (left out, the other weights rescaled)
+    contribution: float | None  # points it adds to the raw score, after rescaling
+    note: str
+    parts: list[HealthScorePart]
+
+
+class HealthScoreCap(BaseModel):
+    id: str
+    max: str  # the best label the day can have
+    reason: str
+
+
+class HealthScoreDay(BaseModel):
+    day: date
+    raw: float | None
+    raw_label: str | None
+    label: str | None  # after the caps
+    thrust: bool
+
+
+class HealthScore(BaseModel):
+    """Market Health Score 2 (MARKET_HEALTH_SPECIFICATION): display, research and a shadow
+    traffic light only."""
+
+    day: date
+    settings_version: str
+    raw: float | None
+    raw_label: str | None
+    label: str | None  # after the caps
+    complete: bool
+    exposure: str | None  # shadow traffic light: full | half | none
+    pillars: list[HealthScorePillar]
+    caps: list[HealthScoreCap]
+    missing: list[str]
+    last_thrust: date | None  # the latest breadth thrust in the history shown
+    history: list[HealthScoreDay]  # oldest first
 
 
 class HealthGroup(BaseModel):
@@ -255,7 +292,7 @@ class MarketHealthResponse(Stamped):
     groups: list[HealthGroup]
     points: list[HealthPoint]
     trades: list[HealthTrade]
-    verdict: HealthVerdict | None
+    score: HealthScore | None = None  # Market Health Score 2; None until a day is stored
     index_days: HealthIndexDays | None
     stages: list[HealthStagePoint] = []
     flow: list[HealthFlowPoint] = []  # from the first stored scan on

@@ -147,7 +147,6 @@ def create_app(
                     groups=[],
                     points=[],
                     trades=[],
-                    verdict=None,
                     index_days=None,
                 )
             result: m.MarketHealthResponse = db.cached(

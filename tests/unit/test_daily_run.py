@@ -60,13 +60,14 @@ def test_run_daily_chains_the_steps_from_the_last_settled_day(tmp_path: Path) ->
     )
     code = run_daily(args, fake_main)
     names = [" ".join(a[:2]) for a in calls]
-    assert names[:6] == [
+    assert names[:7] == [
         "ingest security-master",
         "ingest bhavcopy",
         "ingest corporate-actions",
         "ingest adjusted-prices",
         "indices update",  # NSE index closes for the Market Overview (display only)
         "compute features",
+        "health build",  # Market Health Score (display, research, shadow light)
     ]
     assert calls[1][calls[1].index("--start") + 1] == "2026-09-26"  # day after last settled
     # 2026-09-25 had prices but no scan: universe, RS, Trend Template, VCP and scores for it.
@@ -80,9 +81,9 @@ def test_run_daily_chains_the_steps_from_the_last_settled_day(tmp_path: Path) ->
     ] + [n for _ in paper for n in ("compute setups", "compute scores")]
     # sector lists are read on Fridays only (the run's own date decides)
     friday = ["classify update"] if datetime.now(IST).date().weekday() == 4 else []
-    assert names[6:] == (per_date + ["compute labels"] * 5
+    assert names[7:] == (per_date + ["compute labels"] * 5
                          + ["paper update", "fundamentals update"] + friday)  # fmt: skip
-    assert all("2026-09-25" in a for a in calls[6 : 6 + len(per_date)])
+    assert all("2026-09-25" in a for a in calls[7 : 7 + len(per_date)])
     # Monitoring phase (spec 21.2): every enabled strategy after VCP, labels per strategy.
     strategy_args = [a[a.index("--strategy") + 1] for a in calls if "--strategy" in a]
     assert strategy_args == [x for sid in paper for x in (sid, sid)] + paper

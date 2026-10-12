@@ -11,6 +11,7 @@ from typing import Any
 
 from vcp_scanner.api import models as m
 from vcp_scanner.api.context import Context
+from vcp_scanner.api.health_score import health_score
 from vcp_scanner.api.queries import Cur, _f, classification
 from vcp_scanner.config.models import StageConfig
 from vcp_scanner.domain.enums import WeeklyStage
@@ -822,36 +823,6 @@ def _shorts(groups: list[m.HealthGroup], last: tuple[Any, ...]) -> None:
                 i.short = f"{int(v or 0)} of the last {TRADES_JUDGED} won"
 
 
-VERDICT_BANDS = ((70.0, "Confirmed uptrend", "green"), (45.0, "Uptrend under pressure", "amber"),
-                 (25.0, "Correction", "orange"))  # fmt: skip
-
-
-def _verdict(groups: list[m.HealthGroup]) -> m.HealthVerdict | None:
-    items = [i for g in groups for i in g.items]
-    scored = [i for i in items if i.score is not None]
-    if not scored:
-        return None
-    score = round(sum(i.score or 0.0 for i in scored) / len(scored))
-    label, status = "Downtrend", "red"
-    for floor, name, colour in VERDICT_BANDS:
-        if score >= floor:
-            label, status = name, colour
-            break
-    below_200 = any(i.id == "index_ma" and i.status == "red" for i in items)
-    if below_200:
-        label, status = "Downtrend", "red"
-    ranked = sorted(scored, key=lambda i: i.score or 0.0)
-    return m.HealthVerdict(
-        score=score, label=label, status=status, override=below_200,
-        green=sum(i.status == "green" for i in items),
-        amber=sum(i.status == "amber" for i in items),
-        red=sum(i.status == "red" for i in items),
-        counted=len(scored),
-        weakest=[i.label for i in ranked[:3] if (i.score or 0.0) < 50],
-        strongest=[i.label for i in ranked[::-1][:2] if (i.score or 0.0) >= 50],
-    )  # fmt: skip
-
-
 def _stage_history(cur: Cur, ctx: Context, end: date) -> list[m.HealthStagePoint]:
     """The weekly stage of the stocks in the latest scan at the end of each of the last weeks.
 
@@ -925,7 +896,6 @@ def market_health(cur: Cur, ctx: Context, end: date, data_time: datetime) -> m.M
             groups=[],
             points=[],
             trades=[],
-            verdict=None,
             index_days=None,
         )
     level, index = 1.0, []
@@ -956,7 +926,7 @@ def market_health(cur: Cur, ctx: Context, end: date, data_time: datetime) -> m.M
         as_of=sessions[-1], data_time=data_time, groups=groups,
         points=_points(rows, index, _nse_closes(cur, sessions[0], end),
                        _day_kinds(mean_ret, volume)),
-        trades=_trades(cur, ctx), verdict=_verdict(groups),
+        trades=_trades(cur, ctx), score=health_score(cur, end),
         index_days=_index_days(index, mean_ret, volume), stages=_stage_history(cur, ctx, end),
         flow=flow, warnings=_warnings(rows, index), leader_count=leader_count,
         leader_change=leader_change,

@@ -7,6 +7,7 @@ import type { MarketHealth as Health } from "@/lib/schemas";
 import { SetupCounts } from "./SetupCounts";
 import { MiniLineChart, type MiniSeries } from "./MiniLineChart";
 import { SetupFlowCard } from "./MarketFlow";
+import { HealthScoreCard } from "./HealthScore";
 import { SectorCard } from "./SectorStrength";
 import { BOX, C, Figure, Inner, Legend, NSE } from "./MarketParts";
 import { Empty, ErrorBox, Loading } from "./ui";
@@ -453,6 +454,7 @@ export function MarketHealth() {
         <>
           <Warnings warnings={d.warnings} />
           <div className="grid gap-4 lg:grid-cols-2">
+            <HealthScoreCard score={d.score} />
             {idx && (
               <Inner title={idx.title} box={BOX.index}>
                 <div className="flex gap-4">

@@ -1194,6 +1194,30 @@ CREATE TABLE IF NOT EXISTS index_files (
 )
 """
 
+# Market Health Score 2 (MARKET_HEALTH_SPECIFICATION §7): one row per session and settings
+# version. Display, research and a shadow traffic light only. A stored day is not recomputed
+# by the daily run (it keeps what it said that day); ``vcp health build --rebuild`` replaces.
+_DDL_MARKET_HEALTH_DAILY = """
+CREATE TABLE IF NOT EXISTS market_health_daily (
+    trade_date        DATE NOT NULL,
+    settings_version  VARCHAR NOT NULL,  -- e.g. mhs-2.0.0+1a2b3c4d5e
+    raw_score         DOUBLE,            -- weighted mean of the pillars that could be measured
+    raw_label         VARCHAR,           -- the label of the raw score
+    label             VARCHAR,           -- after the caps
+    complete          BOOLEAN NOT NULL,  -- every pillar measured
+    exposure          VARCHAR,           -- shadow traffic light: full | half | none
+    thrust            BOOLEAN NOT NULL,  -- breadth thrust signalled that day (an event)
+    vqi               DOUBLE,
+    nifty500          DOUBLE,
+    pillars_json      VARCHAR NOT NULL,  -- [{id, weight, score, note, parts: [...]}]
+    caps_json         VARCHAR NOT NULL,  -- [{id, max, reason}]
+    missing_json      VARCHAR NOT NULL,  -- pillar ids that could not be measured
+    features_json     VARCHAR NOT NULL,  -- every reading behind the score
+    computed_at       TIMESTAMPTZ NOT NULL,
+    PRIMARY KEY (trade_date, settings_version)
+)
+"""
+
 _ALL_VIEWS: list[tuple[str, str]] = [
     ("setups", _VIEW_SETUPS),
     ("breakout_events", _VIEW_BREAKOUT_EVENTS),
@@ -1258,6 +1282,7 @@ _ALL_DDL: list[tuple[str, str]] = [
     ("instrument_classification", _DDL_INSTRUMENT_CLASSIFICATION),
     ("index_daily", _DDL_INDEX_DAILY),
     ("index_files", _DDL_INDEX_FILES),
+    ("market_health_daily", _DDL_MARKET_HEALTH_DAILY),
 ]
 
 

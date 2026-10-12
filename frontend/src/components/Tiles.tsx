@@ -3,6 +3,7 @@
 import { useLiveIndices, useMarket, useMarketHealth, useSummary } from "@/lib/api";
 import { DASH, fmtDay, fmtInt, fmtNum, fmtPct, fmtPrice, tone } from "@/lib/fmt";
 import { feedNotice, liveLabel, unavailable } from "@/lib/live";
+import { EXPOSURE, GREY, LABEL_COLOR } from "./MarketParts";
 import { Sparkline } from "./Rings";
 
 const BOX = "flex min-h-[116px] flex-col justify-between rounded-lg border bg-gradient-to-br to-panel p-4";
@@ -105,38 +106,37 @@ function IndexLiveTile({ id, name, color, box }: { id: string; name: string; col
   );
 }
 
-const STATUS_COLOR: Record<string, string> = {
-  green: "#26c281",
-  amber: "#f5a524",
-  orange: ORANGE,
-  red: "#ef5350",
-};
 const ARC = Math.PI * 50;
 
-/** The market health score as a half circle, 0 to 100, in the colour of the verdict. */
+/** The Market Health Score as a half circle, 0 to 100 (the raw score), in the colour of the label
+ *  after the caps. Display and research only. */
 function ScoreTile() {
   const health = useMarketHealth();
-  const v = health.data?.verdict ?? null;
-  const color = v ? (STATUS_COLOR[v.status] ?? "#8a97b3") : "#8a97b3";
-  const fill = v ? (Math.max(0, Math.min(100, v.score)) / 100) * ARC : 0;
+  const v = health.data?.score ?? null;
+  const color = v?.label ? (LABEL_COLOR[v.label] ?? GREY) : GREY;
+  const raw = v?.raw ?? null;
+  const fill = raw !== null ? (Math.max(0, Math.min(100, raw)) / 100) * ARC : 0;
+  const weak = v ? v.pillars.filter((p) => p.score !== null && p.score < 50).map((p) => p.title) : [];
+  const light = v?.exposure ? EXPOSURE[v.exposure] : undefined;
   return (
     <div
       className={`${BOX} items-center`}
       style={{ borderColor: `${color}66`, backgroundImage: `linear-gradient(135deg, ${color}33, transparent 70%)` }}
       title={
-        "Average of the Market health readings, each scored 0 to 100. A research read, not a signal." +
-        (v && v.weakest.length > 0 ? ` Pulling it down: ${v.weakest.join(", ")}.` : "") +
-        (v && v.strongest.length > 0 ? ` Holding it up: ${v.strongest.join(", ")}.` : "") +
-        (v?.override ? " The index is below its 200-day average." : "")
+        "Market Health Score: five pillars weighted 25/25/20/15/15; the label is capped when a warning holds. A research read, not a signal." +
+        (v && v.raw_label !== v.label ? ` Raw label ${v.raw_label}.` : "") +
+        (weak.length > 0 ? ` Weak: ${weak.join(", ")}.` : "") +
+        (v && v.caps.length > 0 ? ` ${v.caps.map((c) => c.reason).join(" ")}` : "") +
+        (light ? ` Shadow light: ${light.text}.` : "")
       }
     >
       <p className="self-start text-[11px] font-medium uppercase tracking-wide" style={{ color }}>
         Market health score
       </p>
       <div className="relative">
-        <svg width="150" height="82" viewBox="0 0 120 66" role="img" aria-label={v ? `Market health ${v.score} of 100` : "Market health"}>
+        <svg width="150" height="82" viewBox="0 0 120 66" role="img" aria-label={raw !== null ? `Market health ${Math.round(raw)} of 100` : "Market health"}>
           <path d="M10 60 A50 50 0 0 1 110 60" fill="none" stroke="currentColor" strokeWidth="11" strokeLinecap="round" className="text-line" />
-          {v ? (
+          {raw !== null ? (
             <path
               d="M10 60 A50 50 0 0 1 110 60"
               fill="none"
@@ -148,11 +148,11 @@ function ScoreTile() {
           ) : null}
         </svg>
         <p className="absolute inset-x-0 bottom-0 text-center text-3xl font-semibold leading-none tabular-nums text-ink" data-testid="verdict-score">
-          {v ? v.score : DASH}
+          {raw !== null ? Math.round(raw) : DASH}
         </p>
       </div>
       <p className="text-sm font-semibold" style={{ color }} data-testid="verdict-label">
-        {v ? v.label : "No reading yet"}
+        {v?.label ?? "No reading yet"}
       </p>
     </div>
   );

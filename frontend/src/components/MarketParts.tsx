@@ -37,6 +37,24 @@ export const BOX = {
   activity: `border-2 border-[#a3e635]/60 bg-gradient-to-br from-[#a3e635]/10 to-panel2 ${SIZE}`,
   flow: `border-2 border-[#e879f9]/60 bg-gradient-to-br from-[#e879f9]/10 to-panel2 ${SIZE}`,
   sectors: `border-2 border-[#2dd4bf]/60 bg-gradient-to-br from-[#2dd4bf]/10 to-panel2 ${SIZE}`,
+  score: `border-2 border-[#60a5fa]/60 bg-gradient-to-br from-[#60a5fa]/10 to-panel2 lg:col-span-2`,
+};
+
+/** Market Health Score labels, best first, and their colours. */
+export const LABEL_COLOR: Record<string, string> = {
+  Strong: "#26c281",
+  Constructive: "#8fd14f",
+  Mixed: "#f5a524",
+  Weak: "#fb923c",
+  Adverse: "#ef5350",
+};
+export const GREY = "#8a97b3";
+
+/** The shadow traffic light (logged, no trading effect). */
+export const EXPOSURE: Record<string, { text: string; color: string }> = {
+  full: { text: "Full size", color: "#26c281" },
+  half: { text: "Half size", color: "#f5a524" },
+  none: { text: "No new buys", color: "#ef5350" },
 };
 
 /** `fill`: the card is a column whose title stays put while one child (with `min-h-0 flex-1

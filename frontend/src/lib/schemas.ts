@@ -442,18 +442,31 @@ export const marketHealth = z.object({
   index_days: z
     .object({ pct_from_50: num, pct_from_200: num, accumulation: z.number(), distribution: z.number(), window: z.number() })
     .nullable(),
-  verdict: z
+  /** Market Health Score 2 (MARKET_HEALTH_SPECIFICATION); null until a day is stored */
+  score: z
     .object({
-      score: z.number(),
-      label: z.string(),
-      status: z.enum(["green", "amber", "orange", "red"]),
-      override: z.boolean(),
-      green: z.number(),
-      amber: z.number(),
-      red: z.number(),
-      counted: z.number(),
-      weakest: z.array(z.string()),
-      strongest: z.array(z.string()),
+      day: z.string(),
+      settings_version: z.string(),
+      raw: num,
+      raw_label: z.string().nullable(),
+      label: z.string().nullable(),
+      complete: z.boolean(),
+      exposure: z.string().nullable(),
+      pillars: z.array(
+        z.object({
+          id: z.string(),
+          title: z.string(),
+          weight: z.number(),
+          score: num,
+          contribution: num,
+          note: z.string(),
+          parts: z.array(z.object({ id: z.string(), label: z.string(), reading: num, points: num, weight: z.number() })),
+        }),
+      ),
+      caps: z.array(z.object({ id: z.string(), max: z.string(), reason: z.string() })),
+      missing: z.array(z.string()),
+      last_thrust: z.string().nullable(),
+      history: z.array(z.object({ day: z.string(), raw: num, raw_label: z.string().nullable(), label: z.string().nullable(), thrust: z.boolean() })),
     })
     .nullable(),
 });

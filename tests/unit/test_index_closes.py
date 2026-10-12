@@ -33,6 +33,21 @@ def test_parse_the_real_file_known_answers() -> None:
     assert rows["Nifty IT"].close == 28574.9
 
 
+def test_a_month_first_file_is_read() -> None:
+    # NSE's files of a few April 2023 days write 6 April as 04-06-2023
+    text = (
+        "Index Name,Index Date,Open Index Value,High Index Value,Low Index Value,"
+        "Closing Index Value,Points Change,Change(%),Volume,Turnover (Rs. Cr.),P/E,P/B,"
+        "Div Yield\r\n"
+        "Nifty 50,04-06-2023,17533.85,17638.7,17502.85,17599.15,42.1,0.24,242708337,23543.21,"
+        "20.72,4.12,1.41\r\n"
+    )
+    (row,) = parse_index_closes(text.encode(), date(2023, 4, 6))
+    assert row.trade_date == date(2023, 4, 6) and row.close == 17599.15
+    with pytest.raises(ProviderError, match="no index rows"):
+        parse_index_closes(text.encode(), date(2023, 4, 7))
+
+
 def test_a_file_of_another_day_is_refused() -> None:
     with pytest.raises(ProviderError, match="no index rows"):
         parse_index_closes(FIX.read_bytes(), date(2026, 10, 8))

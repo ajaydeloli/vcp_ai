@@ -52,7 +52,12 @@ export function MiniLineChart({ series, height = 120, threshold, label, plain, w
       crosshair: { mode: CrosshairMode.Magnet },
     });
     chartRef.current = chart;
-    const ro = new ResizeObserver(() => chart.applyOptions({ width: el.clientWidth }));
+    // refit on a new width: a chart first drawn while its column was still narrow would
+    // otherwise keep that bar spacing and leave its lines squeezed to the right
+    const ro = new ResizeObserver(() => {
+      chart.applyOptions({ width: el.clientWidth });
+      chart.timeScale().fitContent();
+    });
     ro.observe(el);
     return () => {
       ro.disconnect();
