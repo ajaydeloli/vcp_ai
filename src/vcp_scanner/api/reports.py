@@ -80,6 +80,12 @@ def status(cur: Cur, ctx: Context, now: datetime, data_time: datetime) -> m.Stat
         if newest and (p.ledger_through is None or p.ledger_through < newest):
             warnings.append(f"{p.strategy_id}: paper ledger not updated for {newest} "
                             f"(through {p.ledger_through}).")  # fmt: skip
+    run = _last_line(ctx.data_dir / "logs" / "daily_runs.log")
+    if run and "FAILED:" in run:
+        # the run carries on past a failed step, so a failure is easy to miss without this
+        when = run.split("|", 1)[0].strip()
+        steps = run.split("FAILED:", 1)[1].strip()
+        warnings.append(f"Last daily run ({when}) failed: {steps}.")
     name, age = _backup(ctx, now)
     if name is None:
         warnings.append("No database backup found.")
@@ -87,7 +93,7 @@ def status(cur: Cur, ctx: Context, now: datetime, data_time: datetime) -> m.Stat
         warnings.append(f"Newest database backup is older than 7 days ({name}).")
     return m.StatusResponse(
         as_of=prices, data_time=data_time, prices_date=prices, strategies=per,
-        daily_run=_last_line(ctx.data_dir / "logs" / "daily_runs.log"), newest_backup=name,
+        daily_run=run, newest_backup=name,
         backup_age_days=age, warnings=warnings,
     )  # fmt: skip
 

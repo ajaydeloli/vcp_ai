@@ -253,6 +253,19 @@ def test_status_warnings(env: Env) -> None:
                for w in warnings)  # fmt: skip
 
 
+def test_a_failed_daily_run_step_is_a_warning(env: Env) -> None:
+    log = env.data_dir / "logs" / "daily_runs.log"
+    log.write_text(
+        log.read_text(encoding="utf-8")
+        + "2026-10-05 22:00 IST | prices to 2026-10-05 | scanned nothing new | surveillance lists"
+        " collected: NONE | FAILED: security master + ASM/GSM/T2T lists\n",
+        encoding="utf-8",
+    )
+    assert get(env, "/api/v1/status")["warnings"] == [
+        "Last daily run (2026-10-05 22:00 IST) failed: security master + ASM/GSM/T2T lists."
+    ]
+
+
 def test_no_backup_is_a_warning(env: Env) -> None:
     for f in (env.data_dir / "backups").iterdir():
         f.unlink()
