@@ -1,9 +1,9 @@
 "use client";
 
-import { useLiveIndices, useMarket, useMarketHealth, useSummary } from "@/lib/api";
+import { useLiveIndices, useMarket, useSummary } from "@/lib/api";
 import { DASH, fmtDay, fmtInt, fmtNum, fmtPct, fmtPrice, tone } from "@/lib/fmt";
 import { feedNotice, liveLabel, unavailable } from "@/lib/live";
-import { EXPOSURE, GREY, LABEL_COLOR } from "./MarketParts";
+import { NSE } from "./MarketParts";
 import { Sparkline } from "./Rings";
 
 const BOX = "flex min-h-[116px] flex-col justify-between rounded-lg border bg-gradient-to-br to-panel p-4";
@@ -62,7 +62,7 @@ function ScanTile() {
   );
 }
 
-/** NIFTY 50 and SENSEX from the live feed (display only; nothing stored, nothing in any rule).
+/** NIFTY 50, SENSEX and NIFTY 500 from the live feed (display only; nothing stored, nothing in any rule).
  *  Labelled "Live, delayed N s" or "Close of <date>"; with no price it says why, never 0. */
 function IndexLiveTile({ id, name, color, box }: { id: string; name: string; color: string; box: string }) {
   const live = useLiveIndices();
@@ -106,58 +106,6 @@ function IndexLiveTile({ id, name, color, box }: { id: string; name: string; col
   );
 }
 
-const ARC = Math.PI * 50;
-
-/** The Market Health Score as a half circle, 0 to 100 (the raw score), in the colour of the label
- *  after the caps. Display and research only. */
-function ScoreTile() {
-  const health = useMarketHealth();
-  const v = health.data?.score ?? null;
-  const color = v?.label ? (LABEL_COLOR[v.label] ?? GREY) : GREY;
-  const raw = v?.raw ?? null;
-  const fill = raw !== null ? (Math.max(0, Math.min(100, raw)) / 100) * ARC : 0;
-  const weak = v ? v.pillars.filter((p) => p.score !== null && p.score < 50).map((p) => p.title) : [];
-  const light = v?.exposure ? EXPOSURE[v.exposure] : undefined;
-  return (
-    <div
-      className={`${BOX} items-center`}
-      style={{ borderColor: `${color}66`, backgroundImage: `linear-gradient(135deg, ${color}33, transparent 70%)` }}
-      title={
-        "Market Health Score: five pillars weighted 25/25/20/15/15; the label is capped when a warning holds. A research read, not a signal." +
-        (v && v.raw_label !== v.label ? ` Raw label ${v.raw_label}.` : "") +
-        (weak.length > 0 ? ` Weak: ${weak.join(", ")}.` : "") +
-        (v && v.caps.length > 0 ? ` ${v.caps.map((c) => c.reason).join(" ")}` : "") +
-        (light ? ` Shadow light: ${light.text}.` : "")
-      }
-    >
-      <p className="self-start text-[11px] font-medium uppercase tracking-wide" style={{ color }}>
-        Market health score
-      </p>
-      <div className="relative">
-        <svg width="150" height="82" viewBox="0 0 120 66" role="img" aria-label={raw !== null ? `Market health ${Math.round(raw)} of 100` : "Market health"}>
-          <path d="M10 60 A50 50 0 0 1 110 60" fill="none" stroke="currentColor" strokeWidth="11" strokeLinecap="round" className="text-line" />
-          {raw !== null ? (
-            <path
-              d="M10 60 A50 50 0 0 1 110 60"
-              fill="none"
-              stroke={color}
-              strokeWidth="11"
-              strokeLinecap="round"
-              strokeDasharray={`${fill} ${ARC}`}
-            />
-          ) : null}
-        </svg>
-        <p className="absolute inset-x-0 bottom-0 text-center text-3xl font-semibold leading-none tabular-nums text-ink" data-testid="verdict-score">
-          {raw !== null ? Math.round(raw) : DASH}
-        </p>
-      </div>
-      <p className="text-sm font-semibold" style={{ color }} data-testid="verdict-label">
-        {v?.label ?? "No reading yet"}
-      </p>
-    </div>
-  );
-}
-
 export function Tiles() {
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
@@ -165,7 +113,7 @@ export function Tiles() {
       <ScanTile />
       <IndexLiveTile id="NIFTY50" name="NIFTY 50" color="#8b5cf6" box="border-violet/40 from-violet/20" />
       <IndexLiveTile id="SENSEX" name="SENSEX" color={ORANGE} box="border-[#fb923c]/40 from-[#fb923c]/20" />
-      <ScoreTile />
+      <IndexLiveTile id="NIFTY500" name="NIFTY 500" color={NSE.nifty500} box="border-[#1baf7a]/40 from-[#1baf7a]/20" />
     </div>
   );
 }

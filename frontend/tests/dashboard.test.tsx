@@ -148,14 +148,13 @@ describe("dashboard page (market view)", () => {
     expect(screen.queryByText("Paper trading")).not.toBeInTheDocument();
   });
 
-  it("the score tile shows the raw score and the label after the caps", async () => {
+  it("the score is shown once: the first row has NIFTY 500, not a score tile", async () => {
     mockApi();
     renderApp(<Dashboard />);
-    await waitFor(() => expect(screen.getByTestId("verdict-score")).not.toHaveTextContent("—"));
-    const score = Number(screen.getByTestId("verdict-score").textContent);
-    expect(score).toBeGreaterThanOrEqual(80); // raw: Strong
-    expect(screen.getByTestId("verdict-label")).toHaveTextContent("Mixed"); // capped
-    expect(screen.getByTitle(/Raw label Strong/)).toBeInTheDocument();
+    expect(await screen.findByTestId("index-NIFTY 500")).toBeInTheDocument();
+    expect(screen.queryByTestId("verdict-score")).not.toBeInTheDocument();
+    expect(await screen.findByTestId("mhs-raw")).toBeInTheDocument();
+    expect(screen.getAllByRole("heading", { name: "Market health score" })).toHaveLength(1);
   });
 
   it("the Market health score card: label, caps, shadow light, pillars and history", async () => {
@@ -210,11 +209,10 @@ describe("dashboard page (market view)", () => {
     expect(card.getByText(/Not enough weekly history/)).toBeInTheDocument();
   });
 
-  it("no stored score: the card says so and the tile shows a dash", async () => {
+  it("no stored score: the card says so", async () => {
     mockApi({ "market/health": { ...fx.marketHealth, score: null } });
     renderApp(<Dashboard />);
     expect(await screen.findByText(/No score stored yet/)).toBeInTheDocument();
-    expect(screen.getByTestId("verdict-score")).toHaveTextContent("—");
   });
 
   it("market health has four inner cards with charts", async () => {

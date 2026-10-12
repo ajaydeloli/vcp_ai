@@ -34,16 +34,20 @@ describe("setup counts", () => {
 });
 
 describe("tiles", () => {
-  it("show the scan, our own index (not NIFTY) and the market health score", async () => {
-    mockApi();
+  it("show the scan, our own index (not NIFTY) and NIFTY 500", async () => {
+    const live = structuredClone(fx.liveIndices);
+    const n500 = live.indices.find((i) => i.id === "NIFTY500");
+    Object.assign(n500 ?? {}, { ...live.indices[0], id: "NIFTY500", label: "NIFTY 500", last_price: 21909.7, change: 43.05, change_pct: 0.2 });
+    mockApi({ "live/indices": live });
     renderApp(<Tiles />);
     await waitFor(() => expect(screen.getByText("symbols").previousElementSibling).toHaveTextContent("63"));
     expect(screen.getByText("Trend Template").previousElementSibling).toHaveTextContent("3");
     expect(await screen.findByText("106.07")).toBeInTheDocument();
     expect(screen.getByText("VCP Quality Index (VQI)")).toBeInTheDocument();
     expect(screen.getByText("+0.10%")).toBeInTheDocument();
-    await waitFor(() => expect(screen.getByTestId("verdict-score")).not.toHaveTextContent("—"));
-    expect(screen.getByTestId("verdict-label").textContent).toMatch(/\w/);
+    await waitFor(() => expect(screen.getByTestId("index-NIFTY 500")).toHaveTextContent("21,909.70"));
+    expect(screen.getByTestId("index-change-NIFTY 500")).toHaveTextContent("+0.20%");
+    expect(screen.queryByTestId("verdict-score")).not.toBeInTheDocument(); // the score has its own card
   });
 
   it("NIFTY 50 and SENSEX show the live value, the change and how old it is", async () => {
@@ -77,7 +81,7 @@ describe("tiles", () => {
   it("does not crash when the API is down", async () => {
     mockApi({ summary: new Error("down"), market: new Error("down"), "market/health": new Error("down") });
     renderApp(<Tiles />);
-    await waitFor(() => expect(screen.getByTestId("verdict-score")).toHaveTextContent("—"));
+    await waitFor(() => expect(screen.getByTestId("index-NIFTY 500")).toHaveTextContent("—"));
   });
 });
 
