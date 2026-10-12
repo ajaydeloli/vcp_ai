@@ -92,9 +92,14 @@ function StockView({
               <WatchStar symbol={selection.symbol} />
               {company ? <span className="text-sm text-mute">{company}</span> : null}
               {stock.data?.sector ? (
-                <span className="text-xs text-mute" title="NSE classification">
+                <span
+                  className="text-xs text-mute"
+                  title={stock.data.sector_source === "MANUAL" ? "Entered by hand from NSE's quote page (config/manual_sectors.yaml)" : "NSE classification"}
+                  data-testid="stock-sector"
+                >
                   {stock.data.sector}
                   {stock.data.industry ? ` · ${stock.data.industry}` : ""}
+                  {stock.data.sector_source === "MANUAL" ? ` (manual${stock.data.sector_since ? `, ${fmtDay(stock.data.sector_since)}` : ""})` : ""}
                 </span>
               ) : null}
               {onStockPage ? null : (

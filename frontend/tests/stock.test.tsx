@@ -1,4 +1,4 @@
-import { screen, within } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 import { StockAnalysis } from "@/components/StockAnalysis";
@@ -16,6 +16,21 @@ describe("stock analysis page", () => {
     expect(screen.queryByText("Full analysis →")).not.toBeInTheDocument();
     const nav = screen.getByRole("navigation", { name: "Main" });
     expect(within(nav).getByRole("link", { name: "Stock Analysis" })).toHaveAttribute("aria-current", "page");
+  });
+
+  it("names the sector from NSE", async () => {
+    mockApi();
+    renderApp(<StockAnalysis symbol="ALPHA" />);
+    const nse = await screen.findByTestId("stock-sector");
+    expect(nse).toHaveTextContent("Capital Goods");
+    expect(nse).not.toHaveTextContent("manual");
+  });
+
+  it("marks a sector entered by hand with its date", async () => {
+    mockApi({ "stocks/BETA/setups": { ...fx.stockSetups, symbol: "BETA", sector: "Healthcare", industry: null, sector_source: "MANUAL", sector_since: "2026-10-12" } });
+    renderApp(<StockAnalysis symbol="BETA" />);
+    await waitFor(() => expect(screen.getByTestId("stock-sector")).toHaveTextContent("Healthcare (manual, 12 Oct 2026)"));
+    expect(screen.getByTestId("stock-sector")).toHaveAttribute("title", expect.stringMatching(/Entered by hand/));
   });
 
   it("says so when a stock has no breakout or paper trade", async () => {

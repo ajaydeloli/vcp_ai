@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Manual sectors (DATA_SPECIFICATION §48.1): `config/manual_sectors.yaml` classifies stocks NSE's index lists miss; NSE always wins, history is kept, entries are validated against NSE's 22 sectors, entries over a year old or unusable are status-bar warnings, and the stock page marks a manual sector with its date. API: `sector_source`, `sector_since` on a stock's setups. NSE's per-stock quote API and BSE's list API both refuse non-browser clients (Akamai), so the other 593 stocks stay unclassified until a sector is entered.
+
 - Status bar: a failed step of the last daily run is now a warning ("Last daily run (…) failed: …"). The run carries on past a failed step and the bar said "No warnings", so the security-master failure of 2026-10-12 went unnoticed.
 
 - Fix: NSE renamed its delisted-companies workbook on 2026-10-12 and now links it directly (no Office viewer), so the daily "security master + ASM/GSM/T2T lists" step failed at 19:15 and 22:00 and collected no surveillance lists. The link is now found by its label ("List of Companies Delisted from NSE"), then by the file name, in either form. Re-run the same evening: 118 delisted records, 533 surveillance records (17 new flags, 17 closed).

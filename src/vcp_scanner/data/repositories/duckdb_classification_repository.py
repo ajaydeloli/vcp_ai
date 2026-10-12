@@ -2,19 +2,21 @@
 
 Nothing is overwritten: a changed classification closes the open row (``valid_to``) and opens a
 new one. A finer source (NSE's per-stock four-level classification, ``NSE_QUOTE``) is not
-replaced by the coarser index lists while the sector agrees.
+replaced by the coarser index lists while the sector agrees. A hand-entered sector (``MANUAL``)
+never replaces an NSE one, and any NSE source replaces it.
 """
 
 from __future__ import annotations
 
 from collections.abc import Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import UTC, date, datetime
 
 from vcp_scanner.data.storage.duckdb_store import DuckDBStore
 
 SOURCE_INDEX_LIST = "NSE_INDEX_LIST"
 SOURCE_QUOTE = "NSE_QUOTE"
+SOURCE_MANUAL = "MANUAL"  # config/manual_sectors.yaml; any NSE source wins over it
 
 
 @dataclass(frozen=True)
@@ -32,6 +34,9 @@ class ApplyReport:
     inserted: int = 0
     changed: int = 0
     unchanged: int = 0
+    kept_nse: int = 0  # manual entries not applied: NSE already classifies the stock
+    #: (instrument_id, manual sector, NSE sector) where NSE replaced a different manual sector
+    replaced_manual: list[tuple[str, str, str]] = field(default_factory=list)
 
 
 class DuckDBClassificationRepository:
@@ -71,6 +76,14 @@ class DuckDBClassificationRepository:
             for c in items:
                 old = self.current(c.instrument_id)
                 if old is not None:
+                    if c.source == SOURCE_MANUAL and old.source != SOURCE_MANUAL:
+                        report.kept_nse += 1  # NSE always wins over a hand-entered sector
+                        continue
+                    if (
+                        old.source == SOURCE_MANUAL and c.source != SOURCE_MANUAL
+                        and old.sector != c.sector
+                    ):  # fmt: skip
+                        report.replaced_manual.append((c.instrument_id, old.sector, c.sector))
                     coarser = c.source == SOURCE_INDEX_LIST and old.source == SOURCE_QUOTE
                     if old.sector == c.sector and (coarser or old == c):
                         report.unchanged += 1

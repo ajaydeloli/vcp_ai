@@ -34,6 +34,7 @@ class Context:
     regime_rule: str  # the frozen paper regime (config/backtest.yaml defaults)
     strategies: tuple[StrategySpec, ...]
     data_dir: Path  # the main database's folder (logs, backups)
+    config_dir: Path = Path("config")  # read for files a person keeps (manual sectors)
 
     def strategy(self, strategy_id: str) -> StrategySpec | None:
         return next((s for s in self.strategies if s.strategy_id == strategy_id), None)
@@ -56,4 +57,4 @@ def build_context(config_dir: str | Path, data_dir: str | Path) -> Context:
         )  # fmt: skip
     bcfg = load_backtest_config(str(config_dir))
     regime = bcfg.defaults.regime if bcfg.defaults.regime != "none" else "breadth50"
-    return Context(scan_config_hash(cfg), regime, tuple(specs), Path(data_dir))
+    return Context(scan_config_hash(cfg), regime, tuple(specs), Path(data_dir), Path(config_dir))

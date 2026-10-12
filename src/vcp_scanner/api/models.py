@@ -436,6 +436,8 @@ class StockSetupsResponse(Stamped):
     company: str | None
     sector: str | None = None
     industry: str | None = None
+    sector_source: str | None = None  # NSE_INDEX_LIST | NSE_QUOTE | MANUAL
+    sector_since: date | None = None  # the day the current sector was recorded
     close: float | None
     weekly_stage: str | None
     weekly_stage2_pass: bool | None

@@ -144,6 +144,14 @@ def test_bars_have_averages_null_until_enough_history(ro_env: Env) -> None:
 def test_stock_setups_carry_marks_conditions_and_score_parts(ro_env: Env) -> None:
     body = get(ro_env, "/api/v1/stocks/ALPHA/setups")
     assert body["weekly_stage"] == "STAGE_2" and body["trend_template_pass"] is True
+    assert (body["sector"], body["sector_source"], body["sector_since"]) == (
+        "Capital Goods",
+        "NSE_QUOTE",
+        AS_OF.isoformat(),
+    )
+    beta = get(ro_env, "/api/v1/stocks/BETA/setups")
+    assert (beta["sector"], beta["sector_source"]) == ("Healthcare", "MANUAL")
+    assert get(ro_env, "/api/v1/stocks/GAMMA/setups")["sector_source"] is None
     assert [c["name"] for c in body["conditions"]] == ["close_above_sma150", "sma200_rising",
                                                        "rs_rank_min"]  # fmt: skip
     by = {s["strategy_id"]: s for s in body["setups"]}

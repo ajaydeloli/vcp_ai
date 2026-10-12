@@ -592,9 +592,17 @@ def stock_setups(
         )  # fmt: skip
     today = chart.get(day)
     sector, industry = classification(cur, [instrument_id]).get(instrument_id, (None, None))
+    source = since = None
+    if sector is not None:
+        row = cur.execute(
+            "SELECT classification_source, valid_from FROM instrument_classification"
+            " WHERE instrument_id = ? AND valid_to IS NULL",
+            [instrument_id],
+        ).fetchone()
+        source, since = (str(row[0]), row[1]) if row else (None, None)
     return m.StockSetupsResponse(
         as_of=day, data_time=data_time, symbol=symbol, company=company,
-        sector=sector, industry=industry,
+        sector=sector, industry=industry, sector_source=source, sector_since=since,
         close=None if today is None else today.close,
         weekly_stage=None if tt is None else tt[0],
         weekly_stage2_pass=None if tt is None or tt[1] is None else bool(tt[1]),

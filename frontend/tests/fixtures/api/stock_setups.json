@@ -5,6 +5,8 @@
  "company": "Alpha Industries Ltd",
  "sector": "Capital Goods",
  "industry": "Heavy Electrical Equipment",
+ "sector_source": "NSE_QUOTE",
+ "sector_since": "2026-10-05",
  "close": 171.9,
  "weekly_stage": "STAGE_2",
  "weekly_stage2_pass": true,

@@ -187,6 +187,8 @@ export const stockSetups = z.object({
   company: z.string().nullable(),
   sector: z.string().nullable().optional(),
   industry: z.string().nullable().optional(),
+  sector_source: z.string().nullable().optional(),
+  sector_since: z.string().nullable().optional(),
   close: num,
   weekly_stage: z.string().nullable(),
   weekly_stage2_pass: z.boolean().nullable(),

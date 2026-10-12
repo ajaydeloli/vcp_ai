@@ -1,0 +1,24 @@
+# Sectors entered by hand for stocks NSE's index lists do not cover (DATA_SPECIFICATION §48.1).
+#
+# Read by `vcp classify update` (Fridays in the daily run). Rules:
+#   * NSE always wins: a stock already classified by NSE is skipped here, and when a manual
+#     stock later appears in an NSE list, NSE's sector replaces the manual one (the report names
+#     it when the two differ).
+#   * Nothing is overwritten: a changed sector closes the old row and opens a new one dated the
+#     day of the update, so past scans keep the sector they had.
+#   * `sector` must be one of NSE's sectors (the "Sector" line on the stock's quote page,
+#     https://www.nseindia.com/get-quotes/equity?symbol=SYMBOL), spelled as NSE spells it:
+#       Automobile and Auto Components, Capital Goods, Chemicals, Construction,
+#       Construction Materials, Consumer Durables, Consumer Services, Diversified,
+#       Fast Moving Consumer Goods, Financial Services, Forest Materials, Healthcare,
+#       Information Technology, Media Entertainment & Publication, Metals & Mining,
+#       Oil Gas & Consumable Fuels, Power, Realty, Services, Telecommunication, Textiles,
+#       Utilities
+#   * `industry` (optional) is NSE's "Basic Industry" line.
+#   * `as_of` is the day you checked NSE's page. An entry older than 12 months shows as a
+#     warning in the status bar: check the page again and update the date.
+#
+# Example:
+#   - {symbol: 20MICRONS, sector: Metals & Mining, industry: Industrial Minerals, as_of: 2026-10-12}
+
+sectors: []

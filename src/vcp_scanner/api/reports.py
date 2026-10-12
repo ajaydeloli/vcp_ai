@@ -19,6 +19,8 @@ from vcp_scanner.api.context import (
 from vcp_scanner.api.queries import Cur, _f, latest_prices_date, latest_scan, ledger_through
 from vcp_scanner.backup import BACKUP_RE, list_backups
 from vcp_scanner.data.providers._time import IST
+from vcp_scanner.data.providers.manual_sectors import FILE_NAME as MANUAL_SECTORS
+from vcp_scanner.data.providers.manual_sectors import load_manual_sectors, stale_entries
 from vcp_scanner.domain.snapshot import LIVE_SNAPSHOT_ID as LIVE
 from vcp_scanner.paper.ledger import RULE_SET, PaperEvent
 from vcp_scanner.paper.status import summarize
@@ -86,6 +88,17 @@ def status(cur: Cur, ctx: Context, now: datetime, data_time: datetime) -> m.Stat
         when = run.split("|", 1)[0].strip()
         steps = run.split("FAILED:", 1)[1].strip()
         warnings.append(f"Last daily run ({when}) failed: {steps}.")
+    manual, problems = load_manual_sectors(ctx.config_dir / MANUAL_SECTORS)
+    stale = stale_entries(manual, now.date())
+    if stale:
+        names = ", ".join(e.symbol for e in stale[:5]) + (" …" if len(stale) > 5 else "")
+        warnings.append(f"{len(stale)} manual sector{'s are' if len(stale) > 1 else ' is'} over a"
+                        f" year old ({names}): recheck NSE's quote page and update as_of in"
+                        f" config/{MANUAL_SECTORS}.")  # fmt: skip
+    if problems:
+        entries = "entries" if len(problems) > 1 else "entry"
+        warnings.append(f"config/{MANUAL_SECTORS}: {len(problems)} {entries} not used"
+                        f" ({problems[0]}).")  # fmt: skip
     name, age = _backup(ctx, now)
     if name is None:
         warnings.append("No database backup found.")
