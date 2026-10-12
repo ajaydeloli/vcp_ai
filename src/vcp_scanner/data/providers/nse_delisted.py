@@ -120,15 +120,40 @@ def _to_date(raw: str | None) -> date | None:
         return _parse_nse_date(text)
 
 
+_ANCHOR_RE = re.compile(r"<a\s[^>]*href=[\"']([^\"']+)[\"'][^>]*>(.*?)</a>", re.I | re.S)
+_TAG_RE = re.compile(r"<[^>]+>")
+_VIEWER_SRC_RE = re.compile(r"[?&]src=([^&]+)", re.I)
+
+
+def find_delisted_link(html: str) -> str | None:
+    """The workbook behind the page's "List of Companies Delisted from NSE" link.
+
+    Found by the link's label, not by the file name: NSE renames the file with every revision
+    (on 2026-10-12 it became ``Copy_of_List_of_delisted_Companies_….xlsx``) and has served the
+    link both directly and through an Office viewer (``…?src=https%3A%2F%2F…xlsx``). The
+    "Proposed to be Delisted" list next to it is a different file and is never taken."""
+    links = []
+    for href, text in _ANCHOR_RE.findall(html):
+        viewer = _VIEWER_SRC_RE.search(href)
+        url = unquote(viewer.group(1)) if viewer else href
+        if url.lower().split("?")[0].endswith((".xlsx", ".xls")):
+            label = " ".join(_TAG_RE.sub(" ", text).replace("&nbsp;", " ").split()).lower()
+            links.append((url, label))
+    for url, label in links:  # by the label
+        if "delisted from nse" in label and "proposed" not in label:
+            return url
+    for url, _label in links:  # by the file name, when the label changes
+        name = url.rsplit("/", 1)[-1].lower()
+        if "list_of_delisted_companies" in name and "proposed" not in name:
+            return url
+    return None
+
+
 class NSEDelistedProvider:
     """``SecurityMasterProvider`` for securities NSE has delisted."""
 
     PROVIDER_NAME = "NSE_DELISTED_LIST"
     PAGE_URL = "https://www.nseindia.com/static/list/list-of-companies-proposed-to-be-delisted"
-    _LINK_RE = re.compile(
-        r"src=(https%3A%2F%2F[^&\"'\s]*?list_of_delisted_companies[^&\"'\s]*?\.xlsx)",
-        re.IGNORECASE,
-    )
 
     def __init__(
         self,
@@ -155,14 +180,14 @@ class NSEDelistedProvider:
             raise ProviderError(f"Could not open NSE delisting page: {err}") from err
         if resp.status_code != 200:
             raise ProviderError(f"NSE delisting page returned HTTP {resp.status_code}")
-        match = self._LINK_RE.search(resp.text)
-        if match is None:
+        url = find_delisted_link(resp.text)
+        if url is None:
             raise ProviderError(
                 "Could not find the 'List of Companies Delisted from NSE' link on the NSE "
                 "delisting page (layout changed?). Download the .xlsx manually and pass it "
                 "with --delisted-file."
             )
-        return unquote(match.group(1))
+        return url
 
     def _load_payload(self) -> bytes:
         if self._file_path is not None:

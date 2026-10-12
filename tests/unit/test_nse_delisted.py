@@ -17,7 +17,7 @@ from xml.sax.saxutils import escape
 import pytest
 
 from vcp_scanner.data.ingestion.sm_worker import SecurityMasterIngestionWorker
-from vcp_scanner.data.providers.nse_delisted import NSEDelistedProvider
+from vcp_scanner.data.providers.nse_delisted import NSEDelistedProvider, find_delisted_link
 from vcp_scanner.data.repositories.duckdb_universe_repository import DuckDBUniverseRepository
 from vcp_scanner.data.storage.duckdb_store import DuckDBStore
 from vcp_scanner.data.universe.builder import derive_survivorship
@@ -220,8 +220,10 @@ def test_download_url_is_discovered_from_the_page():
     decoy = "https://nsearchives.nseindia.com//web/mediaattachment/2026-09/Companies_proposed_to_be_delisted_list.xlsx"
     viewer = "https://view.officeapps.live.com/op/view.aspx?src="
     html = (
-        f'<a href="{viewer}{quote(decoy, safe="")}&wdOrigin=X">p</a>'
-        f'<a href="{viewer}{quote(xlsx_url, safe="")}&wdOrigin=X">d</a>'
+        f'<a href="{viewer}{quote(decoy, safe="")}&wdOrigin=X">Download List of Companies Proposed'
+        " to be Delisted (.xlsx)</a>"
+        f'<a href="{viewer}{quote(xlsx_url, safe="")}&wdOrigin=X">Download List of Companies'
+        " Delisted from NSE (.xlsx)</a>"
     )
     payload = make_xlsx([HEADER, _row("OLDCO", "INE000A01011", date(2017, 3, 24))])
     session = _Session(_Resp(text=html), _Resp(content=payload))
@@ -230,6 +232,29 @@ def test_download_url_is_discovered_from_the_page():
 
     assert [r.symbol for r in got] == ["OLDCO"]
     assert session.urls[-1] == xlsx_url  # the "delisted" list, not "proposed to be delisted"
+
+
+def test_direct_links_of_the_2026_10_12_page_are_found():
+    """NSE's page of 2026-10-12: plain links (no viewer), the file renamed again."""
+    delisted = (
+        "https://nsearchives.nseindia.com//web/mediaattachment/2026-10/Copy_of_List_of_delisted_"
+        "Companies_20260612152719_9_20261012162023.xlsx"
+    )
+    proposed = (
+        "https://nsearchives.nseindia.com//web/mediaattachment/2026-10/Companies_proposed_to_be_"
+        "delisted_list__20261012162233.xlsx"
+    )
+    html = (
+        '<p><a href="https://nsearchives.nseindia.com/x/SOP.pdf">Download SOP (.pdf)</a></p>'
+        f'<p><a href="{proposed}" target="_blank" rel="noopener">Download List of Companies '
+        "Proposed to be Delisted (.xlsx)</a>(15 KB)&nbsp;</p>"
+        f'<p><a href="{delisted}" target="_blank" rel="noopener">Download List of Companies '
+        "Delisted from NSE (.xlsx)</a>(61 KB) &nbsp;</p>"
+    )
+    assert find_delisted_link(html) == delisted
+    # the label changes but the file name still says what it is
+    assert find_delisted_link(html.replace("Delisted from NSE", "Delisted list")) == delisted
+    assert find_delisted_link(html.replace(delisted, "https://x/other.pdf")) is None
 
 
 def test_page_without_link_points_to_manual_file():
