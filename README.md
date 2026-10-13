@@ -1,7 +1,7 @@
 # VCP Scanner
 
 Institutional-grade NSE VCP scanner (Minervini Trend Template + Volatility Contraction Pattern).
-See `PROJECT_DESIGN.md` for architecture and `AGENTS.md` for agent rules.
+See `USER_GUIDE.md` to install and run it, `PROJECT_DESIGN.md` for architecture and `AGENTS.md` for agent rules.
 
 ## Status
 
@@ -204,6 +204,7 @@ current status of each.
 
 | Topic | Document |
 |---|---|
+| **Installing and running it day to day; every command** | **`USER_GUIDE.md`** |
 | Architecture, phases, scope | `PROJECT_DESIGN.md` |
 | Tables, columns, bitemporal rules | `DATABASE_SCHEMA.md` |
 | Ingestion, providers, data quality, snapshots | `DATA_SPECIFICATION.md` |
