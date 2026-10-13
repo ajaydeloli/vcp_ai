@@ -23,7 +23,7 @@ from vcp_scanner.domain.errors import (
     ProviderRateLimited,
 )
 from vcp_scanner.live import kite_feed, upstox_feed
-from vcp_scanner.live.config import load_live_config
+from vcp_scanner.live.config import PROVIDERS, LiveConfigWatcher, load_live_config
 from vcp_scanner.live.models import IndexSpec
 
 NOW = datetime(2026, 10, 6, 11, 0, tzinfo=IST)
@@ -206,10 +206,29 @@ def test_kite_feed_fetch_and_keys() -> None:
     assert feed.intraday("NSE:NIFTY 50") == []
 
 
-def test_the_shipped_config_loads_and_picks_upstox_first() -> None:
+def test_the_shipped_config_loads_with_either_provider() -> None:
+    """The owner switches provider by editing live.yaml (Upstox for use, Kite for testing), so this
+    pins what makes the switch work, not which one is set: every index has a key for both."""
     cfg = load_live_config(REPO / "config")
-    assert cfg.enabled and cfg.provider == "upstox"
+    assert cfg.provider in PROVIDERS
     assert [i.id for i in cfg.indices] == ["NIFTY50", "SENSEX", "NIFTY500"]
+    assert all(i.upstox_key and i.kite_key for i in cfg.indices)
+
+
+def test_the_watcher_picks_up_an_edit_and_ignores_a_broken_one(tmp_path: Path) -> None:
+    f = tmp_path / "live.yaml"
+    f.write_text("provider: upstox\n", encoding="utf-8")
+    w = LiveConfigWatcher(tmp_path)
+    assert w.current.provider == "upstox" and w.check() is None  # unchanged: nothing to do
+    f.write_text("provider: kite\n", encoding="utf-8")
+    new = w.check()
+    assert new is not None and new.provider == "kite" and w.current.provider == "kite"
+    assert w.check() is None
+    f.write_text("provider: dhan   \n", encoding="utf-8")  # a typo: the last good config stays
+    assert w.check() is None and w.current.provider == "kite"
+    f.write_text("provider: upstox # back\n", encoding="utf-8")
+    back = w.check()
+    assert back is not None and back.provider == "upstox"
 
 
 def test_config_defaults_and_errors(tmp_path: Path) -> None:

@@ -12,13 +12,18 @@ from vcp_scanner.live.config import LiveConfig
 from vcp_scanner.live.models import LiveFeed
 
 
-def make_feed_factory(cfg: LiveConfig, env_file: str = ".env") -> Callable[[], LiveFeed]:
+def make_feed_factory(
+    config: LiveConfig | Callable[[], LiveConfig], env_file: str = ".env"
+) -> Callable[[], LiveFeed]:
     """A function that reads the credentials from ``env_file`` each time it is called, so a
-    refreshed token is picked up without a restart. A missing credential raises
-    ``ProviderAuthError`` naming the variable, never its value."""
+    refreshed token is picked up without a restart. ``config`` may be a function returning the
+    config in force, so a provider switched in ``live.yaml`` is built on the next call. A missing
+    credential raises ``ProviderAuthError`` naming the variable, never its value."""
 
     def build() -> LiveFeed:
         from dotenv import load_dotenv
+
+        cfg = config() if callable(config) else config
 
         from vcp_scanner.cli_pipeline import env_secret
 

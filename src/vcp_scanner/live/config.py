@@ -6,6 +6,7 @@ config hash (a test pins them).
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -14,6 +15,8 @@ import yaml
 
 from vcp_scanner.domain.errors import ConfigError
 from vcp_scanner.live.models import IndexSpec
+
+logger = logging.getLogger(__name__)
 
 PROVIDERS = ("upstox", "kite")
 DEFAULT_INDICES = (
@@ -64,3 +67,37 @@ def load_live_config(config_dir: str | Path = "config") -> LiveConfig:
     if cfg.kite_batch < 1:
         raise ConfigError(f"{path}: kite_batch must be at least 1")
     return cfg
+
+
+class LiveConfigWatcher:
+    """``config/live.yaml`` as it is now: ``check()`` re-reads the file when it changed on disk
+    (a cheap stat per call) and returns the new config, else None. A broken edit is logged and
+    ignored: the last good config stays in force, so switching provider never needs a restart
+    and a typo never stops the display."""
+
+    def __init__(self, config_dir: str | Path = "config") -> None:
+        self._path = Path(config_dir) / "live.yaml"
+        self._stamp = self._stat()
+        self.current = load_live_config(config_dir)
+
+    def _stat(self) -> tuple[int, int] | None:
+        try:
+            st = self._path.stat()
+        except OSError:
+            return None
+        return (st.st_mtime_ns, st.st_size)
+
+    def check(self) -> LiveConfig | None:
+        stamp = self._stat()
+        if stamp == self._stamp:
+            return None
+        self._stamp = stamp
+        try:
+            cfg = load_live_config(self._path.parent)
+        except ConfigError as exc:
+            logger.warning("live.yaml changed but is not usable; the last good one stays: %s", exc)
+            return None
+        if cfg == self.current:
+            return None
+        self.current = cfg
+        return cfg

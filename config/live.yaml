@@ -2,7 +2,8 @@
 # nothing here reaches a scan, score, label, regime, universe, strategy or the paper ledger.
 # Credentials come from .env (UPSTOX_ACCESS_TOKEN / KITE_API_KEY + KITE_ACCESS_TOKEN), never here.
 enabled: true
-provider: upstox            # upstox | kite  (one setting; there is no automatic switch)
+provider: upstox            # upstox | kite. Edit and save: the running dashboard switches at the
+                            # next page request, no restart. A failure never switches it by itself.
 poll_interval_seconds: 15   # while a page is open and the market is open
 stale_after_seconds: 120    # older than this shows as "stale"
 idle_after_seconds: 120     # stop polling when no page has asked for this long

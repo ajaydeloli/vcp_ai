@@ -7,6 +7,9 @@ Display only. It never writes anywhere (no database, no file) and nothing reads 
   after 15:40 IST, never between 09:00 and 09:15 when feeds may show indicative prices).
 * A failure never switches provider. It is reported (``token_needed``, ``rate_limited``, ``error``)
   and the last quotes stay visible with their age.
+* The provider is switched only by editing ``config/live.yaml``: with ``reload`` given, each
+  page request and poll checks the file, and a change takes effect at once (the feed is rebuilt
+  and the previous provider's prices are dropped). No restart, no commit.
 * Endpoints read the cache only, so page loads cannot add provider calls.
 """
 
@@ -78,8 +81,10 @@ class LiveService:
         *,
         autostart: bool = True,
         sleep: Callable[[float], None] = time.sleep,
+        reload: Callable[[], LiveConfig | None] | None = None,
     ) -> None:
         self._cfg = config
+        self._reload = reload
         self._factory = feed_factory
         self._universe = universe
         self._cal = calendar
@@ -110,10 +115,37 @@ class LiveService:
         self._total: int | None = None
         self._snapshot_session: date | None = None
 
+    # ---- config changes --------------------------------------------------------------------
+
+    def _check_config(self) -> None:
+        """Apply an edited ``live.yaml``. A new provider starts clean: its prices, keys and index
+        lines are fetched afresh (nothing of the old provider is shown as the new one's)."""
+        if self._reload is None:
+            return
+        new = self._reload()
+        if new is None:
+            return
+        with self._lock:
+            old = self._cfg
+            self._cfg = new
+            feed_changed = (new.provider, new.indices, new.kite_batch) != (
+                old.provider, old.indices, old.kite_batch)  # fmt: skip
+            if feed_changed:
+                self._feed = None
+                self._quotes, self._symbol_keys, self._keys_built = {}, {}, False
+                self._points, self._points_session, self._backfilled = {}, {}, set()
+                self._bad_keys, self._index_keys = {}, {}
+                self._state, self._message = "starting", None
+                self._last_success = self._last_attempt = self._retry_at = None
+                self._failures, self._covered, self._total = 0, None, None
+                self._snapshot_session = None
+        logger.info("live.yaml changed: provider %s -> %s", old.provider, new.provider)
+
     # ---- demand and the poller thread ------------------------------------------------------
 
     def touch(self) -> None:
         """A page asked for live data: keep (or start) polling."""
+        self._check_config()
         if not self._cfg.enabled:
             return
         now = self._clock()
@@ -166,6 +198,7 @@ class LiveService:
 
     def poll_once(self) -> bool:
         """One cycle if one is due and not backing off. Returns True when a fetch was tried."""
+        self._check_config()
         if not self._cfg.enabled or not self._poll_lock.acquire(blocking=False):
             return False
         try:

@@ -98,6 +98,7 @@ def make_service(
     config: LiveConfig | None = None,
     factory: Callable[[], LiveFeed] | None = None,
     autostart: bool = False,
+    reload: Callable[[], LiveConfig | None] | None = None,
 ) -> tuple[LiveService, FakeFeed]:
     feed = feed or FakeFeed(PRICES)
     cfg = config or LiveConfig(poll_interval_seconds=15.0)
@@ -105,6 +106,6 @@ def make_service(
     cal = MarketCalendar(loader, background=False)
     svc = LiveService(
         cfg, factory or (lambda: feed), lambda: list(universe or UNIVERSE), cal, clock,
-        autostart=autostart, sleep=lambda _s: None,
+        autostart=autostart, sleep=lambda _s: None, reload=reload,
     )  # fmt: skip
     return svc, feed

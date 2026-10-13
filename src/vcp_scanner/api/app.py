@@ -19,7 +19,7 @@ from vcp_scanner.api.context import Context, StrategySpec, build_context
 from vcp_scanner.api.db import ServingCopyMissing, ServingDb
 from vcp_scanner.api.live_routes import add_live_routes
 from vcp_scanner.data.providers._time import IST
-from vcp_scanner.live.config import load_live_config
+from vcp_scanner.live.config import LiveConfigWatcher
 from vcp_scanner.live.factory import make_feed_factory, nse_holiday_loader
 from vcp_scanner.live.hours import MarketCalendar
 from vcp_scanner.live.models import UniverseEntry
@@ -76,10 +76,10 @@ def create_app(
         return result
 
     if live is None:
-        live_cfg = load_live_config(config_dir)
+        watcher = LiveConfigWatcher(config_dir)  # switching provider: edit live.yaml, no restart
         live = LiveService(
-            live_cfg, make_feed_factory(live_cfg, env_file), live_universe,
-            MarketCalendar(nse_holiday_loader(data)), clock,
+            watcher.current, make_feed_factory(lambda: watcher.current, env_file), live_universe,
+            MarketCalendar(nse_holiday_loader(data)), clock, reload=watcher.check,
         )  # fmt: skip
     add_live_routes(app, live, clock, api)
 

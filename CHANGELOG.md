@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Live feed: switching provider is an edit of `config/live.yaml` (Upstox for use, Kite for testing). The running API notices the change at the next page request and switches at once, dropping the old provider's prices; a broken edit is ignored and the last good setting stays. No restart, and the tests no longer pin which provider is set.
+
 - Market Overview layout (FRONTEND_SPECIFICATION §67.37): Market stage and New highs today swapped; Sector strength half width beside Sector rotation, above Setups today; Recent activity half width with the Feedback loop beside it.
 
 - New highs today card (FRONTEND_SPECIFICATION §67.36): one row per stock with close, day change, volume vs 50-day, distance from the 50-day average, RS, Trend Template and stage; the rows scroll. Removed from the Leadership card. Sector strength now spans the full row. API: six new nullable fields on `new_highs[]`.

@@ -261,3 +261,29 @@ def test_the_poller_thread_starts_on_demand_and_stops() -> None:
         time.sleep(0.01)
     svc.stop()
     assert len(feed.calls) >= 12  # the thread kept polling
+
+
+def test_editing_live_yaml_switches_provider_without_a_restart() -> None:
+    """Upstox in use, Kite to test: the switch is an edit of live.yaml. The next request applies
+    it, the feed is rebuilt for the new provider and the old provider's prices are not shown."""
+    clock = Clock()
+    upstox, kite = FakeFeed({"FAKE|ALPHA": 100.0}), FakeFeed({"FAKE|ALPHA": 101.0})
+    current = {"cfg": LiveConfig(provider="upstox")}
+    pending: list[LiveConfig] = []
+    svc, _ = make_service(
+        clock,
+        factory=lambda: upstox if current["cfg"].provider == "upstox" else kite,
+        reload=lambda: pending.pop() if pending else None,  # what LiveConfigWatcher.check does
+    )
+    svc.poll_once()
+    assert svc.status().provider == "UPSTOX"
+    q = svc.view("ALPHA").quote
+    assert q is not None and q.last_price == 100.0
+    current["cfg"] = LiveConfig(provider="kite")
+    pending.append(current["cfg"])
+    svc.touch()  # a page asks: the edit is applied before anything is read
+    s = svc.status()
+    assert s.provider == "KITE" and s.state == "starting" and svc.view("ALPHA").quote is None
+    assert svc.poll_once() is True
+    q = svc.view("ALPHA").quote
+    assert q is not None and q.last_price == 101.0 and svc.status().state == "live"
