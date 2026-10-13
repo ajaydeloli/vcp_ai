@@ -190,6 +190,8 @@ class HealthScorePoint(BaseModel):
     smallcap250: float | None
     vqi: float | None
     kind: str | None  # NIFTY 500 distribution | accumulation day
+    dist25: int | None  # NIFTY 500 distribution days in the last 25 sessions
+    acc25: int | None  # NIFTY 500 accumulation days in the last 25 sessions
     above50: float | None
     above150: float | None
     above200: float | None

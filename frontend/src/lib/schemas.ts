@@ -438,6 +438,8 @@ export const marketHealth = z.object({
       smallcap250: num,
       vqi: num,
       kind: z.string().nullable(),
+      dist25: num,
+      acc25: num,
       above50: num,
       above150: num,
       above200: num,

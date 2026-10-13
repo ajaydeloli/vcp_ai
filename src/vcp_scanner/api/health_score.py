@@ -177,6 +177,7 @@ def score_points(cur: Cur, end: date) -> list[m.HealthScorePoint]:
         share = f.get("highs_lows")
         out.append(m.HealthScorePoint(
             day=d, **{k: v[i] for k, v in series.items()}, kind=f.get("n500_kind"),
+            dist25=f.get("dist_nifty"), acc25=f.get("acc_nifty"),
             above50=f.get("pct_above_50"), above150=f.get("pct_above_150"),
             above200=f.get("pct_above_200"), ad_ratio=f.get("ad_ratio"),
             ad_line=f.get("ad_line"), thrust_ratio=f.get("thrust_ratio"),

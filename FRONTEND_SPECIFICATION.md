@@ -2465,3 +2465,18 @@ The cards under the Market health score card used other indices, other stock set
 - The stock set is the score's rebuilt universe (MARKET_HEALTH_SPECIFICATION §2): it can differ by the ASM/GSM stocks (about 70) from the scan's universe in the scan tile and the Screener.
 - API: `score_points` (the readings per session), `score.judged`, `sectors[].index_uptrend`; removed `points`, `index_days`, `leader_count`, `leader_change` and the old index, leadership and breadth groups with their own thresholds. The feedback loop keeps the paper-trade reading (not part of the score).
 - Display only. Market stage, Sector rotation, Setups today and the Feedback loop measure other things and are unchanged.
+
+### 67.35 As built: one chart and four figures per card (2026-10-13, owner review)
+
+The pillar cards of §67.34 showed every reading of their pillar and up to four charts; the Index and Breadth cards were overloaded and the Leadership card scrolled. Now each card has **one chart and four or five headline figures**, like the Market stage card, and **a card with a chart never scrolls** (fixed height, nothing cut; only data cards such as Sector strength, Setups today and Recent activity scroll). The full list of readings stays on the Market health score card (open a pillar). Figures are the score's own readings, coloured by their points.
+
+| Card | Chart | Figures |
+|---|---|---|
+| **Index trend** | NIFTY 500 with its 50/150/200-day averages | vs 50-day, vs 200-day, 200-day average rising or falling, confirmation (NIFTY 50 and Smallcap 250, "n of 2") |
+| **Accumulation / distribution** (new, split from the index card) | NIFTY 500 distribution and accumulation days in 25 sessions, with the day dots | distribution days (25), in the last 10 sessions, accumulation days (25), up / down traded value |
+| **Breadth** | % above the 50/150/200-day (dashed 30 % and 70 %) | above 50, 150, 200-day, change in 10 sessions, and the strategies' regime (frozen rule) |
+| **Participation** (new, split from breadth) | advancers share, 10-day average, with the breadth thrust lines and marks | net advances (20 sessions), new highs share, VQI vs NIFTY 500, last breadth thrust |
+| **Leadership** | stocks passing the Trend Template, % | Trend Template share, leaders and their 20-session change, at a 52-week high, leaders vs VQI; new highs today: at most eight chips, "+N more" names the rest on hover |
+| **Setups and breakouts** | unchanged | breakouts and new setups today, failed breakouts (our strategies), held 5 sessions (the score's price rule) |
+
+Order: score; index trend, accumulation / distribution; breadth, participation; leadership, market stage; setups and breakouts, sector strength; sector rotation; feedback loop, setups today. API: `dist25`, `acc25` on `score_points`.

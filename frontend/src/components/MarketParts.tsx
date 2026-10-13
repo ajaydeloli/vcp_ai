@@ -22,21 +22,25 @@ export function Legend({ items }: { items: [string, string][] }) {
   );
 }
 
-/** All dashboard cards are the same height; what does not fit scrolls inside the card. */
+/** All dashboard cards are the same height. A data card (a table, a list) scrolls inside;
+ *  a card with a chart never scrolls: it shows only what fits (FRONTEND_SPECIFICATION §67.35). */
 export const SIZE = "lg:h-[23rem] lg:overflow-y-auto";
+const FIXED = "lg:h-[23rem] lg:overflow-hidden";
 
 /** Each card has its own border colour, with a faint tint of it in the background. */
 export const BOX = {
-  index: `border-2 border-[#4aa3ff]/60 bg-gradient-to-br from-[#4aa3ff]/10 to-panel2 ${SIZE}`,
-  leadership: `border-2 border-[#26c281]/60 bg-gradient-to-br from-[#26c281]/10 to-panel2 ${SIZE}`,
-  breadth: `border-2 border-[#8b5cf6]/60 bg-gradient-to-br from-[#8b5cf6]/10 to-panel2 ${SIZE}`,
-  feedback: `border-2 border-[#f5a524]/60 bg-gradient-to-br from-[#f5a524]/10 to-panel2 ${SIZE}`,
-  stage: `border-2 border-[#22d3ee]/60 bg-gradient-to-br from-[#22d3ee]/10 to-panel2 ${SIZE}`,
+  index: `border-2 border-[#4aa3ff]/60 bg-gradient-to-br from-[#4aa3ff]/10 to-panel2 ${FIXED}`,
+  leadership: `border-2 border-[#26c281]/60 bg-gradient-to-br from-[#26c281]/10 to-panel2 ${FIXED}`,
+  breadth: `border-2 border-[#8b5cf6]/60 bg-gradient-to-br from-[#8b5cf6]/10 to-panel2 ${FIXED}`,
+  feedback: `border-2 border-[#f5a524]/60 bg-gradient-to-br from-[#f5a524]/10 to-panel2 ${FIXED}`,
+  stage: `border-2 border-[#22d3ee]/60 bg-gradient-to-br from-[#22d3ee]/10 to-panel2 ${FIXED}`,
   setups: `border-2 border-[#f472b6]/60 bg-gradient-to-br from-[#f472b6]/10 to-panel2 ${SIZE}`,
   paper: `border-2 border-[#fb923c]/60 bg-gradient-to-br from-[#fb923c]/10 to-panel2 ${SIZE}`,
   activity: `border-2 border-[#a3e635]/60 bg-gradient-to-br from-[#a3e635]/10 to-panel2 ${SIZE}`,
-  flow: `border-2 border-[#e879f9]/60 bg-gradient-to-br from-[#e879f9]/10 to-panel2 ${SIZE}`,
+  flow: `border-2 border-[#e879f9]/60 bg-gradient-to-br from-[#e879f9]/10 to-panel2 ${FIXED}`,
   sectors: `border-2 border-[#2dd4bf]/60 bg-gradient-to-br from-[#2dd4bf]/10 to-panel2 ${SIZE}`,
+  volume: `border-2 border-[#fb7185]/60 bg-gradient-to-br from-[#fb7185]/10 to-panel2 ${FIXED}`,
+  participation: `border-2 border-[#38bdf8]/60 bg-gradient-to-br from-[#38bdf8]/10 to-panel2 ${FIXED}`,
   rotation: `border-2 border-[#fde047]/60 bg-gradient-to-br from-[#fde047]/10 to-panel2 lg:col-span-2`,
   score: `border-2 border-[#60a5fa]/60 bg-gradient-to-br from-[#60a5fa]/10 to-panel2 lg:col-span-2`,
 };
@@ -69,13 +73,13 @@ export function Inner({ title, box, children, fill = false }: { title: string; b
   );
 }
 
-export function Figure({ label, value, sub, color }: { label: string; value: string; sub?: string; color: string }) {
+export function Figure({ label, value, sub, color, small = false }: { label: string; value: string; sub?: string; color: string; small?: boolean }) {
   return (
     <div>
-      <p className="text-sm text-ink">{label}</p>
+      <p className={small ? "text-xs leading-tight text-ink" : "text-sm text-ink"}>{label}</p>
       <p className="flex flex-wrap items-baseline gap-x-1.5">
-        <span className={`text-2xl font-semibold tabular-nums ${color}`}>{value}</span>
-        {sub ? <span className="text-xs text-mute">{sub}</span> : null}
+        <span className={`${small ? "text-xl" : "text-2xl"} font-semibold tabular-nums ${color}`}>{value}</span>
+        {sub ? <span className={small ? "text-[10px] leading-tight text-mute" : "text-xs text-mute"}>{sub}</span> : null}
       </p>
     </div>
   );

@@ -7,7 +7,7 @@ import { fmtDay, fmtInt, fmtPct } from "@/lib/fmt";
 import type { MarketHealth as Health } from "@/lib/schemas";
 import { C, Figure, Inner, Legend } from "./MarketParts";
 import { MiniLineChart, type MiniSeries } from "./MiniLineChart";
-import { type Pillar, ScoreReadings } from "./ScoreReadings";
+import { type Pillar, pointsClass } from "./ScoreReadings";
 import { Empty } from "./ui";
 
 const FLOW_WINDOW = 20; // sessions behind each point of the failure line (api/health.py)
@@ -36,6 +36,7 @@ export function SetupFlowCard({ flow, box, pillar, judged }: { flow: Health["flo
     [flow],
   );
   const last = flow[flow.length - 1];
+  const held = pillar?.parts.find((x) => x.id === "held");
   const rate = last?.failed_pct ?? null;
   return (
     <Inner title="Setups and breakouts" box={box}>
@@ -63,14 +64,10 @@ export function SetupFlowCard({ flow, box, pillar, judged }: { flow: Health["flo
               ]}
             />
             <p className="mt-1 text-[11px] text-mute">
-              Charts and the figures under &ldquo;Our strategies&rdquo;: our five strategies&apos; own breakouts since {fmtDay(flow[0]?.day)}, the first stored scan. The
-              score&apos;s breakout readings use one price rule back to 2022, so the two failure rates differ.
+              Our five strategies&apos; own breakouts since {fmtDay(flow[0]?.day)}, the first stored scan; the score&apos;s figure uses a price rule back to 2022.
             </p>
           </div>
-          <aside aria-label="Setup flow figures" className="w-56 shrink-0 space-y-3 border-l border-line pl-4">
-            {/* the score's breakout readings: one price rule over all history (MARKET_HEALTH_SPECIFICATION §2) */}
-            <ScoreReadings pillar={pillar} title={`Breakout environment (score${judged ? `, ${judged} judged` : ""})`} />
-            <p className="border-t border-line pt-2 text-[10px] font-semibold uppercase tracking-wide text-mute">Our strategies</p>
+          <aside aria-label="Setup flow figures" className="w-44 shrink-0 space-y-3 border-l border-line pl-4">
             <Figure label="Breakouts" value={fmtInt(last.breakouts)} sub="today" color="text-up" />
             <div className="border-t border-line pt-3">
               <Figure label="New setups" value={last.new_setups === null ? "—" : fmtInt(last.new_setups)} sub="today" color="text-accent" />
@@ -84,6 +81,15 @@ export function SetupFlowCard({ flow, box, pillar, judged }: { flow: Health["flo
                 value={rate === null ? "—" : fmtPct(rate, 0)}
                 sub={`(${last.judged} judged)`}
                 color={rate === null ? "text-ink" : rate > 50 ? "text-down" : rate > 25 ? "text-warn" : "text-up"}
+              />
+            </div>
+            {/* the score's breakout environment: one price rule over all history (MARKET_HEALTH_SPECIFICATION §2) */}
+            <div className="border-t border-line pt-3" title="The Market Health Score's breakouts (a price rule back to 2022): held their pivot for 5 sessions">
+              <Figure
+                label="Held 5 sessions (score)"
+                value={held?.reading === null || held?.reading === undefined ? "—" : fmtPct(held.reading, 0)}
+                sub={judged ? `price rule, ${judged} judged` : "price rule"}
+                color={pointsClass(held?.points ?? null)}
               />
             </div>
           </aside>
