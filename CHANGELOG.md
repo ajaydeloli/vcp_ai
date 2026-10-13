@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Market Overview: the figure columns of Market stage and Setups and breakouts now use the same font sizes and width as the pillar cards (FRONTEND_SPECIFICATION §67.35).
+
 - Market Overview cards (FRONTEND_SPECIFICATION §67.35): one chart and four or five headline figures per card; the index card split into Index trend and Accumulation / distribution, breadth into Breadth and Participation; chart cards never scroll (new highs capped at eight chips, "+N more"). API: `dist25`, `acc25` on `score_points`.
 
 - Manual sectors (DATA_SPECIFICATION §48.1): `config/manual_sectors.yaml` classifies stocks NSE's index lists miss; NSE always wins, history is kept, entries are validated against NSE's 22 sectors, entries over a year old or unusable are status-bar warnings, and the stock page marks a manual sector with its date. API: `sector_source`, `sector_since` on a stock's setups. NSE's per-stock quote API and BSE's list API both refuse non-browser clients (Akamai), so the other 593 stocks stay unclassified until a sector is entered.

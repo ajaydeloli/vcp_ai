@@ -67,13 +67,13 @@ export function SetupFlowCard({ flow, box, pillar, judged }: { flow: Health["flo
               Our five strategies&apos; own breakouts since {fmtDay(flow[0]?.day)}, the first stored scan; the score&apos;s figure uses a price rule back to 2022.
             </p>
           </div>
-          <aside aria-label="Setup flow figures" className="w-44 shrink-0 space-y-3 border-l border-line pl-4">
-            <Figure label="Breakouts" value={fmtInt(last.breakouts)} sub="today" color="text-up" />
-            <div className="border-t border-line pt-3">
-              <Figure label="New setups" value={last.new_setups === null ? "—" : fmtInt(last.new_setups)} sub="today" color="text-accent" />
+          <aside aria-label="Setup flow figures" className="w-44 shrink-0 space-y-2 border-l border-line pl-4">
+            <Figure label="Breakouts" value={fmtInt(last.breakouts)} sub="today" color="text-up" small />
+            <div className="border-t border-line pt-2">
+              <Figure label="New setups" value={last.new_setups === null ? "—" : fmtInt(last.new_setups)} sub="today" color="text-accent" small />
             </div>
             <div
-              className="border-t border-line pt-3"
+              className="border-t border-line pt-2"
               title={`Breakouts that closed back below their pivot within ${FAIL_WITHIN} sessions, of those judged in the last ${FLOW_WINDOW} sessions`}
             >
               <Figure
@@ -81,15 +81,17 @@ export function SetupFlowCard({ flow, box, pillar, judged }: { flow: Health["flo
                 value={rate === null ? "—" : fmtPct(rate, 0)}
                 sub={`(${last.judged} judged)`}
                 color={rate === null ? "text-ink" : rate > 50 ? "text-down" : rate > 25 ? "text-warn" : "text-up"}
+              small
               />
             </div>
             {/* the score's breakout environment: one price rule over all history (MARKET_HEALTH_SPECIFICATION §2) */}
-            <div className="border-t border-line pt-3" title="The Market Health Score's breakouts (a price rule back to 2022): held their pivot for 5 sessions">
+            <div className="border-t border-line pt-2" title="The Market Health Score's breakouts (a price rule back to 2022): held their pivot for 5 sessions">
               <Figure
                 label="Held 5 sessions (score)"
                 value={held?.reading === null || held?.reading === undefined ? "—" : fmtPct(held.reading, 0)}
                 sub={judged ? `price rule, ${judged} judged` : "price rule"}
                 color={pointsClass(held?.points ?? null)}
+              small
               />
             </div>
           </aside>

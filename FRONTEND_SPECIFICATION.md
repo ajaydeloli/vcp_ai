@@ -2480,3 +2480,5 @@ The pillar cards of §67.34 showed every reading of their pillar and up to four 
 | **Setups and breakouts** | unchanged | breakouts and new setups today, failed breakouts (our strategies), held 5 sessions (the score's price rule) |
 
 Order: score; index trend, accumulation / distribution; breadth, participation; leadership, market stage; setups and breakouts, sector strength; sector rotation; feedback loop, setups today. API: `dist25`, `acc25` on `score_points`.
+
+Figure columns (2026-10-13, owner review): every chart card's figure column is the same, 176 px wide with a divider between figures, label 12 px, value 20 px, note 10 px (`Figure small`). Market stage and Setups and breakouts used the larger default (14 px label, 24 px value) and now match the pillar cards. The stock page keeps the larger default.

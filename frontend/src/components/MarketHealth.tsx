@@ -158,10 +158,10 @@ function StageCard({ stages, box }: { stages: Health["stages"]; box: string }) {
               <MiniLineChart series={lines} height={262} plain label="stage-chart" />
               <Legend items={STAGES.map((st) => [st.label, st.color])} />
             </div>
-            <aside aria-label="Stage figures" className="w-40 shrink-0 space-y-3 border-l border-line pl-4">
+            <aside aria-label="Stage figures" className="w-44 shrink-0 space-y-2 border-l border-line pl-4">
               {STAGES.map((st, i) => (
-                <div key={st.key} className={i ? "border-t border-line pt-3" : ""}>
-                  <Figure label={st.label} value={fmtPct((last[st.key] / last.total) * 100, 0)} sub={`(${fmtInt(last[st.key])} stocks)`} color={st.text} />
+                <div key={st.key} className={i ? "border-t border-line pt-2" : ""}>
+                  <Figure label={st.label} value={fmtPct((last[st.key] / last.total) * 100, 0)} sub={`(${fmtInt(last[st.key])} stocks)`} color={st.text} small />
                 </div>
               ))}
             </aside>
