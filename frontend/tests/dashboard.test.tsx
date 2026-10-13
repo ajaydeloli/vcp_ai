@@ -96,9 +96,10 @@ describe("dashboard page (market view)", () => {
       .getAllByRole("region")
       .map((r) => r.getAttribute("aria-label") ?? within(r).queryByRole("heading")?.textContent);
     const colours = within(overview).getAllByRole("region").map((r) => /border-\[(#\w+)\]/.exec(r.className)?.[1]);
-    expect(new Set(colours).size).toBe(12); // every card has its own border colour
+    expect(new Set(colours).size).toBe(13); // every card has its own border colour
     expect(names).toEqual([
       "Market health score", "Index trend", "Breadth", "Accumulation / distribution", "Participation", "Leadership",
+      "New highs today",
       "Market stage", "Setups and breakouts", "Sector strength", "Sector rotation", "Feedback loop", "Setups today",
     ]);
     expect(await within(overview).findByText(/Most setups are/)).toBeInTheDocument();
@@ -264,19 +265,39 @@ describe("dashboard page (market view)", () => {
     expect(fig.getByText("Held 5 sessions (score)").parentElement?.parentElement).toHaveTextContent("Held 5 sessions (score)—price rule, 3 judged"); // too few judged: no reading
   });
 
-  it("leadership charts the Trend Template share and shows at most eight new highs, naming the rest", async () => {
-    const highs = Array.from({ length: 10 }, (_, i) => ({ symbol: `S${i}`, rs_rank: 99 - i, sector: i ? null : "Capital Goods" }));
+  it("leadership charts the Trend Template share; new highs have their own card, one row per stock", async () => {
+    const highs = Array.from({ length: 30 }, (_, i) => ({
+      symbol: `S${i}`,
+      rs_rank: 99 - i,
+      sector: i ? null : "Capital Goods",
+      close: 100 + i,
+      change_pct: i ? 1.5 : -0.4,
+      volume_ratio: 2.25,
+      vs_sma50_pct: 12.34,
+      trend_template: i % 2 === 0,
+      stage: i ? "STAGE_2" : "TRANSITION",
+    }));
     mockApi({ "market/health": { ...fx.marketHealth, new_highs: highs } });
     renderApp(<Dashboard />);
-    const card = await screen.findByRole("region", { name: "Leadership" });
-    expect(await within(card).findByTestId("mini-trend-template-chart")).toBeInTheDocument();
-    const list = within(card).getByTestId("new-highs-today");
-    expect(list).toHaveTextContent("New highs today (10)");
-    expect(within(list).getAllByRole("link")).toHaveLength(8);
-    expect(within(list).getByRole("link", { name: /S0/ })).toHaveAttribute("href", "/stocks/S0");
-    expect(within(list).getByTestId("more-highs")).toHaveTextContent("+2 more");
-    expect(within(list).getByTestId("more-highs")).toHaveAttribute("title", "S8, S9");
+    const lead = await screen.findByRole("region", { name: "Leadership" });
+    expect(await within(lead).findByTestId("mini-trend-template-chart")).toBeInTheDocument();
+    expect(within(lead).queryByText(/New highs today/)).toBeNull();
+    const card = within(screen.getByRole("region", { name: "New highs today" }));
+    expect(card.getByTestId("new-highs-summary")).toHaveTextContent("30 stocks at a new 52-week high today; 15 pass the Trend Template.");
+    expect(card.getAllByRole("row")).toHaveLength(31); // every stock, the rows scroll
+    const first = within(card.getAllByRole("row")[1]!);
+    expect(first.getByRole("link", { name: "S0" })).toHaveAttribute("href", "/stocks/S0");
+    expect(card.getAllByRole("row")[1]).toHaveTextContent("S0Capital Goods100.00-0.4%2.3×+12.3%99✓Trans.");
+    expect(card.getAllByRole("row")[2]).toHaveTextContent("S1—101.00+1.5%2.3×+12.3%98✗Stage 2");
+    expect(card.getByTestId("new-highs-scroll")).toHaveClass("overflow-auto");
     expect(screen.queryByRole("list", { name: "Divergence warnings" })).toBeNull();
+  });
+
+  it("new highs card says so when there are none", async () => {
+    mockApi({ "market/health": { ...fx.marketHealth, new_highs: [] } });
+    renderApp(<Dashboard />);
+    const card = within(await screen.findByRole("region", { name: "New highs today" }));
+    expect(card.getByText(/No stock of the universe made a new 52-week high today/)).toBeInTheDocument();
   });
 
   it("shows divergence warnings above the cards only when there are some", async () => {

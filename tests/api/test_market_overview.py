@@ -163,3 +163,41 @@ def _tt(c: Any, ctx: Any, sym: str, d: date, rs: int) -> None:
     put(c, "trend_template_results", scan_id=f"tt-{d}", instrument_id=sym, as_of_date=d,
         status="PASS", trend_template_pass=True, rs_rank=rs, calculation_version="1",
         config_hash=ctx.scan_hash, data_snapshot_id="LIVE")  # fmt: skip
+
+
+# --- new highs today: one row per stock with its readings (FRONTEND_SPECIFICATION §67.36) -------
+
+
+def test_new_highs_rows_carry_their_readings(db: Any) -> None:
+    """HIGH makes a new 52-week high (high 120 >= high_252 120); FLAT does not. HIGH closes at 118
+    after 100 (+18 %), volume ratio 2.5, 50-day average 100 (+18 %), passes the Trend Template,
+    stage 2, RS 93."""
+    from datetime import UTC, datetime
+
+    from vcp_scanner.domain.features import FEATURES_CALCULATION_VERSION
+
+    store, ctx = db
+    c = store.conn
+    d = SESSIONS[-1]
+    put(c, "universe_snapshots", universe_snapshot_id="U", universe_name="u", as_of_date=d)
+    put(c, "scan_runs", scan_run_id="tt", scan_type="TREND_TEMPLATE", as_of_date=d, scan_id="tt",
+        data_snapshot_id="LIVE", universe_snapshot_id="U", scan_config_hash=ctx.scan_hash,
+        status="COMPLETED", completed_at=datetime(2026, 9, 14, 18, tzinfo=UTC))  # fmt: skip
+    for sym, high in (("HIGH", 120.0), ("FLAT", 110.0)):
+        put(c, "universe_memberships", universe_snapshot_id="U", instrument_id=sym, eligible=True)
+        put(c, "instruments", instrument_id=sym, symbol=sym)
+        put(c, "daily_prices_adjusted", instrument_id=sym, trade_date=d, close_adj=118.0,
+            high_adj=high, computed_from_snapshot_id="LIVE", adjustment_version="v1")  # fmt: skip
+        put(c, "technical_features_daily", instrument_id=sym, trade_date=d, high_252=120.0,
+            sma_50=100.0, daily_return=0.18, volume_ratio_50=2.5,
+            calculation_version=FEATURES_CALCULATION_VERSION, data_snapshot_id="LIVE")  # fmt: skip
+    put(c, "trend_template_results", scan_id="tt", instrument_id="HIGH", as_of_date=d,
+        status="PASS", trend_template_pass=True, weekly_stage="STAGE_2", rs_rank=93,
+        calculation_version="1", config_hash=ctx.scan_hash, data_snapshot_id="LIVE")  # fmt: skip
+    rows = health._new_highs_today(c, ctx, d)
+    assert [r.symbol for r in rows] == ["HIGH"]
+    h = rows[0]
+    assert (h.rs_rank, h.trend_template, h.stage, h.close) == (93, True, "STAGE_2", 118.0)
+    assert h.change_pct == pytest.approx(18.0)
+    assert h.volume_ratio == pytest.approx(2.5)
+    assert h.vs_sma50_pct == pytest.approx(18.0)

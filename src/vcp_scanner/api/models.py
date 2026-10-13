@@ -264,6 +264,12 @@ class HealthNewHigh(BaseModel):
     symbol: str
     rs_rank: int | None
     sector: str | None
+    close: float | None = None  # adjusted close on the day
+    change_pct: float | None = None  # the day's change, %
+    volume_ratio: float | None = None  # volume vs the 50 sessions before
+    vs_sma50_pct: float | None = None  # close vs its 50-day average, %
+    trend_template: bool | None = None  # passes the Trend Template on the latest scan
+    stage: str | None = None  # weekly stage on the latest scan (STAGE_1..STAGE_4, TRANSITION)
 
 
 class HealthSector(BaseModel):

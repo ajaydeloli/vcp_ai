@@ -2476,7 +2476,7 @@ The pillar cards of §67.34 showed every reading of their pillar and up to four 
 | **Accumulation / distribution** (new, split from the index card) | NIFTY 500 distribution and accumulation days in 25 sessions, with the day dots | distribution days (25), in the last 10 sessions, accumulation days (25), up / down traded value |
 | **Breadth** | % above the 50/150/200-day (dashed 30 % and 70 %) | above 50, 150, 200-day, change in 10 sessions, and the strategies' regime (frozen rule) |
 | **Participation** (new, split from breadth) | advancers share, 10-day average, with the breadth thrust lines and marks | net advances (20 sessions), new highs share, VQI vs NIFTY 500, last breadth thrust |
-| **Leadership** | stocks passing the Trend Template, % | Trend Template share, leaders and their 20-session change, at a 52-week high, leaders vs VQI; new highs today: at most eight chips, "+N more" names the rest on hover |
+| **Leadership** | stocks passing the Trend Template, % | Trend Template share, leaders and their 20-session change, at a 52-week high, leaders vs VQI (new highs today moved to their own card, §67.36) |
 | **Setups and breakouts** | unchanged | breakouts and new setups today, failed breakouts (our strategies), held 5 sessions (the score's price rule) |
 
 Order: score; index trend, accumulation / distribution; breadth, participation; leadership, market stage; setups and breakouts, sector strength; sector rotation; feedback loop, setups today. API: `dist25`, `acc25` on `score_points`.
@@ -2484,3 +2484,11 @@ Order: score; index trend, accumulation / distribution; breadth, participation; 
 Figure columns (2026-10-13, owner review): every chart card's figure column is the same, 176 px wide with a divider between figures, label 12 px, value 20 px, note 10 px (`Figure small`). Market stage and Setups and breakouts used the larger default (14 px label, 24 px value) and now match the pillar cards. The stock page keeps the larger default.
 
 Layout (2026-10-13, owner review): Breadth now sits beside Index trend and Accumulation / distribution beside Participation. Sector rotation is half width and two rows tall (47rem: two cards and the gap between them); on wide screens the chart fills the left three quarters at the card's full height (the largest square that fits) and the sectors by quadrant run down the right quarter, short names (the chart's labels, full name on hover) with RS-Ratio/RS-Momentum; on narrow screens the list goes under the chart. The card never scrolls. Feedback loop and Setups today stand to its right, one above the other. Order: score; index trend, breadth; accumulation / distribution, participation; leadership, market stage; setups and breakouts, sector strength; sector rotation | feedback loop, setups today.
+
+### 67.36 New highs today: a card of its own (2026-10-13, owner review)
+
+The new-high chips leave the Leadership card (its chart gets the full 250 px back) for a data card **New highs today**, beside Leadership: one row per universe stock at a new 52-week high on the market's last day, best RS first, the same test as the daily count. A summary line counts them and how many pass the Trend Template. Columns: symbol (link to the stock page), NSE sector, close, the day's change, volume vs the 50 sessions before (green from 1.5×), close vs its 50-day average (amber above +25 %: stretched), RS rank (green from 80), Trend Template ✓/✗ and weekly stage, both from the latest Trend Template scan. Like Sector strength, only the rows scroll; the title, summary and column headings stay put. Display only.
+
+To keep the half-width cards in pairs, Sector strength now takes a whole row (its table is wide). Order: score; index trend, breadth; accumulation / distribution, participation; leadership, new highs today; market stage, setups and breakouts; sector strength (full width); sector rotation | feedback loop, setups today.
+
+API: `new_highs[]` gains `close`, `change_pct`, `volume_ratio` (`volume_ratio_50`), `vs_sma50_pct`, `trend_template`, `stage` (`STAGE_1`..`STAGE_4` or `TRANSITION`); all nullable.

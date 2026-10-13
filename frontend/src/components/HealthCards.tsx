@@ -288,24 +288,20 @@ export function ParticipationCard({ pts, pillar, lastThrust }: { pts: SP[]; pill
   );
 }
 
-const MAX_HIGHS = 8; // chips shown; the rest are named in the tooltip, so the card never scrolls
-
-/** Leaders and the Trend Template (pillar C), and today's new highs. */
-export function LeadershipCard({ pts, pillar, highs }: { pts: SP[]; pillar: Pillar | undefined; highs: Health["new_highs"] }) {
+/** Leaders and the Trend Template (pillar C); today's new highs have their own card (NewHighs.tsx). */
+export function LeadershipCard({ pts, pillar }: { pts: SP[]; pillar: Pillar | undefined }) {
   const series = useMemo(() => [line("Trend Template %", C.up, pts, (p) => p.tt_share)], [pts]);
   const last = pts[pts.length - 1];
   const tt = part(pillar, "tt_share");
   const change = part(pillar, "leader_change");
   const h52 = part(pillar, "highs_52");
   const lead = part(pillar, "leaders_vs_vqi");
-  const shown = highs.slice(0, MAX_HIGHS);
-  const rest = highs.slice(MAX_HIGHS);
   return (
     <Card title="Leadership" box={BOX.leadership}>
       <div className="min-w-0 flex-1">
         <MiniLineChart
           series={series}
-          height={180}
+          height={CHART_H}
           plain
           threshold={[
             { value: 3, title: "3" },
@@ -319,32 +315,6 @@ export function LeadershipCard({ pts, pillar, highs }: { pts: SP[]; pillar: Pill
             ["dashed: 3% and 20%", C.warn],
           ]}
         />
-        <div className="mt-2" data-testid="new-highs-today">
-          <p className="mb-1 text-[11px] uppercase text-mute">New highs today ({highs.length})</p>
-          {highs.length === 0 ? (
-            <p className="text-[11px] text-mute">No stock of the universe made a new 52-week high today.</p>
-          ) : (
-            <ul className="flex flex-wrap gap-1.5 text-[11px]">
-              {shown.map((h) => (
-                <li key={h.symbol}>
-                  <a
-                    href={`/stocks/${encodeURIComponent(h.symbol)}`}
-                    title={h.sector ?? "Sector not classified yet"}
-                    className="inline-flex items-center gap-1 rounded border border-line px-1.5 py-0.5 text-ink hover:border-accent"
-                  >
-                    {h.symbol}
-                    <span className="text-mute">RS {h.rs_rank ?? "—"}</span>
-                  </a>
-                </li>
-              ))}
-              {rest.length > 0 && (
-                <li className="px-1 py-0.5 text-mute" title={rest.map((h) => h.symbol).join(", ")} data-testid="more-highs">
-                  +{rest.length} more
-                </li>
-              )}
-            </ul>
-          )}
-        </div>
       </div>
       <Figures
         label="Leadership figures"

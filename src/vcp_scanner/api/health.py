@@ -156,12 +156,14 @@ WITH snap AS (
       AND scan_config_hash = ? AND data_snapshot_id = ? AND as_of_date <= ?
     ORDER BY as_of_date DESC, completed_at DESC LIMIT 1
 ), rs AS (
-    SELECT instrument_id, rs_rank FROM trend_template_results
+    SELECT instrument_id, rs_rank, trend_template_pass, weekly_stage FROM trend_template_results
     WHERE config_hash = ? AND data_snapshot_id = ? AND as_of_date = (
         SELECT max(as_of_date) FROM trend_template_results
         WHERE config_hash = ? AND data_snapshot_id = ? AND as_of_date <= ?)
 )
-SELECT f.instrument_id, coalesce(i.symbol, f.instrument_id), rs.rs_rank
+SELECT f.instrument_id, coalesce(i.symbol, f.instrument_id), rs.rs_rank,
+       p.close_adj, f.daily_return, f.volume_ratio_50, f.sma_50,
+       rs.trend_template_pass, rs.weekly_stage
 FROM technical_features_daily f
 JOIN universe_memberships mem ON mem.instrument_id = f.instrument_id AND mem.eligible
  AND mem.universe_snapshot_id = (SELECT universe_snapshot_id FROM snap)
@@ -174,6 +176,10 @@ WHERE f.trade_date = ? AND f.calculation_version = ? AND f.data_snapshot_id = ?
 """
 
 
+def _f(v: object) -> float | None:
+    return None if v is None else float(v)  # type: ignore[arg-type]
+
+
 def _new_highs_today(cur: Cur, ctx: Context, end: date) -> list[m.HealthNewHigh]:
     """Universe stocks whose high on ``end`` is a new 52-week high (the same test as the daily
     count), best RS first."""
@@ -184,8 +190,16 @@ def _new_highs_today(cur: Cur, ctx: Context, end: date) -> list[m.HealthNewHigh]
     ).fetchall()  # fmt: skip
     sectors = classification(cur, [str(r[0]) for r in rows])
     out = [
-        m.HealthNewHigh(symbol=str(r[1]), rs_rank=None if r[2] is None else int(r[2]),
-                        sector=sectors.get(str(r[0]), (None, None))[0])
+        m.HealthNewHigh(
+            symbol=str(r[1]), rs_rank=None if r[2] is None else int(r[2]),
+            sector=sectors.get(str(r[0]), (None, None))[0],
+            close=_f(r[3]), change_pct=None if r[4] is None else 100.0 * float(r[4]),
+            volume_ratio=_f(r[5]),
+            vs_sma50_pct=None if r[3] is None or not r[6]
+            else 100.0 * (float(r[3]) / float(r[6]) - 1.0),
+            trend_template=None if r[7] is None else bool(r[7]),
+            stage=None if r[8] is None else str(r[8]),
+        )
         for r in rows
     ]  # fmt: skip
     out.sort(key=lambda x: (-(x.rs_rank if x.rs_rank is not None else -1), x.symbol))

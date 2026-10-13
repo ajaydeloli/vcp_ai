@@ -381,7 +381,19 @@ export const marketHealth = z.object({
   ...stamp,
   groups: z.array(z.object({ id: z.string(), title: z.string(), items: z.array(healthItem) })),
   warnings: z.array(z.object({ id: z.string(), text: z.string() })),
-  new_highs: z.array(z.object({ symbol: z.string(), rs_rank: num, sector: z.string().nullable() })),
+  new_highs: z.array(
+    z.object({
+      symbol: z.string(),
+      rs_rank: num,
+      sector: z.string().nullable(),
+      close: num.optional(),
+      change_pct: num.optional(),
+      volume_ratio: num.optional(),
+      vs_sma50_pct: num.optional(),
+      trend_template: z.boolean().nullable().optional(),
+      stage: z.string().nullable().optional(),
+    }),
+  ),
   sectors: z.array(
     z.object({
       sector: z.string().nullable(),

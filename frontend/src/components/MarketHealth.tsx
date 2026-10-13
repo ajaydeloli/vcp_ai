@@ -10,6 +10,7 @@ import { SetupFlowCard } from "./MarketFlow";
 import { HealthScoreCard } from "./HealthScore";
 import { BreadthCard, IndexTrendCard, LeadershipCard, ParticipationCard, VolumeCard } from "./HealthCards";
 import { SectorRotationCard } from "./SectorRotation";
+import { NewHighsCard } from "./NewHighs";
 import { SectorCard } from "./SectorStrength";
 import { BOX, C, Figure, Inner, Legend } from "./MarketParts";
 import { Empty, ErrorBox, Loading } from "./ui";
@@ -224,10 +225,11 @@ export function MarketHealth() {
             <BreadthCard pts={d.score_points} pillar={pillar("breadth")} regime={<StrategyRegime />} />
             <VolumeCard pts={d.score_points} pillar={pillar("accumulation")} />
             <ParticipationCard pts={d.score_points} pillar={pillar("breadth")} lastThrust={d.score?.last_thrust} />
-            <LeadershipCard pts={d.score_points} pillar={pillar("leadership")} highs={d.new_highs} />
+            <LeadershipCard pts={d.score_points} pillar={pillar("leadership")} />
+            <NewHighsCard highs={d.new_highs} box={BOX.highs} />
             <StageCard stages={d.stages} box={BOX.stage} />
             <SetupFlowCard flow={d.flow} box={BOX.flow} pillar={pillar("breakouts")} judged={d.score?.judged} />
-            <SectorCard sectors={d.sectors} box={BOX.sectors} reading={pillar("leadership")?.parts.find((x) => x.id === "sectors")} />
+            <SectorCard sectors={d.sectors} box={`${BOX.sectors} lg:col-span-2`} reading={pillar("leadership")?.parts.find((x) => x.id === "sectors")} />
             <SectorRotationCard rotation={d.rotation} />
             {fb && (
               <Inner title={fb.title} box={BOX.feedback}>
