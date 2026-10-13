@@ -157,6 +157,7 @@ The token expires at about 06:00 the next morning.
 | 6 | Scans for every new session | Universe, RS, Trend Template, VCP, scores; then the four other strategies' setups and scores. |
 | 7 | Forward labels and paper ledger | |
 | 8 | Fundamentals | Filings of the last days. |
+| 8a | Shareholding pattern | Filings of the last days (promoter, pledge, FII, DII). |
 | 9 | Sector classification | Fridays only. |
 | 10 | Serving copy and reports | Refreshes the dashboard's database copy; writes `reports/daily/<date>.html` (and `reports/weekly/<week>.html` on Fridays). |
 
@@ -577,6 +578,17 @@ done
 | `vcp fundamentals parse [--retry-errors] [--rebuild]` | Turn stored filings into quarterly values. |
 | `vcp fundamentals status` | What is stored. |
 | `vcp fundamentals show SYMBOL [--date D]` | One stock's metrics as of a date. |
+
+### 8.12a `vcp shareholding` (display only)
+
+| Command | What it does |
+|---|---|
+| `vcp shareholding update [--days N]` | List, download and parse the filings of the last days (the evening run does this). |
+| `vcp shareholding backfill [--limit N] [--resume]` | Every filing since `history_from` in `config/shareholding.yaml`; about 7 hours at one file a second; `--resume` continues from the saved list without listing again. |
+| `vcp shareholding status` | What is stored: filings by status, layouts, the last run. |
+| `vcp shareholding show SYMBOL [--quarters N]` | One stock's promoter, pledge, FII, DII, MF and public % by quarter. |
+
+Settings live in `config/shareholding.yaml` (its own file, so it can never change a strategy's config hash): the stocks in scope, how far back, the pauses between requests to NSE, and whether the evening run updates it.
 
 ### 8.13 `vcp quality` (data-quality gate)
 

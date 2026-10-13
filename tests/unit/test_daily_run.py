@@ -82,7 +82,8 @@ def test_run_daily_chains_the_steps_from_the_last_settled_day(tmp_path: Path) ->
     # sector lists are read on Fridays only (the run's own date decides)
     friday = ["classify update"] if datetime.now(IST).date().weekday() == 4 else []
     assert names[7:] == (per_date + ["compute labels"] * 5
-                         + ["paper update", "fundamentals update"] + friday)  # fmt: skip
+                         + ["paper update", "fundamentals update", "shareholding update"]
+                         + friday)  # fmt: skip
     assert all("2026-09-25" in a for a in calls[7 : 7 + len(per_date)])
     # Monitoring phase (spec 21.2): every enabled strategy after VCP, labels per strategy.
     strategy_args = [a[a.index("--strategy") + 1] for a in calls if "--strategy" in a]

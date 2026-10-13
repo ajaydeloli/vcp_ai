@@ -1224,6 +1224,66 @@ _ALL_VIEWS: list[tuple[str, str]] = [
     ("setup_scores_v", _VIEW_SETUP_SCORES_V),
 ]
 
+
+# Shareholding pattern (FUNDAMENTALS_SPECIFICATION §15, F8). Display and research only: nothing
+# in the scan reads these (freeze rule, §2). One manifest row per listed filing; one snapshot row
+# per filing that parsed; one row per listing run (how far the listing is complete).
+_DDL_SHAREHOLDING_FILINGS = """
+CREATE TABLE IF NOT EXISTS shareholding_filings (
+    filing_id        VARCHAR PRIMARY KEY,       -- 'NSE_SHP:<recordId>'
+    instrument_id    VARCHAR NOT NULL,
+    symbol           VARCHAR NOT NULL,
+    as_on            DATE NOT NULL,             -- the date the pattern is as on
+    is_quarter_end   BOOLEAN NOT NULL,          -- false: a filing after an event (allotment ...)
+    broadcast_at     TIMESTAMPTZ NOT NULL,      -- when the market could first see it
+    revised          BOOLEAN NOT NULL,          -- NSE marks it a revision
+    revision_number  INTEGER NOT NULL,          -- 0 = first filing of the stock and as_on date
+    url              VARCHAR NOT NULL,
+    listed_promoter_pct DOUBLE,                 -- NSE's listing values, to cross-check the parse
+    listed_public_pct   DOUBLE,
+    sha256           VARCHAR,
+    cache_path       VARCHAR,
+    fetched_at       TIMESTAMPTZ,
+    status           VARCHAR NOT NULL,          -- OK | FETCH_ERROR | PARSE_ERROR
+    error            VARCHAR
+)
+"""
+_DDL_SHAREHOLDING_SNAPSHOTS = """
+CREATE TABLE IF NOT EXISTS shareholding_snapshots (
+    filing_id            VARCHAR PRIMARY KEY,   -- shareholding_filings.filing_id
+    instrument_id        VARCHAR NOT NULL,
+    as_on                DATE NOT NULL,
+    is_quarter_end       BOOLEAN NOT NULL,
+    revision_number      INTEGER NOT NULL,
+    available_at         TIMESTAMPTZ NOT NULL,  -- = broadcast_at
+    layout               VARCHAR NOT NULL,      -- NEW | SPLIT | OLD
+    promoter_pct         DOUBLE NOT NULL,       -- % of the company's shares
+    promoter_pledged_pct DOUBLE,                -- % of the promoter group's shares; NULL: not filed
+    fii_pct              DOUBLE NOT NULL,       -- foreign portfolio investors
+    fdi_pct              DOUBLE,                -- foreign direct investment (NEW/SPLIT layouts)
+    dii_pct              DOUBLE NOT NULL,
+    mf_pct               DOUBLE NOT NULL,
+    insurance_pct        DOUBLE NOT NULL,
+    government_pct       DOUBLE NOT NULL,
+    non_institutions_pct DOUBLE NOT NULL,
+    public_pct           DOUBLE NOT NULL,
+    other_pct            DOUBLE NOT NULL,       -- neither promoter nor public
+    shareholders         BIGINT
+)
+"""
+_DDL_SHAREHOLDING_FETCH_RUNS = """
+CREATE TABLE IF NOT EXISTS shareholding_fetch_runs (
+    run_at           TIMESTAMPTZ NOT NULL,
+    command          VARCHAR NOT NULL,          -- backfill | update
+    listed_from      DATE,
+    complete_through DATE,                      -- every day to here was listed without error
+    filings_listed   INTEGER NOT NULL,
+    filings_new      INTEGER NOT NULL,
+    parse_errors     INTEGER NOT NULL,
+    fetch_errors     INTEGER NOT NULL
+)
+"""
+
 _ALL_DDL: list[tuple[str, str]] = [
     ("instruments", _DDL_INSTRUMENTS),
     ("provider_instruments", _DDL_PROVIDER_INSTRUMENTS),
@@ -1283,6 +1343,9 @@ _ALL_DDL: list[tuple[str, str]] = [
     ("index_daily", _DDL_INDEX_DAILY),
     ("index_files", _DDL_INDEX_FILES),
     ("market_health_daily", _DDL_MARKET_HEALTH_DAILY),
+    ("shareholding_filings", _DDL_SHAREHOLDING_FILINGS),
+    ("shareholding_snapshots", _DDL_SHAREHOLDING_SNAPSHOTS),
+    ("shareholding_fetch_runs", _DDL_SHAREHOLDING_FETCH_RUNS),
 ]
 
 

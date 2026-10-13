@@ -102,6 +102,16 @@ def fundamentals_daily(config_dir: str) -> bool:
         return False
 
 
+def shareholding_daily(config_dir: str) -> bool:
+    """Whether the daily run updates the shareholding pattern (``shareholding.daily_update``)."""
+    try:
+        from vcp_scanner.shareholding.config import load_shareholding_config
+
+        return load_shareholding_config(config_dir).daily_update
+    except Exception:  # a broken file is reported by the step's own command
+        return False
+
+
 def run_daily(args: argparse.Namespace, cli_main: Callable[[list[str]], int]) -> int:
     db, cfg, env = args.db, args.config_dir, args.env_file
     started = datetime.now(UTC)
@@ -201,6 +211,11 @@ def run_daily(args: argparse.Namespace, cli_main: Callable[[list[str]], int]) ->
     # NSE is a warning inside the step (exit 0); only a real error fails it.
     if fundamentals_daily(cfg):
         step("fundamentals", ["fundamentals", "update", "--db", db, "--config-dir", cfg])
+    # Shareholding pattern (FUNDAMENTALS_SPECIFICATION §15, F8): display and research only, after
+    # fundamentals so the two never ask NSE at the same time. Its own config file
+    # (config/shareholding.yaml), outside the scanner config and its hashes.
+    if shareholding_daily(cfg):
+        step("shareholding", ["shareholding", "update", "--db", db, "--config-dir", cfg])
     # Sector lists (S1): NSE publishes only today's lists; weekly is enough. A read failure is
     # a warning inside the step.
     if today.weekday() == 4:

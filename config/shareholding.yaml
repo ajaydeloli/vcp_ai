@@ -1,0 +1,12 @@
+# Shareholding pattern from NSE filings (FUNDAMENTALS_SPECIFICATION §15, step F8).
+# DISPLAY AND RESEARCH ONLY: nothing here reaches a scan, score, regime, strategy or the paper
+# ledger. Deliberately its own file, outside the scanner config, so it can never change a
+# strategy's config hash.
+scope_from: 2023-10-01        # stocks eligible in any universe snapshot since this day (as fundamentals)
+history_from: 2022-06-30      # oldest as-on date fetched (quarter ends and event filings)
+site_interval_seconds: 2.0    # pause between listing requests to www.nseindia.com
+archive_interval_seconds: 1.0 # pause between file downloads from nsearchives.nseindia.com
+daily_update: true            # `vcp run daily` runs `vcp shareholding update`
+update_days: 10               # first update without a previous run; later ones resume from the
+                              # last day listed completely (a few days of overlap, nothing skipped)
+new_stock_limit: 100          # stocks new to the scope whose whole history one update fetches

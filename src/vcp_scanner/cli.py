@@ -598,6 +598,9 @@ def build_parser() -> argparse.ArgumentParser:
     from vcp_scanner.cli_classify import add_classify_parser
 
     add_classify_parser(subparsers)
+    from vcp_scanner.cli_shareholding import add_shareholding_parser
+
+    add_shareholding_parser(subparsers)
     from vcp_scanner.cli_indices import add_indices_parser
 
     add_indices_parser(subparsers)
@@ -1068,6 +1071,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         from vcp_scanner.cli_paper import run_paper
 
         return run_paper(args)
+    if args.command == "shareholding":
+        from vcp_scanner.cli_shareholding import run_shareholding
+
+        return run_shareholding(args)
     if args.command == "classify":
         from vcp_scanner.cli_classify import run_classify
 

@@ -3021,3 +3021,28 @@ The database is therefore not merely a place to save scanner results. It is the 
 # 86. Market Health Score (2026-10-12)
 
 `market_health_daily`, primary key `(trade_date, settings_version)`: one row per session and settings version (MARKET_HEALTH_SPECIFICATION). `raw_score` (weighted mean of the pillars measured), `raw_label`, `label` (after the caps), `complete`, `exposure` (shadow traffic light: full | half | none), `thrust` (breadth thrust that day), `vqi`, `nifty500`, and JSON: `pillars_json` (each pillar's weight, score, note and readings with points), `caps_json` (id, max label, reason), `missing_json` (pillars not measured), `features_json` (every reading behind the score), `computed_at`. `settings_version` is `<version>+<hash of config/market_health.yaml's meaning>`. Written by `vcp health build` (daily step "market health"): days not yet stored for the version; a stored day is not recomputed (it keeps what it said that day); `--rebuild` replaces the version's days. Display, research and a shadow light only.
+
+---
+
+# 87. Shareholding Pattern (F8, 2026-10-13)
+
+Quarterly shareholding pattern from NSE filings (FUNDAMENTALS_SPECIFICATION §15). Display and research only: nothing in a scan, score, backtest or the paper ledger reads these tables. Written by `vcp shareholding backfill|update` (`vcp_scanner/shareholding/pipeline.py`); raw files kept unchanged under `data/raw/shareholding/<year>/<recordId>.xml`.
+
+`shareholding_filings`: one row per filing NSE listed for a stock in scope.
+
+| Column | Meaning |
+|---|---|
+| `filing_id` | `NSE_SHP:<recordId>` (primary key) |
+| `instrument_id`, `symbol` | the stock |
+| `as_on` | the date the pattern is as on |
+| `is_quarter_end` | false for a filing after an event (an allotment, a scheme) |
+| `broadcast_at` | when the market could first see it |
+| `revised` | NSE marks it a revision |
+| `revision_number` | 0 = the first filing of the stock and `as_on` date, in broadcast order |
+| `url`, `sha256`, `cache_path`, `fetched_at` | the file |
+| `listed_promoter_pct`, `listed_public_pct` | NSE's listing values, used to cross-check the parse |
+| `status`, `error` | `OK`, `FETCH_ERROR` (retried next run) or `PARSE_ERROR` |
+
+`shareholding_snapshots`: one row per filing that parsed, keyed by `filing_id`. `available_at` = `broadcast_at`; the view of a stock on day D is, per `as_on`, the row with the greatest `available_at` <= D. Percentages are of the company's shares except `promoter_pledged_pct` (of the promoter group's shares; NULL when the filing says nothing). Columns: `layout` (NEW / SPLIT / OLD), `promoter_pct`, `promoter_pledged_pct`, `fii_pct` (FPI categories I and II), `fdi_pct` (NULL in the OLD layout), `dii_pct`, `mf_pct`, `insurance_pct`, `government_pct`, `non_institutions_pct`, `public_pct`, `other_pct` (neither promoter nor public), `shareholders`.
+
+`shareholding_fetch_runs`: one row per backfill or update: `run_at`, `command`, `listed_from`, `complete_through` (every day to here listed without an error; the next update starts three days before it), `filings_listed`, `filings_new`, `parse_errors`, `fetch_errors`.

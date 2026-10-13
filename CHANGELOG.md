@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- F8 shareholding pattern (FUNDAMENTALS_SPECIFICATION §15), display and research only: probe findings in §15; parser for NSE's three XBRL layouts (known-answer tests on four saved filings); tables `shareholding_filings`, `shareholding_snapshots`, `shareholding_fetch_runs` (DATABASE_SCHEMA §87); `vcp shareholding backfill|update|status|show`; `config/shareholding.yaml`; a daily-run step after fundamentals. Trial of 10 stocks: 172 filings, 0 parse errors, 0 differences from NSE's listing.
+
 - Evening run: the scheduled tasks start it with no window (`conhost.exe --headless`; a closed window had killed the 2026-10-13 22:00 run with no trace). `scripts/daily_run.sh` records the run in `data/logs/daily_run.state`; the status bar shows "Daily run in progress: <step>" while it runs and warns about a run that stopped before it finished (FRONTEND_SPECIFICATION §67.39). API: `run` on `/status`.
 
 - `USER_GUIDE.md`: installation, credentials and daily tokens, the evening run, the dashboard, switching the live provider, weekly and occasional tasks, every `vcp` command, troubleshooting, what is frozen and what is display only.
