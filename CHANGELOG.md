@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Market Overview layout: Breadth and Accumulation / distribution swapped; Sector rotation is half width and two cards tall, with Feedback loop and Setups today beside it (FRONTEND_SPECIFICATION §67.35).
+
 - Market Overview: the figure columns of Market stage and Setups and breakouts now use the same font sizes and width as the pillar cards (FRONTEND_SPECIFICATION §67.35).
 
 - Market Overview cards (FRONTEND_SPECIFICATION §67.35): one chart and four or five headline figures per card; the index card split into Index trend and Accumulation / distribution, breadth into Breadth and Participation; chart cards never scroll (new highs capped at eight chips, "+N more"). API: `dist25`, `acc25` on `score_points`.

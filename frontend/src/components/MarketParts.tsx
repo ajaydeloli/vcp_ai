@@ -41,7 +41,7 @@ export const BOX = {
   sectors: `border-2 border-[#2dd4bf]/60 bg-gradient-to-br from-[#2dd4bf]/10 to-panel2 ${SIZE}`,
   volume: `border-2 border-[#fb7185]/60 bg-gradient-to-br from-[#fb7185]/10 to-panel2 ${FIXED}`,
   participation: `border-2 border-[#38bdf8]/60 bg-gradient-to-br from-[#38bdf8]/10 to-panel2 ${FIXED}`,
-  rotation: `border-2 border-[#fde047]/60 bg-gradient-to-br from-[#fde047]/10 to-panel2 lg:col-span-2`,
+  rotation: `border-2 border-[#fde047]/60 bg-gradient-to-br from-[#fde047]/10 to-panel2 lg:row-span-2 lg:h-[47rem] lg:overflow-hidden`,
   score: `border-2 border-[#60a5fa]/60 bg-gradient-to-br from-[#60a5fa]/10 to-panel2 lg:col-span-2`,
 };
 

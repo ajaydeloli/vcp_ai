@@ -114,13 +114,13 @@ export function SectorRotationCard({ rotation }: { rotation: Health["rotation"] 
   const short_ = shown.filter((r) => r.points.length < longest);
 
   return (
-    <Inner title="Sector rotation" box={BOX.rotation}>
+    <Inner title="Sector rotation" box={BOX.rotation} fill>
       {shown.length === 0 ? (
         <Empty>Not enough weekly history of the sector indices yet.</Empty>
       ) : (
-        <div className="grid gap-4 lg:grid-cols-[minmax(0,26rem)_minmax(0,1fr)]">
-          <div className="min-w-0">
-            <div className="mb-1 flex items-center justify-between text-[11px] text-mute">
+        <div className="flex min-h-0 flex-1 flex-col gap-3">
+          <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+            <div className="mb-1 flex shrink-0 items-center justify-between text-[11px] text-mute">
               <span>Sector indices vs NIFTY 500, weekly{week ? `, week to ${fmtDay(week)}` : ""}</span>
               <span className="flex gap-1" role="group" aria-label="Tail length">
                 {TAILS.map((t) => (
@@ -136,8 +136,8 @@ export function SectorRotationCard({ rotation }: { rotation: Health["rotation"] 
                 ))}
               </span>
             </div>
-            <div className="relative">
-              <svg viewBox={`0 0 ${SIZE} ${SIZE}`} className="h-auto w-full" role="img" aria-label="Sector rotation graph" data-testid="rotation-chart">
+            <div className="relative mx-auto aspect-square w-full max-w-[30rem] lg:h-full lg:min-h-0 lg:w-auto lg:max-w-full">
+              <svg viewBox={`0 0 ${SIZE} ${SIZE}`} className="h-full w-full" role="img" aria-label="Sector rotation graph" data-testid="rotation-chart">
                 {/* quadrants, faintly tinted, named in their outer corners */}
                 {(
                   [
@@ -235,7 +235,7 @@ export function SectorRotationCard({ rotation }: { rotation: Health["rotation"] 
               )}
             </div>
           </div>
-          <div className="min-w-0 space-y-2 text-xs" aria-label="Sectors by quadrant">
+          <div className="grid min-w-0 shrink-0 grid-cols-1 gap-x-4 gap-y-2 text-xs sm:grid-cols-2 2xl:grid-cols-4" aria-label="Sectors by quadrant">
             {LIST_ORDER.map((q) => {
               const rows = shown.filter((r) => r.quadrant === q).sort((a, b) => (b.points.at(-1)?.ratio ?? 0) - (a.points.at(-1)?.ratio ?? 0));
               return (
@@ -257,7 +257,7 @@ export function SectorRotationCard({ rotation }: { rotation: Health["rotation"] 
                             onMouseEnter={() => setFocus(r.sector)}
                             onMouseLeave={() => setFocus(null)}
                           >
-                            <span className="truncate text-ink" title={r.index_name}>
+                            <span className="truncate text-ink" title={`${r.sector} (${r.index_name})`}>
                               {r.sector}
                             </span>
                             <span className="shrink-0 tabular-nums text-mute" title="RS-Ratio / RS-Momentum">
@@ -271,7 +271,7 @@ export function SectorRotationCard({ rotation }: { rotation: Health["rotation"] 
                 </section>
               );
             })}
-            <p className="text-[11px] text-mute">
+            <p className="text-[11px] text-mute sm:col-span-2 2xl:col-span-4">
               Sectors usually turn clockwise: Improving → Leading → Weakening → Lagging. RS-Ratio: the sector against NIFTY 500 vs its 10-week trend; RS-Momentum: that ratio vs 4
               weeks ago.
               {short_.length > 0 ? ` Shorter tails: ${short_.map((r) => short(r.sector)).join(", ")} (NSE started these indices recently).` : ""} Display only.

@@ -98,7 +98,7 @@ describe("dashboard page (market view)", () => {
     const colours = within(overview).getAllByRole("region").map((r) => /border-\[(#\w+)\]/.exec(r.className)?.[1]);
     expect(new Set(colours).size).toBe(12); // every card has its own border colour
     expect(names).toEqual([
-      "Market health score", "Index trend", "Accumulation / distribution", "Breadth", "Participation", "Leadership",
+      "Market health score", "Index trend", "Breadth", "Accumulation / distribution", "Participation", "Leadership",
       "Market stage", "Setups and breakouts", "Sector strength", "Sector rotation", "Feedback loop", "Setups today",
     ]);
     expect(await within(overview).findByText(/Most setups are/)).toBeInTheDocument();

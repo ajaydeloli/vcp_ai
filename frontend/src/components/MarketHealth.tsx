@@ -221,8 +221,8 @@ export function MarketHealth() {
           <div className="grid gap-4 lg:grid-cols-2">
             <HealthScoreCard score={d.score} />
             <IndexTrendCard pts={d.score_points} pillar={pillar("index_trend")} />
-            <VolumeCard pts={d.score_points} pillar={pillar("accumulation")} />
             <BreadthCard pts={d.score_points} pillar={pillar("breadth")} regime={<StrategyRegime />} />
+            <VolumeCard pts={d.score_points} pillar={pillar("accumulation")} />
             <ParticipationCard pts={d.score_points} pillar={pillar("breadth")} lastThrust={d.score?.last_thrust} />
             <LeadershipCard pts={d.score_points} pillar={pillar("leadership")} highs={d.new_highs} />
             <StageCard stages={d.stages} box={BOX.stage} />
