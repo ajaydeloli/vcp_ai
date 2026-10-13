@@ -2502,3 +2502,15 @@ Order: score; index trend, breadth; accumulation / distribution, participation; 
 ### 67.38 Switching the live provider (2026-10-13, owner request)
 
 Upstox is the live feed in use, Kite the one under test. The switch is the `provider:` line of `config/live.yaml`, nothing else: the running API checks the file (a stat) at each page request and poll; on a change the feed is rebuilt for the new provider and the old provider's prices, keys and intraday lines are dropped, so the status bar shows "starting" then "Live (KITE)" or "Live (UPSTOX)" within one poll. A file that does not load (a typo, an unknown provider) is logged and ignored; the last good setting stays. Each provider still needs its own credentials in `.env` (Kite's token daily via `vcp auth kite`). The tests check that the shipped file works with either provider, not which one is set.
+
+### 67.39 The evening run on the status bar (2026-10-13, owner request)
+
+The scheduled runs now start with no window (`conhost.exe --headless`), so the dashboard is where a run is seen. `scripts/daily_run.sh` writes `data/logs/daily_run.state` once it holds the run lock (pid, start, its log and where this run's part of it starts, the number of summary lines before it) and rewrites it from an EXIT trap (finish time, exit code). `vcp_scanner.run_state` reads it, never the lock (taking the lock, even briefly, could make a scheduled run skip itself):
+
+| State | How it is known | Status bar |
+|---|---|---|
+| running | not finished, and the pid is alive and is the run script | "Daily run in progress: <step> since HH:MM (started HH:MM IST)"; the status is fetched every 15 s while running (5 min otherwise) |
+| finished | finished, and `daily_runs.log` has a new line | nothing new (the existing failed-step warning still applies) |
+| stopped | not finished and the pid is gone (a closed console or a kill: no trap ran), or finished with no new summary line (Ctrl-C, `kill`: the trap ran) | warning: "The daily run started ... stopped during <step> and did not finish (exit N). The next run catches up; to run it now: bash scripts/daily_run.sh." |
+
+The step is the last `=== <step> (HH:MM IST)` header in this run's part of the day's log. API: `run` on `/status` (`state`, `started`, `step`, `step_since`, `exit_code`; null before the first recorded run). Display only; nothing here can start or stop a run.

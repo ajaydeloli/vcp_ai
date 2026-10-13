@@ -300,6 +300,21 @@ describe("status bar", () => {
     for (const w of warnings) expect(screen.getByText(w)).toBeInTheDocument();
   });
 
+  it("shows the evening run while it is going, and nothing once it has finished", async () => {
+    const run = { state: "running", started: "2026-10-13T19:15:02+05:30", step: "corporate actions", step_since: "19:16", exit_code: null };
+    mockApi({ status: { ...fx.status, run } });
+    renderApp(<StatusBar />);
+    expect(await screen.findByTestId("run-progress")).toHaveTextContent("Daily run in progress: corporate actions since 19:16 (started 19:15 IST)");
+  });
+
+  it("says nothing about a finished run", async () => {
+    const run = { state: "finished", started: "2026-10-13T19:15:02+05:30", step: "serving copy", step_since: "19:54", exit_code: 0 };
+    mockApi({ status: { ...fx.status, run } });
+    renderApp(<StatusBar />);
+    expect(await screen.findByText("No warnings")).toBeInTheDocument();
+    expect(screen.queryByTestId("run-progress")).not.toBeInTheDocument();
+  });
+
   it("tells how to start the API when it is not running", async () => {
     mockApi({ status: new TypeError("fetch failed") });
     renderApp(<StatusBar />);

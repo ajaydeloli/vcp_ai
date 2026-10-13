@@ -31,6 +31,17 @@ export const status = z.object({
   ),
   daily_run: z.string().nullable(),
   newest_backup: z.string().nullable(),
+  // the newest evening run as scripts/daily_run.sh recorded it; absent from older APIs
+  run: z
+    .object({
+      state: z.enum(["running", "finished", "stopped"]),
+      started: z.string(),
+      step: z.string().nullable(),
+      step_since: z.string().nullable(),
+      exit_code: z.number().nullable(),
+    })
+    .nullable()
+    .optional(),
   backup_age_days: num,
   warnings: z.array(z.string()),
 });

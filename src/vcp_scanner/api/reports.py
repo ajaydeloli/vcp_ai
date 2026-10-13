@@ -24,6 +24,7 @@ from vcp_scanner.data.providers.manual_sectors import load_manual_sectors, stale
 from vcp_scanner.domain.snapshot import LIVE_SNAPSHOT_ID as LIVE
 from vcp_scanner.paper.ledger import RULE_SET, PaperEvent
 from vcp_scanner.paper.status import summarize
+from vcp_scanner.run_state import run_progress
 
 REVIEW_FROM = date(2027, 4, 1)  # STRATEGY_SPECIFICATION 21.6
 PUBLISH_HOUR = 20  # today's prices are not expected before the evening run has finished
@@ -83,6 +84,15 @@ def status(cur: Cur, ctx: Context, now: datetime, data_time: datetime) -> m.Stat
             warnings.append(f"{p.strategy_id}: paper ledger not updated for {newest} "
                             f"(through {p.ledger_through}).")  # fmt: skip
     run = _last_line(ctx.data_dir / "logs" / "daily_runs.log")
+    progress = run_progress(ctx.data_dir / "logs")
+    if progress is not None and progress.state == "stopped":
+        # closed console, Ctrl-C, kill: nothing else would show it (no summary line is written)
+        began = progress.started.astimezone(IST)
+        where = f" during {progress.step}" if progress.step else ""
+        how = f" (exit {progress.exit_code})" if progress.exit_code is not None else ""
+        warnings.append(f"The daily run started {began:%Y-%m-%d %H:%M} IST stopped{where} and did"
+                        f" not finish{how}. The next run catches up; to run it now:"
+                        " bash scripts/daily_run.sh.")  # fmt: skip
     if run and "FAILED:" in run:
         # the run carries on past a failed step, so a failure is easy to miss without this
         when = run.split("|", 1)[0].strip()
@@ -107,6 +117,9 @@ def status(cur: Cur, ctx: Context, now: datetime, data_time: datetime) -> m.Stat
     return m.StatusResponse(
         as_of=prices, data_time=data_time, prices_date=prices, strategies=per,
         daily_run=run, newest_backup=name,
+        run=None if progress is None else m.DailyRunProgress(
+            state=progress.state, started=progress.started, step=progress.step,
+            step_since=progress.step_since, exit_code=progress.exit_code),
         backup_age_days=age, warnings=warnings,
     )  # fmt: skip
 

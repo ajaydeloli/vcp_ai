@@ -354,3 +354,23 @@ def test_market_health_reads_the_paper_group_and_says_when_data_is_too_thin(ro_e
     assert body["score"]["label"] == "Mixed" and "verdict" not in body  # MHS 2 replaced it
     assert items["paper"]["score"] is None  # grey readings carry no score
     assert all(0 <= i["score"] <= 100 for i in items.values() if i["score"] is not None)
+
+
+def test_a_run_that_stopped_half_way_is_a_warning(env: Env) -> None:
+    """A run killed with its console writes no summary line; its state file shows it."""
+    logs = env.data_dir / "logs"
+    (logs / "daily_run_2026-10-05.out").write_text(
+        "=== start 2026-10-05 22:00 IST\n=== corporate actions (22:01 IST)\n", encoding="utf-8"
+    )
+    (logs / "daily_run.state").write_text(
+        "pid=999999999\nstarted=2026-10-05T22:00:03+05:30\n"
+        f"log={logs / 'daily_run_2026-10-05.out'}\nlog_offset=0\nsummaries_before=99\n"
+        "finished=\nexit=\n",
+        encoding="utf-8",
+    )
+    body = get(env, "/api/v1/status")
+    assert body["run"]["state"] == "stopped" and body["run"]["step"] == "corporate actions"
+    assert body["warnings"] == [
+        "The daily run started 2026-10-05 22:00 IST stopped during corporate actions and did not"
+        " finish. The next run catches up; to run it now: bash scripts/daily_run.sh."
+    ]

@@ -219,7 +219,7 @@ current status of each.
 
 ## Daily run, backups and recovery
 
-`scripts/daily_run.sh` runs `vcp run daily` (Windows Task Scheduler, Mon–Fri 19:15 and 22:00 IST; one run at a time). As its last step it refreshes the dashboard's read-only serving copy (`data/serving/vcp_serving.duckdb`, about 2 GB, 9 seconds; `--serving-copy`). Before any step it checks that `data/vcp_scanner.duckdb` opens and answers a query, then copies it to `data/backups/vcp_scanner_<UTC date>_<time>.duckdb`, keeping the newest 3 (`--backup-keep`, `--backup-dir`, `--no-backup`). A damaged database or a failed backup stops the run before anything is written; `data/logs/daily_runs.log` records `FAILED: database check/backup` and the run's output names the newest backup with the restore command:
+`scripts/daily_run.sh` runs `vcp run daily` (Windows Task Scheduler, Mon–Fri 19:15 and 22:00 IST, started with no window via `conhost.exe --headless`; one run at a time). It records the run in `data/logs/daily_run.state` so the dashboard shows a run in progress and warns about one that stopped before it finished. As its last step it refreshes the dashboard's read-only serving copy (`data/serving/vcp_serving.duckdb`, about 2 GB, 9 seconds; `--serving-copy`). Before any step it checks that `data/vcp_scanner.duckdb` opens and answers a query, then copies it to `data/backups/vcp_scanner_<UTC date>_<time>.duckdb`, keeping the newest 3 (`--backup-keep`, `--backup-dir`, `--no-backup`). A damaged database or a failed backup stops the run before anything is written; `data/logs/daily_runs.log` records `FAILED: database check/backup` and the run's output names the newest backup with the restore command:
 
 ```bash
 mv data/vcp_scanner.duckdb data/vcp_scanner.duckdb.damaged

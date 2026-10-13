@@ -42,10 +42,21 @@ class StrategyDates(BaseModel):
     ledger_through: date | None
 
 
+class DailyRunProgress(BaseModel):
+    """The newest evening run as scripts/daily_run.sh recorded it (vcp_scanner.run_state)."""
+
+    state: str  # running | finished | stopped
+    started: datetime
+    step: str | None  # the step running, or the last one reached
+    step_since: str | None  # HH:MM IST
+    exit_code: int | None
+
+
 class StatusResponse(Stamped):
     prices_date: date | None
     strategies: list[StrategyDates]
     daily_run: str | None  # the last line of daily_runs.log
+    run: DailyRunProgress | None = None  # None before the first run that recorded it
     newest_backup: str | None
     backup_age_days: float | None
     warnings: list[str]

@@ -30,6 +30,7 @@
   }
  ],
  "daily_run": "2026-10-05 19:15 IST | prices to 2026-10-05 | scanned 2026-10-05 | surveillance lists collected: ASM, GSM, T2T | all steps OK",
+ "run": null,
  "newest_backup": "vcp_scanner_20261005_134501.duckdb",
  "backup_age_days": 0.781238425925926,
  "warnings": []

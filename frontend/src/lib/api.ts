@@ -103,8 +103,14 @@ const REFRESH_MS = 5 * 60 * 1000; // the data changes once a day; this only noti
 // retry is set on the query client (app/providers.tsx), so tests can switch it off
 const opts = { staleTime: 60_000, refetchInterval: REFRESH_MS } as const;
 
+// every 15 s while the evening run is going, so its step moves on the status bar
 export const useStatus = () =>
-  useQuery({ queryKey: ["status"], queryFn: () => getJson(paths.status(), s.status), ...opts });
+  useQuery({
+    queryKey: ["status"],
+    queryFn: () => getJson(paths.status(), s.status),
+    ...opts,
+    refetchInterval: (q) => (q.state.data?.run?.state === "running" ? 15_000 : REFRESH_MS),
+  });
 export const useStrategies = () =>
   useQuery({
     queryKey: ["strategies"],

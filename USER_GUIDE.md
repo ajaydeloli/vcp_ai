@@ -87,11 +87,13 @@ vcp classify update                       # sectors from NSE's index lists + con
 
 ### 2.4 Schedule the evening run
 
-Two Windows Task Scheduler tasks run the pipeline on weekdays. Both run the same command:
+Two Windows Task Scheduler tasks run the pipeline on weekdays, **with no window** (since 2026-10-13). Both run the same command:
 
 ```text
-wsl.exe -d Ubuntu -u ubuntu -- bash -lc ~/projects/vcp_ai/scripts/daily_run.sh
+conhost.exe --headless wsl.exe -d Ubuntu -u ubuntu -- bash -lc "~/projects/vcp_ai/scripts/daily_run.sh"
 ```
+
+`conhost.exe --headless` starts the run without a console, so nothing pops up and nothing can be closed by accident. Task Scheduler's "Last Run Result" then always reads success: the real result is in `data/logs/daily_runs.log` and on the dashboard. The tasks' earlier settings are saved in `Documents\vcp_task_backup\` (import them in Task Scheduler to go back to a visible window).
 
 | Task | When | Why |
 |---|---|---|
@@ -160,6 +162,20 @@ The token expires at about 06:00 the next morning.
 
 A failed step does not stop the steps after it. The run is marked failed and the dashboard's status bar shows a warning: "Last daily run (...) failed: ...".
 
+**While a run is going**, the status bar shows it: "Daily run in progress: corporate actions since 19:16 (started 19:15 IST)", updated every 15 seconds. A run that is stopped before it finishes (stopped by hand, killed, the PC shut down) leaves a warning instead: "The daily run started ... stopped during <step> and did not finish." The next run catches up; the warning goes when a new run starts.
+
+### 4.1a Stopping a run
+
+There is no window to close. To stop the run that is going, in a WSL terminal:
+
+```bash
+cd ~/projects/vcp_ai
+grep '^pid=' data/logs/daily_run.state      # the run's pid
+kill <pid>                                  # stops it cleanly; the status bar then says it stopped
+```
+
+Or end the task in Task Scheduler (right-click the task, End). Stopping is safe: DuckDB keeps every completed write and rolls back the unfinished one, and the next run catches up.
+
 ### 4.2 Your morning (or evening) check, two minutes
 
 1. **Open the dashboard** (start it if needed, [section 5](#5-the-dashboard)): `http://localhost:3000/dashboard`.
@@ -173,6 +189,7 @@ A failed step does not stop the steps after it. The run is marked failed and the
 |---|---|
 | `data/logs/daily_runs.log` | One line per run: prices up to, sessions scanned, surveillance lists collected, `all steps OK` or `FAILED: <steps>`. Read this first. |
 | `data/logs/daily_run_<date>.out` | The full output of that day's runs, step by step. |
+| `data/logs/daily_run.state` | The newest run: pid, start time, and how it ended. Read by the dashboard; written by `scripts/daily_run.sh`. |
 | `reports/daily/<date>.html`, `reports/weekly/<ISO week>.html` | The daily and weekly HTML reports (also on the dashboard). |
 
 ### 4.4 Running it by hand
@@ -261,7 +278,8 @@ Cards with a chart never scroll. Data cards (New highs today, Sector strength, S
 
 | Item | Meaning |
 |---|---|
-| **No warnings** / a warning | Failed daily-run steps, stale data, stale manual sectors and similar; the text says what is wrong. |
+| **Daily run in progress: <step>** | Shown only while the evening run is going (refreshed every 15 s). |
+| **No warnings** / a warning | Failed daily-run steps, a run stopped before it finished, stale data, stale manual sectors and similar; the text says what is wrong. |
 | **Prices to** | The last session with NSE prices stored. |
 | **Last scan** | The last session scanned. |
 | **Data copy** | When the serving copy was made. |
@@ -609,6 +627,7 @@ done
 | You see | Likely cause | Fix |
 |---|---|---|
 | Status bar: "Last daily run (...) failed: <step>" | One step of the evening run failed. The others ran. | Read that day's `data/logs/daily_run_<date>.out`, find the step, fix the cause, then run `vcp run daily --serving-copy` again. |
+| "The daily run started ... stopped during <step> and did not finish" | The run was stopped (by hand, a kill, a shutdown) before it finished | Nothing to repair: the next run catches up. To run it now: `bash scripts/daily_run.sh`. |
 | "Prices to" is a day behind after 19:15 | NSE had not published the bhavcopy yet | The 22:00 run picks it up; or run `bash scripts/daily_run.sh` later. |
 | `daily_runs.log`: `FAILED: database check/backup` | The database did not open, or the backup failed (disk full?) | Free disk space and run again. If the database is damaged, restore the newest backup ([section 7.4](#74-backups-and-restore)). |
 | `daily_runs.log`: `surveillance lists collected: NONE` | NSE did not answer for the ASM/GSM/T2T lists | Run `vcp ingest security-master` again the same evening; a missed day cannot be fetched later. |

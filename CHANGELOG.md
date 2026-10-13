@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Evening run: the scheduled tasks start it with no window (`conhost.exe --headless`; a closed window had killed the 2026-10-13 22:00 run with no trace). `scripts/daily_run.sh` records the run in `data/logs/daily_run.state`; the status bar shows "Daily run in progress: <step>" while it runs and warns about a run that stopped before it finished (FRONTEND_SPECIFICATION §67.39). API: `run` on `/status`.
+
 - `USER_GUIDE.md`: installation, credentials and daily tokens, the evening run, the dashboard, switching the live provider, weekly and occasional tasks, every `vcp` command, troubleshooting, what is frozen and what is display only.
 
 - Live feed: switching provider is an edit of `config/live.yaml` (Upstox for use, Kite for testing). The running API notices the change at the next page request and switches at once, dropping the old provider's prices; a broken edit is ignored and the last good setting stays. No restart, and the tests no longer pin which provider is set.

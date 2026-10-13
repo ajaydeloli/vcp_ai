@@ -22,10 +22,7 @@ export function StatusBar() {
   const feed = liveStatus.data?.feed;
   const s = status.data;
   const warnings = s?.warnings ?? [];
-  const scan = s?.strategies.reduce<string | null>(
-    (a, x) => (x.latest_scan && (!a || x.latest_scan > a) ? x.latest_scan : a),
-    null,
-  );
+  const scan = s?.strategies.reduce<string | null>((a, x) => (x.latest_scan && (!a || x.latest_scan > a) ? x.latest_scan : a), null);
 
   return (
     <footer className="fixed inset-x-0 bottom-0 z-10 border-t border-line bg-panel/95 px-4 py-2 text-xs backdrop-blur">
@@ -36,6 +33,13 @@ export function StatusBar() {
           </span>
         ) : s ? (
           <>
+            {s.run?.state === "running" ? (
+              <span role="status" className="flex items-center gap-1.5 whitespace-nowrap text-accent" data-testid="run-progress">
+                <span aria-hidden="true" className="h-2 w-2 animate-pulse rounded-full bg-accent" />
+                Daily run in progress: {s.run.step ?? "starting"}
+                {s.run.step_since ? ` since ${s.run.step_since}` : ""} (started {s.run.started.slice(11, 16)} IST)
+              </span>
+            ) : null}
             {warnings.length === 0 ? (
               <span className="text-up">No warnings</span>
             ) : (
