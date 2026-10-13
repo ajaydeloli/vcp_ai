@@ -219,6 +219,17 @@ Added 2026-10-10 at the owner's request. Same rules as the rest of this spec: NS
 
 **Source.** The quarterly shareholding pattern every listed company files under SEBI LODR Regulation 31, within 21 days of each quarter end, published by NSE per company with an XBRL file. It is a separate filing from the financial results (the result XBRL files of §3 carry no shareholding). **Verify in F8:** the NSE listing endpoint and its paging, the XBRL tag names and categories, how revisions appear, and how far back the files go.
 
+**Probe findings (F8, 2026-10-13; about ten requests at one a second).**
+
+- **Listing:** `https://www.nseindia.com/api/corporate-share-holdings-master?index=equities` with either `symbol=X` (every filing of one stock: RELIANCE back to the quarter of September 2021, 22 rows) or `from_date` / `to_date` (`DD-MM-YYYY`). It is not paged: 1-31 July 2026 returned 2,339 filings of 2,291 companies in one answer. Each row has `recordId`, `symbol`, `name`, `date` (the date the pattern is "as on"), `broadcastDate`, `submissionDate`, `pr_and_prgrp` / `public_val` (promoter and public %), `revisedData` / `revisedStatus` ("Revised"; 147 of the July filings), `newColumn` (the new layout) and `xbrl`, a file on the archive host `nsearchives.nseindia.com`, as the results files.
+- **Not only quarter ends:** a company also files after events such as an allotment (RELIANCE: 8 Dec 2021, 29 Oct 2024). These are kept and marked; the quarterly series uses quarter-end dates only.
+- **Three XBRL layouts** (tag set `in-bse-shp`), told apart by the lines present (`vcp_scanner/shareholding/parser.py`):
+  - *NEW*, from the June 2025 quarter: contexts `<Category>_ContextI`, percentages as fractions, institutions split into domestic and foreign, pledge `EncumberedShareUnderPledgedAsPercentageOfTotalNumberOfShares` (pledges only).
+  - *SPLIT*, about 2022 to March 2025: contexts `<Category>I`, percentages in percent, the same split (FPI contexts spelt `...Catergory...`), pledge `PledgedOrEncumberedSharesHeldAsPercentageOfTotalNumberOfShares` (pledged or otherwise encumbered).
+  - *OLD*, to about 2022: one `Institutions` group; domestic institutions are that group less foreign portfolio investors and foreign venture capital.
+- **Definitions used:** FII = foreign portfolio investors (FPI categories I and II); foreign direct investment (a parent's strategic stake, e.g. JFE Steel's 15 % of JSW Steel) is a separate item, never FII. Pledge = % of the promoter group's own shares (JSW Steel June 2026: 125,650,440 of 1,083,203,750 = 11.6 %).
+- **Totals:** filers differ on shares held by employee trusts (neither promoter nor public): RELIANCE leaves them out of the base (promoter + public = 100), JSW Steel counts them (promoter + public = 99.81, the trust 0.19). The parser accepts both and records the remainder as `other_pct`. On the four saved filings (one per layout plus a pledge) every category adds up to the public total exactly.
+
 **What is stored** (per stock and quarter end; `available_at` = broadcast time, as §7):
 
 | Item | Meaning |
