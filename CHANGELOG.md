@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Sector rotation card: chart on the left (three quarters of the width), sectors by quadrant down the right quarter at full height (FRONTEND_SPECIFICATION §67.35).
+
 - Market Overview layout: Breadth and Accumulation / distribution swapped; Sector rotation is half width and two cards tall, with Feedback loop and Setups today beside it (FRONTEND_SPECIFICATION §67.35).
 
 - Market Overview: the figure columns of Market stage and Setups and breakouts now use the same font sizes and width as the pillar cards (FRONTEND_SPECIFICATION §67.35).

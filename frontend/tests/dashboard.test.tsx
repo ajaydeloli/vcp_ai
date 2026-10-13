@@ -195,9 +195,9 @@ describe("dashboard page (market view)", () => {
     const card = within(await screen.findByRole("region", { name: "Sector rotation" }));
     expect(card.getByTestId("rotation-chart")).toBeInTheDocument();
     for (const q of ["Leading", "Improving", "Weakening", "Lagging"]) expect(card.getByRole("region", { name: q })).toBeInTheDocument();
-    expect(within(card.getByRole("region", { name: "Leading" })).getByText("Information Technology")).toBeInTheDocument();
+    expect(within(card.getByRole("region", { name: "Leading" })).getByTitle("Information Technology (Nifty IT)")).toHaveTextContent("IT");
     expect(within(card.getByRole("region", { name: "Weakening" })).getByText("None")).toBeInTheDocument();
-    expect(card.getByText("IT")).toBeInTheDocument(); // the short label on the chart
+    expect(within(card.getByTestId("rotation-chart")).getByText("IT")).toBeInTheDocument(); // the short label on the chart
     expect(card.getByText(/Shorter tails: Power/)).toBeInTheDocument();
     await userEvent.hover(card.getByTestId("rotation-Metals & Mining"));
     const tip = card.getByRole("tooltip");

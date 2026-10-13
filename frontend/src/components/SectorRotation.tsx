@@ -118,7 +118,7 @@ export function SectorRotationCard({ rotation }: { rotation: Health["rotation"] 
       {shown.length === 0 ? (
         <Empty>Not enough weekly history of the sector indices yet.</Empty>
       ) : (
-        <div className="flex min-h-0 flex-1 flex-col gap-3">
+        <div className="flex min-h-0 flex-1 flex-col gap-3 lg:grid lg:grid-cols-[minmax(0,3fr)_minmax(0,1fr)] lg:gap-4">
           <div className="flex min-h-0 min-w-0 flex-1 flex-col">
             <div className="mb-1 flex shrink-0 items-center justify-between text-[11px] text-mute">
               <span>Sector indices vs NIFTY 500, weekly{week ? `, week to ${fmtDay(week)}` : ""}</span>
@@ -136,106 +136,111 @@ export function SectorRotationCard({ rotation }: { rotation: Health["rotation"] 
                 ))}
               </span>
             </div>
-            <div className="relative mx-auto aspect-square w-full max-w-[30rem] lg:h-full lg:min-h-0 lg:w-auto lg:max-w-full">
-              <svg viewBox={`0 0 ${SIZE} ${SIZE}`} className="h-full w-full" role="img" aria-label="Sector rotation graph" data-testid="rotation-chart">
-                {/* quadrants, faintly tinted, named in their outer corners */}
-                {(
-                  [
-                    ["improving", PAD, PAD, "start", PAD + 6, PAD + 14],
-                    ["leading", x(100), PAD, "end", SIZE - PAD - 6, PAD + 14],
-                    ["lagging", PAD, y(100), "start", PAD + 6, SIZE - PAD - 8],
-                    ["weakening", x(100), y(100), "end", SIZE - PAD - 6, SIZE - PAD - 8],
-                  ] as const
-                ).map(([q, rx, ry, anchor, tx, ty]) => (
-                  <g key={q}>
-                    <rect x={rx} y={ry} width={inner / 2} height={inner / 2} fill={QUADRANT[q].color} opacity={0.07} />
-                    <text x={tx} y={ty} textAnchor={anchor} className="fill-mute" fontSize={11} fontWeight={600}>
-                      {QUADRANT[q].name}
+            <div className="min-h-0 flex-1 lg:[container-type:size]">
+              <div className="relative mx-auto aspect-square w-full max-w-[30rem] lg:h-[min(100cqw,100cqh)] lg:w-[min(100cqw,100cqh)] lg:max-w-none">
+                <svg viewBox={`0 0 ${SIZE} ${SIZE}`} className="h-full w-full" role="img" aria-label="Sector rotation graph" data-testid="rotation-chart">
+                  {/* quadrants, faintly tinted, named in their outer corners */}
+                  {(
+                    [
+                      ["improving", PAD, PAD, "start", PAD + 6, PAD + 14],
+                      ["leading", x(100), PAD, "end", SIZE - PAD - 6, PAD + 14],
+                      ["lagging", PAD, y(100), "start", PAD + 6, SIZE - PAD - 8],
+                      ["weakening", x(100), y(100), "end", SIZE - PAD - 6, SIZE - PAD - 8],
+                    ] as const
+                  ).map(([q, rx, ry, anchor, tx, ty]) => (
+                    <g key={q}>
+                      <rect x={rx} y={ry} width={inner / 2} height={inner / 2} fill={QUADRANT[q].color} opacity={0.07} />
+                      <text x={tx} y={ty} textAnchor={anchor} className="fill-mute" fontSize={11} fontWeight={600}>
+                        {QUADRANT[q].name}
+                      </text>
+                    </g>
+                  ))}
+                  {/* axes: ticks, the 100 lines, titles */}
+                  {ticks(hx).map((v) => (
+                    <text key={`x${v}`} x={x(v)} y={SIZE - PAD + 13} textAnchor="middle" className="fill-mute" fontSize={9}>
+                      {v}
                     </text>
-                  </g>
-                ))}
-                {/* axes: ticks, the 100 lines, titles */}
-                {ticks(hx).map((v) => (
-                  <text key={`x${v}`} x={x(v)} y={SIZE - PAD + 13} textAnchor="middle" className="fill-mute" fontSize={9}>
-                    {v}
+                  ))}
+                  {ticks(hy).map((v) => (
+                    <text key={`y${v}`} x={PAD - 4} y={y(v) + 3} textAnchor="end" className="fill-mute" fontSize={9}>
+                      {v}
+                    </text>
+                  ))}
+                  <line x1={x(100)} x2={x(100)} y1={PAD} y2={SIZE - PAD} stroke="#8a97b3" strokeOpacity={0.5} strokeDasharray="3 3" />
+                  <line x1={PAD} x2={SIZE - PAD} y1={y(100)} y2={y(100)} stroke="#8a97b3" strokeOpacity={0.5} strokeDasharray="3 3" />
+                  <text x={SIZE - PAD} y={SIZE - 3} textAnchor="end" className="fill-mute" fontSize={9}>
+                    RS-Ratio →
                   </text>
-                ))}
-                {ticks(hy).map((v) => (
-                  <text key={`y${v}`} x={PAD - 4} y={y(v) + 3} textAnchor="end" className="fill-mute" fontSize={9}>
-                    {v}
+                  <text x={10} y={PAD - 10} className="fill-mute" fontSize={9}>
+                    ↑ RS-Momentum
                   </text>
-                ))}
-                <line x1={x(100)} x2={x(100)} y1={PAD} y2={SIZE - PAD} stroke="#8a97b3" strokeOpacity={0.5} strokeDasharray="3 3" />
-                <line x1={PAD} x2={SIZE - PAD} y1={y(100)} y2={y(100)} stroke="#8a97b3" strokeOpacity={0.5} strokeDasharray="3 3" />
-                <text x={SIZE - PAD} y={SIZE - 3} textAnchor="end" className="fill-mute" fontSize={9}>
-                  RS-Ratio →
-                </text>
-                <text x={10} y={PAD - 10} className="fill-mute" fontSize={9}>
-                  ↑ RS-Momentum
-                </text>
-                {/* tails, then heads on top */}
-                {shown.map((r) => {
-                  const dim = focus !== null && focus !== r.sector;
-                  const color = QUADRANT[r.quadrant].color;
-                  const pts = r.points.map((p) => `${x(p.ratio)},${y(p.momentum)}`).join(" ");
-                  return (
-                    <g key={r.sector} opacity={dim ? 0.15 : 1}>
-                      <polyline points={pts} fill="none" stroke={color} strokeOpacity={0.55} strokeWidth={1.5} strokeLinejoin="round" />
-                      {r.points.slice(0, -1).map((p) => (
-                        <circle key={p.day} cx={x(p.ratio)} cy={y(p.momentum)} r={1.8} fill={color} fillOpacity={0.7} />
-                      ))}
-                    </g>
-                  );
-                })}
-                {shown.map((r) => {
-                  const p = r.points.at(-1);
-                  if (!p) return null;
-                  const dim = focus !== null && focus !== r.sector;
-                  const cx = x(p.ratio);
-                  const cy = y(p.momentum);
-                  const lab = labels.get(r.sector);
-                  return (
-                    <g
-                      key={r.sector}
-                      opacity={dim ? 0.2 : 1}
-                      onMouseEnter={() => setFocus(r.sector)}
-                      onMouseLeave={() => setFocus(null)}
-                      data-testid={`rotation-${r.sector}`}
-                      style={{ cursor: "default" }}
-                    >
-                      <circle cx={cx} cy={cy} r={12} fill="transparent" />
-                      <circle cx={cx} cy={cy} r={4.5} fill={QUADRANT[r.quadrant].color} stroke={SURFACE} strokeWidth={2} />
-                      {lab && Math.abs(lab.ly - (cy + 3)) > 2 && (
-                        // the label had to move off its dot: a thin line ties them
-                        <line x1={cx} y1={cy} x2={lab.right ? lab.lx - 1 : lab.lx + 1} y2={lab.ly - 3} stroke="#8a97b3" strokeOpacity={0.6} strokeWidth={0.75} />
-                      )}
-                      {lab && (
-                        <text x={lab.lx} y={lab.ly} textAnchor={lab.right ? "start" : "end"} className="fill-ink" fontSize={10}>
-                          {short(r.sector)}
-                        </text>
-                      )}
-                    </g>
-                  );
-                })}
-              </svg>
-              {active && head && (
-                <div
-                  role="tooltip"
-                  className="pointer-events-none absolute z-10 rounded border border-line bg-panel px-2 py-1 text-[11px] text-ink shadow"
-                  style={{ left: `${(x(head.ratio) / SIZE) * 100}%`, top: `${(y(head.momentum) / SIZE) * 100}%`, transform: "translate(-50%, calc(-100% - 10px))" }}
-                >
-                  <p className="font-semibold">{active.sector}</p>
-                  <p className="text-mute">
-                    {active.index_name} · {QUADRANT[active.quadrant].name}
-                  </p>
-                  <p className="tabular-nums">
-                    RS-Ratio {head.ratio.toFixed(2)} · RS-Momentum {head.momentum.toFixed(2)}
-                  </p>
-                </div>
-              )}
+                  {/* tails, then heads on top */}
+                  {shown.map((r) => {
+                    const dim = focus !== null && focus !== r.sector;
+                    const color = QUADRANT[r.quadrant].color;
+                    const pts = r.points.map((p) => `${x(p.ratio)},${y(p.momentum)}`).join(" ");
+                    return (
+                      <g key={r.sector} opacity={dim ? 0.15 : 1}>
+                        <polyline points={pts} fill="none" stroke={color} strokeOpacity={0.55} strokeWidth={1.5} strokeLinejoin="round" />
+                        {r.points.slice(0, -1).map((p) => (
+                          <circle key={p.day} cx={x(p.ratio)} cy={y(p.momentum)} r={1.8} fill={color} fillOpacity={0.7} />
+                        ))}
+                      </g>
+                    );
+                  })}
+                  {shown.map((r) => {
+                    const p = r.points.at(-1);
+                    if (!p) return null;
+                    const dim = focus !== null && focus !== r.sector;
+                    const cx = x(p.ratio);
+                    const cy = y(p.momentum);
+                    const lab = labels.get(r.sector);
+                    return (
+                      <g
+                        key={r.sector}
+                        opacity={dim ? 0.2 : 1}
+                        onMouseEnter={() => setFocus(r.sector)}
+                        onMouseLeave={() => setFocus(null)}
+                        data-testid={`rotation-${r.sector}`}
+                        style={{ cursor: "default" }}
+                      >
+                        <circle cx={cx} cy={cy} r={12} fill="transparent" />
+                        <circle cx={cx} cy={cy} r={4.5} fill={QUADRANT[r.quadrant].color} stroke={SURFACE} strokeWidth={2} />
+                        {lab && Math.abs(lab.ly - (cy + 3)) > 2 && (
+                          // the label had to move off its dot: a thin line ties them
+                          <line x1={cx} y1={cy} x2={lab.right ? lab.lx - 1 : lab.lx + 1} y2={lab.ly - 3} stroke="#8a97b3" strokeOpacity={0.6} strokeWidth={0.75} />
+                        )}
+                        {lab && (
+                          <text x={lab.lx} y={lab.ly} textAnchor={lab.right ? "start" : "end"} className="fill-ink" fontSize={10}>
+                            {short(r.sector)}
+                          </text>
+                        )}
+                      </g>
+                    );
+                  })}
+                </svg>
+                {active && head && (
+                  <div
+                    role="tooltip"
+                    className="pointer-events-none absolute z-10 rounded border border-line bg-panel px-2 py-1 text-[11px] text-ink shadow"
+                    style={{ left: `${(x(head.ratio) / SIZE) * 100}%`, top: `${(y(head.momentum) / SIZE) * 100}%`, transform: "translate(-50%, calc(-100% - 10px))" }}
+                  >
+                    <p className="font-semibold">{active.sector}</p>
+                    <p className="text-mute">
+                      {active.index_name} · {QUADRANT[active.quadrant].name}
+                    </p>
+                    <p className="tabular-nums">
+                      RS-Ratio {head.ratio.toFixed(2)} · RS-Momentum {head.momentum.toFixed(2)}
+                    </p>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
-          <div className="grid min-w-0 shrink-0 grid-cols-1 gap-x-4 gap-y-2 text-xs sm:grid-cols-2 2xl:grid-cols-4" aria-label="Sectors by quadrant">
+          <div
+            className="grid min-w-0 shrink-0 grid-cols-1 content-start gap-x-4 gap-y-2 text-xs sm:grid-cols-2 lg:min-h-0 lg:grid-cols-1 lg:overflow-hidden lg:border-l lg:border-line lg:pl-3"
+            aria-label="Sectors by quadrant"
+          >
             {LIST_ORDER.map((q) => {
               const rows = shown.filter((r) => r.quadrant === q).sort((a, b) => (b.points.at(-1)?.ratio ?? 0) - (a.points.at(-1)?.ratio ?? 0));
               return (
@@ -253,15 +258,15 @@ export function SectorRotationCard({ rotation }: { rotation: Health["rotation"] 
                         return (
                           <li
                             key={r.sector}
-                            className={`flex justify-between gap-2 rounded px-1 ${focus === r.sector ? "bg-line" : ""}`}
+                            className={`flex justify-between gap-1 rounded px-1 ${focus === r.sector ? "bg-line" : ""}`}
                             onMouseEnter={() => setFocus(r.sector)}
                             onMouseLeave={() => setFocus(null)}
                           >
                             <span className="truncate text-ink" title={`${r.sector} (${r.index_name})`}>
-                              {r.sector}
+                              {short(r.sector)}
                             </span>
-                            <span className="shrink-0 tabular-nums text-mute" title="RS-Ratio / RS-Momentum">
-                              {p ? `${p.ratio.toFixed(1)} / ${p.momentum.toFixed(1)}` : "—"}
+                            <span className="shrink-0 text-[10px] tabular-nums text-mute" title="RS-Ratio / RS-Momentum">
+                              {p ? `${p.ratio.toFixed(1)}/${p.momentum.toFixed(1)}` : "—"}
                             </span>
                           </li>
                         );
@@ -271,7 +276,7 @@ export function SectorRotationCard({ rotation }: { rotation: Health["rotation"] 
                 </section>
               );
             })}
-            <p className="text-[11px] text-mute sm:col-span-2 2xl:col-span-4">
+            <p className="text-[11px] text-mute sm:col-span-2 lg:col-span-1">
               Sectors usually turn clockwise: Improving → Leading → Weakening → Lagging. RS-Ratio: the sector against NIFTY 500 vs its 10-week trend; RS-Momentum: that ratio vs 4
               weeks ago.
               {short_.length > 0 ? ` Shorter tails: ${short_.map((r) => short(r.sector)).join(", ")} (NSE started these indices recently).` : ""} Display only.
