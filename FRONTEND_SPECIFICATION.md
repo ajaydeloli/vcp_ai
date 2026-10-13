@@ -2492,3 +2492,9 @@ The new-high chips leave the Leadership card (its chart gets the full 250 px bac
 To keep the half-width cards in pairs, Sector strength now takes a whole row (its table is wide). Order: score; index trend, breadth; accumulation / distribution, participation; leadership, new highs today; market stage, setups and breakouts; sector strength (full width); sector rotation | feedback loop, setups today.
 
 API: `new_highs[]` gains `close`, `change_pct`, `volume_ratio` (`volume_ratio_50`), `vs_sma50_pct`, `trend_template`, `stage` (`STAGE_1`..`STAGE_4` or `TRANSITION`); all nullable.
+
+### 67.37 Layout: recent activity joins the grid (2026-10-13, owner review)
+
+Market stage moves beside Leadership and New highs today beside Setups and breakouts. Sector strength is half width again, at the top right of the tall Sector rotation card, with Setups today under it (its table fits the half card; only the rows scroll). Recent activity, which was a full-width panel under the market cards, is now a half-width card of the same grid (23rem, rows scroll), with the Feedback loop to its right. Recent activity has its own query, so it shows even while the market data loads or fails, and it keeps its place in the grid so it is not re-mounted when that data arrives.
+
+Order: score; index trend, breadth; accumulation / distribution, participation; leadership, market stage; new highs today, setups and breakouts; sector rotation | sector strength, setups today; recent activity, feedback loop. This replaces the order in §67.35 and §67.36.

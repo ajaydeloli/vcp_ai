@@ -1,6 +1,5 @@
 "use client";
 
-import { ActivityPanel } from "./ActivityPanel";
 import { MarketHealth } from "./MarketHealth";
 import { Nav } from "./Nav";
 import { LiveNotice } from "./Live";
@@ -16,9 +15,8 @@ export function Dashboard() {
         <h1 className="sr-only">Market Overview</h1>
         <LiveNotice />
         <Tiles />
+        {/* the market cards, recent activity among them (beside the feedback loop) */}
         <MarketHealth />
-        {/* paper trading has its own page (/paper); the feedback-loop card keeps its market reading */}
-        <ActivityPanel />
       </main>
       <StatusBar />
     </div>

@@ -35,7 +35,11 @@ describe("dashboard page (market view)", () => {
     // navigation
     const nav = screen.getByRole("navigation", { name: "Main" });
     expect(within(nav).getByRole("link", { name: "Market Overview" })).toHaveAttribute("aria-current", "page");
-    for (const [name, href] of [["Screener", "/screener"], ["Stock Analysis", "/stocks"], ["Watchlist", "/watchlist"]] as const) {
+    for (const [name, href] of [
+      ["Screener", "/screener"],
+      ["Stock Analysis", "/stocks"],
+      ["Watchlist", "/watchlist"],
+    ] as const) {
       expect(within(nav).getByRole("link", { name })).toHaveAttribute("href", href);
     }
     expect(screen.queryByRole("complementary", { name: "Menu" })).not.toBeInTheDocument();
@@ -95,12 +99,24 @@ describe("dashboard page (market view)", () => {
     const names = within(overview)
       .getAllByRole("region")
       .map((r) => r.getAttribute("aria-label") ?? within(r).queryByRole("heading")?.textContent);
-    const colours = within(overview).getAllByRole("region").map((r) => /border-\[(#\w+)\]/.exec(r.className)?.[1]);
+    const colours = within(overview)
+      .getAllByRole("region")
+      .map((r) => /border-\[(#\w+)\]/.exec(r.className)?.[1]);
     expect(new Set(colours).size).toBe(13); // every card has its own border colour
     expect(names).toEqual([
-      "Market health score", "Index trend", "Breadth", "Accumulation / distribution", "Participation", "Leadership",
+      "Market health score",
+      "Index trend",
+      "Breadth",
+      "Accumulation / distribution",
+      "Participation",
+      "Leadership",
+      "Market stage",
       "New highs today",
-      "Market stage", "Setups and breakouts", "Sector strength", "Sector rotation", "Feedback loop", "Setups today",
+      "Setups and breakouts",
+      "Sector rotation",
+      "Sector strength",
+      "Setups today",
+      "Feedback loop", // recent activity (a Card, named by its heading) sits between these two
     ]);
     expect(await within(overview).findByText(/Most setups are/)).toBeInTheDocument();
     expect(within(overview).queryByText("Details")).not.toBeInTheDocument(); // no Details link on any card
@@ -123,8 +139,7 @@ describe("dashboard page (market view)", () => {
     const card = await screen.findByRole("region", { name: "Market stage" });
     expect(await within(card).findByTestId("mini-stage-chart")).toBeInTheDocument();
     const fig = within(await within(card).findByRole("complementary", { name: "Stage figures" }));
-    for (const t of ["Stage 1: base", "Stage 2: uptrend", "Stage 3: top", "Stage 4: downtrend"])
-      expect(fig.getByText(t)).toBeInTheDocument();
+    for (const t of ["Stage 1: base", "Stage 2: uptrend", "Stage 3: top", "Stage 4: downtrend"]) expect(fig.getByText(t)).toBeInTheDocument();
   });
 
   it("recent activity says which stocks joined or left the universe and why", async () => {
@@ -135,14 +150,15 @@ describe("dashboard page (market view)", () => {
     expect(await screen.findByText(/Joined the universe: was out before for price ₹19.8, below the ₹20 minimum/)).toBeInTheDocument();
   });
 
-  it("recent activity has its own colour, the full width and the cards' height; no paper trading panel", async () => {
+  it("recent activity has its own colour, half the width beside the feedback loop and the cards' height; no paper trading panel", async () => {
     mockApi();
     renderApp(<Dashboard />);
+    await screen.findByRole("region", { name: "Feedback loop" }); // the market cards are in
     const act = (await screen.findByText("Recent activity")).closest("section") as HTMLElement;
     expect(act.className).toMatch(/border-\[#a3e635\]/);
-    expect(act.parentElement?.className ?? "").not.toMatch(/grid-cols-2/); // alone in its row
-    for (const card of [act, await screen.findByRole("region", { name: "Setups today" })])
-      expect(card.className).toMatch(/lg:h-\[23rem\]/);
+    expect(act.parentElement?.className ?? "").toMatch(/lg:grid-cols-2/); // a half-width card of the grid
+    expect(act.nextElementSibling).toHaveAttribute("aria-label", "Feedback loop");
+    for (const card of [act, await screen.findByRole("region", { name: "Setups today" })]) expect(card.className).toMatch(/lg:h-\[23rem\]/);
     expect(screen.queryByText("Paper trading")).not.toBeInTheDocument();
   });
 
@@ -174,8 +190,7 @@ describe("dashboard page (market view)", () => {
     const caps = card.getByRole("list", { name: "Caps" });
     expect(caps.closest('[aria-label="Pillars"]')).not.toBeNull();
     expect(caps.className).toMatch(/grid-cols-2/);
-    for (const id of ["index_trend", "breadth", "leadership", "accumulation", "breakouts"])
-      expect(card.getByTestId(`pillar-${id}`)).toBeInTheDocument();
+    for (const id of ["index_trend", "breadth", "leadership", "accumulation", "breakouts"]) expect(card.getByTestId(`pillar-${id}`)).toBeInTheDocument();
     expect(card.getByTestId("pillar-breakouts")).toHaveTextContent("missing");
     expect(card.getByText("Stocks above their 50-day average, %")).toBeInTheDocument();
     expect(await screen.findByTestId("mini-market-health-score-history")).toBeInTheDocument();
@@ -329,7 +344,10 @@ describe("dashboard page (market view)", () => {
     const byColor = Object.fromEntries(band.map((s) => [s.options.color, s.data.map((d) => [d.time, d.value])]));
     expect(byColor).toEqual({
       "#26a69a": [[points[n - 3]!.day, 0]],
-      "#ef5350": [[points[n - 2]!.day, 0], [points[n - 1]!.day, 0]],
+      "#ef5350": [
+        [points[n - 2]!.day, 0],
+        [points[n - 1]!.day, 0],
+      ],
     });
     for (const s of band) {
       expect(s.options.lineVisible).toBe(false);
@@ -342,7 +360,9 @@ describe("dashboard page (market view)", () => {
     mockApi();
     renderApp(<Dashboard />);
     const card = await screen.findByRole("region", { name: "Sector strength" });
-    const rows = within(card).getAllByRole("rowheader").map((r) => r.textContent);
+    const rows = within(card)
+      .getAllByRole("rowheader")
+      .map((r) => r.textContent);
     expect(rows.at(-1)).toBe("Not classified yet");
     expect(rows).toContain("Capital Goods");
     const cap = within(card).getByRole("rowheader", { name: "Capital Goods" }).closest("tr")!;

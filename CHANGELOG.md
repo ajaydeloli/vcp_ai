@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Market Overview layout (FRONTEND_SPECIFICATION §67.37): Market stage and New highs today swapped; Sector strength half width beside Sector rotation, above Setups today; Recent activity half width with the Feedback loop beside it.
+
 - New highs today card (FRONTEND_SPECIFICATION §67.36): one row per stock with close, day change, volume vs 50-day, distance from the 50-day average, RS, Trend Template and stage; the rows scroll. Removed from the Leadership card. Sector strength now spans the full row. API: six new nullable fields on `new_highs[]`.
 
 - Sector rotation card: chart on the left (three quarters of the width), sectors by quadrant down the right quarter at full height (FRONTEND_SPECIFICATION §67.35).

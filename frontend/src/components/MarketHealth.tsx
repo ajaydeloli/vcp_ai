@@ -6,6 +6,7 @@ import { fmtDay, fmtInt, fmtPct, strategyLabel } from "@/lib/fmt";
 import type { MarketHealth as Health } from "@/lib/schemas";
 import { SetupCounts } from "./SetupCounts";
 import { MiniLineChart } from "./MiniLineChart";
+import { ActivityPanel } from "./ActivityPanel";
 import { SetupFlowCard } from "./MarketFlow";
 import { HealthScoreCard } from "./HealthScore";
 import { BreadthCard, IndexTrendCard, LeadershipCard, ParticipationCard, VolumeCard } from "./HealthCards";
@@ -208,39 +209,50 @@ export function MarketHealth() {
   const d = health.data;
   const fb = d?.groups.find((g) => g.id === "feedback");
   const pillar = (id: string) => d?.score?.pillars.find((p) => p.id === id);
+  const ready = d && d.as_of !== null ? d : null;
   return (
     <section className="min-w-0" aria-label="Market health overview">
-      {health.isError ? (
-        <ErrorBox error={health.error} />
-      ) : !d ? (
-        <Loading what="market health" />
-      ) : d.as_of === null ? (
-        <Empty>No market data to read yet.</Empty>
-      ) : (
-        <>
-          <Warnings warnings={d.warnings} />
-          <div className="grid gap-4 lg:grid-cols-2">
-            <HealthScoreCard score={d.score} />
-            <IndexTrendCard pts={d.score_points} pillar={pillar("index_trend")} />
-            <BreadthCard pts={d.score_points} pillar={pillar("breadth")} regime={<StrategyRegime />} />
-            <VolumeCard pts={d.score_points} pillar={pillar("accumulation")} />
-            <ParticipationCard pts={d.score_points} pillar={pillar("breadth")} lastThrust={d.score?.last_thrust} />
-            <LeadershipCard pts={d.score_points} pillar={pillar("leadership")} />
-            <NewHighsCard highs={d.new_highs} box={BOX.highs} />
-            <StageCard stages={d.stages} box={BOX.stage} />
-            <SetupFlowCard flow={d.flow} box={BOX.flow} pillar={pillar("breakouts")} judged={d.score?.judged} />
-            <SectorCard sectors={d.sectors} box={`${BOX.sectors} lg:col-span-2`} reading={pillar("leadership")?.parts.find((x) => x.id === "sectors")} />
-            <SectorRotationCard rotation={d.rotation} />
-            {fb && (
-              <Inner title={fb.title} box={BOX.feedback}>
-                <Feedback d={d} />
-                <Readings group={fb} />
-              </Inner>
-            )}
-            <SetupCounts box={BOX.setups} />
+      {ready ? <Warnings warnings={ready.warnings} /> : null}
+      {/* one grid always, recent activity in a fixed place in it: it has its own query, shows
+          even when the market data does not, and is not re-mounted when that data arrives */}
+      <div className="grid gap-4 lg:grid-cols-2">
+        {health.isError ? (
+          <div className="lg:col-span-2">
+            <ErrorBox error={health.error} />
           </div>
-        </>
-      )}
+        ) : !d ? (
+          <div className="lg:col-span-2">
+            <Loading what="market health" />
+          </div>
+        ) : d.as_of === null ? (
+          <div className="lg:col-span-2">
+            <Empty>No market data to read yet.</Empty>
+          </div>
+        ) : null}
+        {ready ? (
+          <>
+            <HealthScoreCard score={ready.score} />
+            <IndexTrendCard pts={ready.score_points} pillar={pillar("index_trend")} />
+            <BreadthCard pts={ready.score_points} pillar={pillar("breadth")} regime={<StrategyRegime />} />
+            <VolumeCard pts={ready.score_points} pillar={pillar("accumulation")} />
+            <ParticipationCard pts={ready.score_points} pillar={pillar("breadth")} lastThrust={ready.score?.last_thrust} />
+            <LeadershipCard pts={ready.score_points} pillar={pillar("leadership")} />
+            <StageCard stages={ready.stages} box={BOX.stage} />
+            <NewHighsCard highs={ready.new_highs} box={BOX.highs} />
+            <SetupFlowCard flow={ready.flow} box={BOX.flow} pillar={pillar("breakouts")} judged={ready.score?.judged} />
+            <SectorRotationCard rotation={ready.rotation} />
+            <SectorCard sectors={ready.sectors} box={BOX.sectors} reading={pillar("leadership")?.parts.find((x) => x.id === "sectors")} />
+            <SetupCounts box={BOX.setups} />
+          </>
+        ) : null}
+        <ActivityPanel />
+        {ready && fb ? (
+          <Inner title={fb.title} box={BOX.feedback}>
+            <Feedback d={ready} />
+            <Readings group={fb} />
+          </Inner>
+        ) : null}
+      </div>
     </section>
   );
 }
