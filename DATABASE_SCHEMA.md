@@ -3041,7 +3041,7 @@ Quarterly shareholding pattern from NSE filings (FUNDAMENTALS_SPECIFICATION §15
 | `revision_number` | 0 = the first filing of the stock and `as_on` date, in broadcast order |
 | `url`, `sha256`, `cache_path`, `fetched_at` | the file |
 | `listed_promoter_pct`, `listed_public_pct` | NSE's listing values, used to cross-check the parse |
-| `status`, `error` | `OK`, `FETCH_ERROR` (retried next run) or `PARSE_ERROR` |
+| `status`, `error` | `OK`, `FETCH_ERROR` (retried next run), `PARSE_ERROR`, `MISMATCH` (contradicts NSE's listing; never shown) or `NO_FILE` (NSE lists no XBRL file or its archive answers 404; never fetched again) |
 
 `shareholding_snapshots`: one row per filing that parsed, keyed by `filing_id`. `available_at` = `broadcast_at`; the view of a stock on day D is, per `as_on`, the row with the greatest `available_at` <= D. Percentages are of the company's shares except `promoter_pledged_pct` (of the promoter group's shares; NULL when the filing says nothing). Columns: `layout` (NEW / SPLIT / OLD), `promoter_pct`, `promoter_pledged_pct`, `fii_pct` (FPI categories I and II), `fdi_pct` (NULL in the OLD layout), `dii_pct`, `mf_pct`, `insurance_pct`, `government_pct`, `non_institutions_pct`, `public_pct`, `other_pct` (neither promoter nor public), `shareholders`.
 

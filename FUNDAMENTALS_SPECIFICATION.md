@@ -235,6 +235,7 @@ Added 2026-10-10 at the owner's request. Same rules as the rest of this spec: NS
 - **Companies without a promoter group** (most banks, ITC, L&T, many new listings such as Swiggy or Paytm) file no promoter line at all: promoter is 0 %, not unreadable (232 of the first run's 241 parse errors, 42 stocks).
 - **Some total lines are wrong** (BSE 2022: 11.68 %) while the parts add up (0 + 73.85 + 26.14). Units and validity are judged from the parts (promoter + public + neither), not from the total line.
 - **Some XBRL files contradict NSE's own listing** (AYMSYNTEX June 2023: promoter 0 % in the file, 73.95 % listed; IMAGICAA, ORISSAMINE, PVRINOX similar). The file adds up, so the parser cannot tell; the pipeline compares the parsed promoter % with the listing: more than 1 point apart, the filing is stored as `MISMATCH` and never shown; up to 1 point (rounding, a revision) it is kept and counted.
+- **Some filings have no file at NSE** (78 of the backfill, 72 stocks): the listing gives no XBRL link (`.../xbrl/-`, 38) or the archive answers 404 (40). Stored as `NO_FILE`, never fetched again and not counted as download failures (they do not stop a run); the quarter is N/A.
 
 Downloads from the archive give up after 45 s (20 s per wait) and start a fresh connection after a failure; 25 failures in a row stop the run cleanly (the rest is left for the next run). The first backfill stalled for 13 minutes on one connection under the results client's 180 s limit. `vcp shareholding reparse` re-reads every cached file after a parser change (no network).
 

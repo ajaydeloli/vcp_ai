@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Shareholding: a filing NSE has no file for (no XBRL link, or 404 from the archive) is stored as `NO_FILE` instead of `FETCH_ERROR`: never fetched again, not counted toward the 25-failures stop, shown in `vcp shareholding status` and the run summary ("no file at NSE"). The 78 such filings of the backfill were relabelled (FUNDAMENTALS_SPECIFICATION §15).
+
 - F8 shareholding on the dashboard (FUNDAMENTALS_SPECIFICATION §15 "As built", FRONTEND_SPECIFICATION §67.40), display only: the latest split with 1Q and 4Q changes and a rising-pledge flag on the stock's Fundamentals card; a Shareholding pattern card (eight quarter ends) on Stock Analysis; Screener columns promoter %, FII and DII change, pledge %, with min promoter % and max pledge % filters. Point in time (broadcast by the close, quarter ends only, latest revision); a missing quarter is N/A; no pledge change across the June 2025 layout switch. API: `shareholding`, `shareholding_quarters` on `/stocks/{symbol}/fundamentals`; new Screener fields, sorts and filters.
 
 - F8 backfill fixes (FUNDAMENTALS_SPECIFICATION §15): companies without a promoter group read as 0 % promoter; units and validity judged from the parts, not a wrong total line; a file contradicting NSE's listing by more than 1 point is stored as `MISMATCH` and never shown; archive downloads time out after 45 s, reconnect after a failure and stop after 25 failures in a row; `vcp shareholding reparse` re-reads cached files.

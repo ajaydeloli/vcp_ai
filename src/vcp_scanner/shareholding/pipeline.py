@@ -16,6 +16,7 @@ from pathlib import Path
 from typing import Any, Protocol
 
 from vcp_scanner.data.providers.nse_shareholding import ShpRef
+from vcp_scanner.fundamentals.base import FileMissingError
 from vcp_scanner.shareholding.parser import ShareholdingParseError, parse_shareholding
 
 WINDOW_DAYS = 31
@@ -28,6 +29,16 @@ MISMATCH_POINTS = 1.0
 #: Downloads that fail in a row before a run stops (NSE refusing): the rest is left for the
 #: next run, the files already fetched are recorded.
 MAX_FAILURES_IN_A_ROW = 25
+#: NSE has no file for the filing: its listing gives no XBRL link ("-") or the archive answers
+#: 404. Permanent, so stored as NO_FILE and never fetched again (78 such filings in the
+#: 2022-2026 backfill). Such a quarter is N/A on the dashboard.
+NO_FILE = "NO_FILE"
+NO_LINK_ERROR = "NSE lists no XBRL file for this filing"
+
+
+def no_link(url: str) -> bool:
+    """NSE's listing names no file: the link ends in "-" (or is missing)."""
+    return url.rstrip().endswith("/-") or url.rstrip().endswith("/")
 
 
 class Provider(Protocol):
@@ -105,6 +116,7 @@ class Downloaded:
     path: Path | None
     sha256: str | None
     error: str | None
+    missing: bool = False  # NSE has no file (no link or 404): NO_FILE, not retried
 
 
 def download(
@@ -119,6 +131,9 @@ def download(
                      f" {len(targets) - k + 1} are left for the next run")  # fmt: skip
             break
         path = cache_path(root, ref)
+        if no_link(ref.url):
+            out.append(Downloaded(ref, iid, None, None, NO_LINK_ERROR, missing=True))
+            continue
         try:
             if path.is_file() and path.stat().st_size > 0:
                 data = path.read_bytes()
@@ -130,6 +145,9 @@ def download(
                 tmp.replace(path)
             out.append(Downloaded(ref, iid, path, hashlib.sha256(data).hexdigest(), None))
             failures = 0
+        except FileMissingError as exc:  # an answer, not a refusal: not a failure in a row
+            error = f"{type(exc).__name__}: {exc}"
+            out.append(Downloaded(ref, iid, None, None, error, missing=True))
         except Exception as exc:  # noqa: BLE001 - recorded as FETCH_ERROR, retried next run
             out.append(Downloaded(ref, iid, None, None, f"{type(exc).__name__}: {exc}"))
             failures += 1
@@ -182,10 +200,10 @@ def scope(conn: Conn, since: date) -> dict[str, str]:
 
 
 def stored_ok(conn: Conn) -> set[str]:
-    """Filings that need no new download (a FETCH_ERROR is tried again)."""
+    """Filings that need no new download (a FETCH_ERROR is tried again, a NO_FILE is not)."""
     return {str(r[0]) for r in conn.execute(
         "SELECT filing_id FROM shareholding_filings"
-        " WHERE status IN ('OK', 'PARSE_ERROR', 'MISMATCH')"
+        " WHERE status IN ('OK', 'PARSE_ERROR', 'MISMATCH', 'NO_FILE')"
     ).fetchall()}  # fmt: skip
 
 
@@ -199,12 +217,31 @@ def complete_through(conn: Conn) -> date | None:
     return row[0] if row and row[0] else None
 
 
+def mark_no_file(conn: Conn) -> int:
+    """Re-label FETCH_ERRORs that were NSE answering "no such file" (stored before NO_FILE
+    existed) so they are not fetched again. Returns how many."""
+    where = (
+        " WHERE status = 'FETCH_ERROR' AND (error LIKE 'FileMissingError%'"
+        " OR rtrim(url) LIKE '%/-' OR rtrim(url) LIKE '%/')"
+    )
+    row = conn.execute("SELECT count(*) FROM shareholding_filings" + where).fetchone()
+    n = int(row[0]) if row else 0
+    if n:
+        conn.execute(
+            f"UPDATE shareholding_filings SET status = '{NO_FILE}',"
+            f" error = CASE WHEN rtrim(url) LIKE '%/-' OR rtrim(url) LIKE '%/'"
+            f" THEN '{NO_LINK_ERROR}' ELSE error END" + where
+        )
+    return n
+
+
 @dataclass
 class Recorded:
     new: int = 0
     parsed: int = 0
     parse_errors: int = 0
     fetch_errors: int = 0
+    no_file: int = 0  # NSE has no file: stored as NO_FILE
     listing_mismatches: int = 0  # set aside: the file contradicts NSE's listing
     listing_rounding: int = 0  # small differences kept
     messages: list[str] = field(default_factory=list)
@@ -215,11 +252,15 @@ def record(conn: Conn, downloads: Sequence[Downloaded], now: datetime | None = N
     replaces its rows (a FETCH_ERROR retried later)."""
     now = now or datetime.now(UTC)
     out = Recorded()
+    mark_no_file(conn)
     for d in downloads:
         r = d.ref
         values = None
         status, error = "OK", None
-        if d.error:
+        if d.missing:
+            status, error = NO_FILE, d.error
+            out.no_file += 1
+        elif d.error:
             status, error = "FETCH_ERROR", d.error
             out.fetch_errors += 1
         else:
@@ -297,7 +338,7 @@ def stored_downloads(conn: Conn, root: Path) -> list[Downloaded]:
     rows = conn.execute(
         "SELECT filing_id, instrument_id, symbol, as_on, broadcast_at, revised, url,"
         " listed_promoter_pct, listed_public_pct, sha256 FROM shareholding_filings"
-        " WHERE status <> 'FETCH_ERROR' ORDER BY broadcast_at, filing_id"
+        " WHERE status NOT IN ('FETCH_ERROR', 'NO_FILE') ORDER BY broadcast_at, filing_id"
     ).fetchall()
     out: list[Downloaded] = []
     for fid, iid, sym, as_on, when, revised, url, lp, lpub, sha in rows:

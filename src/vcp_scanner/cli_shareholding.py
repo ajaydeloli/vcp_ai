@@ -247,7 +247,8 @@ def _summary(rec, complete_through: object = "-") -> None:  # type: ignore[no-un
     _say(
         f"recorded {rec.new} filings: parsed {rec.parsed}, parse errors {rec.parse_errors}"
         f" ({rate:.1%}), set aside (contradict NSE's listing) {rec.listing_mismatches},"
-        f" rounding differences kept {rec.listing_rounding}, fetch errors {rec.fetch_errors};"
+        f" rounding differences kept {rec.listing_rounding}, no file at NSE {rec.no_file},"
+        f" fetch errors {rec.fetch_errors};"
         f" listed completely through {complete_through}"
     )
 

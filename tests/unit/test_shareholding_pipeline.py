@@ -15,6 +15,7 @@ from tests.api.fixture import put
 from vcp_scanner.data.providers._time import IST
 from vcp_scanner.data.providers.nse_shareholding import ShpRef, parse_listing
 from vcp_scanner.data.storage.duckdb_store import DuckDBStore
+from vcp_scanner.fundamentals.base import FileMissingError
 from vcp_scanner.shareholding import pipeline as pl
 from vcp_scanner.shareholding.config import ShareholdingConfig, load_shareholding_config
 
@@ -39,6 +40,7 @@ class FakeNse:
     def __init__(self, refs: list[ShpRef], files: dict[str, bytes]) -> None:
         self.refs, self.files, self.downloads = refs, files, 0
         self.fail: set[str] = set()
+        self.missing: set[str] = set()
 
     def list_range(self, start: date, end: date) -> list[ShpRef]:
         return [r for r in self.refs if start <= r.broadcast_at.date() <= end]
@@ -50,6 +52,8 @@ class FakeNse:
         self.downloads += 1
         if url in self.fail:
             raise RuntimeError("HTTP 403")
+        if url in self.missing:
+            raise FileMissingError(f"NSE request failed (HTTP 404): {url}")
         return self.files[url]
 
 
@@ -211,3 +215,39 @@ def test_downloads_stop_after_many_failures_in_a_row(tmp_path: Path) -> None:
     nse.fail = {r.url for r in refs}
     got = pl.download(nse, [(r, "x") for r in refs], tmp_path)
     assert len(got) == pl.MAX_FAILURES_IN_A_ROW and all(d.error for d in got)
+
+
+def test_no_file_at_nse_is_stored_once_and_never_fetched_again(conn: Any, tmp_path: Path) -> None:
+    gone = ref("40", "RELIANCE", date(2026, 6, 30), T0)
+    no_link = ref("41", "JSWSTEEL", date(2026, 6, 30), T0, url="https://archive.example/-")
+    nse = FakeNse([gone, no_link], {})
+    nse.missing.add(gone.url)
+    rec = run(conn, nse, tmp_path, date(2026, 7, 1), date(2026, 7, 31))
+    assert rec.no_file == 2 and rec.fetch_errors == 0 and nse.downloads == 1  # no call for "-"
+    rows = conn.execute("SELECT status FROM shareholding_filings ORDER BY filing_id").fetchall()
+    assert rows == [("NO_FILE",), ("NO_FILE",)]
+    assert run(conn, nse, tmp_path, date(2026, 7, 1), date(2026, 7, 31)).new == 0
+    assert nse.downloads == 1  # not selected again
+
+
+def test_missing_files_do_not_stop_the_run(tmp_path: Path) -> None:
+    refs = [ref(str(k), "RELIANCE", date(2026, 6, 30), T0) for k in range(60)]
+    nse = FakeNse(refs, {})
+    nse.missing = {r.url for r in refs}
+    got = pl.download(nse, [(r, "x") for r in refs], tmp_path)
+    assert len(got) == 60 and all(d.missing for d in got)
+
+
+def test_old_fetch_errors_for_missing_files_are_relabelled(conn: Any, tmp_path: Path) -> None:
+    r404 = ref("50", "RELIANCE", date(2026, 6, 30), T0)
+    real = ref("51", "JSWSTEEL", date(2026, 6, 30), T0)
+    nse = FakeNse([r404, real], {})
+    nse.fail = {r404.url, real.url}
+    run(conn, nse, tmp_path, date(2026, 7, 1), date(2026, 7, 31))
+    conn.execute(
+        "UPDATE shareholding_filings SET error = 'FileMissingError: NSE request failed (HTTP 404)'"
+        " WHERE filing_id = 'NSE_SHP:50'"
+    )  # as the 2026-10-14 backfill stored it
+    assert pl.mark_no_file(conn) == 1
+    rows = conn.execute("SELECT filing_id, status FROM shareholding_filings ORDER BY 1").fetchall()
+    assert rows == [("NSE_SHP:50", "NO_FILE"), ("NSE_SHP:51", "FETCH_ERROR")]
