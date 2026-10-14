@@ -585,6 +585,7 @@ done
 |---|---|
 | `vcp shareholding update [--days N]` | List, download and parse the filings of the last days (the evening run does this). |
 | `vcp shareholding backfill [--limit N] [--resume]` | Every filing since `history_from` in `config/shareholding.yaml`; about 7 hours at one file a second; `--resume` continues from the saved list without listing again. |
+| `vcp shareholding reparse` | Read every downloaded file again (after a parser fix); no network. |
 | `vcp shareholding status` | What is stored: filings by status, layouts, the last run. |
 | `vcp shareholding show SYMBOL [--quarters N]` | One stock's promoter, pledge, FII, DII, MF and public % by quarter. |
 

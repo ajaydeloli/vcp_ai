@@ -103,14 +103,24 @@ def parse_shareholding(data: bytes) -> Shareholding:
     total = pct("shareholdingpattern")
     promoter = pct(_PROMOTER)
     public = pct("publicshareholding")
-    if total is None or promoter is None or public is None:
+    npnp = "sharesheldbynonpromoternonpublicshareholders"
+    if public is None:
         raise ShareholdingParseError("no promoter, public or total shareholding line")
-    if abs(total - 1.0) < 0.02:
-        scale = 100.0  # fractions
-    elif abs(total - 100.0) < 2.0:
+    if promoter is None:
+        # companies without a promoter group (most banks, ITC, L&T, many new listings) file
+        # no promoter line at all: their promoter holding is 0, not unknown
+        promoter = 0.0
+    # Units: fractions (new layout) or percent (older ones). Read from the parts, which must
+    # add up, rather than from the total line, which some filers get wrong (BSE 2022: 11.68).
+    parts = promoter + public + (pct(npnp) or 0.0)
+    if abs(parts - 1.0) < 0.02 or (total is not None and abs(total - 1.0) < 0.02 and parts < 1.5):
+        scale = 100.0
+    elif abs(parts - 100.0) < 2.0 or (total is not None and abs(total - 100.0) < 2.0):
         scale = 1.0
     else:
-        raise ShareholdingParseError(f"total shareholding is {total}, not 100 %")
+        raise ShareholdingParseError(
+            f"promoter {promoter} + public {public} is neither 100 % nor 1 (total {total})"
+        )
 
     def p(key: str) -> float:
         v = pct(key)
@@ -122,7 +132,6 @@ def parse_shareholding(data: bytes) -> Shareholding:
     # them (promoter + public + these = 100, e.g. JSWSTEEL). "other" is what is left to 100 %,
     # allowed beyond rounding only when the filing has such holders.
     other_pct = max(0.0, 100.0 - promoter_pct - public_pct)
-    npnp = "sharesheldbynonpromoternonpublicshareholders"
     has_npnp = bool(_num(facts.get(("numberofshares", npnp)))) or bool(pct(npnp))
     if promoter_pct + public_pct > 100.0 + TOTAL_TOLERANCE or (
         other_pct > TOTAL_TOLERANCE and not has_npnp

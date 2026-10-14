@@ -21,6 +21,13 @@ from vcp_scanner.shareholding.parser import ShareholdingParseError, parse_shareh
 WINDOW_DAYS = 31
 OVERLAP_DAYS = 3  # an update re-lists a few days before the last complete day
 LISTING_TOLERANCE = 0.05  # parsed promoter % may differ from NSE's listing by rounding only
+#: A file whose promoter % is further than this from NSE's own listing contradicts NSE: the
+#: filer's XBRL is wrong (AYMSYNTEX June 2023: 0 % in the file, 73.95 % listed). Stored as
+#: MISMATCH, never shown. Differences up to it are rounding or a revision and are kept.
+MISMATCH_POINTS = 1.0
+#: Downloads that fail in a row before a run stops (NSE refusing): the rest is left for the
+#: next run, the files already fetched are recorded.
+MAX_FAILURES_IN_A_ROW = 25
 
 
 class Provider(Protocol):
@@ -105,7 +112,12 @@ def download(
     progress: Callable[[str], None] = lambda _m: None, every: int = 200,
 ) -> list[Downloaded]:  # fmt: skip
     out: list[Downloaded] = []
+    failures = 0
     for k, (ref, iid) in enumerate(targets, 1):
+        if failures >= MAX_FAILURES_IN_A_ROW:
+            progress(f"stopped after {failures} failed downloads in a row; the remaining"
+                     f" {len(targets) - k + 1} are left for the next run")  # fmt: skip
+            break
         path = cache_path(root, ref)
         try:
             if path.is_file() and path.stat().st_size > 0:
@@ -117,8 +129,13 @@ def download(
                 tmp.write_bytes(data)
                 tmp.replace(path)
             out.append(Downloaded(ref, iid, path, hashlib.sha256(data).hexdigest(), None))
+            failures = 0
         except Exception as exc:  # noqa: BLE001 - recorded as FETCH_ERROR, retried next run
             out.append(Downloaded(ref, iid, None, None, f"{type(exc).__name__}: {exc}"))
+            failures += 1
+            reset = getattr(provider, "reset", None)
+            if callable(reset):
+                reset()  # a fresh connection: a stalled one hung the 2026-10-14 backfill
         if k % every == 0:
             progress(f"downloaded {k}/{len(targets)}")
     return out
@@ -165,8 +182,10 @@ def scope(conn: Conn, since: date) -> dict[str, str]:
 
 
 def stored_ok(conn: Conn) -> set[str]:
+    """Filings that need no new download (a FETCH_ERROR is tried again)."""
     return {str(r[0]) for r in conn.execute(
-        "SELECT filing_id FROM shareholding_filings WHERE status IN ('OK', 'PARSE_ERROR')"
+        "SELECT filing_id FROM shareholding_filings"
+        " WHERE status IN ('OK', 'PARSE_ERROR', 'MISMATCH')"
     ).fetchall()}  # fmt: skip
 
 
@@ -186,7 +205,8 @@ class Recorded:
     parsed: int = 0
     parse_errors: int = 0
     fetch_errors: int = 0
-    listing_mismatches: int = 0
+    listing_mismatches: int = 0  # set aside: the file contradicts NSE's listing
+    listing_rounding: int = 0  # small differences kept
     messages: list[str] = field(default_factory=list)
 
 
@@ -210,6 +230,17 @@ def record(conn: Conn, downloads: Sequence[Downloaded], now: datetime | None = N
                 status, error = "PARSE_ERROR", str(exc)
                 out.parse_errors += 1
                 out.messages.append(f"{r.symbol} {r.as_on}: {exc}")
+        if values is not None and r.promoter_pct is not None:
+            gap = abs(values.promoter_pct - r.promoter_pct)
+            if gap > MISMATCH_POINTS:
+                status = "MISMATCH"
+                error = (f"promoter {values.promoter_pct:.2f} % in the file,"
+                         f" {r.promoter_pct:.2f} % in NSE's listing")  # fmt: skip
+                out.listing_mismatches += 1
+                out.messages.append(f"{r.symbol} {r.as_on}: {error} (set aside)")
+                values = None
+            elif gap > LISTING_TOLERANCE:
+                out.listing_rounding += 1
         conn.execute("DELETE FROM shareholding_snapshots WHERE filing_id = ?", [r.filing_id])
         conn.execute("DELETE FROM shareholding_filings WHERE filing_id = ?", [r.filing_id])
         conn.execute(
@@ -223,13 +254,6 @@ def record(conn: Conn, downloads: Sequence[Downloaded], now: datetime | None = N
         if values is None:
             continue
         out.parsed += 1
-        if (
-            r.promoter_pct is not None
-            and abs(values.promoter_pct - r.promoter_pct) > LISTING_TOLERANCE
-        ):
-            out.listing_mismatches += 1
-            out.messages.append(f"{r.symbol} {r.as_on}: promoter {values.promoter_pct:.2f} % in the"
-                                f" file, {r.promoter_pct:.2f} % in NSE's listing")  # fmt: skip
         conn.execute(
             "INSERT INTO shareholding_snapshots VALUES"
             " (?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
@@ -266,3 +290,21 @@ def update_start(today: date, through: date | None, first_days: int, oldest: dat
     if through is None:
         return max(oldest, today - timedelta(days=first_days))
     return max(oldest, through - timedelta(days=OVERLAP_DAYS))
+
+
+def stored_downloads(conn: Conn, root: Path) -> list[Downloaded]:
+    """Every filing whose file is in the cache, as it was listed (for ``reparse``)."""
+    rows = conn.execute(
+        "SELECT filing_id, instrument_id, symbol, as_on, broadcast_at, revised, url,"
+        " listed_promoter_pct, listed_public_pct, sha256 FROM shareholding_filings"
+        " WHERE status <> 'FETCH_ERROR' ORDER BY broadcast_at, filing_id"
+    ).fetchall()
+    out: list[Downloaded] = []
+    for fid, iid, sym, as_on, when, revised, url, lp, lpub, sha in rows:
+        ref = ShpRef(record_id=str(fid).split(":", 1)[1], symbol=str(sym), as_on=as_on,
+                     broadcast_at=when, revised=bool(revised), new_layout=None, url=str(url),
+                     promoter_pct=lp, public_pct=lpub)  # fmt: skip
+        path = cache_path(root, ref)
+        if path.is_file():
+            out.append(Downloaded(ref, str(iid), path, sha, None))
+    return out

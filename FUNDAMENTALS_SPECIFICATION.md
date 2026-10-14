@@ -230,6 +230,14 @@ Added 2026-10-10 at the owner's request. Same rules as the rest of this spec: NS
 - **Definitions used:** FII = foreign portfolio investors (FPI categories I and II); foreign direct investment (a parent's strategic stake, e.g. JFE Steel's 15 % of JSW Steel) is a separate item, never FII. Pledge = % of the promoter group's own shares (JSW Steel June 2026: 125,650,440 of 1,083,203,750 = 11.6 %).
 - **Totals:** filers differ on shares held by employee trusts (neither promoter nor public): RELIANCE leaves them out of the base (promoter + public = 100), JSW Steel counts them (promoter + public = 99.81, the trust 0.19). The parser accepts both and records the remainder as `other_pct`. On the four saved filings (one per layout plus a pledge) every category adds up to the public total exactly.
 
+**Backfill findings (2026-10-14).** 22,645 filings of 1,378 stocks since June 2022. Three lessons, all now handled:
+
+- **Companies without a promoter group** (most banks, ITC, L&T, many new listings such as Swiggy or Paytm) file no promoter line at all: promoter is 0 %, not unreadable (232 of the first run's 241 parse errors, 42 stocks).
+- **Some total lines are wrong** (BSE 2022: 11.68 %) while the parts add up (0 + 73.85 + 26.14). Units and validity are judged from the parts (promoter + public + neither), not from the total line.
+- **Some XBRL files contradict NSE's own listing** (AYMSYNTEX June 2023: promoter 0 % in the file, 73.95 % listed; IMAGICAA, ORISSAMINE, PVRINOX similar). The file adds up, so the parser cannot tell; the pipeline compares the parsed promoter % with the listing: more than 1 point apart, the filing is stored as `MISMATCH` and never shown; up to 1 point (rounding, a revision) it is kept and counted.
+
+Downloads from the archive give up after 45 s (20 s per wait) and start a fresh connection after a failure; 25 failures in a row stop the run cleanly (the rest is left for the next run). The first backfill stalled for 13 minutes on one connection under the results client's 180 s limit. `vcp shareholding reparse` re-reads every cached file after a parser change (no network).
+
 **What is stored** (per stock and quarter end; `available_at` = broadcast time, as §7):
 
 | Item | Meaning |

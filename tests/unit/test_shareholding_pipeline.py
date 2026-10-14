@@ -110,11 +110,22 @@ def test_select_keeps_our_recent_unseen_filings_once() -> None:
 def test_record_parses_numbers_revisions_and_listing_check(conn: Any, tmp_path: Path) -> None:
     first = ref("10", "RELIANCE", date(2026, 6, 30), T0, promoter_pct=50.48)
     revised = ref("11", "RELIANCE", date(2026, 6, 30), T0 + timedelta(days=3), revised=True)
-    jsw = ref("12", "JSWSTEEL", date(2026, 6, 30), T0, promoter_pct=40.0)  # listing disagrees
-    files = {first.url: RELIANCE_NEW, revised.url: RELIANCE_NEW, jsw.url: JSW_NEW}
-    nse = FakeNse([first, revised, jsw], files)
+    jsw = ref("12", "JSWSTEEL", date(2026, 6, 30), T0, promoter_pct=44.2)  # rounding: kept
+    # a file that contradicts NSE's own listing by more than a point is set aside, not shown
+    bad = ref("13", "JSWSTEEL", date(2026, 3, 31), T0, promoter_pct=40.0)
+    files = {first.url: RELIANCE_NEW, revised.url: RELIANCE_NEW, jsw.url: JSW_NEW,
+             bad.url: JSW_NEW}  # fmt: skip
+    nse = FakeNse([first, revised, jsw, bad], files)
     rec = run(conn, nse, tmp_path, date(2026, 7, 1), date(2026, 7, 31))
-    assert (rec.new, rec.parsed, rec.parse_errors, rec.listing_mismatches) == (3, 3, 0, 1)
+    assert (rec.new, rec.parsed, rec.parse_errors) == (4, 3, 0)
+    assert (rec.listing_mismatches, rec.listing_rounding) == (1, 1)
+    status = conn.execute(
+        "SELECT status FROM shareholding_filings WHERE filing_id = 'NSE_SHP:13'"
+    ).fetchone()
+    assert status == ("MISMATCH",)
+    assert conn.execute(
+        "SELECT count(*) FROM shareholding_snapshots WHERE filing_id = 'NSE_SHP:13'"
+    ).fetchone() == (0,)
     rows = conn.execute(
         "SELECT filing_id, revision_number, is_quarter_end FROM shareholding_filings"
         " WHERE instrument_id = 'NSE_EQ|RELIANCE' ORDER BY 1"
@@ -180,3 +191,23 @@ def test_config_file_and_its_limits(tmp_path: Path) -> None:
     (tmp_path / "shareholding.yaml").write_text("histroy_from: 2022-01-01\n")
     with pytest.raises(ConfigError, match="unknown keys"):
         load_shareholding_config(tmp_path)
+
+
+def test_reparse_reads_the_cache_again_without_downloading(conn: Any, tmp_path: Path) -> None:
+    r = ref("50", "RELIANCE", date(2026, 6, 30), T0, promoter_pct=50.48)
+    nse = FakeNse([r], {r.url: RELIANCE_NEW})
+    run(conn, nse, tmp_path, date(2026, 7, 1), date(2026, 7, 31))
+    conn.execute("UPDATE shareholding_filings SET status = 'PARSE_ERROR'")  # as before a fix
+    conn.execute("DELETE FROM shareholding_snapshots")
+    before = nse.downloads
+    rec = pl.record(conn, pl.stored_downloads(conn, tmp_path))
+    assert (rec.parsed, nse.downloads) == (1, before)
+    assert conn.execute("SELECT status FROM shareholding_filings").fetchall() == [("OK",)]
+
+
+def test_downloads_stop_after_many_failures_in_a_row(tmp_path: Path) -> None:
+    refs = [ref(str(k), "RELIANCE", date(2026, 6, 30), T0) for k in range(60)]
+    nse = FakeNse(refs, {})
+    nse.fail = {r.url for r in refs}
+    got = pl.download(nse, [(r, "x") for r in refs], tmp_path)
+    assert len(got) == pl.MAX_FAILURES_IN_A_ROW and all(d.error for d in got)

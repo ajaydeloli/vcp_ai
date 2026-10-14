@@ -85,7 +85,18 @@ class NseShareholdingProvider:
     def __init__(self, *, site_interval_seconds: float = 2.0,
                  archive_interval_seconds: float = 1.0) -> None:  # fmt: skip
         self._site = NseFilingProvider(interval_seconds=site_interval_seconds)
-        self._archive = NseFilingProvider(interval_seconds=archive_interval_seconds)
+        self._archive_interval = archive_interval_seconds
+        self._archive = self._new_archive()
+
+    def _new_archive(self) -> NseFilingProvider:
+        # A file is ~0.5 MB: 20 s per wait and 45 s in all are plenty. The results client's
+        # 180 s limit, four tries each, let one stalled connection hold a run for 13 minutes.
+        return NseFilingProvider(interval_seconds=self._archive_interval, timeout=20.0,
+                                 total_timeout=45.0)  # fmt: skip
+
+    def reset(self) -> None:
+        """Drop the archive connection (after a failure) and start a fresh one."""
+        self._archive = self._new_archive()
 
     def _list(self, params: dict[str, str]) -> list[ShpRef]:
         response = self._site._get(LIST_URL, {"index": "equities", **params})

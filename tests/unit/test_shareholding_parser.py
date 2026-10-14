@@ -97,3 +97,24 @@ def test_a_filing_that_does_not_add_up_is_refused() -> None:
     assert data != original
     with pytest.raises(ShareholdingParseError, match="is not 100"):
         parse_shareholding(data)
+
+
+def test_a_company_without_a_promoter_group_has_0_promoter() -> None:
+    """HDFC Bank files no promoter line at all (no promoter group): 0 %, not unreadable."""
+    s = parse_shareholding(load("hdfcbank_2026q1fy27_nopromoter"))
+    assert s.promoter_pct == 0.0 and s.public_pct + s.other_pct == pytest.approx(100.0, abs=0.05)
+    assert s.fii_pct > 20 and s.dii_pct > 20
+
+
+def test_a_wrong_total_line_does_not_spoil_a_filing_whose_parts_add_up() -> None:
+    """BSE June 2022 files a total of 11.68 %; its parts (0 + 73.85 + 26.14) make 100."""
+    s = parse_shareholding(load("bse_2022q1fy23_badtotal"))
+    assert s.promoter_pct == 0.0 and s.public_pct == pytest.approx(73.85)
+    assert s.other_pct == pytest.approx(26.15, abs=0.02)
+
+
+def test_a_file_can_contradict_nse_and_still_add_up() -> None:
+    """AYMSYNTEX June 2023: the file says promoter 0 %, public 100 %; NSE lists 73.95 %. The
+    parser reads the file faithfully; the pipeline sets it aside against NSE's listing."""
+    s = parse_shareholding(load("aymsyntex_2023q1fy24_contradicts_listing"))
+    assert s.promoter_pct == 0.0 and s.public_pct == pytest.approx(100.0)

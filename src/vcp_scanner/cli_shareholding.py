@@ -29,6 +29,8 @@ def add_shareholding_parser(subparsers: argparse._SubParsersAction) -> None:  # 
             action="store_true",
             help="backfill: the saved target list of the last backfill (no listing)",
         )
+    rp = sub.add_parser("reparse", help="Read every stored file again (after a parser fix)")
+    rp.add_argument("--db", default="data/vcp_scanner.duckdb")
     st = sub.add_parser("status", help="What is stored (read-only)")
     st.add_argument("--db", default="data/vcp_scanner.duckdb")
     v = sub.add_parser("show", help="One stock's shareholding by quarter (read-only)")
@@ -49,11 +51,13 @@ def run_shareholding(args: argparse.Namespace) -> int:
     cmd = getattr(args, "shareholding_command", None)
     if cmd in ("backfill", "update"):
         return _run_bulk(args, cmd)
+    if cmd == "reparse":
+        return _run_reparse(args)
     if cmd == "status":
         return _run_status(args)
     if cmd == "show":
         return _run_show(args)
-    print("usage: vcp shareholding {backfill,update,status,show} ...", file=sys.stderr)
+    print("usage: vcp shareholding {backfill,update,reparse,status,show} ...", file=sys.stderr)
     return 2
 
 
@@ -155,13 +159,7 @@ def _run_bulk(args: argparse.Namespace, command: str) -> int:
     rec = pl.record(conn, downloads)
     pl.record_run(conn, command, start, listing, rec)
     conn.close()
-    total = rec.parsed + rec.parse_errors
-    rate = rec.parse_errors / total if total else 0.0
-    _say(
-        f"recorded {rec.new} filings: parsed {rec.parsed}, parse errors {rec.parse_errors}"
-        f" ({rate:.1%}), fetch errors {rec.fetch_errors}, differing from NSE's listing"
-        f" {rec.listing_mismatches}; listed completely through {listing.complete_through}"
-    )
+    _summary(rec, listing.complete_through)
     for message in (listing.errors + rec.messages)[:20]:
         print(f"  WARNING {message}")
     return 0
@@ -240,4 +238,37 @@ def _run_show(args: argparse.Namespace) -> int:
         print(f"  {d}  {_fmt(pr)}   {_fmt(pl_)}  {_fmt(fii)}  {_fmt(dii)}  {_fmt(mf)}  {_fmt(ni)}"
               f"  {holders or 0:>9,d}" + (f"  (revision {rev})" if rev else ""))  # fmt: skip
     print("  * public = non-institutional holders (retail, HNIs, bodies corporate, NRIs)")
+    return 0
+
+
+def _summary(rec, complete_through: object = "-") -> None:  # type: ignore[no-untyped-def]
+    total = rec.parsed + rec.parse_errors + rec.listing_mismatches
+    rate = rec.parse_errors / total if total else 0.0
+    _say(
+        f"recorded {rec.new} filings: parsed {rec.parsed}, parse errors {rec.parse_errors}"
+        f" ({rate:.1%}), set aside (contradict NSE's listing) {rec.listing_mismatches},"
+        f" rounding differences kept {rec.listing_rounding}, fetch errors {rec.fetch_errors};"
+        f" listed completely through {complete_through}"
+    )
+
+
+def _run_reparse(args: argparse.Namespace) -> int:
+    """Re-record every filing whose file is cached: no network. After a parser fix."""
+    import duckdb
+
+    from vcp_scanner.shareholding import pipeline as pl
+
+    db = Path(args.db).resolve()
+    try:
+        conn = _connect(db, read_only=False)
+    except duckdb.Error as exc:
+        _err(f"Database busy ({exc}). Try again later.")
+        return 1
+    downloads = pl.stored_downloads(conn, db.parent / "raw" / "shareholding")
+    _say(f"reparse: {len(downloads)} stored files")
+    rec = pl.record(conn, downloads)
+    conn.close()
+    _summary(rec)
+    for message in rec.messages[:30]:
+        print(f"  WARNING {message}")
     return 0
