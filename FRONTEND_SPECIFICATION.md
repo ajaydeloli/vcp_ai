@@ -2514,3 +2514,12 @@ The scheduled runs now start with no window (`conhost.exe --headless`), so the d
 | stopped | not finished and the pid is gone (a closed console or a kill: no trap ran), or finished with no new summary line (Ctrl-C, `kill`: the trap ran) | warning: "The daily run started ... stopped during <step> and did not finish (exit N). The next run catches up; to run it now: bash scripts/daily_run.sh." |
 
 The step is the last `=== <step> (HH:MM IST)` header in this run's part of the day's log. API: `run` on `/status` (`state`, `started`, `step`, `step_since`, `exit_code`; null before the first recorded run). Display only; nothing here can start or stop a run.
+
+
+### 67.40 Shareholding pattern (F8 display, 2026-10-14)
+
+Display only (FUNDAMENTALS_SPECIFICATION §2, §15); the rules of point in time, N/A and the pledge basis are in §15 "As built".
+
+- **Fundamentals card** (stock page overview row, amber): below the results, "Shareholding · <quarter>" ("(revised)" for a revision, "⚠ Stale" past 120 days) and a small table: Promoter, FII, DII with holding, 1Q and 4Q change (pp, up/down colours); Pledged with its 1Q change in inverted colours (a rise is red) and a "▲ rising" chip. A stock without results but with shareholding shows the block under the reason; without either, one muted line.
+- **Shareholding pattern card** (Stock Analysis, violet, below Quarterly results): one 100 % column per quarter end (promoter, FII, DII, retail & others, trusts; each segment has a tooltip, a legend names the colours) and the table newest first: quarter (with "rev."), filed date, promoter, pledged, FII, DII, of which MF, retail & others, shareholders. The "▲ rising" chip sits in the card header. Empty: "No shareholding pattern filed yet".
+- **Screener**: the Fundamentals box adds Promoter, FII chg, DII chg (pp, two decimals) and Pledge ("▲" in red when rising), all sortable; "More" adds "Min promoter %" and "Max pledge %". The columns also appear whenever one of those filters is set.

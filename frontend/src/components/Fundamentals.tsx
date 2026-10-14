@@ -6,6 +6,7 @@ import { useStockFundamentals } from "@/lib/api";
 import { DASH, fmtDay, fmtNum, fmtPct, tone } from "@/lib/fmt";
 import { SUPPORTING_NOTE, fmtCrore, fmtPp, gateText, quarterLabel, statusText } from "@/lib/fundamentals";
 import type { FundamentalQuarter, FundamentalSummary } from "@/lib/schemas";
+import { ShareholdingBlock } from "./Shareholding";
 import { Card, Empty, ErrorBox, Loading, TINT } from "./ui";
 
 /** "2026-07-17T19:50:03+05:30" -> "17 Jul 2026" (the API stamps IST; the date part is IST). */
@@ -134,7 +135,10 @@ export function FundamentalsCard({ symbol }: { symbol: string }) {
       ) : res.isPending ? (
         <Loading what="fundamentals" />
       ) : s === null ? (
-        <Empty>{res.data.reason ?? "No results filed yet"}</Empty>
+        <>
+          <Empty>{res.data.reason ?? "No results filed yet"}</Empty>
+          {res.data.shareholding ? <ShareholdingBlock s={res.data.shareholding} /> : null}
+        </>
       ) : (
         <>
           <p className="mb-2 text-[11px] text-mute">
@@ -160,6 +164,7 @@ export function FundamentalsCard({ symbol }: { symbol: string }) {
             Data: {Math.round(s.availability * 7)} of 7 metrics
             {s.gate_pass ? "" : ` · would fail the fundamental gate (${gateText(s.gate_reason)}; shown only)`}
           </p>
+          <ShareholdingBlock s={res.data.shareholding} />
         </>
       )}
     </Card>

@@ -42,8 +42,8 @@ export const fmtCrore = (rupees: number | null | undefined): string => {
 };
 
 /** Percentage points with a sign: "+3.2 pp". */
-export const fmtPp = (v: number | null | undefined): string =>
-  v === null || v === undefined ? DASH : `${v > 0 ? "+" : ""}${v.toFixed(1)} pp`;
+export const fmtPp = (v: number | null | undefined, digits = 1): string =>
+  v === null || v === undefined ? DASH : `${v > 0 ? "+" : ""}${v.toFixed(digits)} pp`;
 
 /** Why a metric is null, in words (statuses of FUNDAMENTALS_SPECIFICATION §8). */
 export const STATUS_TEXT: Record<string, string> = {

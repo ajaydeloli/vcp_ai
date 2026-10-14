@@ -5,5 +5,7 @@
  "company": null,
  "summary": null,
  "quarters": [],
- "reason": "No results filed yet"
+ "reason": "No results filed yet",
+ "shareholding": null,
+ "shareholding_quarters": []
 }

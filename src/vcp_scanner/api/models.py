@@ -369,6 +369,12 @@ class ScreenerRow(BaseModel):
     # Fundamentals (F5), display and filter only: the stock's view as of the scan day.
     eps_yoy: float | None = None
     sales_yoy: float | None = None
+    # Shareholding (F8), display and filter only: the latest quarter as of the scan day.
+    promoter_pct: float | None = None
+    fii_change_1q: float | None = None
+    dii_change_1q: float | None = None
+    pledged_pct: float | None = None
+    pledge_rising: bool | None = None
 
 
 class ScreenerResponse(Stamped):
@@ -740,12 +746,52 @@ class FundamentalQuarter(BaseModel):
     sales_yoy_status: str
 
 
+class ShareholdingQuarter(BaseModel):
+    """One quarter-end shareholding pattern (F8; % of the company's shares unless noted)."""
+
+    as_on: date  # the quarter end
+    available_at: datetime  # broadcast time, IST
+    revision: int
+    layout: str  # NEW | SPLIT | OLD (the XBRL layout; the pledge basis changes with NEW)
+    promoter_pct: float
+    promoter_pledged_pct: float | None  # % of the promoter group's own shares
+    fii_pct: float  # foreign portfolio investors
+    fdi_pct: float | None  # foreign direct investment, not part of FII
+    dii_pct: float
+    mf_pct: float  # part of DII
+    insurance_pct: float  # part of DII
+    government_pct: float
+    non_institutions_pct: float  # retail and others
+    public_pct: float
+    other_pct: float  # neither promoter nor public (employee trusts)
+    shareholders: int | None
+
+
+class ShareholdingSummary(ShareholdingQuarter):
+    """The latest quarter with its changes in percentage points; None: that quarter is
+    missing (N/A, never 0)."""
+
+    promoter_change_1q: float | None
+    promoter_change_4q: float | None
+    fii_change_1q: float | None
+    fii_change_4q: float | None
+    dii_change_1q: float | None
+    dii_change_4q: float | None
+    pledged_change_1q: float | None  # None also across the June 2025 layout change
+    pledge_rising: bool
+    shareholders_change_1q_pct: float | None  # % change in the number of shareholders
+    stale: bool  # the latest quarter end is more than 120 days old
+
+
 class StockFundamentalsResponse(Stamped):
     symbol: str
     company: str | None
     summary: FundamentalSummary | None  # None: no usable results filed by ``as_of``
     quarters: list[FundamentalQuarter]  # oldest first
     reason: str | None  # why there is no summary
+    # Shareholding pattern (F8), display only.
+    shareholding: ShareholdingSummary | None = None
+    shareholding_quarters: list[ShareholdingQuarter] = []  # oldest first, up to 8
 
 
 class FundamentalsRow(FundamentalSummary):

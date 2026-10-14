@@ -105,6 +105,34 @@ def add_fundamentals(store: DuckDBStore) -> None:
     update_views(repo, staleness_days=120, min_availability=0.5)
 
 
+def add_shareholding(store: DuckDBStore) -> None:
+    """Shareholding patterns (F8) for ALPHA, % of shares. Mar-25 is in the older SPLIT layout
+    (pledge "pledged or encumbered"), the rest NEW. Dec-25 was not filed. Jun-26 was filed on
+    15 Jul and revised on 1 Aug. A filing after an event (15 May 2026) is not a quarter end and
+    a Sep-26 filing is broadcast after AS_OF; no response may show either. BETA has none."""
+    ist_evening = timedelta(hours=12, minutes=30)  # 18:00 IST
+    rows = [  # as on, broadcast day, revision, layout, promoter, pledged, FII, DII
+        (date(2025, 3, 31), date(2025, 4, 18), 0, "SPLIT", 50.0, 2.0, 20.0, 10.0),
+        (date(2025, 6, 30), date(2025, 7, 18), 0, "NEW", 50.0, 1.0, 21.0, 10.0),
+        (date(2025, 9, 30), date(2025, 10, 17), 0, "NEW", 50.0, 1.0, 21.0, 11.0),
+        (date(2026, 3, 31), date(2026, 4, 17), 0, "NEW", 49.0, 1.0, 22.0, 12.0),
+        (date(2026, 5, 15), date(2026, 5, 18), 0, "NEW", 10.0, 0.0, 10.0, 10.0),
+        (date(2026, 6, 30), date(2026, 7, 15), 0, "NEW", 48.0, 1.5, 23.0, 12.5),
+        (date(2026, 6, 30), date(2026, 8, 1), 1, "NEW", 48.5, 3.0, 23.0, 12.5),
+        (date(2026, 9, 30), date(2026, 10, 20), 0, "NEW", 99.0, 0.0, 0.0, 0.0),
+    ]
+    for as_on, broadcast, rev, layout, promoter, pledged, fii, dii in rows:
+        at = datetime.combine(broadcast, datetime.min.time(), UTC) + ist_evening
+        public = 100.0 - promoter
+        put(store.conn, "shareholding_snapshots", filing_id=f"NSE_SHP:{as_on}-{rev}",
+            instrument_id=iid("ALPHA"), as_on=as_on, is_quarter_end=as_on.month % 3 == 0
+            and (as_on + timedelta(days=1)).day == 1, revision_number=rev, available_at=at,
+            layout=layout, promoter_pct=promoter, promoter_pledged_pct=pledged, fii_pct=fii,
+            fdi_pct=0.0, dii_pct=dii, mf_pct=dii / 2, insurance_pct=dii / 4, government_pct=0.0,
+            non_institutions_pct=public - fii - dii, public_pct=public, other_pct=0.0,
+            shareholders=100_000 + 1_000 * rev)  # fmt: skip
+
+
 MHS_VERSION = "mhs-2.0.0+fixture"
 
 
@@ -293,6 +321,7 @@ def build_main_db(db: Path, ctx: Context) -> None:
         strat("three_weeks_tight", "GAMMA", "NONE", 0, False, 10.0)
         strat("double_bottom", "GAMMA", "NONE", 0, False, 10.0)
         add_fundamentals(store)
+        add_shareholding(store)
         add_market_health(store)
         # NSE index closes (Market Overview step 3) for the last 30 sessions only: the NIFTY
         # lines start at 100 on their first stored day, later than the chart's first day.

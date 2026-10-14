@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useLiveQuotes, useScreener, useStrategies } from "@/lib/api";
 import { DASH, fmtInt, fmtNum, fmtPct, fmtPrice, strategyLabel, tone } from "@/lib/fmt";
 import { pageNumbers } from "@/lib/lists";
+import { fmtPp } from "@/lib/fundamentals";
 import { DEFAULT_QUERY, SECTORS, STAGES, type ScreenerQuery } from "@/lib/screener";
 import type { LiveQuote, ScreenerRow } from "@/lib/schemas";
 import { LiveCell, LiveNotice } from "./Live";
@@ -122,13 +123,38 @@ export const COLS: Col[] = [
     label: "Sales YoY",
     render: (r) => <span className={tone(r.sales_yoy ?? null)}>{fmtPct(r.sales_yoy ?? null, 1, true)}</span>,
   },
+  // Shareholding (F8), latest quarter end: display and filter only.
+  { key: "promoter_pct", label: "Promoter", render: (r) => fmtPct(r.promoter_pct ?? null, 1) },
+  {
+    key: "fii_change_1q",
+    label: "FII chg",
+    render: (r) => <span className={tone(r.fii_change_1q ?? null)}>{fmtPp(r.fii_change_1q ?? null, 2)}</span>,
+  },
+  {
+    key: "dii_change_1q",
+    label: "DII chg",
+    render: (r) => <span className={tone(r.dii_change_1q ?? null)}>{fmtPp(r.dii_change_1q ?? null, 2)}</span>,
+  },
+  {
+    key: "pledged_pct",
+    label: "Pledge",
+    render: (r) =>
+      r.pledge_rising ? (
+        <span className="text-down" title="Pledge rose over the last quarter">
+          {fmtPct(r.pledged_pct ?? null, 1)} ▲
+        </span>
+      ) : (
+        fmtPct(r.pledged_pct ?? null, 1)
+      ),
+  },
 ];
 
-export const FUNDAMENTAL_COLS = new Set(["eps_yoy", "sales_yoy"]);
+export const FUNDAMENTAL_COLS = new Set(["eps_yoy", "sales_yoy", "promoter_pct", "fii_change_1q", "dii_change_1q", "pledged_pct"]);
 
 export const SORTABLE = new Set([
   "symbol", "rs_rank", "conditions_passed", "close", "change_pct", "score", "grade",
-  "pivot_distance_pct", "eps_yoy", "sales_yoy",
+  "pivot_distance_pct", "eps_yoy", "sales_yoy", "promoter_pct", "fii_change_1q", "dii_change_1q",
+  "pledged_pct",
 ]); // fmt: skip
 
 const triState = (v: boolean | undefined): string => (v === undefined ? "" : v ? "yes" : "no");
@@ -178,6 +204,8 @@ function Filters({
     q.sector !== undefined ||
     q.minEpsYoy !== undefined ||
     q.minSalesYoy !== undefined ||
+    q.minPromoterPct !== undefined ||
+    q.maxPledgedPct !== undefined ||
     q.strategy !== DEFAULT_QUERY.strategy ||
     !q.universeOnly ||
     !q.eqOnly;
@@ -208,7 +236,7 @@ function Filters({
           </label>
           <label
             className="flex cursor-pointer items-center gap-1.5"
-            title="EPS and sales growth of the latest quarter, year on year (display only)"
+            title="EPS and sales growth of the latest quarter, year on year, and the latest shareholding: promoter %, FII and DII change over the quarter, pledge (display only)"
           >
             <input type="checkbox" checked={showFundamentals} onChange={(e) => onShowFundamentals(e.target.checked)} />
             Fundamentals
@@ -358,6 +386,36 @@ function Filters({
           </Field>
         ) : null}
         {open ? (
+          <Field id="scr-promoter" label="Min promoter %">
+            <input
+              id="scr-promoter"
+              type="number"
+              min={0}
+              max={100}
+              step={5}
+              value={q.minPromoterPct ?? ""}
+              onChange={(e) => onChange({ minPromoterPct: numOrUndef(e.target.value) })}
+              className={FIELD}
+              placeholder="e.g. 50"
+            />
+          </Field>
+        ) : null}
+        {open ? (
+          <Field id="scr-pledge" label="Max pledge %">
+            <input
+              id="scr-pledge"
+              type="number"
+              min={0}
+              max={100}
+              step={1}
+              value={q.maxPledgedPct ?? ""}
+              onChange={(e) => onChange({ maxPledgedPct: numOrUndef(e.target.value) })}
+              className={FIELD}
+              placeholder="e.g. 5"
+            />
+          </Field>
+        ) : null}
+        {open ? (
           <fieldset className="col-span-full">
             <legend className="mb-1 block text-[11px] uppercase text-mute">Weekly stage</legend>
             <div className="flex flex-wrap gap-1.5">
@@ -452,7 +510,12 @@ export function Screener() {
   const cols = COLS.filter(
     (c) =>
       (c.key !== "universe" || !query.universeOnly) &&
-      (showFundamentals || !FUNDAMENTAL_COLS.has(c.key) || query.minEpsYoy !== undefined || query.minSalesYoy !== undefined),
+      (showFundamentals ||
+        !FUNDAMENTAL_COLS.has(c.key) ||
+        query.minEpsYoy !== undefined ||
+        query.minSalesYoy !== undefined ||
+        query.minPromoterPct !== undefined ||
+        query.maxPledgedPct !== undefined),
   );
   const change = (next: Partial<ScreenerQuery>) => setQuery((q) => ({ ...q, ...next, page: 1 }));
 

@@ -216,7 +216,8 @@ def overlap(cur: Cur, ctx: Context, day: date) -> list[m.OverlapRow]:
 
 SCREENER_SORTS = (
     "symbol", "rs_rank", "trend_score", "conditions_passed", "close", "change_pct", "score",
-    "grade", "pivot_distance_pct", "eps_yoy", "sales_yoy",
+    "grade", "pivot_distance_pct", "eps_yoy", "sales_yoy", "promoter_pct", "fii_change_1q",
+    "dii_change_1q", "pledged_pct",
 )  # fmt: skip
 
 _SCREENER_SQL = """
@@ -299,6 +300,11 @@ def _at_least(value: float | None, floor: float | None) -> bool:
     return floor is None or (value is not None and value >= floor)
 
 
+def _at_most(value: float | None, ceiling: float | None) -> bool:
+    """A missing value passes: no pledge filed (no promoter group) is no pledge."""
+    return ceiling is None or value is None or value <= ceiling
+
+
 def screener(
     cur: Cur, ctx: Context, spec: StrategySpec, day: date, f: SimpleNamespace,
     data_time: datetime,
@@ -359,19 +365,28 @@ def screener(
             not getattr(f, "sector", None) or (x.sector or "").upper() == f.sector.upper(),
             _at_least(x.eps_yoy, getattr(f, "min_eps_yoy", None)),
             _at_least(x.sales_yoy, getattr(f, "min_sales_yoy", None)),
+            _at_least(x.promoter_pct, getattr(f, "min_promoter_pct", None)),
+            _at_most(x.pledged_pct, getattr(f, "max_pledged_pct", None)),
         )
         return all(checks)
 
     from vcp_scanner.api.fundamentals import views_as_of as fundamental_views  # (cycle)
+    from vcp_scanner.api.shareholding import shareholding_as_of
 
     all_ids = [x.instrument_id for x in rows]
     sectors = classification(cur, all_ids)
     views = fundamental_views(cur, all_ids, day)
+    holdings = shareholding_as_of(cur, all_ids, day)
     for x in rows:
         x.sector = sectors.get(x.instrument_id, (None, None))[0]
         v = views.get(x.instrument_id)
         if v is not None:
             x.eps_yoy, x.sales_yoy = v.eps_yoy, v.sales_yoy
+        h = holdings.get(x.instrument_id)
+        if h is not None:
+            x.promoter_pct, x.pledged_pct = h.promoter_pct, h.promoter_pledged_pct
+            x.fii_change_1q, x.dii_change_1q = h.fii_change_1q, h.dii_change_1q
+            x.pledge_rising = h.pledge_rising
     kept = [x for x in rows if keep(x)]
     key = f.sort
     present = [x for x in kept if getattr(x, key) is not None]

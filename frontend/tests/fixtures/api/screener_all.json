@@ -35,7 +35,12 @@
    "outside_reason": null,
    "sector": "Capital Goods",
    "eps_yoy": 50.0,
-   "sales_yoy": 25.0
+   "sales_yoy": 25.0,
+   "promoter_pct": 48.5,
+   "fii_change_1q": 1.0,
+   "dii_change_1q": 0.5,
+   "pledged_pct": 3.0,
+   "pledge_rising": true
   },
   {
    "instrument_id": "NSE_EQ|BETA",
@@ -61,7 +66,12 @@
    "outside_reason": null,
    "sector": "Healthcare",
    "eps_yoy": null,
-   "sales_yoy": null
+   "sales_yoy": null,
+   "promoter_pct": null,
+   "fii_change_1q": null,
+   "dii_change_1q": null,
+   "pledged_pct": null,
+   "pledge_rising": null
   },
   {
    "instrument_id": "NSE_EQ|GAMMA",
@@ -87,7 +97,12 @@
    "outside_reason": null,
    "sector": null,
    "eps_yoy": null,
-   "sales_yoy": null
+   "sales_yoy": null,
+   "promoter_pct": null,
+   "fii_change_1q": null,
+   "dii_change_1q": null,
+   "pledged_pct": null,
+   "pledge_rising": null
   },
   {
    "instrument_id": "NSE_EQ|F00",
@@ -113,7 +128,12 @@
    "outside_reason": null,
    "sector": null,
    "eps_yoy": null,
-   "sales_yoy": null
+   "sales_yoy": null,
+   "promoter_pct": null,
+   "fii_change_1q": null,
+   "dii_change_1q": null,
+   "pledged_pct": null,
+   "pledge_rising": null
   },
   {
    "instrument_id": "NSE_EQ|F01",
@@ -139,7 +159,12 @@
    "outside_reason": null,
    "sector": null,
    "eps_yoy": null,
-   "sales_yoy": null
+   "sales_yoy": null,
+   "promoter_pct": null,
+   "fii_change_1q": null,
+   "dii_change_1q": null,
+   "pledged_pct": null,
+   "pledge_rising": null
   },
   {
    "instrument_id": "NSE_EQ|F02",
@@ -165,7 +190,12 @@
    "outside_reason": null,
    "sector": null,
    "eps_yoy": null,
-   "sales_yoy": null
+   "sales_yoy": null,
+   "promoter_pct": null,
+   "fii_change_1q": null,
+   "dii_change_1q": null,
+   "pledged_pct": null,
+   "pledge_rising": null
   },
   {
    "instrument_id": "NSE_EQ|F03",
@@ -191,7 +221,12 @@
    "outside_reason": null,
    "sector": null,
    "eps_yoy": null,
-   "sales_yoy": null
+   "sales_yoy": null,
+   "promoter_pct": null,
+   "fii_change_1q": null,
+   "dii_change_1q": null,
+   "pledged_pct": null,
+   "pledge_rising": null
   },
   {
    "instrument_id": "NSE_EQ|F04",
@@ -217,7 +252,12 @@
    "outside_reason": null,
    "sector": null,
    "eps_yoy": null,
-   "sales_yoy": null
+   "sales_yoy": null,
+   "promoter_pct": null,
+   "fii_change_1q": null,
+   "dii_change_1q": null,
+   "pledged_pct": null,
+   "pledge_rising": null
   },
   {
    "instrument_id": "NSE_EQ|F05",
@@ -243,7 +283,12 @@
    "outside_reason": null,
    "sector": null,
    "eps_yoy": null,
-   "sales_yoy": null
+   "sales_yoy": null,
+   "promoter_pct": null,
+   "fii_change_1q": null,
+   "dii_change_1q": null,
+   "pledged_pct": null,
+   "pledge_rising": null
   },
   {
    "instrument_id": "NSE_EQ|F06",
@@ -269,7 +314,12 @@
    "outside_reason": null,
    "sector": null,
    "eps_yoy": null,
-   "sales_yoy": null
+   "sales_yoy": null,
+   "promoter_pct": null,
+   "fii_change_1q": null,
+   "dii_change_1q": null,
+   "pledged_pct": null,
+   "pledge_rising": null
   },
   {
    "instrument_id": "NSE_EQ|F07",
@@ -295,7 +345,12 @@
    "outside_reason": null,
    "sector": null,
    "eps_yoy": null,
-   "sales_yoy": null
+   "sales_yoy": null,
+   "promoter_pct": null,
+   "fii_change_1q": null,
+   "dii_change_1q": null,
+   "pledged_pct": null,
+   "pledge_rising": null
   },
   {
    "instrument_id": "NSE_EQ|F08",
@@ -321,7 +376,12 @@
    "outside_reason": null,
    "sector": null,
    "eps_yoy": null,
-   "sales_yoy": null
+   "sales_yoy": null,
+   "promoter_pct": null,
+   "fii_change_1q": null,
+   "dii_change_1q": null,
+   "pledged_pct": null,
+   "pledge_rising": null
   },
   {
    "instrument_id": "NSE_EQ|F09",
@@ -347,7 +407,12 @@
    "outside_reason": null,
    "sector": null,
    "eps_yoy": null,
-   "sales_yoy": null
+   "sales_yoy": null,
+   "promoter_pct": null,
+   "fii_change_1q": null,
+   "dii_change_1q": null,
+   "pledged_pct": null,
+   "pledge_rising": null
   },
   {
    "instrument_id": "NSE_EQ|F10",
@@ -373,7 +438,12 @@
    "outside_reason": null,
    "sector": null,
    "eps_yoy": null,
-   "sales_yoy": null
+   "sales_yoy": null,
+   "promoter_pct": null,
+   "fii_change_1q": null,
+   "dii_change_1q": null,
+   "pledged_pct": null,
+   "pledge_rising": null
   },
   {
    "instrument_id": "NSE_EQ|F11",
@@ -399,7 +469,12 @@
    "outside_reason": null,
    "sector": null,
    "eps_yoy": null,
-   "sales_yoy": null
+   "sales_yoy": null,
+   "promoter_pct": null,
+   "fii_change_1q": null,
+   "dii_change_1q": null,
+   "pledged_pct": null,
+   "pledge_rising": null
   },
   {
    "instrument_id": "NSE_EQ|F12",
@@ -425,7 +500,12 @@
    "outside_reason": null,
    "sector": null,
    "eps_yoy": null,
-   "sales_yoy": null
+   "sales_yoy": null,
+   "promoter_pct": null,
+   "fii_change_1q": null,
+   "dii_change_1q": null,
+   "pledged_pct": null,
+   "pledge_rising": null
   },
   {
    "instrument_id": "NSE_EQ|F13",
@@ -451,7 +531,12 @@
    "outside_reason": null,
    "sector": null,
    "eps_yoy": null,
-   "sales_yoy": null
+   "sales_yoy": null,
+   "promoter_pct": null,
+   "fii_change_1q": null,
+   "dii_change_1q": null,
+   "pledged_pct": null,
+   "pledge_rising": null
   },
   {
    "instrument_id": "NSE_EQ|F14",
@@ -477,7 +562,12 @@
    "outside_reason": null,
    "sector": null,
    "eps_yoy": null,
-   "sales_yoy": null
+   "sales_yoy": null,
+   "promoter_pct": null,
+   "fii_change_1q": null,
+   "dii_change_1q": null,
+   "pledged_pct": null,
+   "pledge_rising": null
   },
   {
    "instrument_id": "NSE_EQ|F15",
@@ -503,7 +593,12 @@
    "outside_reason": null,
    "sector": null,
    "eps_yoy": null,
-   "sales_yoy": null
+   "sales_yoy": null,
+   "promoter_pct": null,
+   "fii_change_1q": null,
+   "dii_change_1q": null,
+   "pledged_pct": null,
+   "pledge_rising": null
   },
   {
    "instrument_id": "NSE_EQ|F16",
@@ -529,7 +624,12 @@
    "outside_reason": null,
    "sector": null,
    "eps_yoy": null,
-   "sales_yoy": null
+   "sales_yoy": null,
+   "promoter_pct": null,
+   "fii_change_1q": null,
+   "dii_change_1q": null,
+   "pledged_pct": null,
+   "pledge_rising": null
   },
   {
    "instrument_id": "NSE_EQ|F17",
@@ -555,7 +655,12 @@
    "outside_reason": null,
    "sector": null,
    "eps_yoy": null,
-   "sales_yoy": null
+   "sales_yoy": null,
+   "promoter_pct": null,
+   "fii_change_1q": null,
+   "dii_change_1q": null,
+   "pledged_pct": null,
+   "pledge_rising": null
   },
   {
    "instrument_id": "NSE_EQ|F18",
@@ -581,7 +686,12 @@
    "outside_reason": null,
    "sector": null,
    "eps_yoy": null,
-   "sales_yoy": null
+   "sales_yoy": null,
+   "promoter_pct": null,
+   "fii_change_1q": null,
+   "dii_change_1q": null,
+   "pledged_pct": null,
+   "pledge_rising": null
   },
   {
    "instrument_id": "NSE_EQ|F19",
@@ -607,7 +717,12 @@
    "outside_reason": null,
    "sector": null,
    "eps_yoy": null,
-   "sales_yoy": null
+   "sales_yoy": null,
+   "promoter_pct": null,
+   "fii_change_1q": null,
+   "dii_change_1q": null,
+   "pledged_pct": null,
+   "pledge_rising": null
   },
   {
    "instrument_id": "NSE_EQ|F20",
@@ -633,7 +748,12 @@
    "outside_reason": null,
    "sector": null,
    "eps_yoy": null,
-   "sales_yoy": null
+   "sales_yoy": null,
+   "promoter_pct": null,
+   "fii_change_1q": null,
+   "dii_change_1q": null,
+   "pledged_pct": null,
+   "pledge_rising": null
   },
   {
    "instrument_id": "NSE_EQ|F21",
@@ -659,7 +779,12 @@
    "outside_reason": null,
    "sector": null,
    "eps_yoy": null,
-   "sales_yoy": null
+   "sales_yoy": null,
+   "promoter_pct": null,
+   "fii_change_1q": null,
+   "dii_change_1q": null,
+   "pledged_pct": null,
+   "pledge_rising": null
   },
   {
    "instrument_id": "NSE_EQ|F22",
@@ -685,7 +810,12 @@
    "outside_reason": null,
    "sector": null,
    "eps_yoy": null,
-   "sales_yoy": null
+   "sales_yoy": null,
+   "promoter_pct": null,
+   "fii_change_1q": null,
+   "dii_change_1q": null,
+   "pledged_pct": null,
+   "pledge_rising": null
   },
   {
    "instrument_id": "NSE_EQ|F23",
@@ -711,7 +841,12 @@
    "outside_reason": null,
    "sector": null,
    "eps_yoy": null,
-   "sales_yoy": null
+   "sales_yoy": null,
+   "promoter_pct": null,
+   "fii_change_1q": null,
+   "dii_change_1q": null,
+   "pledged_pct": null,
+   "pledge_rising": null
   },
   {
    "instrument_id": "NSE_EQ|F24",
@@ -737,7 +872,12 @@
    "outside_reason": null,
    "sector": null,
    "eps_yoy": null,
-   "sales_yoy": null
+   "sales_yoy": null,
+   "promoter_pct": null,
+   "fii_change_1q": null,
+   "dii_change_1q": null,
+   "pledged_pct": null,
+   "pledge_rising": null
   },
   {
    "instrument_id": "NSE_EQ|F25",
@@ -763,7 +903,12 @@
    "outside_reason": null,
    "sector": null,
    "eps_yoy": null,
-   "sales_yoy": null
+   "sales_yoy": null,
+   "promoter_pct": null,
+   "fii_change_1q": null,
+   "dii_change_1q": null,
+   "pledged_pct": null,
+   "pledge_rising": null
   },
   {
    "instrument_id": "NSE_EQ|F26",
@@ -789,7 +934,12 @@
    "outside_reason": null,
    "sector": null,
    "eps_yoy": null,
-   "sales_yoy": null
+   "sales_yoy": null,
+   "promoter_pct": null,
+   "fii_change_1q": null,
+   "dii_change_1q": null,
+   "pledged_pct": null,
+   "pledge_rising": null
   },
   {
    "instrument_id": "NSE_EQ|F27",
@@ -815,7 +965,12 @@
    "outside_reason": null,
    "sector": null,
    "eps_yoy": null,
-   "sales_yoy": null
+   "sales_yoy": null,
+   "promoter_pct": null,
+   "fii_change_1q": null,
+   "dii_change_1q": null,
+   "pledged_pct": null,
+   "pledge_rising": null
   },
   {
    "instrument_id": "NSE_EQ|F28",
@@ -841,7 +996,12 @@
    "outside_reason": null,
    "sector": null,
    "eps_yoy": null,
-   "sales_yoy": null
+   "sales_yoy": null,
+   "promoter_pct": null,
+   "fii_change_1q": null,
+   "dii_change_1q": null,
+   "pledged_pct": null,
+   "pledge_rising": null
   },
   {
    "instrument_id": "NSE_EQ|F29",
@@ -867,7 +1027,12 @@
    "outside_reason": null,
    "sector": null,
    "eps_yoy": null,
-   "sales_yoy": null
+   "sales_yoy": null,
+   "promoter_pct": null,
+   "fii_change_1q": null,
+   "dii_change_1q": null,
+   "pledged_pct": null,
+   "pledge_rising": null
   },
   {
    "instrument_id": "NSE_EQ|F30",
@@ -893,7 +1058,12 @@
    "outside_reason": null,
    "sector": null,
    "eps_yoy": null,
-   "sales_yoy": null
+   "sales_yoy": null,
+   "promoter_pct": null,
+   "fii_change_1q": null,
+   "dii_change_1q": null,
+   "pledged_pct": null,
+   "pledge_rising": null
   },
   {
    "instrument_id": "NSE_EQ|F31",
@@ -919,7 +1089,12 @@
    "outside_reason": null,
    "sector": null,
    "eps_yoy": null,
-   "sales_yoy": null
+   "sales_yoy": null,
+   "promoter_pct": null,
+   "fii_change_1q": null,
+   "dii_change_1q": null,
+   "pledged_pct": null,
+   "pledge_rising": null
   },
   {
    "instrument_id": "NSE_EQ|F32",
@@ -945,7 +1120,12 @@
    "outside_reason": null,
    "sector": null,
    "eps_yoy": null,
-   "sales_yoy": null
+   "sales_yoy": null,
+   "promoter_pct": null,
+   "fii_change_1q": null,
+   "dii_change_1q": null,
+   "pledged_pct": null,
+   "pledge_rising": null
   },
   {
    "instrument_id": "NSE_EQ|F33",
@@ -971,7 +1151,12 @@
    "outside_reason": null,
    "sector": null,
    "eps_yoy": null,
-   "sales_yoy": null
+   "sales_yoy": null,
+   "promoter_pct": null,
+   "fii_change_1q": null,
+   "dii_change_1q": null,
+   "pledged_pct": null,
+   "pledge_rising": null
   },
   {
    "instrument_id": "NSE_EQ|F34",
@@ -997,7 +1182,12 @@
    "outside_reason": null,
    "sector": null,
    "eps_yoy": null,
-   "sales_yoy": null
+   "sales_yoy": null,
+   "promoter_pct": null,
+   "fii_change_1q": null,
+   "dii_change_1q": null,
+   "pledged_pct": null,
+   "pledge_rising": null
   },
   {
    "instrument_id": "NSE_EQ|F35",
@@ -1023,7 +1213,12 @@
    "outside_reason": null,
    "sector": null,
    "eps_yoy": null,
-   "sales_yoy": null
+   "sales_yoy": null,
+   "promoter_pct": null,
+   "fii_change_1q": null,
+   "dii_change_1q": null,
+   "pledged_pct": null,
+   "pledge_rising": null
   },
   {
    "instrument_id": "NSE_EQ|F36",
@@ -1049,7 +1244,12 @@
    "outside_reason": null,
    "sector": null,
    "eps_yoy": null,
-   "sales_yoy": null
+   "sales_yoy": null,
+   "promoter_pct": null,
+   "fii_change_1q": null,
+   "dii_change_1q": null,
+   "pledged_pct": null,
+   "pledge_rising": null
   },
   {
    "instrument_id": "NSE_EQ|F37",
@@ -1075,7 +1275,12 @@
    "outside_reason": null,
    "sector": null,
    "eps_yoy": null,
-   "sales_yoy": null
+   "sales_yoy": null,
+   "promoter_pct": null,
+   "fii_change_1q": null,
+   "dii_change_1q": null,
+   "pledged_pct": null,
+   "pledge_rising": null
   },
   {
    "instrument_id": "NSE_EQ|F38",
@@ -1101,7 +1306,12 @@
    "outside_reason": null,
    "sector": null,
    "eps_yoy": null,
-   "sales_yoy": null
+   "sales_yoy": null,
+   "promoter_pct": null,
+   "fii_change_1q": null,
+   "dii_change_1q": null,
+   "pledged_pct": null,
+   "pledge_rising": null
   },
   {
    "instrument_id": "NSE_EQ|F39",
@@ -1127,7 +1337,12 @@
    "outside_reason": null,
    "sector": null,
    "eps_yoy": null,
-   "sales_yoy": null
+   "sales_yoy": null,
+   "promoter_pct": null,
+   "fii_change_1q": null,
+   "dii_change_1q": null,
+   "pledged_pct": null,
+   "pledge_rising": null
   },
   {
    "instrument_id": "NSE_EQ|F40",
@@ -1153,7 +1368,12 @@
    "outside_reason": null,
    "sector": null,
    "eps_yoy": null,
-   "sales_yoy": null
+   "sales_yoy": null,
+   "promoter_pct": null,
+   "fii_change_1q": null,
+   "dii_change_1q": null,
+   "pledged_pct": null,
+   "pledge_rising": null
   },
   {
    "instrument_id": "NSE_EQ|F41",
@@ -1179,7 +1399,12 @@
    "outside_reason": null,
    "sector": null,
    "eps_yoy": null,
-   "sales_yoy": null
+   "sales_yoy": null,
+   "promoter_pct": null,
+   "fii_change_1q": null,
+   "dii_change_1q": null,
+   "pledged_pct": null,
+   "pledge_rising": null
   },
   {
    "instrument_id": "NSE_EQ|F42",
@@ -1205,7 +1430,12 @@
    "outside_reason": null,
    "sector": null,
    "eps_yoy": null,
-   "sales_yoy": null
+   "sales_yoy": null,
+   "promoter_pct": null,
+   "fii_change_1q": null,
+   "dii_change_1q": null,
+   "pledged_pct": null,
+   "pledge_rising": null
   },
   {
    "instrument_id": "NSE_EQ|F43",
@@ -1231,7 +1461,12 @@
    "outside_reason": null,
    "sector": null,
    "eps_yoy": null,
-   "sales_yoy": null
+   "sales_yoy": null,
+   "promoter_pct": null,
+   "fii_change_1q": null,
+   "dii_change_1q": null,
+   "pledged_pct": null,
+   "pledge_rising": null
   },
   {
    "instrument_id": "NSE_EQ|F44",
@@ -1257,7 +1492,12 @@
    "outside_reason": null,
    "sector": null,
    "eps_yoy": null,
-   "sales_yoy": null
+   "sales_yoy": null,
+   "promoter_pct": null,
+   "fii_change_1q": null,
+   "dii_change_1q": null,
+   "pledged_pct": null,
+   "pledge_rising": null
   },
   {
    "instrument_id": "NSE_EQ|F45",
@@ -1283,7 +1523,12 @@
    "outside_reason": null,
    "sector": null,
    "eps_yoy": null,
-   "sales_yoy": null
+   "sales_yoy": null,
+   "promoter_pct": null,
+   "fii_change_1q": null,
+   "dii_change_1q": null,
+   "pledged_pct": null,
+   "pledge_rising": null
   },
   {
    "instrument_id": "NSE_EQ|F46",
@@ -1309,7 +1554,12 @@
    "outside_reason": null,
    "sector": null,
    "eps_yoy": null,
-   "sales_yoy": null
+   "sales_yoy": null,
+   "promoter_pct": null,
+   "fii_change_1q": null,
+   "dii_change_1q": null,
+   "pledged_pct": null,
+   "pledge_rising": null
   },
   {
    "instrument_id": "NSE_EQ|F47",
@@ -1335,7 +1585,12 @@
    "outside_reason": null,
    "sector": null,
    "eps_yoy": null,
-   "sales_yoy": null
+   "sales_yoy": null,
+   "promoter_pct": null,
+   "fii_change_1q": null,
+   "dii_change_1q": null,
+   "pledged_pct": null,
+   "pledge_rising": null
   },
   {
    "instrument_id": "NSE_EQ|F48",
@@ -1361,7 +1616,12 @@
    "outside_reason": null,
    "sector": null,
    "eps_yoy": null,
-   "sales_yoy": null
+   "sales_yoy": null,
+   "promoter_pct": null,
+   "fii_change_1q": null,
+   "dii_change_1q": null,
+   "pledged_pct": null,
+   "pledge_rising": null
   },
   {
    "instrument_id": "NSE_EQ|F49",
@@ -1387,7 +1647,12 @@
    "outside_reason": null,
    "sector": null,
    "eps_yoy": null,
-   "sales_yoy": null
+   "sales_yoy": null,
+   "promoter_pct": null,
+   "fii_change_1q": null,
+   "dii_change_1q": null,
+   "pledged_pct": null,
+   "pledge_rising": null
   },
   {
    "instrument_id": "NSE_EQ|F50",
@@ -1413,7 +1678,12 @@
    "outside_reason": null,
    "sector": null,
    "eps_yoy": null,
-   "sales_yoy": null
+   "sales_yoy": null,
+   "promoter_pct": null,
+   "fii_change_1q": null,
+   "dii_change_1q": null,
+   "pledged_pct": null,
+   "pledge_rising": null
   },
   {
    "instrument_id": "NSE_EQ|F51",
@@ -1439,7 +1709,12 @@
    "outside_reason": null,
    "sector": null,
    "eps_yoy": null,
-   "sales_yoy": null
+   "sales_yoy": null,
+   "promoter_pct": null,
+   "fii_change_1q": null,
+   "dii_change_1q": null,
+   "pledged_pct": null,
+   "pledge_rising": null
   },
   {
    "instrument_id": "NSE_EQ|F52",
@@ -1465,7 +1740,12 @@
    "outside_reason": null,
    "sector": null,
    "eps_yoy": null,
-   "sales_yoy": null
+   "sales_yoy": null,
+   "promoter_pct": null,
+   "fii_change_1q": null,
+   "dii_change_1q": null,
+   "pledged_pct": null,
+   "pledge_rising": null
   },
   {
    "instrument_id": "NSE_EQ|F53",
@@ -1491,7 +1771,12 @@
    "outside_reason": null,
    "sector": null,
    "eps_yoy": null,
-   "sales_yoy": null
+   "sales_yoy": null,
+   "promoter_pct": null,
+   "fii_change_1q": null,
+   "dii_change_1q": null,
+   "pledged_pct": null,
+   "pledge_rising": null
   },
   {
    "instrument_id": "NSE_EQ|F54",
@@ -1517,7 +1802,12 @@
    "outside_reason": null,
    "sector": null,
    "eps_yoy": null,
-   "sales_yoy": null
+   "sales_yoy": null,
+   "promoter_pct": null,
+   "fii_change_1q": null,
+   "dii_change_1q": null,
+   "pledged_pct": null,
+   "pledge_rising": null
   },
   {
    "instrument_id": "NSE_EQ|F55",
@@ -1543,7 +1833,12 @@
    "outside_reason": null,
    "sector": null,
    "eps_yoy": null,
-   "sales_yoy": null
+   "sales_yoy": null,
+   "promoter_pct": null,
+   "fii_change_1q": null,
+   "dii_change_1q": null,
+   "pledged_pct": null,
+   "pledge_rising": null
   },
   {
    "instrument_id": "NSE_EQ|F56",
@@ -1569,7 +1864,12 @@
    "outside_reason": null,
    "sector": null,
    "eps_yoy": null,
-   "sales_yoy": null
+   "sales_yoy": null,
+   "promoter_pct": null,
+   "fii_change_1q": null,
+   "dii_change_1q": null,
+   "pledged_pct": null,
+   "pledge_rising": null
   },
   {
    "instrument_id": "NSE_EQ|F57",
@@ -1595,7 +1895,12 @@
    "outside_reason": null,
    "sector": null,
    "eps_yoy": null,
-   "sales_yoy": null
+   "sales_yoy": null,
+   "promoter_pct": null,
+   "fii_change_1q": null,
+   "dii_change_1q": null,
+   "pledged_pct": null,
+   "pledge_rising": null
   },
   {
    "instrument_id": "NSE_EQ|F58",
@@ -1621,7 +1926,12 @@
    "outside_reason": null,
    "sector": null,
    "eps_yoy": null,
-   "sales_yoy": null
+   "sales_yoy": null,
+   "promoter_pct": null,
+   "fii_change_1q": null,
+   "dii_change_1q": null,
+   "pledged_pct": null,
+   "pledge_rising": null
   },
   {
    "instrument_id": "NSE_EQ|F59",
@@ -1647,7 +1957,12 @@
    "outside_reason": null,
    "sector": null,
    "eps_yoy": null,
-   "sales_yoy": null
+   "sales_yoy": null,
+   "promoter_pct": null,
+   "fii_change_1q": null,
+   "dii_change_1q": null,
+   "pledged_pct": null,
+   "pledge_rising": null
   },
   {
    "instrument_id": "NSE_EQ|NEWCO",
@@ -1673,7 +1988,12 @@
    "outside_reason": null,
    "sector": null,
    "eps_yoy": null,
-   "sales_yoy": null
+   "sales_yoy": null,
+   "promoter_pct": null,
+   "fii_change_1q": null,
+   "dii_change_1q": null,
+   "pledged_pct": null,
+   "pledge_rising": null
   }
  ]
 }

@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- F8 shareholding on the dashboard (FUNDAMENTALS_SPECIFICATION §15 "As built", FRONTEND_SPECIFICATION §67.40), display only: the latest split with 1Q and 4Q changes and a rising-pledge flag on the stock's Fundamentals card; a Shareholding pattern card (eight quarter ends) on Stock Analysis; Screener columns promoter %, FII and DII change, pledge %, with min promoter % and max pledge % filters. Point in time (broadcast by the close, quarter ends only, latest revision); a missing quarter is N/A; no pledge change across the June 2025 layout switch. API: `shareholding`, `shareholding_quarters` on `/stocks/{symbol}/fundamentals`; new Screener fields, sorts and filters.
+
 - F8 backfill fixes (FUNDAMENTALS_SPECIFICATION §15): companies without a promoter group read as 0 % promoter; units and validity judged from the parts, not a wrong total line; a file contradicting NSE's listing by more than 1 point is stored as `MISMATCH` and never shown; archive downloads time out after 45 s, reconnect after a failure and stop after 25 failures in a row; `vcp shareholding reparse` re-reads cached files.
 
 - F8 shareholding pattern (FUNDAMENTALS_SPECIFICATION §15), display and research only: probe findings in §15; parser for NSE's three XBRL layouts (known-answer tests on four saved filings); tables `shareholding_filings`, `shareholding_snapshots`, `shareholding_fetch_runs` (DATABASE_SCHEMA §87); `vcp shareholding backfill|update|status|show`; `config/shareholding.yaml`; a daily-run step after fundamentals. Trial of 10 stocks: 172 filings, 0 parse errors, 0 differences from NSE's listing.

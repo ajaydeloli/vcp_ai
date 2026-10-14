@@ -18,6 +18,7 @@ from typing import Any
 from vcp_scanner.api import models as m
 from vcp_scanner.api.context import Context
 from vcp_scanner.api.queries import Cur, classification
+from vcp_scanner.api.shareholding import stock_shareholding
 from vcp_scanner.data.providers._time import IST
 from vcp_scanner.data.repositories.duckdb_fundamental_repository import (
     load_share_actions,
@@ -103,9 +104,11 @@ def stock_fundamentals(
             )
             for q in rows
         ]  # fmt: skip
+    holding, holding_quarters = stock_shareholding(cur, instrument_id, day)
     return m.StockFundamentalsResponse(
         as_of=day, data_time=data_time, symbol=symbol, company=company, summary=summary,
         quarters=quarters, reason=None if summary else NO_DATA_REASON,
+        shareholding=holding, shareholding_quarters=holding_quarters,
     )  # fmt: skip
 
 

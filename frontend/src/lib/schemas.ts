@@ -365,6 +365,11 @@ export const screenerRow = z.object({
   sector: z.string().nullable().optional(),
   eps_yoy: num.optional(),
   sales_yoy: num.optional(),
+  promoter_pct: num.optional(),
+  fii_change_1q: num.optional(),
+  dii_change_1q: num.optional(),
+  pledged_pct: num.optional(),
+  pledge_rising: z.boolean().nullable().optional(),
 });
 
 export const screener = z.object({
@@ -582,6 +587,39 @@ export const fundamentalQuarter = z.object({
   sales_yoy_status: z.string(),
 });
 
+/** One quarter-end shareholding pattern (F8), % of the company's shares. */
+export const shareholdingQuarter = z.object({
+  as_on: z.string(),
+  available_at: z.string(),
+  revision: z.number(),
+  layout: z.string(),
+  promoter_pct: z.number(),
+  promoter_pledged_pct: num,
+  fii_pct: z.number(),
+  fdi_pct: num,
+  dii_pct: z.number(),
+  mf_pct: z.number(),
+  insurance_pct: z.number(),
+  government_pct: z.number(),
+  non_institutions_pct: z.number(),
+  public_pct: z.number(),
+  other_pct: z.number(),
+  shareholders: num,
+});
+
+export const shareholdingSummary = shareholdingQuarter.extend({
+  promoter_change_1q: num,
+  promoter_change_4q: num,
+  fii_change_1q: num,
+  fii_change_4q: num,
+  dii_change_1q: num,
+  dii_change_4q: num,
+  pledged_change_1q: num,
+  pledge_rising: z.boolean(),
+  shareholders_change_1q_pct: num,
+  stale: z.boolean(),
+});
+
 export const stockFundamentals = z.object({
   ...stamp,
   symbol: z.string(),
@@ -589,6 +627,8 @@ export const stockFundamentals = z.object({
   summary: fundamentalSummary.nullable(),
   quarters: z.array(fundamentalQuarter),
   reason: z.string().nullable(),
+  shareholding: shareholdingSummary.nullable().optional(),
+  shareholding_quarters: z.array(shareholdingQuarter).optional(),
 });
 
 export const fundamentalsRow = z.object({
@@ -613,6 +653,8 @@ export const fundamentals = z.object({
 export type FundamentalSummary = z.infer<typeof fundamentalSummary>;
 export type FundamentalQuarter = z.infer<typeof fundamentalQuarter>;
 export type StockFundamentals = z.infer<typeof stockFundamentals>;
+export type ShareholdingQuarter = z.infer<typeof shareholdingQuarter>;
+export type ShareholdingSummary = z.infer<typeof shareholdingSummary>;
 export type FundamentalsRow = z.infer<typeof fundamentalsRow>;
 export type Fundamentals = z.infer<typeof fundamentals>;
 
