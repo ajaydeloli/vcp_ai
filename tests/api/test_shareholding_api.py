@@ -90,19 +90,30 @@ def test_none_without_filings(ro_env: Env) -> None:
     assert body["shareholding"] is None and body["shareholding_quarters"] == []
 
 
-def test_screener_columns_filters_and_sort(ro_env: Env) -> None:
-    rows = {r["symbol"]: r for r in get(ro_env, "/api/v1/screener?page_size=100")["rows"]}
+def test_fundamentals_table_columns_filters_and_sort(ro_env: Env) -> None:
+    rows = {r["symbol"]: r for r in get(ro_env, "/api/v1/fundamentals")["rows"]}
     alpha = rows["ALPHA"]
+    assert alpha["shareholding_as_on"] == "2026-06-30" and not alpha["shareholding_stale"]
     assert alpha["promoter_pct"] == 48.5 and alpha["pledged_pct"] == 3.0
-    assert alpha["fii_change_1q"] == pytest.approx(1.0)
-    assert alpha["dii_change_1q"] == pytest.approx(0.5) and alpha["pledge_rising"]
+    assert alpha["promoter_change_1q"] == pytest.approx(-0.5)
+    assert alpha["fii_pct"] == 23.0 and alpha["fii_change_1q"] == pytest.approx(1.0)
+    assert alpha["dii_pct"] == 12.5 and alpha["dii_change_1q"] == pytest.approx(0.5)
+    assert alpha["pledge_rising"] is True
     assert rows["BETA"]["promoter_pct"] is None and rows["BETA"]["pledge_rising"] is None
 
     def symbols(query: str) -> set[str]:
-        return {r["symbol"] for r in get(ro_env, f"/api/v1/screener?page_size=100&{query}")["rows"]}
+        return {r["symbol"] for r in get(ro_env, f"/api/v1/fundamentals?{query}")["rows"]}
 
     assert symbols("min_promoter_pct=40") == {"ALPHA"}
-    assert "ALPHA" not in symbols("max_pledged_pct=2") and "BETA" in symbols("max_pledged_pct=2")
-    top = get(ro_env, "/api/v1/screener?sort=promoter_pct&page_size=1")["rows"]
+    assert symbols("max_pledged_pct=2") == {"BETA"}  # BETA has no pledge filed: it passes
+    assert symbols("fii_buying=true") == {"ALPHA"}
+    assert symbols("pledge_rising=true") == {"ALPHA"}
+    top = get(ro_env, "/api/v1/fundamentals?sort=fii_change_1q&page_size=1")["rows"]
     assert top[0]["symbol"] == "ALPHA"
-    get(ro_env, "/api/v1/screener?max_pledged_pct=101", 422)
+    get(ro_env, "/api/v1/fundamentals?max_pledged_pct=101", 422)
+
+
+def test_the_screener_has_no_shareholding(ro_env: Env) -> None:
+    row = get(ro_env, "/api/v1/screener?page_size=100")["rows"][0]
+    assert "promoter_pct" not in row and "pledged_pct" not in row
+    get(ro_env, "/api/v1/screener?sort=promoter_pct", 422)

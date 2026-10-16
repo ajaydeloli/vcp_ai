@@ -46,7 +46,17 @@
    "symbol": "ALPHA",
    "company": "Alpha Industries Ltd",
    "sector": "Capital Goods",
-   "rs_rank": 91
+   "rs_rank": 91,
+   "shareholding_as_on": "2026-06-30",
+   "shareholding_stale": false,
+   "promoter_pct": 48.5,
+   "promoter_change_1q": -0.5,
+   "fii_pct": 23.0,
+   "fii_change_1q": 1.0,
+   "dii_pct": 12.5,
+   "dii_change_1q": 0.5,
+   "pledged_pct": 3.0,
+   "pledge_rising": true
   },
   {
    "view_date": "2026-07-21",
@@ -87,7 +97,17 @@
    "symbol": "BETA",
    "company": "Beta Ltd",
    "sector": "Healthcare",
-   "rs_rank": 85
+   "rs_rank": 85,
+   "shareholding_as_on": null,
+   "shareholding_stale": null,
+   "promoter_pct": null,
+   "promoter_change_1q": null,
+   "fii_pct": null,
+   "fii_change_1q": null,
+   "dii_pct": null,
+   "dii_change_1q": null,
+   "pledged_pct": null,
+   "pledge_rising": null
   }
  ]
 }

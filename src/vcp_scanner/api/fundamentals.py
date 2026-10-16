@@ -18,7 +18,7 @@ from typing import Any
 from vcp_scanner.api import models as m
 from vcp_scanner.api.context import Context
 from vcp_scanner.api.queries import Cur, classification
-from vcp_scanner.api.shareholding import stock_shareholding
+from vcp_scanner.api.shareholding import shareholding_as_of, stock_shareholding
 from vcp_scanner.data.providers._time import IST
 from vcp_scanner.data.repositories.duckdb_fundamental_repository import (
     load_share_actions,
@@ -33,6 +33,8 @@ QUARTERS_SHOWN = 12
 FUNDAMENTALS_SORTS = (
     "symbol", "eps_yoy", "eps_qoq", "sales_yoy", "eps_acceleration", "margin_expansion", "roe",
     "debt_to_equity", "availability", "period_end", "available_at", "rs_rank", "ttm_eps",
+    "promoter_pct", "promoter_change_1q", "fii_pct", "fii_change_1q", "dii_pct", "dii_change_1q",
+    "pledged_pct",
 )  # fmt: skip
 
 _VIEW_SQL = """
@@ -134,18 +136,24 @@ def fundamentals_list(
     ids = [s[0] for s in stocks]
     views = views_as_of(cur, ids, day)
     sectors = classification(cur, ids)
+    holdings = shareholding_as_of(cur, ids, day)
     rows: list[m.FundamentalsRow] = []
     for iid, symbol, company, rs in stocks:
         v = views.get(iid)
         if v is None:
             continue
-        rows.append(
-            m.FundamentalsRow(
-                **v.model_dump(), instrument_id=iid, symbol=symbol, company=company,
-                sector=sectors.get(iid, (None, None))[0],
-                rs_rank=None if rs is None else int(rs),
-            )
+        row = m.FundamentalsRow(
+            **v.model_dump(), instrument_id=iid, symbol=symbol, company=company,
+            sector=sectors.get(iid, (None, None))[0], rs_rank=None if rs is None else int(rs),
         )  # fmt: skip
+        h = holdings.get(iid)
+        if h is not None:
+            row.shareholding_as_on, row.shareholding_stale = h.as_on, h.stale
+            row.promoter_pct, row.promoter_change_1q = h.promoter_pct, h.promoter_change_1q
+            row.fii_pct, row.fii_change_1q = h.fii_pct, h.fii_change_1q
+            row.dii_pct, row.dii_change_1q = h.dii_pct, h.dii_change_1q
+            row.pledged_pct, row.pledge_rising = h.promoter_pledged_pct, h.pledge_rising
+        rows.append(row)
     needle = (f.q or "").strip().upper()
 
     def at_least(value: float | None, floor: float | None) -> bool:
@@ -160,6 +168,13 @@ def fundamentals_list(
             at_least(x.availability, f.min_availability),
             not f.accelerating or (x.eps_acceleration is not None and x.eps_acceleration > 0),
             not f.current_only or not x.stale,
+            at_least(x.promoter_pct, getattr(f, "min_promoter_pct", None)),
+            # a stock with no pledge filed (no promoter group) has no pledge: it passes
+            getattr(f, "max_pledged_pct", None) is None or x.pledged_pct is None
+            or x.pledged_pct <= f.max_pledged_pct,
+            not getattr(f, "fii_buying", False)
+            or (x.fii_change_1q is not None and x.fii_change_1q > 0),
+            not getattr(f, "pledge_rising", False) or x.pledge_rising is True,
         ))  # fmt: skip
 
     kept = [x for x in rows if keep(x)]

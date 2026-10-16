@@ -23,9 +23,6 @@ export type ScreenerQuery = {
   /** fundamentals (F5), display and filter only: minimum EPS / sales growth year on year, % */
   minEpsYoy?: number;
   minSalesYoy?: number;
-  /** shareholding (F8), display and filter only: minimum promoter %, maximum pledge (% of promoter shares) */
-  minPromoterPct?: number;
-  maxPledgedPct?: number;
   sort: string;
   direction: "asc" | "desc";
   page: number;

@@ -369,12 +369,6 @@ class ScreenerRow(BaseModel):
     # Fundamentals (F5), display and filter only: the stock's view as of the scan day.
     eps_yoy: float | None = None
     sales_yoy: float | None = None
-    # Shareholding (F8), display and filter only: the latest quarter as of the scan day.
-    promoter_pct: float | None = None
-    fii_change_1q: float | None = None
-    dii_change_1q: float | None = None
-    pledged_pct: float | None = None
-    pledge_rising: bool | None = None
 
 
 class ScreenerResponse(Stamped):
@@ -800,6 +794,17 @@ class FundamentalsRow(FundamentalSummary):
     company: str | None
     sector: str | None
     rs_rank: int | None
+    # Shareholding (F8), the latest quarter end as of ``as_of``; None: not filed (N/A).
+    shareholding_as_on: date | None = None
+    shareholding_stale: bool | None = None
+    promoter_pct: float | None = None
+    promoter_change_1q: float | None = None
+    fii_pct: float | None = None
+    fii_change_1q: float | None = None
+    dii_pct: float | None = None
+    dii_change_1q: float | None = None
+    pledged_pct: float | None = None  # % of the promoter group's own shares
+    pledge_rising: bool | None = None
 
 
 class FundamentalsResponse(Stamped):

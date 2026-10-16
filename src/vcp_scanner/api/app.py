@@ -193,8 +193,6 @@ def create_app(
         sector: Annotated[str | None, Query(max_length=60)] = None,
         min_eps_yoy: Annotated[float | None, Query(ge=-1000, le=100000)] = None,
         min_sales_yoy: Annotated[float | None, Query(ge=-1000, le=100000)] = None,
-        min_promoter_pct: Annotated[float | None, Query(ge=0, le=100)] = None,
-        max_pledged_pct: Annotated[float | None, Query(ge=0, le=100)] = None,
         sort: Annotated[str, Query(pattern="^(" + "|".join(q.SCREENER_SORTS) + ")$")] = "rs_rank",
         direction: Annotated[str, Query(pattern="^(asc|desc)$")] = "desc",
         page: Annotated[int, Query(ge=1, le=1000)] = 1,
@@ -207,8 +205,7 @@ def create_app(
             min_conditions=min_conditions, has_setup=has_setup, min_grade=min_grade,
             status=status, classification=classification, min_strategies=min_strategies,
             universe_only=universe_only, eq_only=eq_only, sector=sector,
-            min_eps_yoy=min_eps_yoy, min_sales_yoy=min_sales_yoy,
-            min_promoter_pct=min_promoter_pct, max_pledged_pct=max_pledged_pct, sort=sort,
+            min_eps_yoy=min_eps_yoy, min_sales_yoy=min_sales_yoy, sort=sort,
             descending=direction == "desc", page=page, page_size=page_size,
         )  # fmt: skip
         with db.cursor() as cur:
@@ -229,6 +226,9 @@ def create_app(
         min_sales_yoy: Annotated[float | None, Query(ge=-1000, le=100000)] = None,
         min_availability: Annotated[float | None, Query(ge=0, le=1)] = None,
         accelerating: bool = False, current_only: bool = False,
+        min_promoter_pct: Annotated[float | None, Query(ge=0, le=100)] = None,
+        max_pledged_pct: Annotated[float | None, Query(ge=0, le=100)] = None,
+        fii_buying: bool = False, pledge_rising: bool = False,
         sort: Annotated[
             str, Query(pattern="^(" + "|".join(fundamentals.FUNDAMENTALS_SORTS) + ")$")
         ] = "eps_yoy",
@@ -240,8 +240,9 @@ def create_app(
         f = SimpleNamespace(
             q=q_, sector=sector, min_eps_yoy=min_eps_yoy, min_sales_yoy=min_sales_yoy,
             min_availability=min_availability, accelerating=accelerating,
-            current_only=current_only, sort=sort, descending=direction == "desc", page=page,
-            page_size=page_size,
+            current_only=current_only, min_promoter_pct=min_promoter_pct,
+            max_pledged_pct=max_pledged_pct, fii_buying=fii_buying, pledge_rising=pledge_rising,
+            sort=sort, descending=direction == "desc", page=page, page_size=page_size,
         )  # fmt: skip
         with db.cursor() as cur:
             day = on or q.screener_day(cur, ctx)

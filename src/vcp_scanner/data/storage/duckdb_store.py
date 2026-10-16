@@ -1244,7 +1244,7 @@ CREATE TABLE IF NOT EXISTS shareholding_filings (
     sha256           VARCHAR,
     cache_path       VARCHAR,
     fetched_at       TIMESTAMPTZ,
-    status           VARCHAR NOT NULL,          -- OK | FETCH_ERROR | PARSE_ERROR | MISMATCH | NO_FILE
+    status           VARCHAR NOT NULL,  -- OK | FETCH_ERROR | PARSE_ERROR | MISMATCH | NO_FILE
     error            VARCHAR
 )
 """

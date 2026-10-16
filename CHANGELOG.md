@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Shareholding moved from the Screener to the Fundamentals page (owner, 2026-10-15): a Results / Shareholding switch above the table; promoter, FII and DII % with their one-quarter change, pledge % with the rising flag, sortable; filters min promoter %, max pledge %, FII buying, pledge rising. API: these fields and filters on `/fundamentals`; removed from `/screener` (fields, sorts, `min_promoter_pct`, `max_pledged_pct`). FRONTEND_SPECIFICATION §67.40.
+
 - Shareholding: a filing NSE has no file for (no XBRL link, or 404 from the archive) is stored as `NO_FILE` instead of `FETCH_ERROR`: never fetched again, not counted toward the 25-failures stop, shown in `vcp shareholding status` and the run summary ("no file at NSE"). The 78 such filings of the backfill were relabelled (FUNDAMENTALS_SPECIFICATION §15).
 
 - F8 shareholding on the dashboard (FUNDAMENTALS_SPECIFICATION §15 "As built", FRONTEND_SPECIFICATION §67.40), display only: the latest split with 1Q and 4Q changes and a rising-pledge flag on the stock's Fundamentals card; a Shareholding pattern card (eight quarter ends) on Stock Analysis; Screener columns promoter %, FII and DII change, pledge %, with min promoter % and max pledge % filters. Point in time (broadcast by the close, quarter ends only, latest revision); a missing quarter is N/A; no pledge change across the June 2025 layout switch. API: `shareholding`, `shareholding_quarters` on `/stocks/{symbol}/fundamentals`; new Screener fields, sorts and filters.

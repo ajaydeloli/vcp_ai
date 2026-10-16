@@ -1,9 +1,10 @@
 // Shareholding pattern (F8): the Fundamentals card block, the stock page's card and the
-// Screener columns. Display only; the samples come from the real API
+// Fundamentals page's Shareholding view. Display only; the samples come from the real API
 // (tests/api/test_contract_samples.py; fixture ``add_shareholding``).
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
+import { FundamentalsPage } from "@/components/FundamentalsPage";
 import { Screener } from "@/components/Screener";
 import { SetupOverview } from "@/components/SetupOverview";
 import { ShareholdingCard } from "@/components/Shareholding";
@@ -37,9 +38,7 @@ describe("shareholding", () => {
     const card = (await screen.findByText("Shareholding pattern")).closest("section")!;
     const table = await within(card).findByRole("table");
     const rows = within(table).getAllByRole("row").slice(1);
-    expect(rows.map((r) => within(r).getAllByRole("rowheader")[0]?.textContent)).toEqual([
-      "Jun 26rev.", "Mar 26", "Sep 25", "Jun 25", "Mar 25",
-    ]); // fmt: skip
+    expect(rows.map((r) => within(r).getAllByRole("rowheader")[0]?.textContent)).toEqual(["Jun 26rev.", "Mar 26", "Sep 25", "Jun 25", "Mar 25"]); // fmt: skip
     expect(rows[0]).toHaveTextContent("1 Aug 202648.50%3.00%23.00%12.50%6.25%16.00%1,01,000");
     expect(within(card).getByRole("img", { name: /Shareholding by quarter, 5 quarters; latest promoter 48.5%/ })).toBeInTheDocument();
     expect(card).toHaveTextContent("▲ rising");
@@ -54,23 +53,41 @@ describe("shareholding", () => {
     expect(within(card).queryByRole("table")).toBeNull();
   });
 
-  it("the Screener's Fundamentals box adds promoter, FII and DII change and pledge; the filters reach the API", async () => {
+  it("the Fundamentals page's Shareholding view shows the latest pattern; its filters reach the API", async () => {
     const calls = mockApi();
-    renderApp(<Screener />);
+    renderApp(<FundamentalsPage />);
     await screen.findByRole("link", { name: "ALPHA" });
     expect(screen.queryByRole("columnheader", { name: /^Promoter/ })).toBeNull();
-    await userEvent.click(screen.getByRole("checkbox", { name: "Fundamentals" }));
-    for (const name of ["Promoter", "FII chg", "DII chg", "Pledge"]) {
-      expect(screen.getByRole("columnheader", { name: new RegExp(`^${name}`) })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Shareholding" }));
+    expect(screen.getByRole("button", { name: "Shareholding" })).toHaveAttribute("aria-pressed", "true");
+    for (const name of ["As on", "Promoter", "Prom. chg", "FII", "FII chg", "DII", "DII chg", "Pledge"]) {
+      expect(screen.getByRole("columnheader", { name: new RegExp(`^${name}( [▲▼])?$`) })).toBeInTheDocument();
     }
+    expect(screen.queryByRole("columnheader", { name: /^EPS YoY/ })).toBeNull();
     const alpha = screen.getByRole("link", { name: "ALPHA" }).closest("tr")!;
-    expect(alpha).toHaveTextContent("48.5%");
-    expect(alpha).toHaveTextContent("+1.00 pp");
-    expect(alpha).toHaveTextContent("+0.50 pp");
-    expect(alpha).toHaveTextContent("3.0% ▲");
-    await userEvent.click(screen.getByRole("button", { name: "More" }));
+    expect(alpha).toHaveTextContent("Jun 2648.50%-0.50 pp23.00%+1.00 pp12.50%+0.50 pp3.00% ▲");
+    // BETA has no shareholding filed: dashes, never 0
+    const beta = screen.getByRole("link", { name: "BETA" }).closest("tr")!;
+    expect(beta).not.toHaveTextContent("0.00%");
     await userEvent.type(screen.getByLabelText("Min promoter %"), "40");
     await userEvent.type(screen.getByLabelText("Max pledge %"), "5");
-    await waitFor(() => expect(calls.some((c) => c.includes("min_promoter_pct=40") && c.includes("max_pledged_pct=5"))).toBe(true));
+    await userEvent.click(screen.getByRole("checkbox", { name: "FII buying" }));
+    await userEvent.click(screen.getByRole("checkbox", { name: "Pledge rising" }));
+    await waitFor(() =>
+      expect(calls.some((c) => c.includes("min_promoter_pct=40") && c.includes("max_pledged_pct=5") && c.includes("fii_buying=true") && c.includes("pledge_rising=true"))).toBe(
+        true,
+      ),
+    );
+    await userEvent.click(screen.getByRole("button", { name: /^FII chg/ }));
+    await waitFor(() => expect(calls.some((c) => c.includes("sort=fii_change_1q"))).toBe(true));
+  });
+
+  it("the Screener has no shareholding columns", async () => {
+    mockApi();
+    renderApp(<Screener />);
+    await screen.findByRole("link", { name: "ALPHA" });
+    await userEvent.click(screen.getByRole("checkbox", { name: "Fundamentals" }));
+    expect(screen.queryByRole("columnheader", { name: /^Promoter/ })).toBeNull();
+    expect(screen.queryByRole("columnheader", { name: /^Pledge/ })).toBeNull();
   });
 });

@@ -35,12 +35,7 @@
    "outside_reason": null,
    "sector": "Capital Goods",
    "eps_yoy": 50.0,
-   "sales_yoy": 25.0,
-   "promoter_pct": 48.5,
-   "fii_change_1q": 1.0,
-   "dii_change_1q": 0.5,
-   "pledged_pct": 3.0,
-   "pledge_rising": true
+   "sales_yoy": 25.0
   },
   {
    "instrument_id": "NSE_EQ|BETA",
@@ -66,12 +61,7 @@
    "outside_reason": null,
    "sector": "Healthcare",
    "eps_yoy": null,
-   "sales_yoy": null,
-   "promoter_pct": null,
-   "fii_change_1q": null,
-   "dii_change_1q": null,
-   "pledged_pct": null,
-   "pledge_rising": null
+   "sales_yoy": null
   },
   {
    "instrument_id": "NSE_EQ|GAMMA",
@@ -97,12 +87,7 @@
    "outside_reason": null,
    "sector": null,
    "eps_yoy": null,
-   "sales_yoy": null,
-   "promoter_pct": null,
-   "fii_change_1q": null,
-   "dii_change_1q": null,
-   "pledged_pct": null,
-   "pledge_rising": null
+   "sales_yoy": null
   },
   {
    "instrument_id": "NSE_EQ|F00",
@@ -128,12 +113,7 @@
    "outside_reason": null,
    "sector": null,
    "eps_yoy": null,
-   "sales_yoy": null,
-   "promoter_pct": null,
-   "fii_change_1q": null,
-   "dii_change_1q": null,
-   "pledged_pct": null,
-   "pledge_rising": null
+   "sales_yoy": null
   }
  ]
 }

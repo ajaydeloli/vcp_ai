@@ -250,8 +250,8 @@ After working on the main database by hand (a rebuild, a manual scan), refresh t
 | Page | What it shows |
 |---|---|
 | **Market Overview** | NIFTY 50 / SENSEX / NIFTY 500 tiles, the Market Health Score and its pillar cards, the cards below, setups today, recent activity. |
-| **Screener** | Every stock of the latest scan with its Trend Template, setup and score; filters. The **Fundamentals** box adds EPS and sales growth and the shareholding columns (promoter %, FII and DII change over the quarter, pledge %, ▲ when the pledge rose); "More" has the minimum promoter % and maximum pledge % filters. |
-| **Fundamentals** | Quarterly results from NSE filings (display only). |
+| **Screener** | Every stock of the latest scan with its Trend Template, setup and score; filters. The **Fundamentals** box adds EPS and sales growth. |
+| **Fundamentals** | Every universe stock's latest quarterly results and, with the **Shareholding** switch above the table, its latest shareholding pattern: promoter, FII and DII % with their change over the quarter, pledge % (▲ when rising). Filters for both: EPS and sales growth, sector, min promoter %, max pledge %, "FII buying", "Pledge rising" (display only). |
 | **Stock Analysis** | One stock: chart, Trend Template conditions, setup, score, fundamentals, sector. The Fundamentals card ends with the latest shareholding (promoter, FII, DII, pledged; changes over one and four quarters); the **Shareholding pattern** card below the quarterly results has the last eight quarter ends. |
 | **Recent IPOs** | Recent listings and how they trade. |
 | **Watchlist** | Your list of stocks. |
@@ -589,7 +589,7 @@ done
 | `vcp shareholding status` | What is stored: filings by status, layouts, the last run. |
 | `vcp shareholding show SYMBOL [--quarters N]` | One stock's promoter, pledge, FII, DII, MF and public % by quarter. |
 
-**On the dashboard:** the stock page's Fundamentals card (latest split and changes, a "▲ rising" flag when the promoters pledged more than a quarter before), the Shareholding pattern card on Stock Analysis (eight quarters, chart and table) and the Screener's Fundamentals columns. Only quarter-end filings broadcast by the day shown are used, the latest revision of each; a quarter not filed is a dash, never 0. Changes are percentage points. The pledge change is not shown across the June 2025 quarter, when NSE's layout switched from "pledged or encumbered" to pledged only.
+**On the dashboard:** the stock page's Fundamentals card (latest split and changes, a "▲ rising" flag when the promoters pledged more than a quarter before), the Shareholding pattern card on Stock Analysis (eight quarters, chart and table) and the Fundamentals page's Shareholding view (every stock, sortable, with promoter, pledge, "FII buying" and "Pledge rising" filters). Only quarter-end filings broadcast by the day shown are used, the latest revision of each; a quarter not filed is a dash, never 0. Changes are percentage points. The pledge change is not shown across the June 2025 quarter, when NSE's layout switched from "pledged or encumbered" to pledged only.
 
 Settings live in `config/shareholding.yaml` (its own file, so it can never change a strategy's config hash): the stocks in scope, how far back, the pauses between requests to NSE, and whether the evening run updates it.
 

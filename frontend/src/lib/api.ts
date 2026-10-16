@@ -80,8 +80,8 @@ export const paths = {
         min_conditions: f.minConditions, universe_only: f.universeOnly ? undefined : false, eq_only: f.eqOnly ? undefined : false, has_setup: f.hasSetup || undefined,
         min_grade: f.minGrade, status: f.status, classification: f.classification,
         min_strategies: f.minStrategies, sector: f.sector, min_eps_yoy: f.minEpsYoy,
-        min_sales_yoy: f.minSalesYoy, min_promoter_pct: f.minPromoterPct, max_pledged_pct: f.maxPledgedPct,
-        sort: f.sort, direction: f.direction, page: f.page, page_size: f.pageSize,
+        min_sales_yoy: f.minSalesYoy, sort: f.sort, direction: f.direction,
+        page: f.page, page_size: f.pageSize,
       })}${stages}`;
   },
   stockFundamentals: (symbol: string) => `stocks/${encodeURIComponent(symbol)}/fundamentals`,
@@ -89,7 +89,9 @@ export const paths = {
     `fundamentals${query({
       q: f.q, sector: f.sector, min_eps_yoy: f.minEpsYoy, min_sales_yoy: f.minSalesYoy,
       min_availability: f.minAvailability, accelerating: f.accelerating || undefined,
-      current_only: f.currentOnly || undefined, sort: f.sort, direction: f.direction,
+      current_only: f.currentOnly || undefined, min_promoter_pct: f.minPromoterPct,
+      max_pledged_pct: f.maxPledgedPct, fii_buying: f.fiiBuying || undefined,
+      pledge_rising: f.pledgeRising || undefined, sort: f.sort, direction: f.direction,
       page: f.page, page_size: f.pageSize,
     })}`,
   search: (text: string) => `search${query({ q: text, limit: 8 })}`,

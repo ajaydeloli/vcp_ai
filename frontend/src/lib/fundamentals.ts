@@ -12,6 +12,13 @@ export type FundamentalsQuery = {
   minAvailability?: number;
   accelerating: boolean;
   currentOnly: boolean;
+  /** shareholding (F8): minimum promoter %, maximum pledge (% of promoter shares) */
+  minPromoterPct?: number;
+  maxPledgedPct?: number;
+  /** FII holding up over the latest quarter */
+  fiiBuying: boolean;
+  /** promoters pledged more than a quarter before */
+  pledgeRising: boolean;
   sort: string;
   direction: "asc" | "desc";
   page: number;
@@ -24,6 +31,8 @@ export const DEFAULT_FUNDAMENTALS_QUERY: FundamentalsQuery = {
   q: "",
   accelerating: false,
   currentOnly: false,
+  fiiBuying: false,
+  pledgeRising: false,
   sort: "eps_yoy",
   direction: "desc",
   page: 1,

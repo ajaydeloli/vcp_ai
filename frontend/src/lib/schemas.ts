@@ -365,11 +365,6 @@ export const screenerRow = z.object({
   sector: z.string().nullable().optional(),
   eps_yoy: num.optional(),
   sales_yoy: num.optional(),
-  promoter_pct: num.optional(),
-  fii_change_1q: num.optional(),
-  dii_change_1q: num.optional(),
-  pledged_pct: num.optional(),
-  pledge_rising: z.boolean().nullable().optional(),
 });
 
 export const screener = z.object({
@@ -638,6 +633,17 @@ export const fundamentalsRow = z.object({
   company: z.string().nullable(),
   sector: z.string().nullable(),
   rs_rank: z.number().nullable(),
+  // shareholding (F8), the latest quarter end; null: not filed
+  shareholding_as_on: z.string().nullable().optional(),
+  shareholding_stale: z.boolean().nullable().optional(),
+  promoter_pct: num.optional(),
+  promoter_change_1q: num.optional(),
+  fii_pct: num.optional(),
+  fii_change_1q: num.optional(),
+  dii_pct: num.optional(),
+  dii_change_1q: num.optional(),
+  pledged_pct: num.optional(),
+  pledge_rising: z.boolean().nullable().optional(),
 });
 
 export const fundamentals = z.object({
