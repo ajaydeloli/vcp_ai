@@ -147,3 +147,103 @@ sectors:
   - {symbol: WALCHANNAG, sector: Capital Goods, industry: Industrial Products, as_of: 2026-10-17}
   - {symbol: WSTCSTPAPR, sector: Forest Materials, industry: Paper & Paper Products, as_of: 2026-10-16}
   - {symbol: ZOTA, sector: Healthcare, industry: Pharmaceuticals, as_of: 2026-10-17}
+  - {symbol: AARTIDRUGS, sector: Healthcare, industry: Pharmaceuticals, as_of: 2026-10-18}
+  - {symbol: ADSL, sector: Information Technology, industry: IT Enabled Services, as_of: 2026-10-18}
+  - {symbol: AEROENTER, sector: Capital Goods, industry: Iron & Steel Products, as_of: 2026-10-18}
+  - {symbol: AGARWALEYE, sector: Healthcare, industry: Hospital, as_of: 2026-10-18}
+  - {symbol: AGI, sector: Capital Goods, industry: Packaging, as_of: 2026-10-18}
+  - {symbol: AJAXENGG, sector: Capital Goods, industry: Construction Vehicles, as_of: 2026-10-18}
+  - {symbol: ALEMBICLTD, sector: Realty, industry: Residential Commercial Projects, as_of: 2026-10-18}
+  - {symbol: ALICON, sector: Automobile and Auto Components, industry: Auto Components & Equipments, as_of: 2026-10-18}
+  - {symbol: APOLLOPIPE, sector: Capital Goods, industry: Plastic Products - Industrial, as_of: 2026-10-18}
+  - {symbol: ARIHANTCAP, sector: Financial Services, industry: Stockbroking & Allied, as_of: 2026-10-18}
+  - {symbol: ARSSBL, sector: Financial Services, industry: Stockbroking & Allied, as_of: 2026-10-18}
+  - {symbol: AVTNPL, sector: Fast Moving Consumer Goods, industry: Other Agricultural Products, as_of: 2026-10-18}
+  - {symbol: BEPL, sector: Chemicals, industry: Petrochemicals, as_of: 2026-10-18}
+  - {symbol: BLSE, sector: Information Technology, industry: IT Enabled Services, as_of: 2026-10-18}
+  - {symbol: BLUSPRING, sector: Services, industry: Diversified Commercial Services, as_of: 2026-10-18}
+  - {symbol: BOROLTD, sector: Consumer Durables, industry: Houseware, as_of: 2026-10-18}
+  - {symbol: BOSCH-HCIL, sector: Consumer Durables, industry: Household Appliances, as_of: 2026-10-18}
+  - {symbol: CARYSIL, sector: Consumer Durables, industry: Household Appliances, as_of: 2026-10-18}
+  - {symbol: DCI, sector: Information Technology, industry: Computers - Software & Consulting, as_of: 2026-10-18}
+  - {symbol: DCMSHRIRAM, sector: Diversified, industry: Diversified, as_of: 2026-10-18}
+  - {symbol: DCW, sector: Chemicals, industry: Petrochemicals, as_of: 2026-10-18}
+  - {symbol: DEEDEV, sector: Capital Goods, industry: Industrial Products, as_of: 2026-10-18}
+  - {symbol: DIVGIITTS, sector: Automobile and Auto Components, industry: Auto Components & Equipments, as_of: 2026-10-18}
+  - {symbol: DMCC, sector: Chemicals, industry: Specialty Chemicals, as_of: 2026-10-18}
+  - {symbol: DREDGECORP, sector: Services, industry: Dredging, as_of: 2026-10-18}
+  - {symbol: DWARKESH, sector: Fast Moving Consumer Goods, industry: Sugar, as_of: 2026-10-18}
+  - {symbol: ETHOSLTD, sector: Consumer Durables, industry: Gems Jewellery And Watches, as_of: 2026-10-18}
+  - {symbol: EUREKAFORB, sector: Consumer Durables, industry: Household Appliances, as_of: 2026-10-18}
+  - {symbol: EXICOM, sector: Capital Goods, industry: Heavy Electrical Equipment, as_of: 2026-10-18}
+  - {symbol: FMGOETZE, sector: Automobile and Auto Components, industry: Auto Components & Equipments, as_of: 2026-10-18}
+  - {symbol: FUSION, sector: Financial Services, industry: Microfinance Institutions, as_of: 2026-10-18}
+  - {symbol: GALAXYSURF, sector: Chemicals, industry: Specialty Chemicals, as_of: 2026-10-18}
+  - {symbol: GANECOS, sector: Textiles, industry: Other Textile Products, as_of: 2026-10-18}
+  - {symbol: GMBREW, sector: Fast Moving Consumer Goods, industry: Breweries & Distilleries, as_of: 2026-10-18}
+  - {symbol: GOCLCORP, sector: Chemicals, industry: Explosives, as_of: 2026-10-18}
+  - {symbol: GODAVARIB, sector: Fast Moving Consumer Goods, industry: Diversified FMCG, as_of: 2026-10-18}
+  - {symbol: GRMOVER, sector: Fast Moving Consumer Goods, industry: Other Agricultural Products, as_of: 2026-10-18}
+  - {symbol: GUJTHEM, sector: Healthcare, industry: Pharmaceuticals, as_of: 2026-10-18}
+  - {symbol: HARSHA, sector: Capital Goods, industry: Other Industrial Products, as_of: 2026-10-18}
+  - {symbol: HATSUN, sector: Fast Moving Consumer Goods, industry: Dairy Products, as_of: 2026-10-18}
+  - {symbol: HINDOILEXP, sector: Oil Gas & Consumable Fuels, industry: Oil Exploration & Production, as_of: 2026-10-18}
+  - {symbol: HMAAGRO, sector: Fast Moving Consumer Goods, industry: Meat Products including Poultry, as_of: 2026-10-18}
+  - {symbol: HUBTOWN, sector: Realty, industry: Residential Commercial Projects, as_of: 2026-10-18}
+  - {symbol: ICRA, sector: Financial Services, industry: Ratings, as_of: 2026-10-18}
+  - {symbol: INDNIPPON, sector: Automobile and Auto Components, industry: Auto Components & Equipments, as_of: 2026-10-18}
+  - {symbol: INDOAMIN, sector: Chemicals, industry: Specialty Chemicals, as_of: 2026-10-18}
+  - {symbol: INDRAMEDCO, sector: Healthcare, industry: Hospital, as_of: 2026-10-18}
+  - {symbol: INTERARCH, sector: Construction, industry: Civil Construction, as_of: 2026-10-18}
+  - {symbol: ISGEC, sector: Construction, industry: Civil Construction, as_of: 2026-10-18}
+  - {symbol: IZMO, sector: Information Technology, industry: IT Enabled Services, as_of: 2026-10-18}
+  - {symbol: JAGSNPHARM, sector: Healthcare, industry: Pharmaceuticals, as_of: 2026-10-18}
+  - {symbol: JISLJALEQS, sector: Capital Goods, industry: Plastic Products - Industrial, as_of: 2026-10-18}
+  - {symbol: JSWDULUX, sector: Consumer Durables, industry: Paints, as_of: 2026-10-18}
+  - {symbol: JSWHL, sector: Financial Services, industry: Investment Company, as_of: 2026-10-18}
+  - {symbol: KINGFA, sector: Capital Goods, industry: Plastic Products - Industrial, as_of: 2026-10-18}
+  - {symbol: KOLTEPATIL, sector: Realty, industry: Residential Commercial Projects, as_of: 2026-10-18}
+  - {symbol: KRSNAA, sector: Healthcare, industry: Healthcare Service Provider, as_of: 2026-10-18}
+  - {symbol: MAHLOG, sector: Services, industry: Logistics Solution Provider, as_of: 2026-10-18}
+  - {symbol: MAWANASUG, sector: Fast Moving Consumer Goods, industry: Sugar, as_of: 2026-10-18}
+  - {symbol: MAXESTATES, sector: Realty, industry: Residential Commercial Projects, as_of: 2026-10-18}
+  - {symbol: MAYURUNIQ, sector: Consumer Durables, industry: Leather And Leather Products, as_of: 2026-10-18}
+  - {symbol: MEDIASSIST, sector: Financial Services, industry: Insurance Distributors, as_of: 2026-10-18}
+  - {symbol: METROBRAND, sector: Consumer Durables, industry: Footwear, as_of: 2026-10-18}
+  - {symbol: MTNL, sector: Telecommunication, industry: Telecom - Cellular & Fixed line services, as_of: 2026-10-18}
+  - {symbol: MUFIN, sector: Financial Services, industry: Non Banking Financial Company (NBFC), as_of: 2026-10-18}
+  - {symbol: MUKANDLTD, sector: Capital Goods, industry: Iron & Steel Products, as_of: 2026-10-18}
+  - {symbol: MUNJALAU, sector: Automobile and Auto Components, industry: Auto Components & Equipments, as_of: 2026-10-18}
+  - {symbol: NACLIND, sector: Chemicals, industry: Pesticides & Agrochemicals, as_of: 2026-10-18}
+  - {symbol: NELCAST, sector: Capital Goods, industry: Castings & Forgings, as_of: 2026-10-18}
+  - {symbol: NIBE, sector: Capital Goods, industry: Aerospace & Defense, as_of: 2026-10-18}
+  - {symbol: ORIENTHOT, sector: Consumer Services, industry: Hotels & Resorts, as_of: 2026-10-18}
+  - {symbol: PARACABLES, sector: Capital Goods, industry: Cables - Electricals, as_of: 2026-10-18}
+  - {symbol: PENIND, sector: Capital Goods, industry: Industrial Products, as_of: 2026-10-18}
+  - {symbol: PFS, sector: Financial Services, industry: Non Banking Financial Company (NBFC), as_of: 2026-10-18}
+  - {symbol: PITTIENG, sector: Capital Goods, industry: Industrial Products, as_of: 2026-10-18}
+  - {symbol: PRUDENT, sector: Financial Services, industry: Financial Products Distributor, as_of: 2026-10-18}
+  - {symbol: REGAAL, sector: Fast Moving Consumer Goods, industry: Other Agricultural Products, as_of: 2026-10-18}
+  - {symbol: RGL, sector: Consumer Durables, industry: Gems Jewellery And Watches, as_of: 2026-10-18}
+  - {symbol: RICOAUTO, sector: Automobile and Auto Components, industry: Auto Components & Equipments, as_of: 2026-10-18}
+  - {symbol: RPGLIFE, sector: Healthcare, industry: Pharmaceuticals, as_of: 2026-10-18}
+  - {symbol: SANGHVIMOV, sector: Services, industry: Diversified Commercial Services, as_of: 2026-10-18}
+  - {symbol: SATIN, sector: Financial Services, industry: Microfinance Institutions, as_of: 2026-10-18}
+  - {symbol: SEAMECLTD, sector: Services, industry: Shipping, as_of: 2026-10-18}
+  - {symbol: SIS, sector: Consumer Services, industry: Other Consumer Services, as_of: 2026-10-18}
+  - {symbol: SKFINDIA, sector: Automobile and Auto Components, industry: Auto Components & Equipments, as_of: 2026-10-18}
+  - {symbol: STEELCAS, sector: Capital Goods, industry: Castings & Forgings, as_of: 2026-10-18}
+  - {symbol: TARSONS, sector: Healthcare, industry: Medical Equipment & Supplies, as_of: 2026-10-18}
+  - {symbol: TEMBO, sector: Capital Goods, industry: Iron & Steel Products, as_of: 2026-10-18}
+  - {symbol: TIIL, sector: Capital Goods, industry: Iron & Steel Products, as_of: 2026-10-18}
+  - {symbol: TRUALT, sector: Fast Moving Consumer Goods, industry: Other Agricultural Products, as_of: 2026-10-18}
+  - {symbol: TVSHLTD, sector: Financial Services, industry: Investment Company, as_of: 2026-10-18}
+  - {symbol: UFLEX, sector: Capital Goods, industry: Packaging, as_of: 2026-10-18}
+  - {symbol: UNIECOM, sector: Information Technology, industry: IT Enabled Services, as_of: 2026-10-18}
+  - {symbol: UNIPARTS, sector: Automobile and Auto Components, industry: Auto Components & Equipments, as_of: 2026-10-18}
+  - {symbol: VADILALIND, sector: Fast Moving Consumer Goods, industry: Dairy Products, as_of: 2026-10-18}
+  - {symbol: VENKEYS, sector: Fast Moving Consumer Goods, industry: Meat Products including Poultry, as_of: 2026-10-18}
+  - {symbol: VIMTALABS, sector: Healthcare, industry: Healthcare Research Analytics & Technology, as_of: 2026-10-18}
+  - {symbol: WENDT, sector: Capital Goods, industry: Abrasives & Bearings, as_of: 2026-10-18}
+  - {symbol: WINDLAS, sector: Healthcare, industry: Pharmaceuticals, as_of: 2026-10-18}
+  - {symbol: YATRA, sector: Consumer Services, industry: Tour Travel Related Services, as_of: 2026-10-18}
