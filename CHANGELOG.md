@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Data clean-up (owner, 2026-10-19): CCAVENUE 1-for-10 consolidation (Re 1 -> Rs 10, ex 2026-10-13) entered in `config/manual_corporate_actions.yaml`; it showed as a +840 % jump and RS rank 99. Eight harmless data-quality warnings on universe stocks resolved with notes (TVSMOTOR, BRITANNIA, SHAREINDIA, WAAREEINDO x2, FORCEMOT, SPLPETRO, CCAVENUE mapping).
+
 - Agent step A1.5, diagnostics (owner, 2026-10-19): tools `data_quality`, `corporate_actions`, `price_bars`, `scan_run`, `backtest`, and `min_score` / `max_pivot_distance_pct` on `setups` (20 tools). Read-only API: `GET /api/v1/data-quality` (status OPEN, RESOLVED or ALL; severity, event_type, symbol, limit), `/stocks/{symbol}/corporate-actions` (records, factors in force, events, raw gaps of 10 % or more and whether a factor explains each), `/stocks/{symbol}/prices?days=` (raw next to adjusted), `/scan-runs?date=` (runs of a day and the evening run's summary and warning lines), `/backtests/{id}?trades=` (trades paired entry to exit, by exit and by year). AGENT_SPECIFICATION: A1.5 added, no `run_scan` tool (the evening run is the only scanner), and a scan diff for candidate branches in A4.
 
 - Agent tools read history (owner, 2026-10-19): `setups`, `screener` and `stock` take `date=YYYY-MM-DD` (a past scan day), and the new `score_history` tool lists one stock's stored setup and score per scan day. API: `GET /api/v1/stocks/{symbol}/scores?days=60&strategy=` (days 1-400).

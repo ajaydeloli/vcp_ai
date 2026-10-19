@@ -150,3 +150,18 @@ actions:
       separate record already adjusted from prices.
     approved_by: Ajay
     entered_on: 2026-10-19
+
+  - symbol: CCAVENUE
+    action_type: SPLIT
+    ex_date: 2026-10-13
+    ratio: [1, 10]
+    evidence: >-
+      Consolidation of 10 equity shares of Re 1 into 1 share of Rs 10 (AvenuesAI, formerly
+      Infibeam Avenues), record date 2026-10-13; trading suspended 2026-10-13..16 (Business
+      Today, 2026-10-13; NSE record-date intimation
+      https://nsearchives.nseindia.com/corporate/INFIBEAM_01102026175558_AALIntimationRecord_Date01102026.pdf).
+      Bhavcopy: ISIN INE483S01020 -> INE483S01038; close 13.83 on 2026-10-12, previous close
+      138.30 (= 13.83 x 10) and open 135.65 on 2026-10-19. NSE's feed does not model a
+      consolidation.
+    approved_by: Ajay
+    entered_on: 2026-10-19
