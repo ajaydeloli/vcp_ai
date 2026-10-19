@@ -582,6 +582,9 @@ def build_parser() -> argparse.ArgumentParser:
     from vcp_scanner.cli_research import add_research_parser
 
     add_research_parser(subparsers)
+    from vcp_scanner.cli_agent import add_agent_parser
+
+    add_agent_parser(subparsers)
 
     from vcp_scanner.cli_backtest import add_backtest_parser
 
@@ -1118,6 +1121,11 @@ def main(argv: Sequence[str] | None = None) -> int:
         from vcp_scanner.cli_research import run_research
 
         return run_research(args)
+
+    if args.command == "agent":
+        from vcp_scanner.cli_agent import run_agent
+
+        return run_agent(args)
 
     if args.command == "verify":
         if args.verify_command == "kite-adjustment":

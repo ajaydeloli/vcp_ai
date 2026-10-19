@@ -630,6 +630,18 @@ Settings live in `config/shareholding.yaml` (its own file, so it can never chang
 | `vcp research outcomes --from D --to D --split D [--variant ...] [--csv FILE]` | Forward outcomes by detector class. |
 | `vcp research score-outcomes --from D --to D --split D` | Do higher scores lead to better outcomes? |
 
+### 8.16a `vcp agent` (the AI's second brain, AGENT_SPECIFICATION)
+
+| Command | What it does |
+|---|---|
+| `vcp agent serve` | The MCP server; Claude Code starts it itself (registered in `.mcp.json`), you do not run it by hand. |
+| `vcp agent notes [--kind decision] [--search TEXT]` | The notebook: decisions, findings, hypotheses, questions, newest first. |
+| `vcp agent note KIND "TEXT" [--tags a,b]` | Add your own entry (marked as yours, `source owner`). |
+| `vcp agent audit [--limit N]` | Every tool call the AI made, with its arguments. |
+| `vcp agent seed` | Add the standing decisions to a new notebook (done once; safe to repeat). |
+
+**Using it with Claude Code:** in an Ubuntu terminal, `cd ~/projects/vcp_ai` and run `claude`. The first time, Claude Code asks whether to use the project's MCP server `vcp-scanner`: approve it (`/mcp` shows it and its tools). Then ask in plain words, e.g. "give me today's brief", "why is DEEPINDS a grade-2 VCP?", "what did we decide about fundamentals?", "note that I want to look at failed breakouts in weak breadth". Step A1 can only read and write the notebook: no tool changes a strategy, a config, the ledger or credentials, or calls NSE. Proposals and approvals come in later steps (AGENT_SPECIFICATION §8). The notebook and audit live in `data/agent/agent.duckdb`.
+
 ### 8.17 `vcp api`
 
 | Command | What it does |

@@ -82,6 +82,8 @@ An AI can try hundreds of variations in an evening; one of them will look good b
 
 # 7. Connection
 
+*As built (A1).* `.mcp.json` at the repository root registers `vcp-scanner` for Claude Code (stdio; `vcp agent serve` from the project folder). Read tools call the dashboard API in-process (FastAPI TestClient over the serving copy), so they follow the same point-in-time rules and work without the dashboard running. Results are compacted (nulls dropped, lists cut to 25 with a count). Tools: `run_status`, `market_health`, `setups`, `screener`, `stock`, `fundamentals_table`, `paper_ledger`, `activity`, `backtests`, `spec` (project documents only), `notebook_search`, `decision_log`, `daily_brief`, and the pre-approved `add_note` (append-only; kinds decision, finding, hypothesis, question, idea, note). The agent's state is its own file, `data/agent/agent.duckdb` (`agent_notes`, `agent_audit`), opened per call.
+
 Local only at first: a stdio MCP server started by Claude Desktop or Claude Code on this PC (`vcp agent serve`), reading the serving copy and writing only through the paths above. ChatGPT or other clients that need a public URL come later, behind a token and a tunnel, if wanted.
 
 ---
@@ -90,7 +92,7 @@ Local only at first: a stdio MCP server started by Claude Desktop or Claude Code
 
 | Step | Delivers | Size |
 |---|---|---|
-| A1 | Tier 0 tools, notebook and decision log (seeded from the specs' decisions), audit, daily brief | 2–3 days |
+| A1 | Tier 0 tools, notebook and decision log (seeded from the specs' decisions), audit, daily brief (**done 2026-10-19**: `vcp_scanner/agent`, `vcp agent serve`, `.mcp.json` for Claude Code; 14 tools) | 2–3 days |
 | A2 | Tier 1 research tools with pre-registration and window checks; hypothesis and result reports | 3–4 days |
 | A3 | Tier 2 proposals, dashboard Proposals page, `vcp agent approve/reject`, apply for data fixes, sectors and watchlist | 3–4 days |
 | A4 | Strategy candidates: branch build, checks, shadow paper ledger, weekly shadow comparison | 4–6 days |

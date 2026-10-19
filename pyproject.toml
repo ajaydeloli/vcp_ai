@@ -25,6 +25,7 @@ dependencies = [
     "requests>=2.31",  # NSE / Upstox HTTP providers
     "fastapi>=0.110",  # read-only dashboard API (FRONTEND_SPECIFICATION 67)
     "uvicorn>=0.29",  # serves it (`vcp api serve`)
+    "mcp>=1.2,<2",  # the agent MCP server for Claude Code (AGENT_SPECIFICATION)
 ]
 
 [project.optional-dependencies]

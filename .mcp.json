@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "vcp-scanner": {
+      "type": "stdio",
+      "command": "bash",
+      "args": [
+        "-c",
+        "cd /home/ubuntu/projects/vcp_ai && exec .venv/bin/vcp agent serve"
+      ],
+      "env": {}
+    }
+  }
+}
