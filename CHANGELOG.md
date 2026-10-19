@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-- Corporate actions (owner, 2026-10-19): bonus redeemable preference shares entered as price factors in `config/manual_corporate_actions.yaml`: SIYSIL ex 2026-08-21 (7 x Rs 10 per share, factor 0.8919) and TVSHLTD ex 2026-09-08 (46 x Rs 10, factor 0.9665). QUINT 2026-08-25 (rights to CCPS and warrants, no price gap) resolved as harmless, no adjustment.
+- Corporate actions (owner, 2026-10-19): bonus redeemable preference shares entered as price factors in `config/manual_corporate_actions.yaml`: SIYSIL ex 2026-08-21 (7 x Rs 10 per share, factor 0.8919) and TVSHLTD ex 2026-09-08 (46 x Rs 10, factor 0.9665). QUINT 2026-08-25 (rights to CCPS and warrants, no price gap) resolved as harmless, no adjustment. TVSHLTD ex 2023-03-24 (Sundaram-Clayton scheme: 116 x Rs 10 per share, factor 0.7592).
 
 - Sector rotation: the hover tooltip now sits in the chart corner clearest of the hovered sector's track instead of on top of it (owner, 2026-10-19).
 

@@ -60,6 +60,7 @@ def test_repository_file_holds_the_verified_overrides() -> None:
         ("UEL", T.DEMERGER, date(2024, 5, 22), None),
         ("SIYSIL", T.DEMERGER, date(2026, 8, 21), None),
         ("TVSHLTD", T.DEMERGER, date(2026, 9, 8), None),
+        ("TVSHLTD", T.DEMERGER, date(2023, 3, 24), None),
     }
 
 
