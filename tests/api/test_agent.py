@@ -21,8 +21,9 @@ READ_TOOLS = {
     "run_status", "market_health", "setups", "screener", "stock", "fundamentals_table",
     "paper_ledger", "activity", "backtests", "spec", "notebook_search", "decision_log",
     "daily_brief", "score_history", "data_quality", "corporate_actions", "price_bars",
-    "scan_run", "backtest",
+    "scan_run", "backtest", "hypotheses",
 }  # fmt: skip
+LAB_WRITES = {"register_hypothesis", "run_study", "run_backtest", "conclude_hypothesis"}
 
 
 @pytest.fixture
@@ -39,7 +40,8 @@ def call(server: Any, tool: str, **args: Any) -> Any:
 
 def test_the_tool_list_is_read_tools_plus_the_notebook(server: Any) -> None:
     names = {t.name for t in asyncio.run(server.list_tools())}
-    assert names == READ_TOOLS | {"add_note"}  # no approve, apply, order or config tool
+    # no approve, apply, order or config tool: the notebook and the research lab only
+    assert names == READ_TOOLS | {"add_note"} | LAB_WRITES
 
 
 def test_read_tools_return_compact_api_data(server: Any) -> None:
@@ -81,6 +83,24 @@ def test_diagnostic_tools_and_setup_filters(server: Any) -> None:
     assert len(high) < len(every) and all(r["score"] >= 75 for r in high)
     near = call(server, "setups", strategy="vcp", max_pivot_distance_pct=100)
     assert all(0 <= r["pivot_distance_pct"] <= 100 for r in near.get("rows", []))
+
+
+def test_lab_tools_register_refuse_and_conclude(server: Any) -> None:
+    with pytest.raises(Exception, match="no hypothesis H1"):
+        asyncio.run(server.call_tool("run_study", {"hypothesis_id": 1}))
+    reg = call(server, "register_hypothesis", strategy="vcp", title="t", idea="i",
+               metric="m", decision_rule="d")  # fmt: skip
+    hid = reg["hypothesis_id"]
+    assert reg["budget_left"] == 2
+    with pytest.raises(Exception, match="validation comes after development"):
+        asyncio.run(server.call_tool("run_study", {"hypothesis_id": hid, "window": "validation"}))
+    # the fixture has no live labels: the run is refused, recorded as failed and noted
+    with pytest.raises(Exception, match="no live labels"):
+        asyncio.run(server.call_tool("run_study", {"hypothesis_id": hid}))
+    listed = call(server, "hypotheses")
+    assert listed["hypotheses"][0]["runs"][0]["ok"] is False
+    assert call(server, "conclude_hypothesis", hypothesis_id=hid, outcome="inconclusive",
+                conclusion="no data in the fixture")["status"] == "CONCLUDED"  # fmt: skip
 
 
 def test_unknown_stock_is_an_error_and_is_audited(server: Any, tmp_path: Path) -> None:

@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Agent step A2, the research lab: `register_hypothesis`, `hypotheses`, `run_study`, `run_backtest`, `conclude_hypothesis` (25 tools) and `vcp agent hypotheses`. Pre-registration, a budget of 3 hypotheses per strategy per review cycle, the development window freely, the validation window once per hypothesis after a development run, no data after 2026-09-30; every run and conclusion goes to the notebook. Studies read the research database's forward labels of each strategy's frozen config; backtests run the existing backtester on the research database only.
+
 - Fix (2026-10-19): a PROVIDER_CONFLICT on the old reading of a re-parsed corporate action (an NCRPS bonus first read as an equity BONUS, e.g. TVSHLTD 46:1 ex 2026-09-08) no longer raises a blocking CORPORATE_ACTION_UNRESOLVED event; the adjustment engine already ignored that reading (Fix C11). Manual sectors: 175 more stocks (500 entries; universe coverage 1,167 of 1,277).
 
 - Data clean-up (owner, 2026-10-19): CCAVENUE 1-for-10 consolidation (Re 1 -> Rs 10, ex 2026-10-13) entered in `config/manual_corporate_actions.yaml`; it showed as a +840 % jump and RS rank 99. Eight harmless data-quality warnings on universe stocks resolved with notes (TVSMOTOR, BRITANNIA, SHAREINDIA, WAAREEINDO x2, FORCEMOT, SPLPETRO, CCAVENUE mapping).

@@ -33,6 +33,8 @@ def add_agent_parser(subparsers: argparse._SubParsersAction) -> None:  # type: i
     ad.add_argument("text")
     ad.add_argument("--tags", default=None)
     ad.add_argument("--db", default=DEFAULT_AGENT_DB)
+    hy = sub.add_parser("hypotheses", help="Show the research lab: hypotheses, runs, budget")
+    hy.add_argument("--db", default=DEFAULT_AGENT_DB)
 
 
 def run_agent(args: argparse.Namespace) -> int:
@@ -45,7 +47,7 @@ def run_agent(args: argparse.Namespace) -> int:
         serve(args.config_dir, args.data_dir)
         return 0
     if cmd is None:
-        _err("Usage: vcp agent {serve,notes,audit,seed,note} ...")
+        _err("Usage: vcp agent {serve,notes,audit,seed,note,hypotheses} ...")
         return 1
     store = AgentStore(Path(args.db))
     if cmd == "seed":
@@ -69,6 +71,23 @@ def run_agent(args: argparse.Namespace) -> int:
         for at, tool, args_json, ok, error, ms in store.audit_rows(args.limit):
             mark = "ok" if ok else f"ERROR {error}"
             print(f"{at:%Y-%m-%d %H:%M:%S} {tool} {args_json} {ms} ms {mark}")
+        return 0
+    if cmd == "hypotheses":
+        from vcp_scanner.agent.lab import CYCLE, Lab
+
+        lab = Lab(store)
+        left = ", ".join(f"{k} {v}" for k, v in lab.budget().items())
+        print(f"Test budget left this review cycle ({CYCLE}): {left}")
+        for h in lab.find():
+            print(f"H{h.hypothesis_id} [{h.strategy}] {h.status}"
+                  f"{' ' + h.outcome if h.outcome else ''}: {h.title}")  # fmt: skip
+            print(f"    decision rule: {h.decision_rule}")
+            for r in reversed(lab.runs(h.hypothesis_id)):
+                mark = "ok" if r["ok"] else f"failed: {r['error']}"
+                print(f"    run {r['run_id']} {r['kind']} {r['window']} {mark}"
+                      f"{': ' + r['summary'][:160] if r['summary'] else ''}")  # fmt: skip
+            if h.conclusion:
+                print(f"    conclusion: {h.conclusion}")
         return 0
     _err(f"Unknown agent command: {cmd}")
     return 1
