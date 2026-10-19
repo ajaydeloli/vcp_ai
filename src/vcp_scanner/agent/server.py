@@ -153,13 +153,26 @@ def build_server(
 
     @tool
     def setups(strategy: str = "vcp", min_grade: int | None = None, status: str | None = None,
-               limit: int = 20, date: str | None = None) -> str:  # fmt: skip
+               limit: int = 20, date: str | None = None, min_score: float | None = None,
+               max_pivot_distance_pct: float | None = None) -> str:  # fmt: skip
         """Ranked setups of one strategy (vcp, flat_base, three_weeks_tight, cup_handle,
         double_bottom) on the latest scan, or on a past scan day with date=YYYY-MM-DD (no rows:
-        no scan that day, e.g. a holiday). status: FORMING, PIVOT_READY, BREAKOUT."""
-        rows = api.get("setups", strategy=strategy, min_grade=min_grade, status=status,
-                       limit=max(1, min(limit, 100)), date=_day(date))  # fmt: skip
-        return _dump(_compact(rows, limit))
+        no scan that day, e.g. a holiday). status: FORMING, PIVOT_READY, BREAKOUT. min_score
+        keeps scores at or above it; max_pivot_distance_pct keeps setups still below their
+        pivot by at most that many % (breakouts, already above the pivot, are dropped)."""
+        limit = max(1, min(limit, 100))
+        filtered = min_score is not None or max_pivot_distance_pct is not None
+        body = api.get("setups", strategy=strategy, min_grade=min_grade, status=status,
+                       limit=500 if filtered else limit, date=_day(date))  # fmt: skip
+        if filtered:
+            rows = body.get("rows", [])
+            if min_score is not None:
+                rows = [r for r in rows if (r.get("score") or 0) >= min_score]
+            if max_pivot_distance_pct is not None:
+                rows = [r for r in rows if r.get("pivot_distance_pct") is not None
+                        and 0 <= r["pivot_distance_pct"] <= max_pivot_distance_pct]  # fmt: skip
+            body["rows"] = rows[:limit]
+        return _dump(_compact(body, limit))
 
     @tool
     def screener(q: str | None = None, stage: str | None = None, tt_pass: bool | None = None,
@@ -196,6 +209,50 @@ def build_server(
         rows = api.get(f"stocks/{symbol.strip().upper()}/scores",
                        days=max(1, min(days, 400)), strategy=strategy)  # fmt: skip
         return _dump(_compact(rows, 200))
+
+    @tool
+    def data_quality(status: str = "OPEN", severity: str | None = None,
+                     event_type: str | None = None, symbol: str | None = None,
+                     limit: int = 30) -> str:  # fmt: skip
+        """Data-quality events (status OPEN, RESOLVED or ALL) with the open counts by type and
+        severity. event_type e.g. UNEXPLAINED_GAP, TRADING_ABSENCE, CORPORATE_ACTION_UNRESOLVED,
+        CORPORATE_ACTION_UNMODELLED, SYMBOL_MAPPING_UNCERTAIN; severity CRITICAL, HIGH, WARNING.
+        blocks_signal true means the stock gets no signal until it clears."""
+        body = api.get("data-quality", status=status.upper(), severity=severity,
+                       event_type=event_type, symbol=symbol.strip().upper() if symbol else None,
+                       limit=max(1, min(limit, 200)))  # fmt: skip
+        return _dump(_compact(body, limit))
+
+    @tool
+    def corporate_actions(symbol: str) -> str:
+        """One stock's corporate-action records (type, ex-date, ratio, status: CONFIRMED,
+        SINGLE_SOURCE, MANUAL_OVERRIDE, PROVIDER_CONFLICT, UNMODELLED), the price factors in
+        force, its data-quality events, and every raw opening gap of 10 % or more with whether a
+        price factor explains it (adjusted false: an unexplained gap)."""
+        body = api.get(f"stocks/{symbol.strip().upper()}/corporate-actions")
+        return _dump(_compact(body, 60))
+
+    @tool
+    def price_bars(symbol: str, days: int = 60) -> str:
+        """Daily prices of one stock, oldest first (1-400 sessions): raw OHLCV as stored, the
+        adjusted close and the factor applied (adjusted = raw x factor), provider and status."""
+        body = api.get(f"stocks/{symbol.strip().upper()}/prices", days=max(1, min(days, 400)))
+        return _dump(_compact(body, 400))
+
+    @tool
+    def scan_run(date: str | None = None) -> str:
+        """The scan runs of a day (latest by default): per strategy and step, status, config
+        hash, code commit (and whether the tree was dirty), counts and algorithm versions; plus
+        that day's evening-run summary and its warning and error log lines."""
+        return _dump(_compact(api.get("scan-runs", date=_day(date)), 60))
+
+    @tool
+    def backtest(backtest_id: str, trades: int = 30) -> str:
+        """One stored backtest run (ids from the backtests tool): settings and metrics, trades
+        grouped by exit (STOP, TIME_EXIT, ...) and by entry year, and the newest trades. Say
+        which period (development or validation) a result comes from."""
+        body = api.get(f"backtests/{backtest_id.strip()}", trades=max(0, min(trades, 200)))
+        return _dump(_compact(body, 200))
 
     @tool
     def fundamentals_table(sector: str | None = None, min_eps_yoy: float | None = None,

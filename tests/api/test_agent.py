@@ -20,7 +20,8 @@ REPO = Path(__file__).resolve().parents[2]
 READ_TOOLS = {
     "run_status", "market_health", "setups", "screener", "stock", "fundamentals_table",
     "paper_ledger", "activity", "backtests", "spec", "notebook_search", "decision_log",
-    "daily_brief", "score_history",
+    "daily_brief", "score_history", "data_quality", "corporate_actions", "price_bars",
+    "scan_run", "backtest",
 }  # fmt: skip
 
 
@@ -65,6 +66,21 @@ def test_tools_read_a_past_scan_day_and_a_score_history(server: Any) -> None:
     assert [(r["day"], r["strategy_id"]) for r in hist["rows"]] == [("2026-10-05", "flat_base")]
     with pytest.raises(Exception, match="YYYY-MM-DD"):
         asyncio.run(server.call_tool("setups", {"date": "16 Oct"}))
+
+
+def test_diagnostic_tools_and_setup_filters(server: Any) -> None:
+    dq = call(server, "data_quality", status="all")
+    assert dq["total"] == 0  # the fixture has no data-quality events
+    assert call(server, "corporate_actions", symbol="alpha")["symbol"] == "ALPHA"
+    assert call(server, "price_bars", symbol="ALPHA", days=5)["symbol"] == "ALPHA"
+    assert call(server, "scan_run")["as_of"] == "2026-10-05"
+    bt = call(server, "backtest", backtest_id="bt-dev", trades=5)
+    assert bt["run"]["backtest_id"] == "bt-dev" and bt["run"]["period"] == "development"
+    every = call(server, "setups", strategy="flat_base")["rows"]
+    high = call(server, "setups", strategy="flat_base", min_score=75)["rows"]
+    assert len(high) < len(every) and all(r["score"] >= 75 for r in high)
+    near = call(server, "setups", strategy="vcp", max_pivot_distance_pct=100)
+    assert all(0 <= r["pivot_distance_pct"] <= 100 for r in near.get("rows", []))
 
 
 def test_unknown_stock_is_an_error_and_is_audited(server: Any, tmp_path: Path) -> None:

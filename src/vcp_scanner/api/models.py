@@ -833,3 +833,133 @@ class FundamentalsResponse(Stamped):
     page: int
     page_size: int
     rows: list[FundamentalsRow]
+
+
+# --- diagnostics (AGENT_SPECIFICATION A1.5) ------------------------------------------------
+
+
+class DataQualityCount(BaseModel):
+    event_type: str
+    severity: str
+    open: int
+    blocking: int  # open events that stop signals for the stock
+
+
+class DataQualityEvent(BaseModel):
+    event_id: str
+    symbol: str
+    trade_date: date | None
+    event_type: str
+    severity: str
+    blocks_signal: bool
+    status: str
+    description: str | None
+    resolved_by: str | None
+    resolution_note: str | None
+    context: Any = None
+
+
+class DataQualityResponse(Stamped):
+    open_counts: list[DataQualityCount]
+    total: int  # events matching the filters, before the limit
+    events: list[DataQualityEvent]
+
+
+class CorporateActionRow(BaseModel):
+    action_type: str
+    ex_date: date | None
+    ratio_numerator: float | None
+    ratio_denominator: float | None
+    cash_amount: float | None
+    status: str  # CONFIRMED, SINGLE_SOURCE, MANUAL_OVERRIDE, PROVIDER_CONFLICT, ...
+    conflict_fields: str | None
+    resolved_by: str | None
+
+
+class AdjustmentRow(BaseModel):
+    effective_date: date
+    price_factor: float | None
+    volume_factor: float | None
+    cumulative_price_factor: float | None
+    source: str | None
+
+
+class PriceGap(BaseModel):
+    day: date
+    prev_close: float | None
+    open: float | None
+    close: float | None
+    gap_pct: float
+    adjusted: bool  # a price factor takes effect that day
+
+
+class CorporateActionsResponse(Stamped):
+    symbol: str
+    gap_threshold_pct: float
+    actions: list[CorporateActionRow]
+    adjustments: list[AdjustmentRow]
+    events: list[DataQualityEvent]
+    gaps: list[PriceGap]
+
+
+class PriceRow(BaseModel):
+    day: date
+    open: float | None
+    high: float | None
+    low: float | None
+    close: float | None
+    volume: float | None
+    close_adj: float | None
+    factor: float | None  # close_adj / close
+    provider: str | None
+    data_status: str | None
+
+
+class PricesResponse(Stamped):
+    symbol: str
+    rows: list[PriceRow]
+
+
+class ScanRunRow(BaseModel):
+    strategy_id: str | None
+    scan_type: str
+    status: str
+    config_hash: str | None
+    code_commit: str | None
+    code_dirty: bool | None
+    survivorship: str | None
+    counts: Any = None
+    versions: Any = None
+    started_at: datetime | None
+    completed_at: datetime | None
+
+
+class ScanRunsResponse(Stamped):
+    run_summary: str | None  # that day's line of logs/daily_runs.log
+    log_warnings: list[str]  # warning and error lines of that day's evening run
+    runs: list[ScanRunRow]
+
+
+class BacktestGroup(BaseModel):
+    key: str
+    trades: int
+    avg_ret: float | None
+    win_rate: float | None
+
+
+class BacktestTrade(BaseModel):
+    symbol: str
+    entry_day: date
+    entry: float | None
+    exit_day: date | None
+    exit: str  # STOP, TIME_EXIT, TRAIL_EXIT, EXIT_SIGNAL, OPEN_AT_END
+    exit_price: float | None
+    ret_pct: float | None
+
+
+class BacktestDetailResponse(Stamped):
+    run: BacktestRun
+    trades_total: int
+    by_exit: list[BacktestGroup]
+    by_year: list[BacktestGroup]
+    trades: list[BacktestTrade]  # newest entries first, cut to the limit

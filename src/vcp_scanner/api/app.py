@@ -8,11 +8,20 @@ from pathlib import Path
 from types import SimpleNamespace
 from typing import Annotated
 
+import duckdb
 from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse
 
-from vcp_scanner.api import backtests, fundamentals, health, ipos, report_files, reports
+from vcp_scanner.api import (
+    backtests,
+    diagnostics,
+    fundamentals,
+    health,
+    ipos,
+    report_files,
+    reports,
+)
 from vcp_scanner.api import models as m
 from vcp_scanner.api import queries as q
 from vcp_scanner.api.context import Context, StrategySpec, build_context
@@ -349,6 +358,78 @@ def create_app(
     @app.get(f"{api}/backtests", response_model=m.BacktestsResponse)
     def stored_backtests() -> m.BacktestsResponse:
         return backtests.stored_runs(research)
+
+    @app.get(f"{api}/backtests/{{backtest_id}}", response_model=m.BacktestDetailResponse)
+    def stored_backtest(
+        backtest_id: str, trades: Annotated[int, Query(ge=0, le=500)] = 50
+    ) -> m.BacktestDetailResponse:
+        """One stored run with its trades grouped by exit and by year (read-only)."""
+        try:
+            detail = backtests.run_detail(research, backtest_id, trades)
+        except duckdb.Error as exc:
+            raise HTTPException(503, f"the research database cannot be read now: {exc}") from exc
+        if detail is None:
+            raise HTTPException(404, f"no completed backtest {backtest_id!r}")
+        return detail
+
+    # --- diagnostics (AGENT_SPECIFICATION A1.5): read-only --------------------------------
+
+    @app.get(f"{api}/data-quality", response_model=m.DataQualityResponse)
+    def data_quality(
+        status: Annotated[str, Query(pattern="^(OPEN|RESOLVED|ALL|open|resolved|all)$")] = "OPEN",
+        severity: Annotated[str | None, Query(max_length=20)] = None,
+        event_type: Annotated[str | None, Query(max_length=60)] = None,
+        symbol: Annotated[str | None, Query(max_length=40)] = None,
+        limit: Annotated[int, Query(ge=1, le=500)] = 100,
+    ) -> m.DataQualityResponse:
+        """Data-quality events (open by default) and the open counts by type and severity."""
+        with db.cursor() as cur:
+            iid = stock_or_404(cur, symbol)[0] if symbol else None
+            counts, events, total = diagnostics.data_quality(
+                cur, status=None if status.upper() == "ALL" else status, severity=severity,
+                event_type=event_type, instrument_id=iid, limit=limit,
+            )  # fmt: skip
+            return m.DataQualityResponse(
+                as_of=q.latest_prices_date(cur), data_time=db.data_time(), open_counts=counts,
+                total=total, events=events,
+            )  # fmt: skip
+
+    @app.get(f"{api}/stocks/{{symbol}}/corporate-actions",
+             response_model=m.CorporateActionsResponse)  # fmt: skip
+    def stock_corporate_actions(symbol: str) -> m.CorporateActionsResponse:
+        """Corporate-action records, price factors in force, related events and raw gaps."""
+        with db.cursor() as cur:
+            iid, sym, _company = stock_or_404(cur, symbol)
+            actions, adjustments, events, gaps = diagnostics.corporate_actions(cur, iid)
+            return m.CorporateActionsResponse(
+                as_of=q.latest_prices_date(cur), data_time=db.data_time(), symbol=sym,
+                gap_threshold_pct=diagnostics.GAP_PCT, actions=actions, adjustments=adjustments,
+                events=events, gaps=gaps,
+            )  # fmt: skip
+
+    @app.get(f"{api}/stocks/{{symbol}}/prices", response_model=m.PricesResponse)
+    def stock_prices(
+        symbol: str, days: Annotated[int, Query(ge=1, le=400)] = 60
+    ) -> m.PricesResponse:
+        """Raw prices as stored next to the adjusted close and the factor applied."""
+        with db.cursor() as cur:
+            iid, sym, _company = stock_or_404(cur, symbol)
+            rows = diagnostics.prices(cur, iid, days)
+            return m.PricesResponse(
+                as_of=rows[-1].day if rows else None, data_time=db.data_time(), symbol=sym,
+                rows=rows,
+            )  # fmt: skip
+
+    @app.get(f"{api}/scan-runs", response_model=m.ScanRunsResponse)
+    def scan_runs(on: DateParam = None) -> m.ScanRunsResponse:
+        """The scan runs of a day (newest per strategy and type: config hash, code commit,
+        counts, versions) and that day's evening-run summary and warning lines."""
+        with db.cursor() as cur:
+            day = on or diagnostics.latest_scan_run_day(cur)
+            runs = diagnostics.scan_runs(cur, day) if day else []
+        summary, lines = diagnostics.run_log(data, day) if day else (None, [])
+        return m.ScanRunsResponse(as_of=day, data_time=db.data_time(), run_summary=summary,
+                                  log_warnings=lines, runs=runs)  # fmt: skip
 
     @app.get(f"{api}/reports", response_model=m.ReportsResponse)
     def report_list() -> m.ReportsResponse:

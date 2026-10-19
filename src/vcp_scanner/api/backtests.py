@@ -8,7 +8,7 @@ run did not store is ``null``, never 0.
 from __future__ import annotations
 
 import json
-from datetime import datetime
+from datetime import date, datetime
 from pathlib import Path
 from typing import Any
 
@@ -109,4 +109,73 @@ def stored_runs(path: Path | None) -> m.BacktestsResponse:
     return m.BacktestsResponse(
         as_of=max((r.end_date for r in runs), default=None), data_time=stamp, available=True,
         reason=None, runs=runs,
+    )  # fmt: skip
+
+
+EXITS = ("STOP", "TIME_EXIT", "TRAIL_EXIT", "EXIT_SIGNAL", "OPEN_AT_END")
+
+
+def _group(key: str, rets: list[float | None]) -> m.BacktestGroup:
+    known = [r for r in rets if r is not None]
+    return m.BacktestGroup(
+        key=key, trades=len(rets),
+        avg_ret=round(sum(known) / len(known), 3) if known else None,
+        win_rate=round(sum(r > 0 for r in known) / len(known), 3) if known else None,
+    )  # fmt: skip
+
+
+def run_detail(path: Path | None, backtest_id: str, limit: int) -> m.BacktestDetailResponse | None:
+    """One stored run: its summary, its trades (each BREAKOUT entry paired with the next exit
+    of the same stock) grouped by exit and by entry year, and the newest ``limit`` trades.
+    ``None`` when the run is not in the research database."""
+    if path is None or not path.exists():
+        return None
+    con = duckdb.connect(str(path), read_only=True)
+    try:
+        row = con.execute(
+            "SELECT backtest_id, strategy_id, algorithm_version, period_name, start_date, end_date,"
+            " survivorship_status, settings_json, metrics_json, completed_at FROM backtest_runs"
+            " WHERE backtest_id = ? AND status = 'COMPLETED'",
+            [backtest_id],
+        ).fetchone()
+        if row is None:
+            return None
+        events = con.execute(
+            "SELECT e.instrument_id, e.event_date, e.event_type, e.price, e.metadata_json"
+            " FROM backtest_events e WHERE e.backtest_id = ?"
+            " AND e.event_type IN ('BREAKOUT', 'STOP', 'TIME_EXIT', 'TRAIL_EXIT', 'EXIT_SIGNAL',"
+            " 'OPEN_AT_END') ORDER BY e.instrument_id, e.event_date,"
+            " CASE WHEN e.event_type = 'BREAKOUT' THEN 0 ELSE 1 END",
+            [backtest_id],
+        ).fetchall()
+    finally:
+        con.close()
+    trades: list[m.BacktestTrade] = []
+    open_: dict[str, tuple[date, float | None]] = {}
+    for iid, day, kind, price, meta_json in events:
+        sym = str(iid).split("|")[-1]
+        if kind == "BREAKOUT":
+            open_[sym] = (day, _f(price))
+            continue
+        entry = open_.pop(sym, None)
+        if entry is None:
+            continue
+        meta: dict[str, Any] = json.loads(meta_json or "{}")
+        trades.append(
+            m.BacktestTrade(
+                symbol=sym, entry_day=entry[0], entry=entry[1],
+                exit_day=None if kind == "OPEN_AT_END" else day, exit=str(kind),
+                exit_price=None if price is None else round(float(price), 2),
+                ret_pct=_f(meta.get("ret_pct")),
+            )
+        )  # fmt: skip
+    trades.sort(key=lambda t: (t.entry_day, t.symbol), reverse=True)
+    by_exit = [_group(k, [t.ret_pct for t in trades if t.exit == k]) for k in EXITS]
+    years = sorted({t.entry_day.year for t in trades})
+    by_year = [_group(str(y), [t.ret_pct for t in trades if t.entry_day.year == y]) for y in years]
+    run = _run(row)
+    return m.BacktestDetailResponse(
+        as_of=run.end_date, data_time=datetime.fromtimestamp(path.stat().st_mtime, IST), run=run,
+        trades_total=len(trades), by_exit=[g for g in by_exit if g.trades], by_year=by_year,
+        trades=trades[:limit],
     )  # fmt: skip
