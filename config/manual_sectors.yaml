@@ -247,3 +247,103 @@ sectors:
   - {symbol: WENDT, sector: Capital Goods, industry: Abrasives & Bearings, as_of: 2026-10-18}
   - {symbol: WINDLAS, sector: Healthcare, industry: Pharmaceuticals, as_of: 2026-10-18}
   - {symbol: YATRA, sector: Consumer Services, industry: Tour Travel Related Services, as_of: 2026-10-18}
+  - {symbol: 5PAISA, sector: Financial Services, industry: Stockbroking & Allied, as_of: 2026-10-19}
+  - {symbol: ANDHRAPAP, sector: Forest Materials, industry: Paper & Paper Products, as_of: 2026-10-19}
+  - {symbol: APCOTEXIND, sector: Capital Goods, industry: Rubber, as_of: 2026-10-19}
+  - {symbol: ARMANFIN, sector: Financial Services, industry: Non Banking Financial Company (NBFC), as_of: 2026-10-19}
+  - {symbol: ARROWGREEN, sector: Capital Goods, industry: Packaging, as_of: 2026-10-19}
+  - {symbol: ASTRAZEN, sector: Healthcare, industry: Pharmaceuticals, as_of: 2026-10-19}
+  - {symbol: BASF, sector: Chemicals, industry: Specialty Chemicals, as_of: 2026-10-19}
+  - {symbol: BBL, sector: Capital Goods, industry: Heavy Electrical Equipment, as_of: 2026-10-19}
+  - {symbol: BHARATSE, sector: Automobile and Auto Components, industry: Auto Components & Equipments, as_of: 2026-10-19}
+  - {symbol: BLUEDART, sector: Services, industry: Logistics Solution Provider, as_of: 2026-10-19}
+  - {symbol: BOMDYEING, sector: Textiles, industry: Other Textile Products, as_of: 2026-10-19}
+  - {symbol: CAMLINFINE, sector: Chemicals, industry: Specialty Chemicals, as_of: 2026-10-19}
+  - {symbol: CAPACITE, sector: Construction, industry: Civil Construction, as_of: 2026-10-19}
+  - {symbol: CARERATING, sector: Financial Services, industry: Ratings, as_of: 2026-10-19}
+  - {symbol: CARRARO, sector: Automobile and Auto Components, industry: Auto Components & Equipments, as_of: 2026-10-19}
+  - {symbol: CENTURYPLY, sector: Consumer Durables, industry: Plywood Boards/ Laminates, as_of: 2026-10-19}
+  - {symbol: DCXINDIA, sector: Capital Goods, industry: Aerospace & Defense, as_of: 2026-10-19}
+  - {symbol: DHANBANK, sector: Financial Services, industry: Private Sector Bank, as_of: 2026-10-19}
+  - {symbol: DIFFNKG, sector: Capital Goods, industry: Other Industrial Products, as_of: 2026-10-19}
+  - {symbol: EIMCOELECO, sector: Capital Goods, industry: Industrial Products, as_of: 2026-10-19}
+  - {symbol: EMSLIMITED, sector: Utilities, industry: Waste Management, as_of: 2026-10-19}
+  - {symbol: EPACK, sector: Consumer Durables, industry: Household Appliances, as_of: 2026-10-19}
+  - {symbol: EUROPRATIK, sector: Consumer Durables, industry: Plywood Boards/ Laminates, as_of: 2026-10-19}
+  - {symbol: FDC, sector: Healthcare, industry: Pharmaceuticals, as_of: 2026-10-19}
+  - {symbol: GALAPREC, sector: Capital Goods, industry: Industrial Products, as_of: 2026-10-19}
+  - {symbol: GARUDA, sector: Realty, industry: Residential Commercial Projects, as_of: 2026-10-19}
+  - {symbol: GHCL, sector: Chemicals, industry: Commodity Chemicals, as_of: 2026-10-19}
+  - {symbol: GHCLTEXTIL, sector: Textiles, industry: Other Textile Products, as_of: 2026-10-19}
+  - {symbol: GIPCL, sector: Power, industry: Power Generation, as_of: 2026-10-19}
+  - {symbol: GKENERGY, sector: Construction, industry: Civil Construction, as_of: 2026-10-19}
+  - {symbol: GLOBUSSPR, sector: Fast Moving Consumer Goods, industry: Breweries & Distilleries, as_of: 2026-10-19}
+  - {symbol: GPTINFRA, sector: Construction, industry: Civil Construction, as_of: 2026-10-19}
+  - {symbol: GREENPANEL, sector: Consumer Durables, industry: Plywood Boards/ Laminates, as_of: 2026-10-19}
+  - {symbol: GREENPLY, sector: Consumer Durables, industry: Plywood Boards/ Laminates, as_of: 2026-10-19}
+  - {symbol: HIMATSEIDE, sector: Textiles, industry: Other Textile Products, as_of: 2026-10-19}
+  - {symbol: HITECH, sector: Capital Goods, industry: Iron & Steel Products, as_of: 2026-10-19}
+  - {symbol: IGPL, sector: Chemicals, industry: Commodity Chemicals, as_of: 2026-10-19}
+  - {symbol: IKIO, sector: Consumer Durables, industry: Consumer Electronics, as_of: 2026-10-19}
+  - {symbol: INDIASHLTR, sector: Financial Services, industry: Housing Finance Company, as_of: 2026-10-19}
+  - {symbol: INDOTECH, sector: Capital Goods, industry: Heavy Electrical Equipment, as_of: 2026-10-19}
+  - {symbol: INFOBEAN, sector: Information Technology, industry: Computers - Software & Consulting, as_of: 2026-10-19}
+  - {symbol: INGERRAND, sector: Capital Goods, industry: Compressors Pumps & Diesel Engines, as_of: 2026-10-19}
+  - {symbol: JARO, sector: Consumer Services, industry: E-Learning, as_of: 2026-10-19}
+  - {symbol: JAYBARMARU, sector: Automobile and Auto Components, industry: Auto Components & Equipments, as_of: 2026-10-19}
+  - {symbol: JKLAKSHMI, sector: Construction Materials, industry: Cement & Cement Products, as_of: 2026-10-19}
+  - {symbol: JLHL, sector: Healthcare, industry: Hospital, as_of: 2026-10-19}
+  - {symbol: JNKINDIA, sector: Capital Goods, industry: Industrial Products, as_of: 2026-10-19}
+  - {symbol: KPEL, sector: Power, industry: Power Generation, as_of: 2026-10-19}
+  - {symbol: LMW, sector: Capital Goods, industry: Industrial Products, as_of: 2026-10-19}
+  - {symbol: LUXIND, sector: Textiles, industry: Garments & Apparels, as_of: 2026-10-19}
+  - {symbol: MAHLIFE, sector: Realty, industry: Residential Commercial Projects, as_of: 2026-10-19}
+  - {symbol: MAHSCOOTER, sector: Financial Services, industry: Investment Company, as_of: 2026-10-19}
+  - {symbol: MAITHANALL, sector: Metals & Mining, industry: Ferro & Silica Manganese, as_of: 2026-10-19}
+  - {symbol: MANAKCOAT, sector: Capital Goods, industry: Iron & Steel Products, as_of: 2026-10-19}
+  - {symbol: MANGLMCEM, sector: Construction Materials, industry: Cement & Cement Products, as_of: 2026-10-19}
+  - {symbol: MANOMAY, sector: Textiles, industry: Other Textile Products, as_of: 2026-10-19}
+  - {symbol: MASFIN, sector: Financial Services, industry: Non Banking Financial Company (NBFC), as_of: 2026-10-19}
+  - {symbol: MOL, sector: Chemicals, industry: Pesticides & Agrochemicals, as_of: 2026-10-19}
+  - {symbol: MWL, sector: Capital Goods, industry: Iron & Steel Products, as_of: 2026-10-19}
+  - {symbol: NESCO, sector: Services, industry: Diversified Commercial Services, as_of: 2026-10-19}
+  - {symbol: NIITMTS, sector: Consumer Services, industry: Education, as_of: 2026-10-19}
+  - {symbol: NITCO, sector: Consumer Durables, industry: Ceramics, as_of: 2026-10-19}
+  - {symbol: OMAXE, sector: Realty, industry: Residential Commercial Projects, as_of: 2026-10-19}
+  - {symbol: ORIENTCEM, sector: Construction Materials, industry: Cement & Cement Products, as_of: 2026-10-19}
+  - {symbol: PATELENG, sector: Construction, industry: Civil Construction, as_of: 2026-10-19}
+  - {symbol: PDMJEPAPER, sector: Forest Materials, industry: Paper & Paper Products, as_of: 2026-10-19}
+  - {symbol: POKARNA, sector: Consumer Durables, industry: Granites & Marbles, as_of: 2026-10-19}
+  - {symbol: PRAKASH, sector: Metals & Mining, industry: Iron & Steel, as_of: 2026-10-19}
+  - {symbol: PROSTARM, sector: Capital Goods, industry: Other Electrical Equipment, as_of: 2026-10-19}
+  - {symbol: PSPPROJECT, sector: Construction, industry: Civil Construction, as_of: 2026-10-19}
+  - {symbol: RAJRATAN, sector: Automobile and Auto Components, industry: Auto Components & Equipments, as_of: 2026-10-19}
+  - {symbol: REMSONSIND, sector: Automobile and Auto Components, industry: Auto Components & Equipments, as_of: 2026-10-19}
+  - {symbol: RML, sector: Automobile and Auto Components, industry: Auto Components & Equipments, as_of: 2026-10-19}
+  - {symbol: SAATVIKGL, sector: Capital Goods, industry: Other Electrical Equipment, as_of: 2026-10-19}
+  - {symbol: SANATHAN, sector: Textiles, industry: Other Textile Products, as_of: 2026-10-19}
+  - {symbol: SANDHAR, sector: Automobile and Auto Components, industry: Auto Components & Equipments, as_of: 2026-10-19}
+  - {symbol: SANOFI, sector: Healthcare, industry: Pharmaceuticals, as_of: 2026-10-19}
+  - {symbol: SCODATUBES, sector: Capital Goods, industry: Iron & Steel Products, as_of: 2026-10-19}
+  - {symbol: SHANTIGEAR, sector: Capital Goods, industry: Industrial Products, as_of: 2026-10-19}
+  - {symbol: SHARDAMOTR, sector: Automobile and Auto Components, industry: Auto Components & Equipments, as_of: 2026-10-19}
+  - {symbol: SHK, sector: Chemicals, industry: Specialty Chemicals, as_of: 2026-10-19}
+  - {symbol: SILVERTUC, sector: Information Technology, industry: Computers - Software & Consulting, as_of: 2026-10-19}
+  - {symbol: SIRCA, sector: Consumer Durables, industry: Paints, as_of: 2026-10-19}
+  - {symbol: SOLEX, sector: Capital Goods, industry: Other Electrical Equipment, as_of: 2026-10-19}
+  - {symbol: SOMANYCERA, sector: Consumer Durables, industry: Ceramics, as_of: 2026-10-19}
+  - {symbol: SPORTKING, sector: Textiles, industry: Other Textile Products, as_of: 2026-10-19}
+  - {symbol: STOVEKRAFT, sector: Consumer Durables, industry: Household Appliances, as_of: 2026-10-19}
+  - {symbol: STYL, sector: Financial Services, industry: Financial Technology (Fintech), as_of: 2026-10-19}
+  - {symbol: STYRENIX, sector: Chemicals, industry: Specialty Chemicals, as_of: 2026-10-19}
+  - {symbol: SURAJEST, sector: Realty, industry: Residential Commercial Projects, as_of: 2026-10-19}
+  - {symbol: TCPLPACK, sector: Capital Goods, industry: Packaging, as_of: 2026-10-19}
+  - {symbol: TIRUMALCHM, sector: Chemicals, industry: Commodity Chemicals, as_of: 2026-10-19}
+  - {symbol: TRAVELFOOD, sector: Consumer Services, industry: Restaurants, as_of: 2026-10-19}
+  - {symbol: TVSELECT, sector: Information Technology, industry: Computers Hardware & Equipments, as_of: 2026-10-19}
+  - {symbol: VINATIORGA, sector: Chemicals, industry: Specialty Chemicals, as_of: 2026-10-19}
+  - {symbol: VISHNU, sector: Chemicals, industry: Specialty Chemicals, as_of: 2026-10-19}
+  - {symbol: VSSL, sector: Capital Goods, industry: Iron & Steel Products, as_of: 2026-10-19}
+  - {symbol: VSTTILLERS, sector: Capital Goods, industry: Tractors, as_of: 2026-10-19}
+  - {symbol: WANBURY, sector: Healthcare, industry: Pharmaceuticals, as_of: 2026-10-19}
+  - {symbol: XPROINDIA, sector: Capital Goods, industry: Packaging, as_of: 2026-10-19}
