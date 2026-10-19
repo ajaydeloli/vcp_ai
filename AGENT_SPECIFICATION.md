@@ -1,6 +1,6 @@
 # AGENT_SPECIFICATION.md
 
-Status: **draft for the owner's decisions** (2026-10-19). Nothing here is built yet.
+Status: **agreed 2026-10-19** (owner decisions in §9). Built step by step (§8).
 
 An MCP server that lets an AI model (Claude Desktop or Claude Code first; others later) work on this project as a "second brain": read everything, remember decisions, do research, and propose changes, including new strategy versions, which take effect **only with the owner's approval, given outside the AI**.
 
@@ -98,9 +98,9 @@ Local only at first: a stdio MCP server started by Claude Desktop or Claude Code
 
 ---
 
-# 9. Owner decisions needed
+# 9. Owner decisions (2026-10-19)
 
-1. Accept principle 2: candidates run in a shadow ledger; nothing replaces a frozen strategy before the review (or before an explicit owner decision to end the freeze early).
-2. The test budget per strategy per review cycle and the minimum shadow trades before promotion.
-3. Which kinds may be pre-approved (watchlist, notes, alert rules, or none).
-4. First client: Claude Desktop, Claude Code, or both.
+1. **Shadow-ledger rule accepted.** Candidates run in a shadow ledger; nothing replaces a frozen strategy before the review unless the owner ends the freeze early.
+2. **Test budget:** at most 3 pre-registered hypotheses per strategy per review cycle. **Promotion needs** at least 30 shadow trades and 3 months in the shadow ledger (Claude's recommendation, accepted by the owner).
+3. **Pre-approved kinds:** notes to the notebook and watchlist add/remove only. Alert rules, data fixes, sectors and strategy candidates always need approval.
+4. **First client: Claude Code** on this PC (stdio). Claude Desktop and others later.
