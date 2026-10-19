@@ -107,3 +107,31 @@ actions:
       warning.
     approved_by: Ajay
     entered_on: 2026-10-02
+
+  # Bonus redeemable preference shares: value leaves the equity share like a distribution, so
+  # they are entered as DEMERGER price factors = (close before - face value received) / close
+  # before, at face value (owner decision 2026-10-19).
+  - symbol: SIYSIL
+    action_type: DEMERGER
+    ex_date: 2026-08-21
+    price_factor: 0.8919
+    evidence: >-
+      NCLT-sanctioned scheme: per equity share, 4 Series I and 3 Series II 9 % cumulative
+      non-convertible redeemable preference shares of Rs 10 each (Rs 70 in all), record date
+      2026-08-22 (Legal Parivar; NSE allotment intimation
+      https://nsearchives.nseindia.com/corporate/SIYSIL_25082026172359_SEIntimation_AllotmentofPrefernceShares.pdf).
+      NSE records "BONUS NCRPS 4:1" and "3:1", ex 2026-08-21. Close 647.55 on 2026-08-20:
+      (647.55 - 70) / 647.55 = 0.8919.
+    approved_by: Ajay
+    entered_on: 2026-10-19
+
+  - symbol: TVSHLTD
+    action_type: DEMERGER
+    ex_date: 2026-09-08
+    price_factor: 0.9665
+    evidence: >-
+      NCLT Chennai-sanctioned scheme: 46 redeemable preference shares of Rs 10 each for every
+      equity share of Rs 5 (Rs 460) (TheTaxCorp on the NCLT order). NSE record "BONUS NCRPS
+      46:1", ex 2026-09-08. Close 13748.00 on 2026-09-07: (13748 - 460) / 13748 = 0.9665.
+    approved_by: Ajay
+    entered_on: 2026-10-19

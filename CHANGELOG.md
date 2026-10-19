@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Corporate actions (owner, 2026-10-19): bonus redeemable preference shares entered as price factors in `config/manual_corporate_actions.yaml`: SIYSIL ex 2026-08-21 (7 x Rs 10 per share, factor 0.8919) and TVSHLTD ex 2026-09-08 (46 x Rs 10, factor 0.9665). QUINT 2026-08-25 (rights to CCPS and warrants, no price gap) resolved as harmless, no adjustment.
+
 - Sector rotation: the hover tooltip now sits in the chart corner clearest of the hovered sector's track instead of on top of it (owner, 2026-10-19).
 
 - Agent MCP server, step A1 (AGENT_SPECIFICATION, agreed 2026-10-19): `vcp agent serve` for Claude Code (`.mcp.json`), 13 read tools over the dashboard API in-process plus the append-only notebook (`add_note`), the daily brief, an audit row for every call, and a notebook seeded with the standing decisions; `vcp agent notes|note|audit|seed`. No tool changes strategies, configs, the ledger or credentials, or calls NSE. New dependency `mcp`.
