@@ -374,3 +374,15 @@ def test_a_run_that_stopped_half_way_is_a_warning(env: Env) -> None:
         "The daily run started 2026-10-05 22:00 IST stopped during corporate actions and did not"
         " finish. The next run catches up; to run it now: bash scripts/daily_run.sh."
     ]
+
+
+def test_stock_scores_list_each_scan_day_per_strategy(ro_env: Env) -> None:
+    body = get(ro_env, "/api/v1/stocks/alpha/scores?days=30")
+    assert body["symbol"] == "ALPHA" and body["as_of"] == AS_OF.isoformat()
+    assert {r["day"] for r in body["rows"]} == {AS_OF.isoformat()}  # PREV had no scan
+    assert {r["strategy_id"] for r in body["rows"]} == {"vcp", "flat_base", "cup_handle"}
+    flat = get(ro_env, "/api/v1/stocks/ALPHA/scores?strategy=flat_base")["rows"]
+    assert [r["strategy_id"] for r in flat] == ["flat_base"] and flat[0]["score"] == 70
+    get(ro_env, "/api/v1/stocks/ALPHA/scores?strategy=nope", 404)
+    get(ro_env, "/api/v1/stocks/NOPE/scores", 404)
+    get(ro_env, "/api/v1/stocks/ALPHA/scores?days=0", 422)

@@ -478,6 +478,25 @@ class ActivityResponse(Stamped):
     events: list[ActivityEvent]
 
 
+class ScoreHistoryRow(BaseModel):
+    """One stock's setup on one scan day in one strategy (the stored scan, not recomputed)."""
+
+    day: date
+    strategy_id: str
+    classification: str
+    grade: int
+    status: str
+    eligible: bool
+    score: float | None
+    pivot: float | None
+
+
+class ScoreHistoryResponse(Stamped):
+    symbol: str
+    since: date | None
+    rows: list[ScoreHistoryRow]
+
+
 class OpenPosition(BaseModel):
     instrument_id: str
     symbol: str

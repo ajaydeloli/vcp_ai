@@ -20,7 +20,7 @@ REPO = Path(__file__).resolve().parents[2]
 READ_TOOLS = {
     "run_status", "market_health", "setups", "screener", "stock", "fundamentals_table",
     "paper_ledger", "activity", "backtests", "spec", "notebook_search", "decision_log",
-    "daily_brief",
+    "daily_brief", "score_history",
 }  # fmt: skip
 
 
@@ -52,6 +52,19 @@ def test_read_tools_return_compact_api_data(server: Any) -> None:
     brief = call(server, "daily_brief")
     assert brief["as_of"] == "2026-10-05" and set(brief["setups"]) >= {"vcp", "flat_base"}
     assert {p["strategy_id"] for p in brief["paper"]} >= {"vcp"}
+
+
+def test_tools_read_a_past_scan_day_and_a_score_history(server: Any) -> None:
+    prev = call(server, "setups", strategy="vcp", date="2026-10-02")
+    assert prev["as_of"] == "2026-10-02" and "rows" not in prev  # no scan that day: no rows
+    assert call(server, "screener", date="2026-10-05")["as_of"] == "2026-10-05"
+    assert (
+        call(server, "stock", symbol="ALPHA", date="2026-10-05")["setups"]["as_of"] == "2026-10-05"
+    )
+    hist = call(server, "score_history", symbol="alpha", strategy="flat_base")
+    assert [(r["day"], r["strategy_id"]) for r in hist["rows"]] == [("2026-10-05", "flat_base")]
+    with pytest.raises(Exception, match="YYYY-MM-DD"):
+        asyncio.run(server.call_tool("setups", {"date": "16 Oct"}))
 
 
 def test_unknown_stock_is_an_error_and_is_audited(server: Any, tmp_path: Path) -> None:

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Annotated
@@ -287,6 +287,27 @@ def create_app(
                     trend_template_pass=None, conditions=[], setups=[],
                 )  # fmt: skip
             return q.stock_setups(cur, ctx, iid, sym, company, day, db.data_time())
+
+    @app.get(f"{api}/stocks/{{symbol}}/scores", response_model=m.ScoreHistoryResponse)
+    def stock_scores(
+        symbol: str, days: Annotated[int, Query(ge=1, le=400)] = 60,
+        strategy: Annotated[str | None, Query(max_length=40)] = None,
+    ) -> m.ScoreHistoryResponse:  # fmt: skip
+        """One stock's stored setups and scores on each scan day of the last ``days``."""
+        if strategy is not None:
+            spec_or_404(strategy)
+        with db.cursor() as cur:
+            iid, sym, _company = stock_or_404(cur, symbol)
+            end = newest_scan(cur)
+            if end is None:
+                return m.ScoreHistoryResponse(
+                    as_of=None, data_time=db.data_time(), symbol=sym, since=None, rows=[]
+                )
+            since = end - timedelta(days=days)
+            rows = q.score_history(cur, ctx, iid, since, end, strategy)
+            return m.ScoreHistoryResponse(
+                as_of=end, data_time=db.data_time(), symbol=sym, since=since, rows=rows
+            )
 
     @app.get(f"{api}/stocks/{{symbol}}/fundamentals", response_model=m.StockFundamentalsResponse)
     def stock_fundamentals(symbol: str, on: DateParam = None) -> m.StockFundamentalsResponse:

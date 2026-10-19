@@ -191,6 +191,43 @@ def setup_rows(
     return out
 
 
+def score_history(
+    cur: Cur, ctx: Context, instrument_id: str, since: date, until: date,
+    strategy: str | None = None,
+) -> list[m.ScoreHistoryRow]:  # fmt: skip
+    """The stored setups of one stock on every scan day in [since, until], newest first, per
+    strategy at its live config. Days without a setup have no row."""
+    out: list[m.ScoreHistoryRow] = []
+    for spec in ctx.strategies:
+        if strategy is not None and spec.strategy_id != strategy:
+            continue
+        rows = cur.execute(
+            """
+            SELECT p.as_of_date, p.classification, p.grade, p.status, s.eligible,
+                   s.final_setup_score, p.pivot_price
+            FROM setups p
+            JOIN setup_scores s
+              ON s.strategy_id = p.strategy_id AND s.instrument_id = p.instrument_id
+             AND s.as_of_date = p.as_of_date AND s.config_hash = p.config_hash
+             AND s.data_snapshot_id = p.data_snapshot_id
+            WHERE p.strategy_id = ? AND p.config_hash = ? AND p.data_snapshot_id = ?
+              AND p.instrument_id = ? AND p.is_primary
+              AND p.as_of_date BETWEEN ? AND ?
+            """,
+            [spec.strategy_id, spec.config_hash, LIVE, instrument_id, since, until],
+        ).fetchall()
+        out += [
+            m.ScoreHistoryRow(
+                day=r[0], strategy_id=spec.strategy_id, classification=str(r[1]),
+                grade=int(r[2]), status=str(r[3]), eligible=bool(r[4]), score=_f(r[5]),
+                pivot=_f(r[6]),
+            )
+            for r in rows
+        ]  # fmt: skip
+    out.sort(key=lambda r: (r.day, r.strategy_id), reverse=True)
+    return out
+
+
 def overlap(cur: Cur, ctx: Context, day: date) -> list[m.OverlapRow]:
     by: dict[str, list[m.SetupRow]] = defaultdict(list)
     for spec in ctx.strategies:

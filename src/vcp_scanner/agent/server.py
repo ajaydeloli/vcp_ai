@@ -88,6 +88,18 @@ class Api:
         return r.json()
 
 
+def _day(date: str | None) -> str | None:
+    """A scan date as YYYY-MM-DD, or None for the latest scan."""
+    if date is None or not date.strip():
+        return None
+    from datetime import date as _date
+
+    try:
+        return _date.fromisoformat(date.strip()).isoformat()
+    except ValueError:
+        raise ValueError(f"date must be YYYY-MM-DD, got {date!r}") from None
+
+
 def _dump(obj: Any) -> str:
     return json.dumps(obj, ensure_ascii=False, separators=(",", ":"), default=str)
 
@@ -141,35 +153,49 @@ def build_server(
 
     @tool
     def setups(strategy: str = "vcp", min_grade: int | None = None, status: str | None = None,
-               limit: int = 20) -> str:  # fmt: skip
+               limit: int = 20, date: str | None = None) -> str:  # fmt: skip
         """Ranked setups of one strategy (vcp, flat_base, three_weeks_tight, cup_handle,
-        double_bottom) on the latest scan. status: FORMING, PIVOT_READY, BREAKOUT."""
+        double_bottom) on the latest scan, or on a past scan day with date=YYYY-MM-DD (no rows:
+        no scan that day, e.g. a holiday). status: FORMING, PIVOT_READY, BREAKOUT."""
         rows = api.get("setups", strategy=strategy, min_grade=min_grade, status=status,
-                       limit=max(1, min(limit, 100)))  # fmt: skip
+                       limit=max(1, min(limit, 100)), date=_day(date))  # fmt: skip
         return _dump(_compact(rows, limit))
 
     @tool
     def screener(q: str | None = None, stage: str | None = None, tt_pass: bool | None = None,
                  min_rs: int | None = None, sector: str | None = None, has_setup: bool = False,
-                 sort: str = "rs_rank", limit: int = 25) -> str:  # fmt: skip
-        """The scan universe with Trend Template, stage, RS, setup and score. stage e.g.
-        STAGE_2; sort: rs_rank, trend_score, score, change_pct, eps_yoy, sales_yoy."""
+                 sort: str = "rs_rank", limit: int = 25,
+                 date: str | None = None) -> str:  # fmt: skip
+        """The scan universe with Trend Template, stage, RS, setup and score, on the latest
+        scan or a past scan day (date=YYYY-MM-DD). stage e.g. STAGE_2; sort: rs_rank,
+        trend_score, score, change_pct, eps_yoy, sales_yoy."""
         rows = api.get("screener", q=q, stage=stage, tt_pass=tt_pass, min_rs=min_rs,
                        sector=sector, has_setup=has_setup, sort=sort,
-                       page_size=max(1, min(limit, 100)))  # fmt: skip
+                       page_size=max(1, min(limit, 100)), date=_day(date))  # fmt: skip
         return _dump(_compact(rows, limit))
 
     @tool
-    def stock(symbol: str) -> str:
+    def stock(symbol: str, date: str | None = None) -> str:
         """One stock: its setups in every strategy (rules, score parts, pivot), fundamentals,
-        shareholding, and its recent breakouts and paper trades."""
+        shareholding, and its recent breakouts and paper trades. date=YYYY-MM-DD shows the
+        setups and fundamentals as they stood on that scan day."""
         s = symbol.strip().upper()
+        day = _day(date)
         out = {
-            "setups": api.get(f"stocks/{s}/setups"),
-            "fundamentals": api.get(f"stocks/{s}/fundamentals"),
+            "setups": api.get(f"stocks/{s}/setups", date=day),
+            "fundamentals": api.get(f"stocks/{s}/fundamentals", date=day),
             "history": api.get(f"stocks/{s}/history", days=180),
         }
         return _dump(_compact(out, 12))
+
+    @tool
+    def score_history(symbol: str, days: int = 30, strategy: str | None = None) -> str:
+        """One stock's stored setup on each scan day of the last ``days`` (1-400), newest first:
+        strategy, classification, grade, status, score, pivot. A day missing means no setup
+        (e.g. the Trend Template failed). strategy limits it to one strategy."""
+        rows = api.get(f"stocks/{symbol.strip().upper()}/scores",
+                       days=max(1, min(days, 400)), strategy=strategy)  # fmt: skip
+        return _dump(_compact(rows, 200))
 
     @tool
     def fundamentals_table(sector: str | None = None, min_eps_yoy: float | None = None,
