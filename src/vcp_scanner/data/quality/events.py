@@ -182,7 +182,10 @@ def corporate_action_events(
                 unconfirmed_dates.add(r.ex_date)
                 events.append(_ratio_unconfirmed_event(instrument_id, r, detected_at))
             continue
-        if r.status is not CorporateActionStatus.PROVIDER_CONFLICT:
+        if r.status is not CorporateActionStatus.PROVIDER_CONFLICT or superseded:
+            # A conflict on the old reading of a re-parsed record (TVSHLTD's NCRPS bonus read
+            # as an equity BONUS 46:1, Upstox not listing it) is the same NSE record: the
+            # adjustment engine ignores that reading, so it must not block either (2026-10-19).
             continue
         ex = r.ex_date.isoformat() if r.ex_date else "unknown"
         fields = r.conflict_fields or "unspecified"

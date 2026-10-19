@@ -93,3 +93,16 @@ def test_unconfirmed_ratio_raises_one_blocking_event() -> None:
     events = corporate_action_events("NSE_EQ|SIYSIL", superseded, NOW, ex_prices={EX: NO_GAP})
     blocking = [e for e in events if e.blocks_signal]
     assert blocking == []
+
+
+def test_a_conflict_on_the_superseded_bonus_reading_does_not_block() -> None:
+    """TVSHLTD 2026-10-19: NSE's old BONUS 46:1 reading of an NCRPS bonus became a
+    PROVIDER_CONFLICT (Upstox does not list it) and blocked the stock, although the engine
+    ignores that reading. With the UNMODELLED reading on the same ex-date it raises nothing;
+    without it the conflict still blocks."""
+    conflict = _res(status=CorporateActionStatus.PROVIDER_CONFLICT)
+    unmodelled = _res(T.UNMODELLED, None, None, rid="u")
+    assert corporate_action_events("NSE_EQ|SIYSIL", [conflict, unmodelled], NOW,
+                                   ex_prices={EX: NO_GAP}) == []  # fmt: skip
+    alone = corporate_action_events("NSE_EQ|SIYSIL", [conflict], NOW, ex_prices={EX: GAP})
+    assert [e.blocks_signal for e in alone] == [True]
