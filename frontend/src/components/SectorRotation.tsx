@@ -49,6 +49,9 @@ const short = (s: string) => SHORT[s] ?? s;
 const TAILS = [4, 6, 12] as const;
 const SIZE = 400;
 const PAD = 30;
+/** Rough size of the hover tooltip in chart units, to pick a corner clear of the track. */
+const TIP_W = 140;
+const TIP_H = 44;
 const SURFACE = "#111a2c"; // panel2: the ring around each head
 
 function domain(values: number[]): number {
@@ -108,6 +111,30 @@ export function SectorRotationCard({ rotation }: { rotation: Health["rotation"] 
   }, [shown]);
   const active = shown.find((r) => r.sector === focus) ?? null;
   const head = active?.points.at(-1);
+  // the tooltip sits in the chart corner that is clearest of the hovered track,
+  // so it never hides the tail it describes
+  const tipCorner = useMemo(() => {
+    if (!active) return null;
+    const pts: [number, number][] = [];
+    active.points.forEach((p, i) => {
+      pts.push([x(p.ratio), y(p.momentum)]);
+      const q = active.points[i + 1];
+      if (q) pts.push([(x(p.ratio) + x(q.ratio)) / 2, (y(p.momentum) + y(q.momentum)) / 2]);
+    });
+    const corners = (["tl", "tr", "bl", "br"] as const).map((c) => {
+      const left = c.endsWith("l") ? PAD + 4 : SIZE - PAD - 4 - TIP_W;
+      const top = c.startsWith("t") ? PAD + 20 : SIZE - PAD - 20 - TIP_H;
+      const cx = left + TIP_W / 2;
+      const cy = top + TIP_H / 2;
+      const hits = pts.filter(([px, py]) => px > left - 8 && px < left + TIP_W + 8 && py > top - 8 && py < top + TIP_H + 8).length;
+      const near = Math.min(...pts.map(([px, py]) => Math.hypot(px - cx, py - cy)));
+      return { c, hits, near };
+    });
+    corners.sort((a, b) => a.hits - b.hits || b.near - a.near);
+    return corners[0]?.c ?? "tr";
+    // x and y depend only on the domains, which depend on `shown`
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [active, shown]);
   const week = shown[0]?.points.at(-1)?.day;
   // sectors with fewer weeks than the others (indices NSE started recently)
   const longest = Math.min(tail, Math.max(0, ...rotation.map((r) => r.points.length)));
@@ -219,11 +246,15 @@ export function SectorRotationCard({ rotation }: { rotation: Health["rotation"] 
                     );
                   })}
                 </svg>
-                {active && head && (
+                {active && head && tipCorner && (
                   <div
                     role="tooltip"
-                    className="pointer-events-none absolute z-10 rounded border border-line bg-panel px-2 py-1 text-[11px] text-ink shadow"
-                    style={{ left: `${(x(head.ratio) / SIZE) * 100}%`, top: `${(y(head.momentum) / SIZE) * 100}%`, transform: "translate(-50%, calc(-100% - 10px))" }}
+                    data-corner={tipCorner}
+                    className="pointer-events-none absolute z-10 rounded border border-line bg-panel/95 px-2 py-1 text-[11px] text-ink shadow"
+                    style={{
+                      [tipCorner.endsWith("l") ? "left" : "right"]: `${((PAD + 4) / SIZE) * 100}%`,
+                      [tipCorner.startsWith("t") ? "top" : "bottom"]: `${((PAD + 20) / SIZE) * 100}%`,
+                    }}
                   >
                     <p className="font-semibold">{active.sector}</p>
                     <p className="text-mute">
