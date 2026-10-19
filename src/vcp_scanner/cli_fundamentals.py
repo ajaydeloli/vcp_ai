@@ -56,6 +56,12 @@ def add_fundamentals_parser(subparsers: argparse._SubParsersAction) -> None:  # 
             action="store_true",
             help="backfill: use the target list of the last backfill (no listing)",
         )
+        b.add_argument(
+            "--research-db",
+            default=None,
+            help="backfill: also every stock with a setup in this research database since"
+            " history_from, delisted ones included (F6/F7: no survivorship gap in the study)",
+        )
     st = sub.add_parser("status", help="What is stored (read-only)")
     st.add_argument("--db", default="data/vcp_scanner.duckdb")
     v = sub.add_parser("show", help="Metrics of one stock as of a date (read-only)")
@@ -282,6 +288,13 @@ def _run_bulk(args: argparse.Namespace, command: str) -> int:
         store = _open_store(db, read_only=True)
         repo = DuckDBFundamentalRepository(store)
         ids = repo.universe_symbols(fcfg.history_from)
+        research = getattr(args, "research_db", None)
+        if command == "backfill" and research:
+            extra = repo.symbols_of(_research_stocks(Path(research), fcfg.history_from))
+            added = {s: i for s, i in extra.items() if s not in ids}
+            ids.update(added)
+            _say(f"research stocks: {len(extra)} with setups since {fcfg.history_from},"
+                 f" {len(added)} not in the universe scope")  # fmt: skip
         through = repo.last_complete_through()
         have_history = repo.stocks_with_history()
         store.conn.close()
@@ -362,6 +375,20 @@ def _run_bulk(args: argparse.Namespace, command: str) -> int:
 
 def _quiet(_: str) -> None:
     return None
+
+
+def _research_stocks(path: Path, since: date) -> list[str]:
+    """Instrument ids with a labelled setup in the research database since ``since``."""
+    import duckdb
+
+    conn = duckdb.connect(str(path), read_only=True)
+    try:
+        rows = conn.execute(
+            "SELECT DISTINCT instrument_id FROM forward_labels WHERE as_of_date >= ?", [since]
+        ).fetchall()
+    finally:
+        conn.close()
+    return [str(r[0]) for r in rows]
 
 
 def _run_status(args: argparse.Namespace) -> int:

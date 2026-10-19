@@ -84,6 +84,20 @@ def add_research_parser(subparsers: argparse._SubParsersAction) -> None:  # type
     so.add_argument("--db", default="data/vcp_scanner.duckdb")
     so.add_argument("--config-dir", default="config")
 
+    fs = sub.add_parser(
+        "fundamentals", help="F7: shadow fundamental score and shareholding against outcomes"
+    )
+    fs.add_argument("--period", choices=["development", "validation"], default="development")
+    fs.add_argument("--unblind", action="store_true",
+                    help="Required for --period validation (FUNDAMENTALS_SPECIFICATION §12:"
+                    " looked at once, only if the development result is worth it)")  # fmt: skip
+    fs.add_argument("--no-store", action="store_true",
+                    help="Do not write the scores to fundamental_research_scores")  # fmt: skip
+    fs.add_argument("--out", default="reports/research", help="Folder for the report")
+    fs.add_argument("--research-db", default="data/golden_src.duckdb")
+    fs.add_argument("--db", default="data/vcp_scanner.duckdb")
+    fs.add_argument("--config-dir", default="config")
+
     imp = sub.add_parser("import-labels", help="Turn the sheet's CSV into golden fixtures")
     imp.add_argument("--candidates", required=True, help="candidates.json from the sheet folder")
     imp.add_argument("--labels", required=True, help="The downloaded vcp_labels.csv")
@@ -104,9 +118,11 @@ def run_research(args: argparse.Namespace) -> int:
         return _review(args)
     if cmd == "score-outcomes":
         return _score_outcomes(args)
+    if cmd == "fundamentals":
+        return _fundamentals_study(args)
     _err(
         "Usage: vcp research {golden,labelling-sheet,review-sheet,import-labels,outcomes,"
-        "score-outcomes} ..."
+        "score-outcomes,fundamentals} ..."
     )
     return 1
 
@@ -404,4 +420,54 @@ def _score_outcomes(args: argparse.Namespace) -> int:
             "[VALIDATION] ranked setups only, final score only",
         )
     )
+    return 0
+
+
+def _fundamentals_study(args: argparse.Namespace) -> int:
+    """F7 (FUNDAMENTALS_SPECIFICATION §12): a report, nothing fitted; the scores go only to
+    ``fundamental_research_scores``."""
+    import duckdb
+
+    from vcp_scanner.fundamentals.research import score_version, store_scores
+    from vcp_scanner.research.fundamental_study import DEVELOPMENT, VALIDATION, build_report
+    from vcp_scanner.research.fundamental_study_data import (
+        attach_fundamentals,
+        attach_shareholding,
+        frozen_hashes,
+        load_setups,
+    )
+
+    if args.period == "validation" and not args.unblind:
+        _err("The validation period is looked at once, only if the development result is worth"
+             " it (FUNDAMENTALS_SPECIFICATION §12). Add --unblind to run it.")  # fmt: skip
+        return 1
+    start, end = DEVELOPMENT if args.period == "development" else VALIDATION
+    config = load_scanner_config(args.config_dir)
+    comps = config.strategy.scoring.components.fundamentals
+    min_av = config.strategy.scoring.fundamentals_min_availability
+    version = score_version(comps, min_av)
+    main = duckdb.connect(str(args.db), read_only=True)
+    research = duckdb.connect(str(args.research_db), read_only=True)
+    try:
+        hashes = frozen_hashes(main)
+        rows = load_setups(research, start, end, hashes)
+        print(f"{len(rows)} labelled setups, {start}..{end}")
+        scored = attach_fundamentals(main, rows, comps, min_av)
+        attach_shareholding(main, rows)
+    finally:
+        research.close()
+        main.close()
+    report = build_report(rows, args.period, start, end, version, hashes)
+    out = Path(args.out)
+    out.mkdir(parents=True, exist_ok=True)
+    path = out / f"f7_fundamentals_{args.period}.md"
+    path.write_text(report, encoding="utf-8")
+    print(f"Report: {path}")
+    if not args.no_store:
+        store = _open_store(str(args.db))
+        try:
+            n = store_scores(store.conn, scored, version)
+        finally:
+            store.conn.close()
+        print(f"Stored {n} shadow scores ({version}) in fundamental_research_scores")
     return 0

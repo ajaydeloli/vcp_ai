@@ -573,7 +573,7 @@ done
 | Command | What it does |
 |---|---|
 | `vcp fundamentals update [--days N]` | Fetch, parse and compute the filings of the last days (the evening run does this). |
-| `vcp fundamentals backfill [--limit N] [--resume]` | Everything since `history_from` in the config; resumable. |
+| `vcp fundamentals backfill [--limit N] [--resume] [--research-db FILE]` | Everything since `history_from` in the config; resumable. `--research-db data/golden_src.duckdb` also fetches the stocks with past setups in the research database, delisted ones included (for the F7 study). Long: NSE refuses after many hours, so split it across days. |
 | `vcp fundamentals fetch [--symbol S] [--from D] [--to D]` | Download result filings not stored yet. |
 | `vcp fundamentals parse [--retry-errors] [--rebuild]` | Turn stored filings into quarterly values. |
 | `vcp fundamentals status` | What is stored. |
@@ -626,6 +626,7 @@ Settings live in `config/shareholding.yaml` (its own file, so it can never chang
 | `vcp research import-labels --candidates FILE --labels CSV` | Turn the sheet's CSV into golden fixtures. |
 | `vcp research golden [--split development\|holdout\|all] [--record]` | Score the detector on the golden fixtures. |
 | `vcp research review-sheet --from D --to D --out DIR [--strategy ID]` | A mark-check sheet with the detector's marks drawn. |
+| `vcp research fundamentals [--period development\|validation --unblind] [--no-store]` | F7: the shadow fundamental score and shareholding against past setups' outcomes; writes `reports/research/f7_fundamentals_<period>.md` and stores the scores in `fundamental_research_scores`. The validation period needs `--unblind` (look once). |
 | `vcp research outcomes --from D --to D --split D [--variant ...] [--csv FILE]` | Forward outcomes by detector class. |
 | `vcp research score-outcomes --from D --to D --split D` | Do higher scores lead to better outcomes? |
 

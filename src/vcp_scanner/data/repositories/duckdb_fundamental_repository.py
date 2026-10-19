@@ -280,6 +280,17 @@ class DuckDBFundamentalRepository:
         ).fetchall()
         return {symbol: iid for symbol, iid in rows}
 
+    def symbols_of(self, instrument_ids: list[str]) -> dict[str, str]:
+        """Symbol -> instrument_id for the given instruments, inactive (delisted) ones included."""
+        if not instrument_ids:
+            return {}
+        rows = self._conn.execute(
+            "SELECT symbol, instrument_id FROM instruments"
+            " WHERE instrument_id IN (SELECT unnest(?))",
+            [instrument_ids],
+        ).fetchall()
+        return {str(symbol): str(iid) for symbol, iid in rows}
+
     def instruments_with_snapshots(self) -> list[str]:
         return [r[0] for r in self._conn.execute(
             "SELECT DISTINCT instrument_id FROM fundamental_snapshots ORDER BY 1"

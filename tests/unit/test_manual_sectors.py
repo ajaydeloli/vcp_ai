@@ -31,8 +31,12 @@ def write(tmp_path: Path, body: str) -> Path:
     return p
 
 
-def test_the_shipped_file_loads_empty() -> None:
-    assert load_manual_sectors(REPO_CONFIG / "manual_sectors.yaml") == ([], [])
+def test_the_shipped_file_loads_without_errors() -> None:
+    # the owner's entries (2026-10-17 onwards): every one valid, one per symbol
+    entries, errors = load_manual_sectors(REPO_CONFIG / "manual_sectors.yaml")
+    assert errors == []
+    symbols = [e.symbol for e in entries]
+    assert len(symbols) == len(set(symbols))
 
 
 def test_entries_are_validated_and_bad_ones_named(tmp_path: Path) -> None:

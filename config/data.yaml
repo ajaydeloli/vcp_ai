@@ -33,7 +33,8 @@ nse_user_agent: null
 # only: nothing in the scan, score, backtest or paper ledger reads them until the review.
 fundamentals:
   scope: universe              # every stock eligible in a universe snapshot since history_from
-  history_from: 2023-10-01     # filings are fetched from 15 months earlier (year-ago quarters)
+  history_from: 2022-02-01     # F6 (2026-10-17): the study period of §12 starts 2022-02; filings
+                               # are fetched from 15 months earlier (year-ago quarters)
   request_interval_seconds: 2.0  # NSE blocked us after ~2.5 h at 1.0 (2026-10-10)
   daily_update: true           # `vcp run daily` runs `vcp fundamentals update`
   update_days: 7               # first update without a previous run; later updates resume

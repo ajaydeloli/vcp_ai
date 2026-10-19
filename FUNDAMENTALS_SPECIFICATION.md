@@ -184,6 +184,29 @@ Built in F5 (2026-10-11); as built: FRONTEND_SPECIFICATION §67.30. ROCE (FRONTE
 - The validation period (2024-07 onward) is looked at once, only if the development result is worth it, and the paper ledger from 2026-10 remains the real out-of-sample test.
 - Output: a short report and a recommendation for the review: include with weight ≤ 15 (new score version), keep as display only, or drop. The decision is the owner's.
 
+**F6 as built (2026-10-17 to 19).** `history_from` moved to 2022-02-01 (filings from the October 2020 quarters). `vcp fundamentals backfill --research-db data/golden_src.duckdb` adds every stock with a labelled setup in the research database since `history_from`, delisted ones included (440 stocks outside the current universe, e.g. IDFC, Ujjivan), so the study has no survivorship gap. 17,282 new filings recorded, 5 parse errors, 113 fetch errors (files NSE no longer has); 25 invalid (negative revenue) and 81 estimated quarters. NSE's site refused us after about 9 hours at one request every 2 s (2026-10-18 19:40 IST); the run was stopped and resumed the next morning, as §10. A long backfill should be split across days.
+
+**F7 as built (2026-10-19).** `vcp fundamentals.research` (the shadow score, version `shadow-1-<hash>`, stored in `fundamental_research_scores` with its parts) and `vcp research fundamentals` (the study; `--period validation` refuses without `--unblind`). Rows: each strategy's labelled setups of its frozen config only (the research database also holds labels of earlier configs). Besides the quintiles and the IC, the report gives two regime-controlled spreads: top fifth minus bottom fifth within each scan date, and for the hard gate, pass minus fail within each date (the plain pass/fail table mixes periods).
+
+**F7 result, development period (2022-02-01 to 2024-06-30; 45,161 setups, 84 % scored, 1.4 % with no results filed).**
+
+| Strategy | Setups | IC 5d / 10d / 20d / 60d (t) | Top − bottom fifth, 60d | Gate pass − fail, 60d (within date) |
+|---|---|---|---|---|
+| VCP | 26,425 | +0.031 (3.7) / +0.040 (4.5) / +0.034 (3.5) / +0.013 (1.4) | +0.68 pp (t 0.9) | −0.13 pp (t −0.3) |
+| Flat base | 8,748 | −0.003 / +0.018 / +0.013 / −0.014 | −0.03 pp (t 0.0) | +1.16 pp (t 1.7) |
+| Three weeks tight | 7,440 | +0.009 / +0.003 / −0.014 / −0.023 (−1.6) | −1.89 pp (t −1.6) | −1.06 pp (t −1.2) |
+| Cup and handle | 1,032 | +0.085 / +0.071 / +0.121 (2.5) / +0.095 (1.7) | +1.41 pp (t 0.3, 32 dates) | +1.74 pp (t 0.5) |
+| Double bottom | 1,516 | +0.013 / +0.006 / −0.059 / +0.004 | −3.80 pp (t −1.4) | −5.13 pp (t −1.5) |
+| All | 45,161 | +0.023 (2.8) / +0.029 (3.2) / +0.022 (2.2) / +0.000 | −0.11 pp (t −0.1) | −0.05 pp (t −0.1) |
+
+* The quintiles are U-shaped, not ordered: the lowest and the highest fifth do best and the middle worst (all strategies, 60 sessions: Q1 +11.9 %, Q3 +9.1 %, Q5 +11.3 %).
+* VCP alone shows a small positive rank correlation over the first 5 to 20 sessions (IC 0.03 to 0.04, also with one setup per stock and month), fading by 60 sessions, the horizon of the trades; in money it is under one point between the top and bottom fifth. Cup and handle is larger but rests on 32 usable dates.
+* Parts (all strategies, 60 sessions): EPS growth QoQ is the steadiest (IC +0.024, t 3.3); margin change is negative (−0.023, t −3.0); debt to equity has the wrong sign for §7 (+0.021: more debt, slightly better); ROE nothing.
+* The hard gate's 2-point advantage in the plain table disappears within dates: setups failing it did as well as those passing in the same weeks.
+* Shareholding (exploratory, 66 % coverage): FII and promoter changes nothing; DII change +0.032 IC at 20 sessions (t 3.4), fading by 60; "pledge rising" slightly positive at 60 (+0.028, t 2.7), against intuition, most likely noise (many keys and horizons were tried).
+
+**Recommendation for the April 2027 review: keep fundamentals display only; do not add them to the score.** The §7 score does not order outcomes at the trade horizon, in any strategy with enough dates, and a weight of up to 15 would rank simultaneous signals by a quantity that does not separate them. By §12 the result is not worth opening the validation period for, so it stays unopened. Not tested and not to be tuned here: the bounds, a different weighting (EPS QoQ alone), or using fundamentals as a filter; any of those would be a new hypothesis, written down before it is tested on the validation period once. The decision is the owner's.
+
 ---
 
 # 13. Steps
@@ -195,8 +218,8 @@ Built in F5 (2026-10-11); as built: FRONTEND_SPECIFICATION §67.30. ROCE (FRONTE
 | F3 | Metrics, point-in-time selection, data quality, hard-gate flags (pure functions) | tests of §6–8; a recompute of a past date equals the original; the hashes of §2 unchanged |
 | F4 | Backfill of 2023-10 onward for the universe; `update` and `status`; guarded daily step | counts and parse-error rate reported; a daily run with the step on a copy of the database |
 | F5 | API and the Fundamentals page; the Stock Analysis card; Screener columns | contract tests; FRONTEND_SPECIFICATION updated |
-| F6 | Backfill from 2021-01-01 in the background | as F4 |
-| F7 | Shadow score and the research study | the report of §12 |
+| F6 | Backfill from 2021-01-01 in the background (done 2026-10-19: from the October 2020 quarters, research stocks included) | as F4 |
+| F7 | Shadow score and the research study (done 2026-10-19; result and recommendation in §12) | the report of §12 |
 | F8 | Shareholding pattern (§15): probe, provider, parser, table, backfill, display | probe findings written into §15; known-answer tests on saved filings; categories sum to 100 % per filing; a backfill with counts and parse-error rate |
 
 Each step is a branch with the full checks, a CHANGELOG entry and a spec update, as before. The owner reviews after F1 (what the data really looks like), F5 (the pages), F7 (the result) and F8 (shareholding).

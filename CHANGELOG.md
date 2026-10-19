@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- F6 and F7 (FUNDAMENTALS_SPECIFICATION §12): results history from the October 2020 quarters, including 440 stocks with past setups outside today's universe (`vcp fundamentals backfill --research-db`); 17,282 filings, 5 parse errors. The shadow score (SCORING_SPECIFICATION §7 as written) in `fundamental_research_scores`, and `vcp research fundamentals` (quintiles, IC, within-date spreads; validation locked behind `--unblind`). Result on the development period: the score does not order outcomes at the trade horizon (top minus bottom fifth −0.1 pp at 60 sessions, all strategies; VCP IC +0.03 to +0.04 over 5–20 sessions only), and the hard gate makes no difference within dates. Recommendation: keep fundamentals display only.
+
 - Shareholding moved from the Screener to the Fundamentals page (owner, 2026-10-15): a Results / Shareholding switch above the table; promoter, FII and DII % with their one-quarter change, pledge % with the rising flag, sortable; filters min promoter %, max pledge %, FII buying, pledge rising. API: these fields and filters on `/fundamentals`; removed from `/screener` (fields, sorts, `min_promoter_pct`, `max_pledged_pct`). FRONTEND_SPECIFICATION §67.40.
 
 - Shareholding: a filing NSE has no file for (no XBRL link, or 404 from the archive) is stored as `NO_FILE` instead of `FETCH_ERROR`: never fetched again, not counted toward the 25-failures stop, shown in `vcp shareholding status` and the run summary ("no file at NSE"). The 78 such filings of the backfill were relabelled (FUNDAMENTALS_SPECIFICATION §15).
