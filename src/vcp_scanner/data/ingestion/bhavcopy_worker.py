@@ -183,11 +183,18 @@ class BhavcopyIngestionWorker:
 
         download = self._provider.fetch_day(day, refresh=refresh)
         if download.status == "NOT_FOUND":
-            status = classify_missing(day, today, self._holiday_list(day, today))
-            self._record(day, status, detail="HTTP 404")
+            holidays = self._holiday_list(day, today)
+            status = classify_missing(day, today, holidays)
+            # A listed holiday seen the same day stays PENDING (a special session, e.g. Diwali's
+            # Muhurat trading, is published that evening) but is reported as a holiday, not as
+            # a late file (2026-10-20, Dussehra). The next run settles it as NO_SESSION.
+            holiday = holidays is not None and day in holidays
+            self._record(day, status, detail="HTTP 404; NSE holiday" if holiday else "HTTP 404")
             if status is BhavcopyFileStatus.NO_SESSION:
                 summary.days_no_session += 1
                 return None
+            if holiday:
+                return status, "NSE holiday: no session expected; checked again on the next run"
             return status, "not published yet"
 
         assert download.payload is not None

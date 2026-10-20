@@ -246,8 +246,15 @@ def run_daily(args: argparse.Namespace, cli_main: Callable[[list[str]], int]) ->
         _query(db, "SELECT max(trade_date) FROM bhavcopy_files WHERE status = 'OK'")[0][0]
     )
     failed = [name for name, code in results if code != 0]
+    holiday = _query(
+        db,
+        "SELECT max(trade_date) FROM bhavcopy_files WHERE status = 'PENDING'"
+        " AND detail LIKE '%NSE holiday%' AND trade_date > coalesce(?, DATE '1900-01-01')",
+        [latest],
+    )[0][0]
     summary = (
-        f"{started.astimezone(IST):%Y-%m-%d %H:%M} IST | prices to {latest} | "
+        f"{started.astimezone(IST):%Y-%m-%d %H:%M} IST | prices to {latest}"
+        f"{f' (NSE holiday {holiday})' if holiday else ''} | "
         f"scanned {', '.join(d.isoformat() for d in scan_dates) or 'nothing new'} | "
         f"surveillance lists collected: {', '.join(collected) or 'NONE'} | "
         + (f"FAILED: {', '.join(failed)}" if failed else "all steps OK")

@@ -60,15 +60,18 @@ FILES: dict[date, bytes] = {
 
 
 class _Session:
-    def __init__(self, files: dict[date, bytes]) -> None:
+    def __init__(self, files: dict[date, bytes], holidays: tuple[date, ...] = ()) -> None:
         self.by_url = {bhavcopy_url(d): payload for d, payload in files.items()}
         self.calls: list[str] = []
+        self.holidays = holidays
 
     def get(self, url: str, timeout: float) -> Any:
         self.calls.append(url)
         if url == HOLIDAY_URL:
             response = MagicMock(status_code=200)
-            response.json.return_value = {"CM": []}
+            response.json.return_value = {
+                "CM": [{"tradingDate": d.strftime("%d-%b-%Y")} for d in self.holidays]
+            }
             return response
         payload = self.by_url.get(url)
         return MagicMock(status_code=200 if payload is not None else 404, content=payload)
@@ -198,6 +201,25 @@ def test_a_recent_missing_day_stops_the_run_before_later_days(tmp_path: Path) ->
     assert s.stop_status is BhavcopyFileStatus.PENDING
     assert s.status == "SUCCESS"  # waiting for NSE is not a failure
     assert _current(store, TATA, date(2022, 8, 2)) is None
+
+
+def test_a_holiday_today_is_reported_as_a_holiday_and_settled_the_next_day(
+    tmp_path: Path,
+) -> None:
+    # Dussehra 2026-10-20 (a Tuesday) seen that evening, then the next day.
+    day = date(2026, 10, 20)
+    store, worker, session, clock = _setup(tmp_path, {}, datetime(2026, 10, 20, 14, tzinfo=UTC))
+    session.holidays = (day,)
+    s = worker.run(day, day)
+    assert s.stopped_at == day and s.stop_status is BhavcopyFileStatus.PENDING
+    assert "NSE holiday" in (s.stop_detail or "")  # not "not published yet"
+    row = store.conn.execute(
+        "SELECT status, detail FROM bhavcopy_files WHERE trade_date = ?", [day]
+    ).fetchone()
+    assert row == ("PENDING", "HTTP 404; NSE holiday")
+    clock.now = datetime(2026, 10, 21, 14, tzinfo=UTC)  # the next run settles it
+    nxt = worker.run(day, day)
+    assert nxt.days_no_session == 1 and nxt.stopped_at is None
 
 
 def test_a_bad_file_is_recorded_as_error_and_stops(tmp_path: Path) -> None:
