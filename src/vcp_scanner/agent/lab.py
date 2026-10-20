@@ -55,7 +55,7 @@ _DDL = (
     """CREATE TABLE IF NOT EXISTS agent_runs (
         run_id        BIGINT PRIMARY KEY DEFAULT nextval('agent_runs_seq'),
         hypothesis_id BIGINT NOT NULL,
-        kind          VARCHAR NOT NULL,   -- study | backtest
+        kind          VARCHAR NOT NULL,   -- study | backtest | what_if
         window_name   VARCHAR NOT NULL,   -- development | validation
         start_date    DATE NOT NULL,
         end_date      DATE NOT NULL,

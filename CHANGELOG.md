@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Agent step A2b: `what_if_score` re-scores stored setups under changed component weights, sub-component weights or bounds (from `score_components`), checks that the unchanged recompute reproduces the stored scores, and compares the rankings within each scan day (IC, top-minus-bottom fifth, top N per day, top picks kept). Research only; 26 tools.
+
 - Manual sectors: the last 20 universe stocks without one (owner, 2026-10-20); 621 entries, every universe stock classified.
 
 - Manual sectors complete for the 12 Oct list (owner, 2026-10-20): 101 more stocks, 601 entries; universe coverage 1,257 of 1,277 (the 20 left joined the universe after that list).

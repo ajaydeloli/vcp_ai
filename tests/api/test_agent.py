@@ -23,7 +23,8 @@ READ_TOOLS = {
     "daily_brief", "score_history", "data_quality", "corporate_actions", "price_bars",
     "scan_run", "backtest", "hypotheses",
 }  # fmt: skip
-LAB_WRITES = {"register_hypothesis", "run_study", "run_backtest", "conclude_hypothesis"}
+LAB_WRITES = {"register_hypothesis", "run_study", "run_backtest", "what_if_score",
+              "conclude_hypothesis"}  # fmt: skip
 
 
 @pytest.fixture
@@ -97,6 +98,11 @@ def test_lab_tools_register_refuse_and_conclude(server: Any) -> None:
     # the fixture has no live labels: the run is refused, recorded as failed and noted
     with pytest.raises(Exception, match="no live labels"):
         asyncio.run(server.call_tool("run_study", {"hypothesis_id": hid}))
+    with pytest.raises(Exception, match="no change given"):
+        asyncio.run(server.call_tool("what_if_score", {"hypothesis_id": hid}))
+    with pytest.raises(Exception, match="no live labels"):
+        asyncio.run(server.call_tool("what_if_score", {"hypothesis_id": hid,
+                                                       "weights": {"rs": 30}}))  # fmt: skip
     listed = call(server, "hypotheses")
     assert listed["hypotheses"][0]["runs"][0]["ok"] is False
     assert call(server, "conclude_hypothesis", hypothesis_id=hid, outcome="inconclusive",

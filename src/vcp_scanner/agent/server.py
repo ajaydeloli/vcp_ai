@@ -566,6 +566,67 @@ def build_server(
         )
 
     @tool
+    def what_if_score(hypothesis_id: int, weights: dict[str, float] | None = None,
+                      sub_weights: dict[str, float] | None = None,
+                      bounds: dict[str, dict[str, float]] | None = None, horizon: int = 20,
+                      window: str = "development", start: str | None = None,
+                      end: str | None = None, top_n: int = 5) -> str:  # fmt: skip
+        """Re-score the hypothesis's strategy's stored eligible setups under a scoring change
+        and compare with the frozen scoring, within each scan day: rank correlation with the
+        horizon return (IC, t), top-minus-bottom fifth, mean return of the top_n per day, and
+        how many top picks change. Change: weights {trend, pattern, volume, rs}; sub_weights
+        {"volume.dryup_quality": 60, ...}; bounds {"trend.high_proximity": {"worst": 30,
+        "best": 0}}. Refused unless the unchanged recompute reproduces the stored scores.
+        Research only: the frozen config is not changed. Same window rules as run_study."""
+        import duckdb as _duckdb
+
+        from vcp_scanner.agent import study as st
+        from vcp_scanner.agent import whatif as wi
+        from vcp_scanner.config import load_scanner_config
+
+        h, s, e = lab.check(hypothesis_id, window, _date(start), _date(end))
+        if horizon not in st.HORIZONS:
+            raise LabRuleError(f"horizon must be one of {', '.join(map(str, st.HORIZONS))}")
+        top_n = max(1, min(top_n, 20))
+        try:
+            change = wi.parse_change(weights, sub_weights, bounds)
+        except ValueError as exc:
+            raise LabRuleError(str(exc)) from exc
+        params = {"weights": weights, "sub_weights": sub_weights, "bounds": bounds,
+                  "horizon": horizon, "top_n": top_n}  # fmt: skip
+        run_id = lab.start_run(hypothesis_id, "what_if", window, s, e, params)
+        try:
+            config_hash = st.frozen_hash(serving_db, h.strategy)
+            if config_hash is None:
+                raise LabRuleError(f"no live labels for {h.strategy} to fix its frozen config")
+            w = load_scanner_config(config_dir).strategy.scoring.weights
+            base = {"TREND": w.trend, "PATTERN": w.vcp, "VOLUME": w.volume, "RS": w.rs}
+            con = _duckdb.connect(str(research_db), read_only=True)
+            try:
+                rows = wi.load(con, h.strategy, config_hash, s, e, horizon)
+            finally:
+                con.close()
+            result = wi.compare(rows, base, change, top_n)
+        except Exception as exc:
+            lab.finish_run(run_id, h, window, False, "", error=str(exc)[:300])
+            raise
+        b, n = result["baseline"], result["what_if"]
+        top = f"top_{top_n}_per_day_mean_pct"
+        summary = (f"what-if {h.strategy} {s}..{e} {horizon}-session, change {params}: IC "
+                   f"{b['ic_mean']} -> {n['ic_mean']} (t {b['ic_t']} -> {n['ic_t']}), top-bottom "
+                   f"fifth {b['top_minus_bottom_fifth_pct']} -> {n['top_minus_bottom_fifth_pct']} "
+                   f"pp, top {top_n}/day {b[top]}% -> {n[top]}%, top picks kept "
+                   f"{result['ranking_change'][f'top_{top_n}_kept_share']}")  # fmt: skip
+        lab.finish_run(run_id, h, window, True, summary, result)
+        return _dump({"run_id": run_id, "hypothesis_id": hypothesis_id, "window": window,
+                      "start": s, "end": e, **result,
+                      "notes": ["within-day comparisons: market moves cancel out",
+                                "scan days overlap (the same base on many days): read t "
+                                "values as optimistic",
+                                *(["validation data counts as seen: a sanity check only"]
+                                  if window == "validation" else [])]})  # fmt: skip
+
+    @tool
     def conclude_hypothesis(hypothesis_id: int, outcome: str, conclusion: str) -> str:
         """Close a hypothesis: outcome supported, rejected or inconclusive, and the conclusion in
         plain words with the numbers it rests on, judged against the decision rule written at
