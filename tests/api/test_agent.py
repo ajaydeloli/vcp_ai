@@ -25,6 +25,8 @@ READ_TOOLS = {
 }  # fmt: skip
 LAB_WRITES = {"register_hypothesis", "run_study", "run_backtest", "what_if_score",
               "conclude_hypothesis"}  # fmt: skip
+PROPOSE = {"propose_corporate_action", "propose_resolve_event", "propose_sector",
+           "propose_watchlist", "proposals"}  # fmt: skip
 
 
 @pytest.fixture
@@ -42,7 +44,8 @@ def call(server: Any, tool: str, **args: Any) -> Any:
 def test_the_tool_list_is_read_tools_plus_the_notebook(server: Any) -> None:
     names = {t.name for t in asyncio.run(server.list_tools())}
     # no approve, apply, order or config tool: the notebook and the research lab only
-    assert names == READ_TOOLS | {"add_note"} | LAB_WRITES
+    assert names == READ_TOOLS | {"add_note"} | LAB_WRITES | PROPOSE
+    assert not any(n.startswith(("approve", "reject", "apply")) for n in names)
 
 
 def test_read_tools_return_compact_api_data(server: Any) -> None:

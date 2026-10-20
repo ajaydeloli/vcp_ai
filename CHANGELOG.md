@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Agent step A3, stage 1: proposals. Tools `propose_corporate_action`, `propose_resolve_event`, `propose_sector`, `propose_watchlist`, `proposals` (31 tools); `vcp agent proposals|approve|reject`, owner only (interactive terminal and a typed confirmation); approval applies through the manual files (validated, committed locally) or `vcp quality resolve`. The dashboard Proposals page is stage 2.
+- Fix: an NSE holiday seen the same day is reported as "NSE holiday" (in the run summary too) instead of "not published yet"; the day stays open for a special session and the next run settles it (2026-10-20, Dussehra). The day check came before the holiday list.
+
 - Agent step A2b: `what_if_score` re-scores stored setups under changed component weights, sub-component weights or bounds (from `score_components`), checks that the unchanged recompute reproduces the stored scores, and compares the rankings within each scan day (IC, top-minus-bottom fifth, top N per day, top picks kept). Research only; 26 tools.
 
 - Manual sectors: the last 20 universe stocks without one (owner, 2026-10-20); 621 entries, every universe stock classified.
