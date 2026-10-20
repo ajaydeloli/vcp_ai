@@ -623,3 +623,23 @@ sectors:
   - {symbol: VEEDOL, sector: Oil Gas & Consumable Fuels, industry: Lubricants, as_of: 2026-10-20}
   - {symbol: VENTIVE, sector: Consumer Services, industry: Hotels & Resorts, as_of: 2026-10-20}
   - {symbol: ZUARI, sector: Chemicals, industry: Fertilizers, as_of: 2026-10-20}
+  - {symbol: AMANTA, sector: Healthcare, industry: Pharmaceuticals, as_of: 2026-10-20}
+  - {symbol: ASTEC, sector: Chemicals, industry: Pesticides & Agrochemicals, as_of: 2026-10-20}
+  - {symbol: DPWIRES, sector: Capital Goods, industry: Iron & Steel Products, as_of: 2026-10-20}
+  - {symbol: FABTECH, sector: Healthcare, industry: Medical Equipment & Supplies, as_of: 2026-10-20}
+  - {symbol: GMMPFAUDLR, sector: Capital Goods, industry: Industrial Products, as_of: 2026-10-20}
+  - {symbol: HLEGLAS, sector: Capital Goods, industry: Industrial Products, as_of: 2026-10-20}
+  - {symbol: IGCL, sector: Chemicals, industry: Pesticides & Agrochemicals, as_of: 2026-10-20}
+  - {symbol: KMSUGAR, sector: Fast Moving Consumer Goods, industry: Sugar, as_of: 2026-10-20}
+  - {symbol: KOPRAN, sector: Healthcare, industry: Pharmaceuticals, as_of: 2026-10-20}
+  - {symbol: KRISHNADEF, sector: Capital Goods, industry: Aerospace & Defense, as_of: 2026-10-20}
+  - {symbol: LOKESHMACH, sector: Capital Goods, industry: Industrial Products, as_of: 2026-10-20}
+  - {symbol: MAZDA, sector: Capital Goods, industry: Industrial Products, as_of: 2026-10-20}
+  - {symbol: MOBIKWIK, sector: Financial Services, industry: Financial Technology (Fintech), as_of: 2026-10-20}
+  - {symbol: MVGJL, sector: Consumer Durables, industry: Gems Jewellery And Watches, as_of: 2026-10-20}
+  - {symbol: PACEDIGITK, sector: Telecommunication, industry: Telecom - Infrastructure, as_of: 2026-10-20}
+  - {symbol: SKMEGGPROD, sector: Fast Moving Consumer Goods, industry: Meat Products including Poultry, as_of: 2026-10-20}
+  - {symbol: SYNCOMF, sector: Healthcare, industry: Pharmaceuticals, as_of: 2026-10-20}
+  - {symbol: THOMASCOTT, sector: Textiles, industry: Garments & Apparels, as_of: 2026-10-20}
+  - {symbol: VALIANTORG, sector: Chemicals, industry: Specialty Chemicals, as_of: 2026-10-20}
+  - {symbol: WAAREEINDO, sector: Capital Goods, industry: Heavy Electrical Equipment, as_of: 2026-10-20}

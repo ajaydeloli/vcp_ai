@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Manual sectors: the last 20 universe stocks without one (owner, 2026-10-20); 621 entries, every universe stock classified.
+
 - Manual sectors complete for the 12 Oct list (owner, 2026-10-20): 101 more stocks, 601 entries; universe coverage 1,257 of 1,277 (the 20 left joined the universe after that list).
 
 - Agent step A2, the research lab: `register_hypothesis`, `hypotheses`, `run_study`, `run_backtest`, `conclude_hypothesis` (25 tools) and `vcp agent hypotheses`. Pre-registration, a budget of 3 hypotheses per strategy per review cycle, the development window freely, the validation window once per hypothesis after a development run, no data after 2026-09-30; every run and conclusion goes to the notebook. Studies read the research database's forward labels of each strategy's frozen config; backtests run the existing backtester on the research database only.
