@@ -71,6 +71,7 @@ export const paths = {
   ipos: () => "ipos",
   backtests: () => "backtests",
   reports: () => "reports",
+  agent: () => "agent",
   stockHistory: (symbol: string, days: number) =>
     `stocks/${encodeURIComponent(symbol)}/history${query({ days })}`,
   screener: (f: ScreenerQuery) => {
@@ -167,6 +168,8 @@ export const useIpos = () =>
   useQuery({ queryKey: ["ipos"], queryFn: () => getJson(paths.ipos(), s.ipos), ...opts });
 export const useBacktests = () =>
   useQuery({ queryKey: ["backtests"], queryFn: () => getJson(paths.backtests(), s.backtests), ...opts });
+export const useAgent = () =>
+  useQuery({ queryKey: ["agent"], queryFn: () => getJson(paths.agent(), s.agent), ...opts, refetchInterval: 60_000 });
 export const useReports = () =>
   useQuery({ queryKey: ["reports"], queryFn: () => getJson(paths.reports(), s.reports), ...opts });
 export const useSearch = (text: string) =>

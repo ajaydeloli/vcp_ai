@@ -21,6 +21,7 @@ const PAGES = [
   ["Paper Trading", "/paper"],
   ["Backtest", "/backtest"],
   ["Reports", "/reports"],
+  ["AI Agent", "/agent"],
   ["System Status", "/system"],
 ] as const;
 

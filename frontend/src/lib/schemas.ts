@@ -722,3 +722,60 @@ export type LiveQuotes = z.infer<typeof liveQuotes>;
 export type LiveIndex = z.infer<typeof liveIndex>;
 export type LiveIndices = z.infer<typeof liveIndices>;
 export type LiveStatus = z.infer<typeof liveStatus>;
+
+// --- the agent page (AGENT_SPECIFICATION A3 stage 2) ---
+export const agentProposal = z.object({
+  proposal_id: z.number(),
+  created_at: z.string(),
+  kind: z.string(),
+  title: z.string(),
+  change: z.unknown(),
+  rationale: z.string(),
+  evidence: z.string(),
+  status: z.string(),
+  decided_by: z.string().nullable(),
+  decided_at: z.string().nullable(),
+  comment: z.string().nullable(),
+  result: z.string().nullable(),
+  approve_command: z.string().nullable(),
+  reject_command: z.string().nullable(),
+});
+export const agentRun = z.object({
+  run_id: z.number(),
+  kind: z.string(),
+  window: z.string(),
+  start: z.string(),
+  end: z.string(),
+  ok: z.boolean().nullable(),
+  summary: z.string().nullable(),
+  error: z.string().nullable(),
+});
+export const agentHypothesis = z.object({
+  hypothesis_id: z.number(),
+  created_at: z.string(),
+  strategy: z.string(),
+  title: z.string(),
+  metric: z.string(),
+  decision_rule: z.string(),
+  status: z.string(),
+  outcome: z.string().nullable(),
+  conclusion: z.string().nullable(),
+  runs: z.array(agentRun),
+});
+export const agent = z.object({
+  ...stamp,
+  available: z.boolean(),
+  reason: z.string().nullable(),
+  pending: z.number(),
+  proposals: z.array(agentProposal),
+  ai_watchlist: z.array(
+    z.object({ symbol: z.string(), since: z.string(), proposal_id: z.number(), reason: z.string() }),
+  ),
+  budget_left: z.record(z.string(), z.number()),
+  hypotheses: z.array(agentHypothesis),
+  notes: z.array(
+    z.object({ note_id: z.number(), created_at: z.string(), kind: z.string(), text: z.string(), source: z.string() }),
+  ),
+});
+export type AgentProposal = z.infer<typeof agentProposal>;
+export type AgentHypothesis = z.infer<typeof agentHypothesis>;

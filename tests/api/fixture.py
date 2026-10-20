@@ -411,3 +411,58 @@ def write_report_files(folder: Path) -> None:
     (folder / "daily" / "notes.html").write_text("not a report name")
     for p in folder.rglob("*.html"):
         os.utime(p, (1_790_000_000, 1_790_000_000))  # a fixed time: the API sample must not change
+
+
+def write_agent_db(data_dir: Path) -> Path:
+    """The agent's own file with fixed rows (fixed times: the API sample must not change): one
+    pending and one applied proposal, an AI watchlist entry, a concluded hypothesis with a run,
+    and two notebook entries."""
+    from pathlib import Path as _P
+
+    from vcp_scanner.agent.lab import Lab
+    from vcp_scanner.agent.proposals import Proposals
+    from vcp_scanner.agent.store import AgentStore
+
+    path = data_dir / "agent" / "agent.duckdb"
+    store = AgentStore(path)
+    store.migrate()
+    Lab(store).migrate()
+    Proposals(store, _P("."), "config").migrate()
+    import duckdb as _duckdb
+
+    con = _duckdb.connect(str(path))
+    try:
+        con.execute(
+            "INSERT INTO agent_proposals VALUES (1, ?, 'corporate_action', 'ALPHA SPLIT ex"
+            " 2026-09-01', ?, 'Shows as a 5x jump', 'Notice https://example.org/a; 500 -> 101',"
+            " 'PENDING', NULL, NULL, NULL, NULL, NULL)",
+            [T0, '{"symbol": "ALPHA", "action_type": "SPLIT", "ex_date": "2026-09-01",'
+                 ' "ratio": [10, 2]}'],
+        )  # fmt: skip
+        con.execute(
+            "INSERT INTO agent_proposals VALUES (2, ?, 'watchlist', 'AI watchlist +BETA',"
+            " '{\"add\": [\"BETA\"], \"remove\": []}', 'Near its pivot', 'Near its pivot',"
+            " 'APPLIED', 'pre-approved', ?, NULL, ?, 'AI watchlist: added 1, removed 0')",
+            [T0, T0, T0],
+        )
+        con.execute("INSERT INTO agent_watchlist VALUES ('BETA', ?, 2, 'AI watchlist +BETA')", [T0])
+        con.execute(
+            "INSERT INTO agent_hypotheses VALUES (1, ?, '2027-04', 'vcp', 'Pattern-heavier score',"
+            " 'raise the pattern weight', 'IC at 60 sessions', 'IC +0.03 with t >= 2',"
+            " 'CONCLUDED', 'rejected', 'IC -0.003 (t -0.2)', ?)",
+            [T0, T0],
+        )
+        con.execute(
+            "INSERT INTO agent_runs VALUES (1, 1, 'what_if', 'development', DATE '2022-02-01',"
+            " DATE '2024-06-30', '{}', ?, ?, TRUE, 'what-if vcp: IC -0.002 -> -0.003', NULL, NULL)",
+            [T0, T0],
+        )
+        con.execute(
+            "INSERT INTO agent_notes VALUES (1, ?, 'decision', 'Strategies frozen until April"
+            " 2027.', NULL, 'seed'), (2, ?, 'finding', 'H1 concluded: rejected.', 'h1', 'agent')",
+            [T0, T0],
+        )
+    finally:
+        con.close()
+    os.utime(path, (1_790_000_000, 1_790_000_000))
+    return path

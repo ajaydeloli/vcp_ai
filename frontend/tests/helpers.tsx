@@ -17,6 +17,7 @@ import market from "./fixtures/api/market.json";
 import overlap from "./fixtures/api/overlap.json";
 import paper from "./fixtures/api/paper.json";
 import reports from "./fixtures/api/reports.json";
+import agent from "./fixtures/api/agent.json";
 import screener from "./fixtures/api/screener.json";
 import search from "./fixtures/api/search.json";
 import setupsFlat from "./fixtures/api/setups_flat_base.json";
@@ -30,7 +31,7 @@ import stockFundamentals from "./fixtures/api/stock_fundamentals.json";
 import stockFundamentalsNone from "./fixtures/api/stock_fundamentals_none.json";
 
 export const fx = {
-  activity, backtests, bars, history, ipos, reports, liveIndices, liveQuotes, liveStatus, market, marketHealth, overlap, paper, search, screener, setupsFlat, setupsVcp, status,
+  agent, activity, backtests, bars, history, ipos, reports, liveIndices, liveQuotes, liveStatus, market, marketHealth, overlap, paper, search, screener, setupsFlat, setupsVcp, status,
   stockSetups, strategies, summary, fundamentals, stockFundamentals, stockFundamentalsNone,
 }; // fmt: skip
 
@@ -49,6 +50,7 @@ export function sample(rel: string): unknown {
     case "ipos": return fx.ipos;
     case "backtests": return fx.backtests;
     case "reports": return fx.reports;
+    case "agent": return fx.agent;
     case "reports/generate": return { ...fx.reports.files[0], name: "2026-10-01.html", label: "Daily report 2026-10-01" };
     case "search": return fx.search;
     case "screener": return fx.screener;

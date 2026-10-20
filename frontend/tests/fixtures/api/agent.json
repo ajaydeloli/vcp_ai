@@ -1,0 +1,110 @@
+{
+ "as_of": null,
+ "data_time": "2026-10-06T14:00:00+05:30",
+ "available": true,
+ "reason": null,
+ "pending": 1,
+ "proposals": [
+  {
+   "proposal_id": 1,
+   "created_at": "2026-10-05T15:00:00Z",
+   "kind": "corporate_action",
+   "title": "ALPHA SPLIT ex 2026-09-01",
+   "change": {
+    "symbol": "ALPHA",
+    "action_type": "SPLIT",
+    "ex_date": "2026-09-01",
+    "ratio": [
+     10,
+     2
+    ]
+   },
+   "rationale": "Shows as a 5x jump",
+   "evidence": "Notice https://example.org/a; 500 -> 101",
+   "status": "PENDING",
+   "decided_by": null,
+   "decided_at": null,
+   "comment": null,
+   "result": null,
+   "approve_command": "vcp agent approve 1",
+   "reject_command": "vcp agent reject 1 \"reason\""
+  },
+  {
+   "proposal_id": 2,
+   "created_at": "2026-10-05T15:00:00Z",
+   "kind": "watchlist",
+   "title": "AI watchlist +BETA",
+   "change": {
+    "add": [
+     "BETA"
+    ],
+    "remove": []
+   },
+   "rationale": "Near its pivot",
+   "evidence": "Near its pivot",
+   "status": "APPLIED",
+   "decided_by": "pre-approved",
+   "decided_at": "2026-10-05T15:00:00Z",
+   "comment": null,
+   "result": "AI watchlist: added 1, removed 0",
+   "approve_command": null,
+   "reject_command": null
+  }
+ ],
+ "ai_watchlist": [
+  {
+   "symbol": "BETA",
+   "since": "2026-10-05T15:00:00Z",
+   "proposal_id": 2,
+   "reason": "AI watchlist +BETA"
+  }
+ ],
+ "budget_left": {
+  "vcp": 2,
+  "flat_base": 3,
+  "three_weeks_tight": 3,
+  "cup_handle": 3,
+  "double_bottom": 3
+ },
+ "hypotheses": [
+  {
+   "hypothesis_id": 1,
+   "created_at": "2026-10-05T15:00:00Z",
+   "strategy": "vcp",
+   "title": "Pattern-heavier score",
+   "metric": "IC at 60 sessions",
+   "decision_rule": "IC +0.03 with t >= 2",
+   "status": "CONCLUDED",
+   "outcome": "rejected",
+   "conclusion": "IC -0.003 (t -0.2)",
+   "runs": [
+    {
+     "run_id": 1,
+     "kind": "what_if",
+     "window": "development",
+     "start": "2022-02-01",
+     "end": "2024-06-30",
+     "ok": true,
+     "summary": "what-if vcp: IC -0.002 -> -0.003",
+     "error": null
+    }
+   ]
+  }
+ ],
+ "notes": [
+  {
+   "note_id": 2,
+   "created_at": "2026-10-05T15:00:00Z",
+   "kind": "finding",
+   "text": "H1 concluded: rejected.",
+   "source": "agent"
+  },
+  {
+   "note_id": 1,
+   "created_at": "2026-10-05T15:00:00Z",
+   "kind": "decision",
+   "text": "Strategies frozen until April 2027.",
+   "source": "seed"
+  }
+ ]
+}

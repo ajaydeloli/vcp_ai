@@ -42,6 +42,7 @@ CASES = {
     "stock_fundamentals": "stocks/ALPHA/fundamentals",
     "stock_fundamentals_none": "stocks/GAMMA/fundamentals",
     "fundamentals": "fundamentals",
+    "agent": "agent",
 }
 
 

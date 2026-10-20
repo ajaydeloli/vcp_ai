@@ -36,8 +36,8 @@ def test_invalid_proposals_are_refused_when_made(props: Proposals) -> None:
     with pytest.raises(ProposalError, match="corporate action invalid"):
         props.create("corporate_action", "t", {**CA, "ratio": None}, "rationale x", "evidence x")
     with pytest.raises(ProposalError, match="evidence must say"):
-        props.create("corporate_action", "t", {**CA, "evidence": "trust me, it is right"}, "rationale x",
-                     "evidence x")  # fmt: skip
+        bad = {**CA, "evidence": "trust me, it is right"}
+        props.create("corporate_action", "t", bad, "rationale x", "evidence x")
     with pytest.raises(ProposalError, match="sector must be one of"):
         props.create("sector", "t", {"symbol": "ABC", "sector": "Tech"}, "rationale x", "e x")
     with pytest.raises(ProposalError, match="dq-"):
@@ -48,7 +48,7 @@ def test_invalid_proposals_are_refused_when_made(props: Proposals) -> None:
 def test_an_approved_corporate_action_is_appended_validated_and_committed(
     props: Proposals,
 ) -> None:
-    p = props.create("corporate_action", "ABC SPLIT", CA, "it shows as a +900% jump", "the NSE notice")
+    p = props.create("corporate_action", "ABC SPLIT", CA, "shows as a +900% jump", "NSE notice")
     assert p.status == "PENDING"
     done = props.approve(p.proposal_id, "Ajay", "checked the notice")
     assert done.status == "APPLIED", done.apply_result

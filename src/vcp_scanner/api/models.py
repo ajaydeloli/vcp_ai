@@ -963,3 +963,73 @@ class BacktestDetailResponse(Stamped):
     by_exit: list[BacktestGroup]
     by_year: list[BacktestGroup]
     trades: list[BacktestTrade]  # newest entries first, cut to the limit
+
+
+# --- the agent page (AGENT_SPECIFICATION A3 stage 2) --------------------------------------
+
+
+class AgentProposal(BaseModel):
+    proposal_id: int
+    created_at: datetime
+    kind: str  # corporate_action | resolve_event | sector | watchlist
+    title: str
+    change: Any
+    rationale: str
+    evidence: str
+    status: str  # PENDING | APPROVED | REJECTED | APPLIED | FAILED
+    decided_by: str | None
+    decided_at: datetime | None
+    comment: str | None
+    result: str | None
+    approve_command: str | None  # to copy into the owner's terminal (pending only)
+    reject_command: str | None
+
+
+class AgentWatch(BaseModel):
+    symbol: str
+    since: datetime
+    proposal_id: int
+    reason: str
+
+
+class AgentRun(BaseModel):
+    run_id: int
+    kind: str  # study | backtest | what_if
+    window: str
+    start: date
+    end: date
+    ok: bool | None
+    summary: str | None
+    error: str | None
+
+
+class AgentHypothesis(BaseModel):
+    hypothesis_id: int
+    created_at: datetime
+    strategy: str
+    title: str
+    metric: str
+    decision_rule: str
+    status: str  # OPEN | CONCLUDED
+    outcome: str | None
+    conclusion: str | None
+    runs: list[AgentRun]
+
+
+class AgentNote(BaseModel):
+    note_id: int
+    created_at: datetime
+    kind: str
+    text: str
+    source: str
+
+
+class AgentResponse(Stamped):
+    available: bool
+    reason: str | None
+    pending: int
+    proposals: list[AgentProposal]
+    ai_watchlist: list[AgentWatch]
+    budget_left: dict[str, int]
+    hypotheses: list[AgentHypothesis]
+    notes: list[AgentNote]

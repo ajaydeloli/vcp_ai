@@ -7,6 +7,7 @@ import { SystemStatus } from "@/components/SystemStatus";
 import { Backtest } from "@/components/Backtest";
 import { RecentIpos } from "@/components/RecentIpos";
 import { Reports } from "@/components/Reports";
+import { AgentPage } from "@/components/Agent";
 import { mockApi, renderApp } from "./helpers";
 
 describe("more pages", () => {
@@ -42,6 +43,21 @@ describe("more pages", () => {
     expect(await screen.findByRole("heading", { name: "Live prices" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Backup" })).toBeInTheDocument();
     expect(await screen.findByRole("heading", { name: "Recent activity" })).toBeInTheDocument();
+  });
+
+  it("AI Agent shows pending proposals with commands to copy, and no approve button", async () => {
+    mockApi();
+    renderApp(<AgentPage />);
+    const p1 = await screen.findByRole("listitem", { name: "Proposal 1" });
+    expect(p1).toHaveTextContent("ALPHA SPLIT ex 2026-09-01");
+    expect(screen.getByText("vcp agent approve 1")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Copy the approve command for P1" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^approve/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("listitem", { name: "Proposal 2" })).not.toBeInTheDocument(); // applied
+    await userEvent.click(screen.getByRole("button", { name: "All" }));
+    expect(screen.getByRole("listitem", { name: "Proposal 2" })).toHaveTextContent("AI watchlist +BETA");
+    expect(screen.getByRole("link", { name: "BETA" })).toHaveAttribute("href", "/stocks/BETA");
+    expect(screen.getByRole("listitem", { name: "Hypothesis 1" })).toHaveTextContent("rejected");
   });
 
   it("an API failure is said plainly", async () => {

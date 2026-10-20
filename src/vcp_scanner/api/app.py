@@ -14,6 +14,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse
 
 from vcp_scanner.api import (
+    agent,
     backtests,
     diagnostics,
     fundamentals,
@@ -430,6 +431,11 @@ def create_app(
         summary, lines = diagnostics.run_log(data, day) if day else (None, [])
         return m.ScanRunsResponse(as_of=day, data_time=db.data_time(), run_summary=summary,
                                   log_warnings=lines, runs=runs)  # fmt: skip
+
+    @app.get(f"{api}/agent", response_model=m.AgentResponse)
+    def agent_page() -> m.AgentResponse:
+        """The AI's proposals, watchlist, research lab and recent notebook (read-only)."""
+        return agent.agent_state(data / "agent" / "agent.duckdb")
 
     @app.get(f"{api}/reports", response_model=m.ReportsResponse)
     def report_list() -> m.ReportsResponse:
