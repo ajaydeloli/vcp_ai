@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Telegram alerts carry more detail and no footer line: pivot alerts show the setup (strategy, grade, score, RS rank, sector), the price with the day's change and range, the buy zone up to the 5 % entry limit, the stop with the risk % from the price, volume so far against the 50-day average with the pace, the market-health line and the time (IST). The evening summary drops the footer too.
+
 - The intraday alert watcher waits for Telegram to be set up (re-reading .env each minute) instead of stopping, so adding the token needs no dashboard restart.
 
 - Dashboard page Alerts (`/alerts`; API `GET /api/v1/alerts`, read-only): Telegram set up or not (never the token), the intraday watcher's last check and its watched stocks with live distance to the pivot (the watcher writes `data/alerts/watch_state.json`), the alerts sent or not sent, and the settings. "Alerts" leaves the menu's coming-later list.

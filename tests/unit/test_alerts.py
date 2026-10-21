@@ -131,7 +131,7 @@ def test_the_evening_message_says_run_market_breakouts_and_near_pivot() -> None:
     assert "Run OK" in text and "Market health: Adverse 22.7 (exposure none)" in text
     assert "KROSS [VCP]" in text and "OLD" not in text  # only today's breakouts
     assert "NEAR [VCP] 0.5% below pivot 100.00, score 61" in text and "FAR" not in text
-    assert text.endswith("Research tool, not trading advice.")
+    assert "Research tool" not in text
     failed = {**API, "status": {**API["status"], "daily_run": "... | FAILED: prices"}}
     assert "RUN PROBLEM" in evening_message(_get(failed), EveningConfig(strategies=["vcp"]))
 
@@ -154,6 +154,28 @@ def test_pivot_alerts_approaching_crossed_and_the_chase_warning() -> None:
     assert kinds["A"][0] == "APPROACHING" and "0.5% below" in kinds["A"][1]
     assert kinds["B"][0] == "CROSSED" and "+1.0%" in kinds["B"][1]
     assert "past the 5% entry limit" in kinds["C"][1] and "D" not in kinds
+    assert "Research tool" not in kinds["B"][1]
+
+
+def test_pivot_alerts_carry_the_setup_risk_volume_and_market_details() -> None:
+    from datetime import datetime, timedelta, timezone
+
+    w = [Watched("A", 100.0, "vcp", "setup", score=71.6, grade="A", stop=94.0, rs_rank=85,
+                 sector="Chemicals", avg_volume=100_000)]  # fmt: skip
+    live = {"A": {"last_price": 101.0, "change_pct": 2.04, "low": 98.0, "high": 101.5,
+                  "volume": 60_000}}  # fmt: skip
+    now = datetime(
+        2026, 10, 21, 11, 15, tzinfo=timezone(timedelta(hours=5, minutes=30))
+    )  # 120 of 375 minutes into the session
+    (kind, _, text), = pivot_alerts(w, {"A": 101.0}, IntradayConfig(chase_warn_pct=5.0), live,
+                                    "Market health: Adverse 22.7, exposure none", now)  # fmt: skip
+    assert kind == "CROSSED"
+    assert "VCP | grade A | score 72 | RS 85 | Chemicals (setup)" in text
+    assert "Price 101.00, day +2.0% (range 98.00 - 101.50)" in text
+    assert "Buy zone 100.00 - 105.00 (pivot +5%)" in text
+    assert "Stop 94.00: risk 6.9% from this price" in text
+    assert "Volume so far 60,000 = 60% of the 50-day avg (pace 1.9x a normal day)" in text
+    assert "Market health: Adverse 22.7" in text and text.endswith("11:15 IST")
 
 
 def test_the_watcher_state_file_has_prices_and_gaps(tmp_path: Path) -> None:

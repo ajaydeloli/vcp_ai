@@ -103,6 +103,18 @@ def write_watch_state(path: Path, market: str | None, watched: list[Any],
     tmp.replace(path)
 
 
+def _market_line(get: Any) -> str | None:
+    """ "Market health: Adverse 22.7, exposure none" (display only), or None."""
+    try:
+        score = get("market/health").get("score") or {}
+    except Exception:  # noqa: BLE001 - the alert goes out without it
+        return None
+    if not score.get("label"):
+        return None
+    raw, exposure = score.get("raw", ""), score.get("exposure", "-")
+    return f"Market health: {score['label']} {raw}, exposure {exposure}"
+
+
 def _watch(args: argparse.Namespace) -> int:
     import httpx
 
@@ -147,6 +159,7 @@ def _watch(args: argparse.Namespace) -> int:
 
     watched: list[Any] = []
     quotes: dict[str, float] = {}
+    market_line: str | None = None
     state = state_path
     built_at = 0.0
     print(f"Watching for pivot alerts (every {cfg.intraday.poll_seconds} s in market hours)")
@@ -161,14 +174,17 @@ def _watch(args: argparse.Namespace) -> int:
                     watched = watch_list(get, cfg.intraday, ai)
                     built_at = time.monotonic()
                     print(f"{_now():%H:%M} watching {len(watched)} stocks")
+                    market_line = _market_line(get)
                 if watched:
                     body = get("live/quotes", symbols=",".join(w.symbol for w in watched))
-                    quotes = {
-                        q["symbol"]: q["last_price"]
+                    live = {
+                        q["symbol"]: q
                         for q in body.get("quotes", [])
                         if q.get("available") and q.get("last_price") is not None
                     }
-                    for kind, sym, text in pivot_alerts(watched, quotes, cfg.intraday):
+                    quotes = {s: q["last_price"] for s, q in live.items()}
+                    alerts = pivot_alerts(watched, quotes, cfg.intraday, live, market_line, _now())
+                    for kind, sym, text in alerts:
                         if send_once(channel, log, _today(), kind, sym, text):
                             print(f"{_now():%H:%M} sent {kind} {sym}")
             else:
