@@ -39,6 +39,47 @@ def latest_scan(cur: Cur, spec: StrategySpec) -> date | None:
     return row[0] if row else None
 
 
+_RESCALED_SQL = """
+WITH scan AS (
+    SELECT as_of_date AS d, min(started_at) AS t FROM scan_runs
+    WHERE status = 'COMPLETED'
+      AND as_of_date = (SELECT max(as_of_date) FROM scan_runs WHERE status = 'COMPLETED')
+    GROUP BY as_of_date
+),
+then_ AS (
+    SELECT a.instrument_id, a.effective_date, a.price_factor
+    FROM corporate_action_adjustments a, scan
+    WHERE a.known_from <= scan.t AND (a.known_to IS NULL OR a.known_to > scan.t)
+      AND a.effective_date <= scan.d
+),
+now_ AS (
+    SELECT a.instrument_id, a.effective_date, a.price_factor
+    FROM corporate_action_adjustments a, scan
+    WHERE a.known_to IS NULL AND a.effective_date <= scan.d
+),
+diff AS (
+    (SELECT * FROM now_ EXCEPT SELECT * FROM then_)
+    UNION ALL (SELECT * FROM then_ EXCEPT SELECT * FROM now_)
+)
+SELECT DISTINCT d.instrument_id, i.symbol FROM diff d JOIN instruments i USING (instrument_id)
+ORDER BY i.symbol
+"""
+
+
+def rescaled_after_scan(cur: Cur) -> tuple[date | None, dict[str, str]]:
+    """Stocks whose price adjustments (split, bonus, consolidation...) changed after the newest
+    scan started: that scan used the old factors, so their RS, Trend Template and setups on it
+    are wrong until the next scan (owner, 2026-10-21, after CCAVENUE's RS 99 on 2026-10-19).
+    Compares the adjustments valid when the scan started with today's (bitemporal
+    ``known_from``/``known_to``), so a rebuild that changes nothing flags nothing.
+    Returns (scan day, {instrument_id: symbol})."""
+    row = cur.execute("SELECT max(as_of_date) FROM scan_runs WHERE status = 'COMPLETED'").fetchone()
+    day = row[0] if row else None
+    if day is None:
+        return None, {}
+    return day, {str(r[0]): str(r[1]) for r in cur.execute(_RESCALED_SQL).fetchall()}
+
+
 def ledger_through(cur: Cur, rule_set: str, spec: StrategySpec) -> date | None:
     row = cur.execute(
         "SELECT max(event_date) FROM paper_events WHERE rule_set = ? AND strategy_id = ?"
@@ -645,7 +686,13 @@ def stock_setups(
         weekly_stage2_pass=None if tt is None or tt[1] is None else bool(tt[1]),
         trend_template_pass=None if tt is None or tt[2] is None else bool(tt[2]),
         conditions=conditions, setups=setups,
+        rescaled_after_scan=_rescaled(cur, instrument_id, day),
     )  # fmt: skip
+
+
+def _rescaled(cur: Cur, instrument_id: str, day: date) -> bool:
+    scan_day, stale = rescaled_after_scan(cur)
+    return scan_day == day and instrument_id in stale
 
 
 def live_universe(cur: Cur, ctx: Context) -> list[tuple[str, str | None]]:

@@ -16,7 +16,14 @@ from vcp_scanner.api.context import (
     Context,
     StrategySpec,
 )
-from vcp_scanner.api.queries import Cur, _f, latest_prices_date, latest_scan, ledger_through
+from vcp_scanner.api.queries import (
+    Cur,
+    _f,
+    latest_prices_date,
+    latest_scan,
+    ledger_through,
+    rescaled_after_scan,
+)
 from vcp_scanner.backup import BACKUP_RE, list_backups
 from vcp_scanner.data.providers._time import IST
 from vcp_scanner.data.providers.manual_sectors import FILE_NAME as MANUAL_SECTORS
@@ -98,6 +105,12 @@ def status(cur: Cur, ctx: Context, now: datetime, data_time: datetime) -> m.Stat
         when = run.split("|", 1)[0].strip()
         steps = run.split("FAILED:", 1)[1].strip()
         warnings.append(f"Last daily run ({when}) failed: {steps}.")
+    scan_day, rescaled = rescaled_after_scan(cur)
+    if rescaled:
+        names = ", ".join(list(rescaled.values())[:5]) + (" …" if len(rescaled) > 5 else "")
+        warnings.append(f"Prices of {names} were re-adjusted (corporate action entered) after the"
+                        f" {scan_day} scan: their RS, Trend Template and setups there used the old"
+                        f" prices and are wrong until the next scan.")  # fmt: skip
     manual, problems = load_manual_sectors(ctx.config_dir / MANUAL_SECTORS)
     stale = stale_entries(manual, now.date())
     if stale:

@@ -33,6 +33,21 @@ describe("stock analysis page", () => {
     expect(screen.getByTestId("stock-sector")).toHaveAttribute("title", expect.stringMatching(/Entered by hand/));
   });
 
+  it("warns when the prices were re-adjusted after the scan, and offers the chart links", async () => {
+    mockApi({ "stocks/BETA/setups": { ...fx.stockSetups, symbol: "BETA", rescaled_after_scan: true } });
+    renderApp(<StockAnalysis symbol="BETA" />);
+    expect(await screen.findByTestId("rescaled-note")).toHaveTextContent(/re-adjusted for a corporate action/);
+    expect(screen.getByTestId("tradingview-link")).toHaveAttribute("href", "https://www.tradingview.com/chart/?symbol=NSE%3ABETA");
+    expect(screen.getByTestId("copy-symbol")).toHaveTextContent("Copy symbol");
+  });
+
+  it("shows no re-adjustment note normally", async () => {
+    mockApi();
+    renderApp(<StockAnalysis symbol="ALPHA" />);
+    await screen.findByTestId("stock-sector");
+    expect(screen.queryByTestId("rescaled-note")).not.toBeInTheDocument();
+  });
+
   it("says so when a stock has no breakout or paper trade", async () => {
     mockApi();
     renderApp(<StockAnalysis symbol="ALPHA" />);

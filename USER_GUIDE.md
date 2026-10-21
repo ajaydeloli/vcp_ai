@@ -370,6 +370,8 @@ vcp ingest adjusted-prices                         # rebuilds the adjusted price
 vcp quality scan --instrument SYMBOL               # the gap is now explained: the block clears
 ```
 
+Applied after that day's scan, the action leaves the scan's RS, Trend Template, stage and setups for the stock computed on the old prices (on 19 Oct 2026, CCAVENUE showed RS 99 after its 1-for-10 consolidation). System Status then warns "Prices of ... were re-adjusted ... after the DATE scan", and the stock's page shows the same note. Both clear with the next scan; past scans are not re-run.
+
 ### 7.3 Data-quality events
 
 Unexplained price gaps, corporate-action conflicts and missing sessions block a stock's signals until they are resolved.

@@ -463,6 +463,9 @@ class StockSetupsResponse(Stamped):
     trend_template_pass: bool | None
     conditions: list[Condition]
     setups: list[StockSetup]
+    # prices re-adjusted (corporate action entered) after this scan: its RS, Trend Template and
+    # setups for the stock used the old factors and are wrong until the next scan
+    rescaled_after_scan: bool = False
 
 
 class ActivityEvent(BaseModel):

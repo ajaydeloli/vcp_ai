@@ -110,6 +110,12 @@ function StockView({
               )}
               <ChartLinks symbol={selection.symbol} />
             </div>
+            {stock.data?.rescaled_after_scan ? (
+              <p role="status" className="mt-2 rounded border border-warn/40 bg-warn/10 px-2 py-1 text-xs text-warn" data-testid="rescaled-note">
+                Prices were re-adjusted for a corporate action after the {fmtDay(stock.data.as_of)} scan. RS, Trend Template, stage and setups shown here used the old prices
+                and are wrong until the next scan.
+              </p>
+            ) : null}
             {setups.length > 1 ? (
               <div className="mt-3 flex flex-wrap items-center gap-2 text-xs" role="group" aria-label="Setup shown on the chart">
                 {setups.map((s) => (

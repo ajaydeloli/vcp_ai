@@ -206,6 +206,7 @@ export const stockSetups = z.object({
   trend_template_pass: z.boolean().nullable(),
   conditions: z.array(condition),
   setups: z.array(stockSetup),
+  rescaled_after_scan: z.boolean().optional(),
 });
 
 export const activityEvent = z.object({

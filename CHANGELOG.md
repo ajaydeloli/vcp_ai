@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Re-adjusted-after-scan check (owner, 2026-10-21, after CCAVENUE's RS 99 on the 2026-10-19 scan): when a stock's price adjustments changed after the newest scan started (compared bitemporally, so a rebuild that changes nothing flags nothing), the status warns and the stock page notes that the scan's RS, Trend Template, stage and setups used the old prices. `GET /stocks/{symbol}/setups` gains `rescaled_after_scan`. Cleared by the next scan.
+
 - Chart links (owner, 2026-10-21): the stock panel and the Stock analysis page get "TradingView ↗" (opens the stock's NSE chart on TradingView in a new tab; `&` and `-` become `_`) and "Copy symbol" (to paste into Dhan or Angel One search, whose chart addresses carry no symbol). Intraday Telegram alerts end with the TradingView chart link. Nothing is fetched from these sites.
 
 - Dashboard renamed ShreeVault (subtitle "NSE VCP scanner"), with the ShreeVault lotus-vault logo in the header and as the browser tab icon.
