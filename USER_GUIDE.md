@@ -630,6 +630,29 @@ Settings live in `config/shareholding.yaml` (its own file, so it can never chang
 | `vcp research outcomes --from D --to D --split D [--variant ...] [--csv FILE]` | Forward outcomes by detector class. |
 | `vcp research score-outcomes --from D --to D --split D` | Do higher scores lead to better outcomes? |
 
+### 8.16b `vcp alerts` (Telegram)
+
+Alerts tell you, on your phone, what the dashboard would show. They never change a scan, a score, the paper ledger or a strategy, and they are not trading advice. Settings: `config/alerts.yaml`.
+
+* **Evening summary:** at the end of every daily run: whether the run was OK (or which step failed, or an NSE holiday), market health, today's breakouts, and setups within 2 % of their pivot.
+* **Intraday pivot alerts:** in market hours, from the live feed the dashboard polls: "approaching" (within 1 % below the pivot) and "crossed" (trading above it; with a warning beyond 5 %, the entry limit), at most once per stock per day. Watched: setups of the latest scan within 3 % of their pivot, the AI watchlist, and your own `symbols:` in `config/alerts.yaml`. A crossing is confirmed only at the close (volume). The watcher starts with the dashboard (`scripts/dashboard.sh`), so it runs while the dashboard runs; its log is `logs/alerts_watch.log`.
+
+**Setup (once, 5 minutes):**
+
+1. In Telegram, open **@BotFather**, send `/newbot`, pick a name; it gives you a token like `123456:ABC...`.
+2. Add it to `.env`: `TELEGRAM_BOT_TOKEN=123456:ABC...` (never share or commit `.env`).
+3. Open your new bot in Telegram and send it any message (e.g. "hi").
+4. Run `vcp alerts chat-id`; copy the line it prints (`TELEGRAM_CHAT_ID=...`) into `.env`.
+5. Run `vcp alerts test`: a test message arrives. Restart the dashboard to start the intraday watcher.
+
+| Command | What it does |
+|---|---|
+| `vcp alerts test` | Send a test message |
+| `vcp alerts chat-id` | Show the chat ids that messaged your bot |
+| `vcp alerts evening` | Send the evening summary now (the daily run sends it itself) |
+| `vcp alerts watch [--once]` | The intraday watcher (the dashboard script starts it) |
+| `vcp alerts log` | What was sent, and anything that could not be sent |
+
 ### 8.16a `vcp agent` (the AI's second brain, AGENT_SPECIFICATION)
 
 | Command | What it does |

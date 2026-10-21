@@ -2027,6 +2027,8 @@ Monitoring state must persist between scans.
 
 # 54. Alert Engine
 
+*As built (2026-10-21):* Telegram is the channel (owner decision), not console or email. `src/vcp_scanner/alerts/` and `vcp alerts`: an evening summary after each daily run and intraday pivot alerts (approaching, crossed) from the dashboard API's live feed, once per stock per day, logged in `data/alerts/alerts.duckdb`; settings in `config/alerts.yaml`, secrets only in `.env`. USER_GUIDE §8.16b.
+
 Initial channels:
 
 ```text

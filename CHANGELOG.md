@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Telegram alerts (owner, 2026-10-21; `config/alerts.yaml`, `vcp alerts test|chat-id|evening|watch|log`): an evening summary at the end of every daily run (run status, market health, breakouts, setups near the pivot) and intraday pivot alerts in market hours from the dashboard's live feed (approaching / crossed, once per stock per day; setups near the pivot, the AI watchlist and the owner's own symbols). Secrets only in `.env` (`TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`); every alert is logged in `data/alerts/alerts.duckdb`. `scripts/dashboard.sh` starts the watcher. Monitoring only.
+
 - Agent step A3, stage 2: the dashboard page AI Agent (`/agent`; API `GET /api/v1/agent`, read-only): proposals with copy-to-terminal approve/reject commands (no approve button: the terminal check stays the only way to decide), the AI watchlist, the research lab and recent notebook entries.
 
 - Agent step A3, stage 1: proposals. Tools `propose_corporate_action`, `propose_resolve_event`, `propose_sector`, `propose_watchlist`, `proposals` (31 tools); `vcp agent proposals|approve|reject`, owner only (interactive terminal and a typed confirmation); approval applies through the manual files (validated, committed locally) or `vcp quality resolve`. The dashboard Proposals page is stage 2.

@@ -5,7 +5,10 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 (.venv/bin/vcp api serve) &
 API=$!
-trap 'kill $API 2>/dev/null || true' EXIT
+# Telegram pivot alerts in market hours (config/alerts.yaml); stops by itself if not set up.
+(sleep 20; exec .venv/bin/vcp alerts watch >> logs/alerts_watch.log 2>&1) &
+WATCH=$!
+trap 'kill $API $WATCH 2>/dev/null || true' EXIT
 cd frontend
 [ -d node_modules ] || npm ci
 [ -d .next ] || npm run build

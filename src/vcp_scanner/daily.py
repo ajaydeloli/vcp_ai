@@ -266,6 +266,13 @@ def run_daily(args: argparse.Namespace, cli_main: Callable[[list[str]], int]) ->
             "lists, so today's universe stays PARTIAL. Re-run `vcp run daily` today if possible."
         )
     _append_summary(db, summary)
+    # Telegram evening alert (config/alerts.yaml): last, and it can never fail the run.
+    from dotenv import load_dotenv
+
+    from vcp_scanner.cli_alerts import send_evening
+
+    load_dotenv(env)
+    print(f"Alerts: {send_evening(cfg, str(Path(db).parent))}")
     return 1 if failed else 0
 
 

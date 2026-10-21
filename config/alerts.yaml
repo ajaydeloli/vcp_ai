@@ -1,0 +1,24 @@
+# alerts.yaml - Telegram alerts (owner decision 2026-10-21). Display and monitoring only: alerts
+# never change a scan, a score, the paper ledger or a strategy.
+#
+# Secrets are not here. Put these two lines in .env (never commit it):
+#   TELEGRAM_BOT_TOKEN=123456:ABC...   (from @BotFather)
+#   TELEGRAM_CHAT_ID=123456789          (`vcp alerts chat-id` finds it after you message the bot)
+# Then check with: vcp alerts test
+
+enabled: true
+
+evening:                  # one message at the end of each daily run
+  enabled: true
+  near_pivot_pct: 2.0     # list setups at most this far below their pivot
+  max_setups: 10
+  strategies: [vcp, flat_base, three_weeks_tight, cup_handle, double_bottom]
+
+intraday:                 # during market hours, from the live feed the dashboard already polls
+  enabled: true
+  poll_seconds: 60
+  approach_pct: 1.0       # "approaching": within this % below the pivot
+  near_pivot_pct: 3.0     # which setups of the latest scan are watched
+  chase_warn_pct: 5.0     # say so when the price is this far above the pivot (cross_5 entry rule)
+  include_ai_watchlist: true
+  symbols: []             # your own symbols to watch (their best setup's pivot is used)
