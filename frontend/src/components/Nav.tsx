@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useState } from "react";
 import { TopBar } from "./TopBar";
 
@@ -30,14 +31,10 @@ type Page = (typeof PAGES)[number][0];
 function Logo() {
   return (
     <>
-      <span aria-hidden="true" className="flex h-8 w-8 items-end gap-0.5 rounded bg-accent/20 p-1.5">
-        <span className="h-2 w-1 rounded-sm bg-up" />
-        <span className="h-4 w-1 rounded-sm bg-accent" />
-        <span className="h-3 w-1 rounded-sm bg-warn" />
-      </span>
+      <Image src="/shreevault-mark.png" alt="" aria-hidden="true" width={36} height={36} priority className="h-9 w-9 rounded-md" />
       <span className="text-left">
-        <span className="block text-base font-semibold leading-tight text-ink">VCP scanner</span>
-        <span className="block text-[10px] uppercase tracking-wide text-mute">NSE research dashboard</span>
+        <span className="block text-base font-semibold leading-tight text-ink">ShreeVault</span>
+        <span className="block text-[10px] uppercase tracking-wide text-mute">NSE VCP scanner</span>
       </span>
     </>
   );
