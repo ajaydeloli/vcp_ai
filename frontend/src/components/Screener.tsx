@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useLiveQuotes, useScreener, useStrategies } from "@/lib/api";
+import { ScreenerExport } from "./ScreenerExport";
 import { DASH, fmtInt, fmtNum, fmtPct, fmtPrice, strategyLabel, tone } from "@/lib/fmt";
 import { pageNumbers } from "@/lib/lists";
 import { DEFAULT_QUERY, SECTORS, STAGES, type ScreenerQuery } from "@/lib/screener";
@@ -468,7 +469,10 @@ export function Screener() {
               title="Results"
               right={
                 data ? (
-                  <span className="text-xs text-mute">{`${fmtInt(data.total)} of ${fmtInt(data.scanned)} stocks match`}</span>
+                  <span className="inline-flex flex-wrap items-center gap-3">
+                    <span className="text-xs text-mute">{`${fmtInt(data.total)} of ${fmtInt(data.scanned)} stocks match`}</span>
+                    {data.total > 0 ? <ScreenerExport query={query} keys={cols.map((c) => c.key)} /> : null}
+                  </span>
                 ) : undefined
               }
             >

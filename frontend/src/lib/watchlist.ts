@@ -120,9 +120,32 @@ export function useWatchlists() {
       })),
     [],
   );
+  /** add these symbols to the list (those already in it are skipped); returns how many were added */
+  const addMany = useCallback((id: string, symbols: string[]) => {
+    let added = 0;
+    change((s) => ({
+      ...s,
+      lists: s.lists.map((l) => {
+        if (l.id !== id) return l;
+        const fresh = uniq(symbols).filter((x) => !l.symbols.includes(x));
+        added = fresh.length;
+        return { ...l, symbols: [...l.symbols, ...fresh] };
+      }),
+    }));
+    return added;
+  }, []);
+  /** a new list holding these symbols, made the active one */
+  const createWith = useCallback((name: string, symbols: string[]) => {
+    const id = `l${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`;
+    change((s) => ({
+      lists: [...s.lists, { id, name: name.trim().slice(0, 40) || "Imported list", symbols: uniq(symbols) }],
+      active: id,
+    }));
+    return id;
+  }, []);
   const listsOf = useCallback(
     (symbol: string) => state.lists.filter((l) => l.symbols.includes(symbol)),
     [state],
   );
-  return { lists: state.lists, active, create, rename, remove, setActive, toggle, listsOf };
+  return { lists: state.lists, active, create, rename, remove, setActive, toggle, listsOf, addMany, createWith };
 }

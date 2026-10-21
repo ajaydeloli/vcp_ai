@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Export and import (owner, 2026-10-21; in the browser only, nothing uploaded): the Screener exports every matching stock (all pages) with the visible columns as CSV (UTF-8 with BOM, formula-safe) or Excel .xlsx; the Watchlist imports symbols from a CSV or .xlsx file (symbol column by heading or the first column; `NSE:`, `.NS` and TradingView `_` names mapped; preview with unrecognised symbols and duplicates; add to the current list or a new one) and exports the current list. The Watchlist now loads lists of any length in batches (was at most 100 stocks). New dependency: ExcelJS 4.4.0, loaded only when an Excel file is written or read.
+
 - Re-adjusted-after-scan check (owner, 2026-10-21, after CCAVENUE's RS 99 on the 2026-10-19 scan): when a stock's price adjustments changed after the newest scan started (compared bitemporally, so a rebuild that changes nothing flags nothing), the status warns and the stock page notes that the scan's RS, Trend Template, stage and setups used the old prices. `GET /stocks/{symbol}/setups` gains `rescaled_after_scan`. Cleared by the next scan.
 
 - Chart links (owner, 2026-10-21): the stock panel and the Stock analysis page get "TradingView ↗" (opens the stock's NSE chart on TradingView in a new tab; `&` and `-` become `_`) and "Copy symbol" (to paste into Dhan or Angel One search, whose chart addresses carry no symbol). Intraday Telegram alerts end with the TradingView chart link. Nothing is fetched from these sites.

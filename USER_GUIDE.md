@@ -250,11 +250,11 @@ After working on the main database by hand (a rebuild, a manual scan), refresh t
 | Page | What it shows |
 |---|---|
 | **Market Overview** | NIFTY 50 / SENSEX / NIFTY 500 tiles, the Market Health Score and its pillar cards, the cards below, setups today, recent activity. |
-| **Screener** | Every stock of the latest scan with its Trend Template, setup and score; filters. The **Fundamentals** box adds EPS and sales growth. |
+| **Screener** | Every stock of the latest scan with its Trend Template, setup and score; filters. The **Fundamentals** box adds EPS and sales growth. **Export CSV / Excel** (next to the match count) saves every matching stock, not just the page shown, with the visible columns as plain numbers; the file name carries the strategy and scan date. |
 | **Fundamentals** | Every universe stock's latest quarterly results and, with the **Shareholding** switch above the table, its latest shareholding pattern: promoter, FII and DII % with their change over the quarter, pledge % (▲ when rising). Filters for both: EPS and sales growth, sector, min promoter %, max pledge %, "FII buying", "Pledge rising" (display only). |
 | **Stock Analysis** | One stock: chart, Trend Template conditions, setup, score, fundamentals, sector. The Fundamentals card ends with the latest shareholding (promoter, FII, DII, pledged; changes over one and four quarters); the **Shareholding pattern** card below the quarterly results has the last eight quarter ends. Next to the symbol, **TradingView ↗** opens the stock's chart on TradingView in a new tab, and **Copy symbol** copies the NSE symbol to paste into Dhan or Angel One search. |
 | **Recent IPOs** | Recent listings and how they trade. |
-| **Watchlist** | Your list of stocks. |
+| **Watchlist** | Your lists of stocks, kept in this browser only. **Import** reads a CSV or Excel (.xlsx) file: the symbol column is found by its heading (Symbol, Ticker, Stock, Scrip...) or is the first column; `NSE:RELIANCE`, `RELIANCE.NS` and TradingView's `M_M` are understood. A preview shows the stocks found and the symbols not recognised (left out); add them to the current list or to a new list named after the file. **Export CSV / Excel** saves the current list with its scan results; use it as a backup, or to move lists to another browser. Old `.xls` files must be saved as `.xlsx` or `.csv` first. |
 | **Strategies** | The five frozen strategies, their tiers and configs. |
 | **Paper Trading** | The paper ledger: open positions, closed trades, results per strategy. |
 | **Backtest** | Stored backtest runs (read-only). |

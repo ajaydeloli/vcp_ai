@@ -1,12 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useLiveQuotes, useScreener, useSearch } from "@/lib/api";
+import { useLiveQuotes, useSearch } from "@/lib/api";
+import { useSymbolRows } from "@/lib/screenerExport";
 import { fmtDay } from "@/lib/fmt";
 import { DEFAULT_QUERY } from "@/lib/screener";
 import { useWatchlists } from "@/lib/watchlist";
 import { alignClass, COLS, Pages, SORTABLE } from "./Screener";
 import { Nav } from "./Nav";
+import { WatchlistFiles } from "./WatchlistFiles";
 import { StatusBar } from "./StatusBar";
 import { Card, Empty, ErrorBox, Loading } from "./ui";
 
@@ -170,7 +172,7 @@ export function Watchlist() {
   const [direction, setDirection] = useState<"asc" | "desc">(DEFAULT_QUERY.direction);
   const [page, setPage] = useState(1);
   useEffect(() => setPage(1), [active.id]);
-  const result = useScreener({ ...DEFAULT_QUERY, symbols, sort, direction, pageSize: 100 }, symbols.length > 0);
+  const result = useSymbolRows({ ...DEFAULT_QUERY, sort, direction }, symbols);
   const all = result.data?.rows ?? [];
   const pages = Math.max(1, Math.ceil(all.length / PAGE_SIZE));
   const at = Math.min(page, pages);
@@ -195,6 +197,9 @@ export function Watchlist() {
           right={<AddStock />}
         >
           <Tabs />
+          <div className="mb-3">
+            <WatchlistFiles />
+          </div>
           {symbols.length === 0 ? (
             <Empty>
               This list is empty. Press ☆ next to a stock on the Screener or Stock Analysis page, or
