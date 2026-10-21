@@ -120,10 +120,22 @@ def _watch(args: argparse.Namespace) -> int:
     if not (cfg.enabled and cfg.intraday.enabled):
         print("Intraday alerts are off (config/alerts.yaml); nothing to watch.")
         return 0
+    state_path = Path(args.data_dir) / "alerts" / "watch_state.json"
     channel = channel_from_env()
-    if channel is None:
-        _err("TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID are not in .env; see config/alerts.yaml")
-        return 1
+    # Not set up yet: wait (re-reading .env each minute) instead of stopping, so adding the
+    # token later needs no dashboard restart (2026-10-21).
+    while channel is None:
+        msg = "Telegram not set up: add TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID to .env"
+        print(f"{_now():%H:%M} {msg}; checking again in a minute")
+        with contextlib.suppress(OSError):
+            write_watch_state(state_path, None, [], {}, msg)
+        if args.once:
+            return 1
+        time.sleep(60)
+        from dotenv import load_dotenv
+
+        load_dotenv(args.env_file)
+        channel = channel_from_env()
     log = AlertLog(Path(args.data_dir) / "alerts" / "alerts.duckdb")
     agent_db = Path(args.data_dir) / "agent" / "agent.duckdb"
 
@@ -135,7 +147,7 @@ def _watch(args: argparse.Namespace) -> int:
 
     watched: list[Any] = []
     quotes: dict[str, float] = {}
-    state = Path(args.data_dir) / "alerts" / "watch_state.json"
+    state = state_path
     built_at = 0.0
     print(f"Watching for pivot alerts (every {cfg.intraday.poll_seconds} s in market hours)")
     while True:
