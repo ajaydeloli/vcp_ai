@@ -154,3 +154,17 @@ def test_pivot_alerts_approaching_crossed_and_the_chase_warning() -> None:
     assert kinds["A"][0] == "APPROACHING" and "0.5% below" in kinds["A"][1]
     assert kinds["B"][0] == "CROSSED" and "+1.0%" in kinds["B"][1]
     assert "past the 5% entry limit" in kinds["C"][1] and "D" not in kinds
+
+
+def test_the_watcher_state_file_has_prices_and_gaps(tmp_path: Path) -> None:
+    import json
+
+    from vcp_scanner.cli_alerts import write_watch_state
+
+    path = tmp_path / "alerts" / "watch_state.json"
+    write_watch_state(path, "open", [Watched("A", 100.0, "vcp", "setup"),
+                                     Watched("B", 50.0, "vcp", "AI watchlist")],
+                      {"A": 101.5}, None)  # fmt: skip
+    body = json.loads(path.read_text())
+    assert body["market"] == "open" and body["updated_at"].endswith("+05:30")
+    assert [(w["symbol"], w["gap_pct"]) for w in body["watching"]] == [("A", 1.5), ("B", None)]

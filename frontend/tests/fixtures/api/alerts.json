@@ -1,0 +1,59 @@
+{
+ "as_of": null,
+ "data_time": "2026-10-06T14:00:00+05:30",
+ "enabled": true,
+ "telegram_configured": false,
+ "evening_enabled": true,
+ "intraday_enabled": true,
+ "settings": {
+  "evening_near_pivot_pct": 2.0,
+  "intraday_near_pivot_pct": 3.0,
+  "approach_pct": 1.0,
+  "chase_warn_pct": 5.0,
+  "poll_seconds": 60,
+  "include_ai_watchlist": true,
+  "own_symbols": []
+ },
+ "watcher": {
+  "running": true,
+  "last_check": "2026-10-06T13:59:00+05:30",
+  "market": "open",
+  "error": null
+ },
+ "watching": [
+  {
+   "symbol": "ALPHA",
+   "pivot": 100.0,
+   "strategy": "vcp",
+   "why": "setup",
+   "last_price": 99.5,
+   "gap_pct": -0.5
+  },
+  {
+   "symbol": "BETA",
+   "pivot": 50.0,
+   "strategy": "flat_base",
+   "why": "AI watchlist",
+   "last_price": null,
+   "gap_pct": null
+  }
+ ],
+ "sent": [
+  {
+   "sent_at": "2026-10-05T15:05:00Z",
+   "kind": "APPROACHING",
+   "symbol": "ALPHA",
+   "ok": false,
+   "error": "Telegram HTTP 401",
+   "text": "ALPHA is 0.5% below its pivot"
+  },
+  {
+   "sent_at": "2026-10-05T15:00:00Z",
+   "kind": "EVENING",
+   "symbol": null,
+   "ok": true,
+   "error": null,
+   "text": "VCP scanner - evening 2026-10-05"
+  }
+ ]
+}

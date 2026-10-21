@@ -653,6 +653,8 @@ Alerts tell you, on your phone, what the dashboard would show. They never change
 | `vcp alerts watch [--once]` | The intraday watcher (the dashboard script starts it) |
 | `vcp alerts log` | What was sent, and anything that could not be sent |
 
+The dashboard page **Alerts** shows the same: whether Telegram is set up (yes or no; the token is never shown), the watcher's last check and the stocks it watches with their live distance to the pivot, the alerts sent (and why one could not be), and the settings.
+
 ### 8.16a `vcp agent` (the AI's second brain, AGENT_SPECIFICATION)
 
 | Command | What it does |

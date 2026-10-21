@@ -66,8 +66,10 @@ def agent_state(path: Path) -> m.AgentResponse:
                                 " ORDER BY symbol")
         ]  # fmt: skip
         runs: dict[int, list[m.AgentRun]] = {}
-        run_sql = ("SELECT hypothesis_id, run_id, kind, window_name, start_date, end_date, ok,"
-                   " summary, error FROM agent_runs ORDER BY run_id")
+        run_sql = (
+            "SELECT hypothesis_id, run_id, kind, window_name, start_date, end_date, ok,"
+            " summary, error FROM agent_runs ORDER BY run_id"
+        )
         for r in _rows(con, run_sql):
             runs.setdefault(int(r[0]), []).append(m.AgentRun(
                 run_id=int(r[1]), kind=str(r[2]), window=str(r[3]), start=r[4], end=r[5],

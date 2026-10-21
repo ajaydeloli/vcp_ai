@@ -466,3 +466,34 @@ def write_agent_db(data_dir: Path) -> Path:
         con.close()
     os.utime(path, (1_790_000_000, 1_790_000_000))
     return path
+
+
+def write_alert_files(data_dir: Path) -> None:
+    """The intraday watcher's state (checked a minute before the test clock) and two logged
+    alerts, one sent and one not (fixed times: the API sample must not change)."""
+    import json as _json
+
+    from vcp_scanner.alerts.telegram import AlertLog
+
+    folder = data_dir / "alerts"
+    folder.mkdir(parents=True, exist_ok=True)
+    (folder / "watch_state.json").write_text(_json.dumps({
+        "updated_at": "2026-10-06T13:59:00+05:30", "market": "open", "error": None,
+        "watching": [
+            {"symbol": "ALPHA", "pivot": 100.0, "strategy": "vcp", "why": "setup",
+             "last_price": 99.5, "gap_pct": -0.5},
+            {"symbol": "BETA", "pivot": 50.0, "strategy": "flat_base", "why": "AI watchlist",
+             "last_price": None, "gap_pct": None}]}))  # fmt: skip
+    log = AlertLog(folder / "alerts.duckdb")
+    log.record(AS_OF, "EVENING", None, "VCP scanner - evening 2026-10-05", True, None)
+    log.record(AS_OF, "APPROACHING", "ALPHA", "ALPHA is 0.5% below its pivot", False,
+               "Telegram HTTP 401")  # fmt: skip
+    import duckdb as _duckdb
+
+    con = _duckdb.connect(str(folder / "alerts.duckdb"))
+    try:  # fixed send times
+        con.execute("UPDATE alerts_sent SET sent_at = ? WHERE kind = 'EVENING'", [T0])
+        con.execute("UPDATE alerts_sent SET sent_at = ? WHERE kind = 'APPROACHING'",
+                    [T0 + timedelta(minutes=5)])  # fmt: skip
+    finally:
+        con.close()

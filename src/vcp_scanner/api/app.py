@@ -15,6 +15,7 @@ from fastapi.responses import HTMLResponse, JSONResponse
 
 from vcp_scanner.api import (
     agent,
+    alerts,
     backtests,
     diagnostics,
     fundamentals,
@@ -431,6 +432,11 @@ def create_app(
         summary, lines = diagnostics.run_log(data, day) if day else (None, [])
         return m.ScanRunsResponse(as_of=day, data_time=db.data_time(), run_summary=summary,
                                   log_warnings=lines, runs=runs)  # fmt: skip
+
+    @app.get(f"{api}/alerts", response_model=m.AlertsResponse)
+    def alerts_page() -> m.AlertsResponse:
+        """Telegram alerts: set up or not, settings, the watcher and what was sent (read-only)."""
+        return alerts.alerts_state(config_dir, data, env_file, clock())
 
     @app.get(f"{api}/agent", response_model=m.AgentResponse)
     def agent_page() -> m.AgentResponse:

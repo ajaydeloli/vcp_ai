@@ -14,6 +14,7 @@ from tests.api.fixture import (
     build_all,
     build_research_db,
     write_agent_db,
+    write_alert_files,
     write_report_files,
 )
 from tests.live.fakes import UNIVERSE, Clock, make_service
@@ -38,6 +39,7 @@ def _make(data_dir: Path) -> Env:
     research = build_research_db(data_dir / "golden_src.duckdb")
     write_report_files(data_dir / "reports")
     write_agent_db(data_dir)
+    write_alert_files(data_dir)
     clock = {"now": NOW}
     # Every test app gets a fake live feed (synthetic prices, polled once at NOW): no test can
     # reach a real provider.
@@ -50,6 +52,7 @@ def _make(data_dir: Path) -> Env:
         now=lambda: clock["now"],
         live=live,
         research_db=research,
+        env_file=str(data_dir / "test.env"),  # never the owner's .env
         reports_dir=data_dir / "reports",
     )
 

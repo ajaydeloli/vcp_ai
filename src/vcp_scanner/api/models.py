@@ -1033,3 +1033,52 @@ class AgentResponse(Stamped):
     budget_left: dict[str, int]
     hypotheses: list[AgentHypothesis]
     notes: list[AgentNote]
+
+
+# --- the alerts page (2026-10-21) ---------------------------------------------------------
+
+
+class AlertSettings(BaseModel):
+    evening_near_pivot_pct: float
+    intraday_near_pivot_pct: float
+    approach_pct: float
+    chase_warn_pct: float
+    poll_seconds: int
+    include_ai_watchlist: bool
+    own_symbols: list[str]
+
+
+class AlertWatcher(BaseModel):
+    running: bool  # checked within the last 20 minutes
+    last_check: datetime | None
+    market: str | None  # open | closed | ... as the live feed reports it
+    error: str | None
+
+
+class AlertWatched(BaseModel):
+    symbol: str
+    pivot: float
+    strategy: str
+    why: str  # setup | AI watchlist | your list
+    last_price: float | None
+    gap_pct: float | None  # + above the pivot, - below
+
+
+class AlertSent(BaseModel):
+    sent_at: datetime
+    kind: str  # EVENING | APPROACHING | CROSSED | TEST
+    symbol: str | None
+    ok: bool
+    error: str | None
+    text: str
+
+
+class AlertsResponse(Stamped):
+    enabled: bool
+    telegram_configured: bool  # yes/no only: the token is never sent
+    evening_enabled: bool
+    intraday_enabled: bool
+    settings: AlertSettings
+    watcher: AlertWatcher
+    watching: list[AlertWatched]
+    sent: list[AlertSent]

@@ -11,6 +11,7 @@
 from __future__ import annotations
 
 import argparse
+import contextlib
 import time
 from datetime import datetime
 from pathlib import Path
@@ -84,6 +85,24 @@ def send_evening(config_dir: str, data_dir: str) -> str:
         return f"evening alert failed: {type(exc).__name__}: {exc}"
 
 
+def write_watch_state(path: Path, market: str | None, watched: list[Any],
+                      quotes: dict[str, float], error: str | None) -> None:  # fmt: skip
+    """What the watcher sees, for the dashboard's Alerts page (replaced atomically)."""
+    import json
+
+    rows = []
+    for w in watched:
+        last = quotes.get(w.symbol)
+        gap = None if last is None else round((last / w.pivot - 1) * 100, 2)
+        rows.append({"symbol": w.symbol, "pivot": w.pivot, "strategy": w.strategy, "why": w.why,
+                     "last_price": last, "gap_pct": gap})  # fmt: skip
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_suffix(".tmp")
+    tmp.write_text(json.dumps({"updated_at": _now().isoformat(), "market": market,
+                               "watching": rows, "error": error}), encoding="utf-8")  # fmt: skip
+    tmp.replace(path)
+
+
 def _watch(args: argparse.Namespace) -> int:
     import httpx
 
@@ -115,9 +134,12 @@ def _watch(args: argparse.Namespace) -> int:
         return r.json()
 
     watched: list[Any] = []
+    quotes: dict[str, float] = {}
+    state = Path(args.data_dir) / "alerts" / "watch_state.json"
     built_at = 0.0
     print(f"Watching for pivot alerts (every {cfg.intraday.poll_seconds} s in market hours)")
     while True:
+        market, error = None, None
         try:
             market = (get("live/status").get("feed") or {}).get("market")
             if market == "open":
@@ -138,9 +160,12 @@ def _watch(args: argparse.Namespace) -> int:
                         if send_once(channel, log, _today(), kind, sym, text):
                             print(f"{_now():%H:%M} sent {kind} {sym}")
             else:
-                watched = []
+                watched, quotes = [], {}
         except Exception as exc:  # noqa: BLE001 - keep watching; the API may be restarting
-            print(f"{_now():%H:%M} watch: {type(exc).__name__}: {exc}")
+            error = f"{type(exc).__name__}: {exc}"
+            print(f"{_now():%H:%M} watch: {error}")
+        with contextlib.suppress(OSError):
+            write_watch_state(state, market, watched, quotes, error)
         if args.once:
             return 0
         time.sleep(cfg.intraday.poll_seconds if watched else 60)

@@ -779,3 +779,47 @@ export const agent = z.object({
 });
 export type AgentProposal = z.infer<typeof agentProposal>;
 export type AgentHypothesis = z.infer<typeof agentHypothesis>;
+
+// --- the alerts page ---
+export const alertWatched = z.object({
+  symbol: z.string(),
+  pivot: z.number(),
+  strategy: z.string(),
+  why: z.string(),
+  last_price: z.number().nullable(),
+  gap_pct: z.number().nullable(),
+});
+export const alerts = z.object({
+  ...stamp,
+  enabled: z.boolean(),
+  telegram_configured: z.boolean(),
+  evening_enabled: z.boolean(),
+  intraday_enabled: z.boolean(),
+  settings: z.object({
+    evening_near_pivot_pct: z.number(),
+    intraday_near_pivot_pct: z.number(),
+    approach_pct: z.number(),
+    chase_warn_pct: z.number(),
+    poll_seconds: z.number(),
+    include_ai_watchlist: z.boolean(),
+    own_symbols: z.array(z.string()),
+  }),
+  watcher: z.object({
+    running: z.boolean(),
+    last_check: z.string().nullable(),
+    market: z.string().nullable(),
+    error: z.string().nullable(),
+  }),
+  watching: z.array(alertWatched),
+  sent: z.array(
+    z.object({
+      sent_at: z.string(),
+      kind: z.string(),
+      symbol: z.string().nullable(),
+      ok: z.boolean(),
+      error: z.string().nullable(),
+      text: z.string(),
+    }),
+  ),
+});
+export type AlertsData = z.infer<typeof alerts>;
