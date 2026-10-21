@@ -175,7 +175,15 @@ def test_pivot_alerts_carry_the_setup_risk_volume_and_market_details() -> None:
     assert "Buy zone 100.00 - 105.00 (pivot +5%)" in text
     assert "Stop 94.00: risk 6.9% from this price" in text
     assert "Volume so far 60,000 = 60% of the 50-day avg (pace 1.9x a normal day)" in text
-    assert "Market health: Adverse 22.7" in text and text.endswith("11:15 IST")
+    assert "Market health: Adverse 22.7" in text and "11:15 IST" in text
+    assert text.endswith("Chart: https://www.tradingview.com/chart/?symbol=NSE%3AA")
+
+
+def test_the_tradingview_link_maps_special_symbols() -> None:
+    from vcp_scanner.alerts.messages import tradingview_url
+
+    assert tradingview_url("M&M").endswith("NSE%3AM_M")
+    assert tradingview_url("BAJAJ-AUTO").endswith("NSE%3ABAJAJ_AUTO")
 
 
 def test_the_watcher_state_file_has_prices_and_gaps(tmp_path: Path) -> None:

@@ -6,6 +6,7 @@ import type { RangeId } from "@/lib/chartData";
 import { DASH, fmtDay, fmtInt, fmtNum, fmtPct, fmtPrice, sentence, strategyLabel, tone } from "@/lib/fmt";
 import { LiveLine } from "./Live";
 import { WatchStar } from "./WatchStar";
+import { ChartLinks } from "./ChartLinks";
 import { ChartView } from "./ChartView";
 import type { Selection } from "@/lib/selection";
 import { Card, Empty, ErrorBox, GradeBadge, Loading, StatusPill, TINT } from "./ui";
@@ -107,6 +108,7 @@ function StockView({
                   Full analysis →
                 </a>
               )}
+              <ChartLinks symbol={selection.symbol} />
             </div>
             {setups.length > 1 ? (
               <div className="mt-3 flex flex-wrap items-center gap-2 text-xs" role="group" aria-label="Setup shown on the chart">

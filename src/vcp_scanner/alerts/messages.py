@@ -19,6 +19,12 @@ NAMES = {"vcp": "VCP", "flat_base": "Flat base", "three_weeks_tight": "3 weeks t
 SESSION_MIN = 375  # 09:15-15:30 IST
 
 
+def tradingview_url(symbol: str) -> str:
+    """The stock's TradingView chart (owner, 2026-10-21): "&" and "-" become "_" there."""
+    ticker = symbol.strip().upper().replace("&", "_").replace("-", "_")
+    return f"https://www.tradingview.com/chart/?symbol=NSE%3A{ticker}"
+
+
 def _pct(x: Any, d: int = 1) -> str:
     return "-" if x is None else f"{float(x):.{d}f}%"
 
@@ -231,5 +237,6 @@ def pivot_alerts(watched: list[Watched], quotes: dict[str, float], cfg: Intraday
                      else "No action until it crosses the pivot.")  # fmt: skip
         if now is not None:
             lines[-1] += f" {now:%H:%M} IST"
+        lines.append(f"Chart: {tradingview_url(w.symbol)}")
         out.append((kind, w.symbol, "\n".join(lines)))
     return out
