@@ -38,7 +38,7 @@ describe("stock analysis page", () => {
     renderApp(<StockAnalysis symbol="BETA" />);
     expect(await screen.findByTestId("rescaled-note")).toHaveTextContent(/re-adjusted for a corporate action/);
     expect(screen.getByTestId("tradingview-link")).toHaveAttribute("href", "https://www.tradingview.com/chart/?symbol=NSE%3ABETA");
-    expect(screen.getByTestId("copy-symbol")).toHaveTextContent("Copy symbol");
+    expect(screen.getByRole("button", { name: "Copy symbol BETA" })).toBeInTheDocument();
   });
 
   it("shows no re-adjustment note normally", async () => {

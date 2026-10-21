@@ -88,28 +88,32 @@ function StockView({
 
         <aside aria-label={`Details of ${selection.symbol}`} className="flex min-w-0 flex-col divide-y divide-line xl:border-l xl:border-line xl:pl-4">
           <div className={side}>
-            <div className="flex flex-wrap items-baseline gap-x-3">
-              <span className="text-2xl font-semibold text-ink">{selection.symbol}</span>
-              <WatchStar symbol={selection.symbol} />
-              {company ? <span className="text-sm text-mute">{company}</span> : null}
-              {stock.data?.sector ? (
-                <span
-                  className="text-xs text-mute"
-                  title={stock.data.sector_source === "MANUAL" ? "Entered by hand from NSE's quote page (config/manual_sectors.yaml)" : "NSE classification"}
-                  data-testid="stock-sector"
-                >
-                  {stock.data.sector}
-                  {stock.data.industry ? ` · ${stock.data.industry}` : ""}
-                  {stock.data.sector_source === "MANUAL" ? ` (manual${stock.data.sector_since ? `, ${fmtDay(stock.data.sector_since)}` : ""})` : ""}
-                </span>
-              ) : null}
-              {onStockPage ? null : (
-                <a href={`/stocks/${encodeURIComponent(selection.symbol)}`} className="text-xs text-accent hover:underline">
-                  Full analysis →
-                </a>
-              )}
-              <ChartLinks symbol={selection.symbol} />
+            <div className="flex items-start gap-3">
+              <div className="flex min-w-0 flex-wrap items-baseline gap-x-3">
+                <span className="text-2xl font-semibold text-ink">{selection.symbol}</span>
+                <WatchStar symbol={selection.symbol} />
+                {company ? <span className="text-sm text-mute">{company}</span> : null}
+                {onStockPage ? null : (
+                  <a href={`/stocks/${encodeURIComponent(selection.symbol)}`} className="text-xs text-accent hover:underline">
+                    Full analysis →
+                  </a>
+                )}
+              </div>
+              <div className="ml-auto shrink-0 pt-1">
+                <ChartLinks symbol={selection.symbol} />
+              </div>
             </div>
+            {stock.data?.sector ? (
+              <p
+                className="mt-1 text-xs text-mute"
+                title={stock.data.sector_source === "MANUAL" ? "Entered by hand from NSE's quote page (config/manual_sectors.yaml)" : "NSE classification"}
+                data-testid="stock-sector"
+              >
+                {stock.data.sector}
+                {stock.data.industry ? ` · ${stock.data.industry}` : ""}
+                {stock.data.sector_source === "MANUAL" ? ` (manual${stock.data.sector_since ? `, ${fmtDay(stock.data.sector_since)}` : ""})` : ""}
+              </p>
+            ) : null}
             {stock.data?.rescaled_after_scan ? (
               <p role="status" className="mt-2 rounded border border-warn/40 bg-warn/10 px-2 py-1 text-xs text-warn" data-testid="rescaled-note">
                 Prices were re-adjusted for a corporate action after the {fmtDay(stock.data.as_of)} scan. RS, Trend Template, stage and setups shown here used the old prices
