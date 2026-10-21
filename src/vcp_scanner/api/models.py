@@ -1085,3 +1085,51 @@ class AlertsResponse(Stamped):
     watcher: AlertWatcher
     watching: list[AlertWatched]
     sent: list[AlertSent]
+
+
+# --- Trend Template page (owner, 2026-10-21) ------------------------------------------------
+
+
+class TTConditionCount(BaseModel):
+    condition_id: int
+    name: str
+    passed: int  # stocks passing this condition
+    only_fail: int  # stocks failing this condition and no other (it alone keeps them out)
+
+
+class TTFail(BaseModel):
+    name: str
+    measurement: float | None
+    threshold: float | None
+
+
+class TTStock(BaseModel):
+    symbol: str
+    company: str | None
+    sector: str | None
+    stage: str | None
+    rs_rank: int | None
+    close: float | None
+    failed: list[TTFail]  # the conditions failed on the day shown (empty for a pass)
+    previous_stage: str | None = None
+
+
+class TTStageRow(BaseModel):
+    sector: str  # "All" for the whole population
+    counts: dict[str, int]  # weekly stage -> stocks
+    total: int
+
+
+class TrendTemplateResponse(Stamped):
+    previous: date | None  # the scan day before, for new / dropped
+    week_ago: date | None  # the scan day the stage moves are measured from
+    population: int  # stocks with enough data
+    passing: int
+    passing_previous: int | None
+    conditions: list[TTConditionCount]
+    new_passers: list[TTStock]
+    dropped: list[TTStock]
+    nearly: list[TTStock]  # failing exactly one condition, strongest RS first
+    nearly_total: int
+    stages: list[TTStageRow]
+    into_stage2: list[TTStock]  # weekly stage 2 now, not at week_ago

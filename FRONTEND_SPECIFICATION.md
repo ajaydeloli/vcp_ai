@@ -2523,3 +2523,16 @@ Display only (FUNDAMENTALS_SPECIFICATION §2, §15); the rules of point in time,
 - **Fundamentals card** (stock page overview row, amber): below the results, "Shareholding · <quarter>" ("(revised)" for a revision, "⚠ Stale" past 120 days) and a small table: Promoter, FII, DII with holding, 1Q and 4Q change (pp, up/down colours); Pledged with its 1Q change in inverted colours (a rise is red) and a "▲ rising" chip. A stock without results but with shareholding shows the block under the reason; without either, one muted line.
 - **Shareholding pattern card** (Stock Analysis, violet, below Quarterly results): one 100 % column per quarter end (promoter, FII, DII, retail & others, trusts; each segment has a tooltip, a legend names the colours) and the table newest first: quarter (with "rev."), filed date, promoter, pledged, FII, DII, of which MF, retail & others, shareholders. The "▲ rising" chip sits in the card header. Empty: "No shareholding pattern filed yet".
 - **Fundamentals page** (*changed 2026-10-15, owner: not the Screener*): a Results / Shareholding switch above the table picks the column set after the shared #, watch, symbol, sector and RS columns. Shareholding columns: As on (quarter, ⚠ past 120 days), Promoter, Prom. chg, FII, FII chg, DII, DII chg (pp, two decimals, up/down colours, a dash when the quarter before is missing) and Pledge ("▲" in red when rising); all but As on sortable. Filters, applied in both views: Min promoter %, Max pledge %, and the checkboxes "FII buying" and "Pledge rising". The Screener has no shareholding.
+
+---
+
+# Trend Template page (as built 2026-10-21, owner)
+
+`/trend-template`, from `GET /api/v1/trend-template` (read-only; the newest scan of the current configuration, compared with the scan before and with the scan five scan days back).
+
+- **Headline tiles:** stocks passing all ten conditions (change since the previous scan), pass rate of the stocks with enough data, new today / dropped, and stocks one condition short.
+- **Where stocks drop out:** one bar per condition (plain-language name; the rule on hover) with the stocks passing it, and "N only": stocks failing that condition and no other. The last bar is all ten. The pass share over time is not repeated: it is the Dashboard's Leadership card, linked.
+- **New today / Dropped today:** passing now but not at the previous scan, and the reverse (with the failed conditions). Strongest RS first.
+- **One condition short:** stocks failing exactly one condition (top 60 by RS), the condition and its gap ("489 vs 517 needed (5.5% short)"); buttons filter by the failing condition.
+- **Into Stage 2 this week:** weekly Stage 2 now, another stage five scans back, with the stage it came from.
+- **Weekly stage by sector:** a 100 % bar per sector (Stage 1 to 4 and Transition), sorted by Stage 2 share; "All our stocks" first.

@@ -1,0 +1,66 @@
+{
+ "as_of": "2026-10-05",
+ "data_time": "2026-10-06T14:00:00+05:30",
+ "previous": null,
+ "week_ago": null,
+ "population": 4,
+ "passing": 3,
+ "passing_previous": null,
+ "conditions": [
+  {
+   "condition_id": 1,
+   "name": "close_above_sma150",
+   "passed": 1,
+   "only_fail": 0
+  },
+  {
+   "condition_id": 2,
+   "name": "sma200_rising",
+   "passed": 1,
+   "only_fail": 0
+  },
+  {
+   "condition_id": 3,
+   "name": "rs_rank_min",
+   "passed": 1,
+   "only_fail": 0
+  }
+ ],
+ "new_passers": [],
+ "dropped": [],
+ "nearly": [],
+ "nearly_total": 0,
+ "stages": [
+  {
+   "sector": "All",
+   "counts": {
+    "STAGE_2": 3,
+    "STAGE_4": 1
+   },
+   "total": 4
+  },
+  {
+   "sector": "Capital Goods",
+   "counts": {
+    "STAGE_2": 1
+   },
+   "total": 1
+  },
+  {
+   "sector": "Healthcare",
+   "counts": {
+    "STAGE_2": 1
+   },
+   "total": 1
+  },
+  {
+   "sector": "Unclassified",
+   "counts": {
+    "STAGE_2": 1,
+    "STAGE_4": 1
+   },
+   "total": 2
+  }
+ ],
+ "into_stage2": []
+}

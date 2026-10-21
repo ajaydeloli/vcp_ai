@@ -824,3 +824,33 @@ export const alerts = z.object({
   ),
 });
 export type AlertsData = z.infer<typeof alerts>;
+
+// Trend Template page (2026-10-21): the whole scan through the ten conditions.
+const ttFail = z.object({ name: z.string(), measurement: num, threshold: num });
+export const ttStock = z.object({
+  symbol: z.string(),
+  company: z.string().nullable(),
+  sector: z.string().nullable(),
+  stage: z.string().nullable(),
+  rs_rank: z.number().nullable(),
+  close: num,
+  failed: z.array(ttFail),
+  previous_stage: z.string().nullable().optional(),
+});
+export const trendTemplate = z.object({
+  ...stamp,
+  previous: day.nullable(),
+  week_ago: day.nullable(),
+  population: z.number(),
+  passing: z.number(),
+  passing_previous: z.number().nullable(),
+  conditions: z.array(z.object({ condition_id: z.number(), name: z.string(), passed: z.number(), only_fail: z.number() })),
+  new_passers: z.array(ttStock),
+  dropped: z.array(ttStock),
+  nearly: z.array(ttStock),
+  nearly_total: z.number(),
+  stages: z.array(z.object({ sector: z.string(), counts: z.record(z.string(), z.number()), total: z.number() })),
+  into_stage2: z.array(ttStock),
+});
+export type TrendTemplateData = z.infer<typeof trendTemplate>;
+export type TTStock = z.infer<typeof ttStock>;

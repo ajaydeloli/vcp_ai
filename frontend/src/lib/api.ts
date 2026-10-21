@@ -73,6 +73,7 @@ export const paths = {
   reports: () => "reports",
   agent: () => "agent",
   alerts: () => "alerts",
+  trendTemplate: () => "trend-template",
   stockHistory: (symbol: string, days: number) =>
     `stocks/${encodeURIComponent(symbol)}/history${query({ days })}`,
   screener: (f: ScreenerQuery) => {
@@ -169,6 +170,7 @@ export const useIpos = () =>
   useQuery({ queryKey: ["ipos"], queryFn: () => getJson(paths.ipos(), s.ipos), ...opts });
 export const useBacktests = () =>
   useQuery({ queryKey: ["backtests"], queryFn: () => getJson(paths.backtests(), s.backtests), ...opts });
+export const useTrendTemplate = () => useQuery({ queryKey: ["trendTemplate"], queryFn: () => getJson(paths.trendTemplate(), s.trendTemplate), ...opts });
 export const useAlerts = () =>
   useQuery({ queryKey: ["alerts"], queryFn: () => getJson(paths.alerts(), s.alerts), ...opts, refetchInterval: 30_000 });
 export const useAgent = () =>

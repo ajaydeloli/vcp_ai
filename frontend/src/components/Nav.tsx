@@ -5,7 +5,6 @@ import { useEffect, useState } from "react";
 import { TopBar } from "./TopBar";
 
 const LATER = [
-  "Trend Template",
   "Research & Notes",
   "Settings",
 ];
@@ -13,6 +12,7 @@ const LATER = [
 const PAGES = [
   ["Market Overview", "/dashboard"],
   ["Screener", "/screener"],
+  ["Trend Template", "/trend-template"],
   ["Fundamentals", "/fundamentals"],
   ["Stock Analysis", "/stocks"],
   ["Recent IPOs", "/ipos"],

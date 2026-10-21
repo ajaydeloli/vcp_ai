@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Dashboard page Trend Template (`/trend-template`; API `GET /api/v1/trend-template`, read-only, from the stored scan results): stocks passing each of the ten conditions and failing only that one, new and dropped passers since the previous scan, stocks one condition short with the gap, moves into weekly Stage 2 over the last five scans, and the weekly stage by sector. It leaves the menu's coming-later list; the pass share over time stays on the Dashboard.
+
 - Export and import (owner, 2026-10-21; in the browser only, nothing uploaded): the Screener exports every matching stock (all pages) with the visible columns as CSV (UTF-8 with BOM, formula-safe) or Excel .xlsx; the Watchlist imports symbols from a CSV or .xlsx file (symbol column by heading or the first column; `NSE:`, `.NS` and TradingView `_` names mapped; preview with unrecognised symbols and duplicates; add to the current list or a new one) and exports the current list. The Watchlist now loads lists of any length in batches (was at most 100 stocks). New dependency: ExcelJS 4.4.0, loaded only when an Excel file is written or read.
 
 - Re-adjusted-after-scan check (owner, 2026-10-21, after CCAVENUE's RS 99 on the 2026-10-19 scan): when a stock's price adjustments changed after the newest scan started (compared bitemporally, so a rebuild that changes nothing flags nothing), the status warns and the stock page notes that the scan's RS, Trend Template, stage and setups used the old prices. `GET /stocks/{symbol}/setups` gains `rescaled_after_scan`. Cleared by the next scan.
