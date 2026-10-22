@@ -5,7 +5,6 @@ import { useEffect, useState } from "react";
 import { TopBar } from "./TopBar";
 
 const LATER = [
-  "Research & Notes",
   "Settings",
 ];
 

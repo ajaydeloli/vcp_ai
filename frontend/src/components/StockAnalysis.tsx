@@ -7,6 +7,7 @@ import { QuarterlyResultsCard } from "./Fundamentals";
 import { SetupOverview } from "./SetupOverview";
 import { ShareholdingCard } from "./Shareholding";
 import { StatusBar } from "./StatusBar";
+import { StockNotes } from "./StockNotes";
 import { StockPanel } from "./StockPanel";
 import { HistoryCard, StrategiesCard } from "./StockExtras";
 import { Card, Empty } from "./ui";
@@ -36,6 +37,7 @@ export function StockAnalysis({ symbol: given }: { symbol: string | null }) {
           <>
             <StockPanel key={symbol} selection={{ symbol, strategy }} onSelect={(s) => setStrategy(s.strategy)} onStockPage />
             <SetupOverview selection={{ symbol, strategy }} />
+            <StockNotes symbol={symbol} />
             <QuarterlyResultsCard symbol={symbol} />
             <ShareholdingCard symbol={symbol} />
             <div className="grid gap-4 xl:grid-cols-2">

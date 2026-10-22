@@ -57,7 +57,7 @@ describe("dashboard page (market view)", () => {
     expect(within(menu).getByRole("link", { name: "Alerts" })).toHaveAttribute("href", "/alerts");
     expect(within(menu).getByRole("link", { name: "AI Agent" })).toHaveAttribute("href", "/agent");
     expect(within(menu).getByRole("link", { name: "Trend Template" })).toHaveAttribute("href", "/trend-template");
-    for (const name of ["Research & Notes", "Settings"]) {
+    for (const name of ["Settings"]) {
       expect(within(menu).getByText(name).closest("[aria-disabled]")).toHaveAttribute("aria-disabled", "true");
     }
     await userEvent.keyboard("{Escape}");

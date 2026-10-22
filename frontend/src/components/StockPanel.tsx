@@ -7,6 +7,7 @@ import { DASH, fmtDay, fmtInt, fmtNum, fmtPct, fmtPrice, sentence, strategyLabel
 import { LiveLine } from "./Live";
 import { WatchStar } from "./WatchStar";
 import { ChartLinks } from "./ChartLinks";
+import { NotesBadge } from "./StockNotes";
 import { ChartView } from "./ChartView";
 import type { Selection } from "@/lib/selection";
 import { Card, Empty, ErrorBox, GradeBadge, Loading, StatusPill, TINT } from "./ui";
@@ -92,6 +93,7 @@ function StockView({
               <div className="flex min-w-0 flex-wrap items-baseline gap-x-3">
                 <span className="text-2xl font-semibold text-ink">{selection.symbol}</span>
                 <WatchStar symbol={selection.symbol} />
+                <NotesBadge symbol={selection.symbol} onStockPage={onStockPage} />
                 {company ? <span className="text-sm text-mute">{company}</span> : null}
                 {onStockPage ? null : (
                   <a href={`/stocks/${encodeURIComponent(selection.symbol)}`} className="text-xs text-accent hover:underline">

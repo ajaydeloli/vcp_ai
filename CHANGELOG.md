@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- My notes on a stock (owner, 2026-10-22): a card on Stock Analysis for your own dated notes (newest first, Ctrl+Enter adds, delete asks once), a "📝 N notes" badge next to the symbol in every stock panel, and Export all notes (CSV). Kept in this browser only (localStorage `vcp-stock-notes`); nothing goes to the server. "Research & Notes" leaves the menu's coming-later list.
+
 - AI Agent page, research (owner, 2026-10-22): a review-cycle panel (days to the April 2027 review, hypotheses left per strategy, the promotion bar of 30 shadow trades and 3 months, how many hypotheses are in shadow trading); each hypothesis shows its progress (registered, development, validation, verdict, shadow, review; steps a concluded hypothesis never needed are struck through) and its figures as charts: score variants against the frozen score (top-N per day return with the all-setups line, IC), study groups, and links to its backtests. `GET /api/v1/agent` gains `review` and, per run, `change`, `what_if`, `study_overall`, `study_groups`, `backtest_id` (parsed from the stored run results). Separate Research & Notes page dropped (it would repeat this page).
 
 - Dashboard page Trend Template (`/trend-template`; API `GET /api/v1/trend-template`, read-only, from the stored scan results): stocks passing each of the ten conditions and failing only that one, new and dropped passers since the previous scan, stocks one condition short with the gap, moves into weekly Stage 2 over the last five scans, and the weekly stage by sector. It leaves the menu's coming-later list; the pass share over time stays on the Dashboard.
