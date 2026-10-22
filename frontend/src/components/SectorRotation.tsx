@@ -52,7 +52,6 @@ const PAD = 30;
 /** Rough size of the hover tooltip in chart units, to pick a corner clear of the track. */
 const TIP_W = 140;
 const TIP_H = 44;
-const SURFACE = "#111a2c"; // panel2: the ring around each head
 
 function domain(values: number[]): number {
   // symmetric around 100, a little room outside the furthest point, at least ±2
@@ -193,8 +192,8 @@ export function SectorRotationCard({ rotation }: { rotation: Health["rotation"] 
                       {v}
                     </text>
                   ))}
-                  <line x1={x(100)} x2={x(100)} y1={PAD} y2={SIZE - PAD} stroke="#8a97b3" strokeOpacity={0.5} strokeDasharray="3 3" />
-                  <line x1={PAD} x2={SIZE - PAD} y1={y(100)} y2={y(100)} stroke="#8a97b3" strokeOpacity={0.5} strokeDasharray="3 3" />
+                  <line x1={x(100)} x2={x(100)} y1={PAD} y2={SIZE - PAD} className="stroke-mute" strokeOpacity={0.5} strokeDasharray="3 3" />
+                  <line x1={PAD} x2={SIZE - PAD} y1={y(100)} y2={y(100)} className="stroke-mute" strokeOpacity={0.5} strokeDasharray="3 3" />
                   <text x={SIZE - PAD} y={SIZE - 3} textAnchor="end" className="fill-mute" fontSize={9}>
                     RS-Ratio →
                   </text>
@@ -232,10 +231,10 @@ export function SectorRotationCard({ rotation }: { rotation: Health["rotation"] 
                         style={{ cursor: "default" }}
                       >
                         <circle cx={cx} cy={cy} r={12} fill="transparent" />
-                        <circle cx={cx} cy={cy} r={4.5} fill={QUADRANT[r.quadrant].color} stroke={SURFACE} strokeWidth={2} />
+                        <circle cx={cx} cy={cy} r={4.5} fill={QUADRANT[r.quadrant].color} className="stroke-panel2" strokeWidth={2} />
                         {lab && Math.abs(lab.ly - (cy + 3)) > 2 && (
                           // the label had to move off its dot: a thin line ties them
-                          <line x1={cx} y1={cy} x2={lab.right ? lab.lx - 1 : lab.lx + 1} y2={lab.ly - 3} stroke="#8a97b3" strokeOpacity={0.6} strokeWidth={0.75} />
+                          <line x1={cx} y1={cy} x2={lab.right ? lab.lx - 1 : lab.lx + 1} y2={lab.ly - 3} className="stroke-mute" strokeOpacity={0.6} strokeWidth={0.75} />
                         )}
                         {lab && (
                           <text x={lab.lx} y={lab.ly} textAnchor={lab.right ? "start" : "end"} className="fill-ink" fontSize={10}>

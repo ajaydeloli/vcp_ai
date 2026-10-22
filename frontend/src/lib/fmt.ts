@@ -1,17 +1,25 @@
 // Number and text display helpers. A missing value is shown as an em dash, never as 0.
+import { numberLocale } from "./numberStyle";
+
 export const DASH = "—";
 
-const priceFmt = new Intl.NumberFormat("en-IN", {
-  minimumFractionDigits: 2,
-  maximumFractionDigits: 2,
-});
-const intFmt = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 });
+const formats = new Map<string, { price: Intl.NumberFormat; int: Intl.NumberFormat }>();
+/** The formatters of the number style in use (see numberStyle.ts). */
+const nf = () => {
+  const loc = numberLocale();
+  let f = formats.get(loc);
+  if (!f) {
+    f = { price: new Intl.NumberFormat(loc, { minimumFractionDigits: 2, maximumFractionDigits: 2 }), int: new Intl.NumberFormat(loc, { maximumFractionDigits: 0 }) };
+    formats.set(loc, f);
+  }
+  return f;
+};
 
 export const fmtPrice = (v: number | null | undefined): string =>
-  v === null || v === undefined ? DASH : priceFmt.format(v);
+  v === null || v === undefined ? DASH : nf().price.format(v);
 
 export const fmtInt = (v: number | null | undefined): string =>
-  v === null || v === undefined ? DASH : intFmt.format(v);
+  v === null || v === undefined ? DASH : nf().int.format(v);
 
 export const fmtNum = (v: number | null | undefined, digits = 1): string =>
   v === null || v === undefined ? DASH : v.toFixed(digits);

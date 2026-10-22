@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
+import { THEME_BOOT } from "@/lib/themeBoot";
 import { Providers } from "./providers";
 import "./globals.css";
 
@@ -10,7 +11,11 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="en">
+    // data-theme is set by THEME_BOOT before React loads, hence suppressHydrationWarning
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: THEME_BOOT }} />
+      </head>
       <body className="bg-bg font-sans text-ink antialiased">
         <Providers>{children}</Providers>
       </body>

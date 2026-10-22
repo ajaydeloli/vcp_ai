@@ -3,6 +3,7 @@
 // Telegram alerts (2026-10-21): whether they are set up, the intraday watcher and what it watches
 // right now, the alerts sent, and the settings. Read-only: settings live in config/alerts.yaml,
 // the bot token only in .env (this page only says whether it is there).
+import { numberLocale } from "@/lib/numberStyle";
 import { useAlerts } from "@/lib/api";
 import { fmtStamp } from "@/lib/fmt";
 import type { AlertsData } from "@/lib/schemas";
@@ -16,7 +17,7 @@ const NAMES: Record<string, string> = {
   cup_handle: "Cup & handle",
   double_bottom: "Double bottom",
 };
-const num = (x: number | null, d = 2) => (x === null ? "–" : x.toLocaleString("en-IN", { minimumFractionDigits: d, maximumFractionDigits: d }));
+const num = (x: number | null, d = 2) => (x === null ? "–" : x.toLocaleString(numberLocale(), { minimumFractionDigits: d, maximumFractionDigits: d }));
 
 function Dot({ on }: { on: boolean }) {
   return <span aria-hidden="true" className={`inline-block h-2 w-2 rounded-full ${on ? "bg-up" : "bg-down"}`} />;

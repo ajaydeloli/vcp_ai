@@ -63,8 +63,8 @@ export function ScoreGauge({ raw, label }: { raw: number | null; label: string |
             <title>{`${name}: ${from} to ${to === 100 ? 100 : to - 1}`}</title>
           </path>
         ))}
-        {needle && <polygon points={needle} fill="#e6ecf8" data-testid="mhs-needle" />}
-        <circle cx={CX} cy={CY} r={6} fill="#e6ecf8" />
+        {needle && <polygon points={needle} className="fill-ink" data-testid="mhs-needle" />}
+        <circle cx={CX} cy={CY} r={6} className="fill-ink" />
       </svg>
       <p className="-mt-1 text-4xl font-semibold leading-none tabular-nums text-ink" data-testid="mhs-raw">
         {v === null ? "—" : Math.round(v)}

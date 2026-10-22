@@ -45,7 +45,7 @@ describe("dashboard page (market view)", () => {
     expect(screen.queryByRole("complementary", { name: "Menu" })).not.toBeInTheDocument();
   });
 
-  it("the logo opens a side bar with every page, the coming ones disabled, and it closes again", async () => {
+  it("the logo opens a side bar with every page, and it closes again", async () => {
     mockApi();
     renderApp(<Dashboard />);
     await userEvent.click(screen.getByRole("button", { name: "Open the menu" }));
@@ -57,9 +57,7 @@ describe("dashboard page (market view)", () => {
     expect(within(menu).getByRole("link", { name: "Alerts" })).toHaveAttribute("href", "/alerts");
     expect(within(menu).getByRole("link", { name: "AI Agent" })).toHaveAttribute("href", "/agent");
     expect(within(menu).getByRole("link", { name: "Trend Template" })).toHaveAttribute("href", "/trend-template");
-    for (const name of ["Settings"]) {
-      expect(within(menu).getByText(name).closest("[aria-disabled]")).toHaveAttribute("aria-disabled", "true");
-    }
+    expect(within(menu).queryByText("later")).not.toBeInTheDocument();
     await userEvent.keyboard("{Escape}");
     expect(screen.queryByRole("complementary", { name: "Menu" })).not.toBeInTheDocument();
   });

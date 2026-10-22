@@ -2,6 +2,7 @@
 
 // Candlestick chart (TradingView Lightweight Charts): candles, volume, 20/50/200-day averages,
 // and the selected strategy's marks (base start, contractions / points, breakout, pivot and stop).
+import { numberLocale } from "@/lib/numberStyle";
 import {
   ColorType,
   CrosshairMode,
@@ -13,6 +14,7 @@ import {
   type Time,
 } from "lightweight-charts";
 import { useEffect, useRef, useState } from "react";
+import { themeColor, useResolvedTheme } from "@/lib/prefs";
 import {
   COLORS,
   RANGES,
@@ -33,16 +35,17 @@ type Props = {
   onRange: (r: RangeId) => void;
 };
 
-export const CHART_THEME = {
+/** Chart colours from the current theme (CSS variables), so the charts follow dark or light. */
+export const chartTheme = () => ({
   layout: {
-    background: { type: ColorType.Solid, color: "#0d1422" },
-    textColor: "#8a97b3",
+    background: { type: ColorType.Solid, color: themeColor("panel") },
+    textColor: themeColor("mute"),
   },
-  grid: { vertLines: { color: "#142036" }, horzLines: { color: "#142036" } },
-  rightPriceScale: { borderColor: "#1b2740" },
-  timeScale: { borderColor: "#1b2740", timeVisible: false },
+  grid: { vertLines: { color: themeColor("line", 0.55) }, horzLines: { color: themeColor("line", 0.55) } },
+  rightPriceScale: { borderColor: themeColor("line") },
+  timeScale: { borderColor: themeColor("line"), timeVisible: false },
   crosshair: { mode: CrosshairMode.Normal },
-} as const;
+});
 
 const RIGHT_GAP = 6;
 
@@ -89,12 +92,13 @@ export function ChartView({ bars, setup, range, onRange }: Props) {
   const box = useRef<HTMLDivElement>(null);
   const h = useRef<Handles | null>(null);
   const [type, setType] = useState<ChartType>("candles");
+  const theme = useResolvedTheme();
   const [shown, setShown] = useState<Averages>({ sma20: true, sma50: true, sma200: true });
 
   useEffect(() => {
     const el = box.current;
     if (!el) return;
-    const chart = createChart(el, { ...CHART_THEME, width: el.clientWidth, height: el.clientHeight || 340 });
+    const chart = createChart(el, { ...chartTheme(), width: el.clientWidth, height: el.clientHeight || 340 });
     const candles = chart.addCandlestickSeries({
       upColor: COLORS.up,
       downColor: COLORS.down,
@@ -181,7 +185,12 @@ export function ChartView({ bars, setup, range, onRange }: Props) {
     } else {
       c.chart.timeScale().fitContent();
     }
-  }, [bars, setup, range]);
+  }, [bars, setup, range, theme]);
+
+  // a new theme: repaint the chart's background, text and grid
+  useEffect(() => {
+    h.current?.chart.applyOptions(chartTheme());
+  }, [theme]);
 
   // which series is drawn (candles or OHLC bars) and which averages are shown
   useEffect(() => {
@@ -262,7 +271,7 @@ export function ChartView({ bars, setup, range, onRange }: Props) {
         {levels.length > 0 && (
           <div
             data-testid="chart-levels"
-            className="pointer-events-none absolute left-2 top-2 z-10 flex gap-3 rounded bg-[#0d1422]/80 px-2 py-1 text-xs"
+            className="pointer-events-none absolute left-2 top-2 z-10 flex gap-3 rounded bg-panel/80 px-2 py-1 text-xs"
           >
             {levels.map((l) => (
               <span key={l.title} className="flex items-center gap-1" style={{ color: l.color }}>
@@ -270,7 +279,7 @@ export function ChartView({ bars, setup, range, onRange }: Props) {
                   <line x1="0" y1="3" x2="16" y2="3" stroke={l.color} strokeWidth="2"
                         strokeDasharray={l.dashed ? "3 2" : undefined} />
                 </svg>
-                {l.title} {l.price.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                {l.title} {l.price.toLocaleString(numberLocale(), { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </span>
             ))}
           </div>

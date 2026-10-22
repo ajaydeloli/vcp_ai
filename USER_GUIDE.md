@@ -260,6 +260,7 @@ After working on the main database by hand (a rebuild, a manual scan), refresh t
 | **Paper Trading** | The paper ledger: open positions, closed trades, results per strategy. |
 | **Backtest** | Stored backtest runs (read-only). |
 | **Reports** | The daily and weekly HTML reports. |
+| **⚙ Preferences** (top bar, next to search) | How the pages look and start, kept in this browser only: theme (dark, light, or the same as the computer), numbers (Indian 1,23,456.78 or international 123,456.78), the start page, and for the Screener the strategy it opens with, rows per page, the EPS and sales growth columns from the start, and which columns show. Reset to defaults puts everything back. Strategy rules, scoring and the paper ledger are not settings: they are frozen until the April 2027 review. |
 | **System Status** | Data freshness, the last daily runs, data-quality events, recent activity. |
 
 The Market Overview cards:

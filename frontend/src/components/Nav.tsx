@@ -2,11 +2,8 @@
 
 import Image from "next/image";
 import { useEffect, useState } from "react";
+import { PreferencesButton } from "./Preferences";
 import { TopBar } from "./TopBar";
-
-const LATER = [
-  "Settings",
-];
 
 const PAGES = [
   ["Market Overview", "/dashboard"],
@@ -108,6 +105,7 @@ export function Nav({
         </nav>
         <div className="ml-auto flex items-center gap-3">
           <TopBar onPick={onPick} />
+          <PreferencesButton />
           <Today />
         </div>
       </header>
@@ -144,17 +142,6 @@ export function Nav({
                   >
                     {label}
                   </a>
-                </li>
-              ))}
-              {LATER.map((label) => (
-                <li key={label}>
-                  <span
-                    aria-disabled="true"
-                    className="flex cursor-not-allowed items-center justify-between rounded-lg px-3 py-2 text-mute/60"
-                  >
-                    {label}
-                    <span className="text-[10px] uppercase">later</span>
-                  </span>
                 </li>
               ))}
             </ul>

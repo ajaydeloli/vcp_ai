@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { currentPrefs, usePrefs } from "@/lib/prefs";
 import { useLiveQuotes, useScreener, useStrategies } from "@/lib/api";
 import { ScreenerExport } from "./ScreenerExport";
 import { DASH, fmtInt, fmtNum, fmtPct, fmtPrice, strategyLabel, tone } from "@/lib/fmt";
@@ -443,15 +444,25 @@ export function Pages({ page, total, size, onPage }: { page: number; total: numb
 }
 
 export function Screener() {
+  const { prefs } = usePrefs();
+  // the owner's preferred start (strategy, rows per page), applied once the browser's storage is read
+  const preferred = useMemo<ScreenerQuery>(() => ({ ...DEFAULT_QUERY, strategy: prefs.strategy, pageSize: prefs.pageSize }), [prefs.strategy, prefs.pageSize]);
   const [query, setQuery] = useState<ScreenerQuery>(DEFAULT_QUERY);
+  const [showFundamentals, setShowFundamentals] = useState(false);
+  useEffect(() => {
+    // read the storage directly: on the first render the hook still has the defaults
+    const p = currentPrefs();
+    setQuery({ ...DEFAULT_QUERY, strategy: p.strategy, pageSize: p.pageSize });
+    setShowFundamentals(p.showFundamentals);
+  }, []);
   const strategies = useStrategies();
   const strategyIds = strategies.data?.strategies.map((x) => x.strategy_id) ?? ["vcp"];
   const result = useScreener(query);
   const data = result.data;
   const live = useLiveQuotes(data?.rows.map((r) => r.symbol) ?? [], !!data);
-  const [showFundamentals, setShowFundamentals] = useState(false);
   const cols = COLS.filter(
     (c) =>
+      !prefs.hiddenCols.includes(c.key) &&
       (c.key !== "universe" || !query.universeOnly) &&
       (showFundamentals || !FUNDAMENTAL_COLS.has(c.key) || query.minEpsYoy !== undefined || query.minSalesYoy !== undefined),
   );
@@ -462,7 +473,7 @@ export function Screener() {
       <Nav active="Screener" />
       <main className="min-w-0 flex-1 space-y-4 p-4 pb-16">
         <h1 className="sr-only">Screener</h1>
-        <Filters q={query} stageCounts={data?.stage_counts ?? {}} strategyIds={strategyIds} onChange={change} onReset={() => setQuery(DEFAULT_QUERY)} showFundamentals={showFundamentals} onShowFundamentals={setShowFundamentals} />
+        <Filters q={query} stageCounts={data?.stage_counts ?? {}} strategyIds={strategyIds} onChange={change} onReset={() => setQuery(preferred)} showFundamentals={showFundamentals} onShowFundamentals={setShowFundamentals} />
         <div className="min-w-0 space-y-3">
           <LiveNotice />
             <Card

@@ -4,7 +4,8 @@
 // regime threshold).
 import { createChart, CrosshairMode, LineStyle, type IChartApi, type ISeriesApi, type Time } from "lightweight-charts";
 import { useEffect, useRef } from "react";
-import { CHART_THEME } from "./ChartView";
+import { chartTheme } from "./ChartView";
+import { useResolvedTheme } from "@/lib/prefs";
 
 export type MiniSeries = {
   name: string;
@@ -37,13 +38,17 @@ const DOT_RADIUS = 1.5;
 export function MiniLineChart({ series, height = 120, threshold, label, plain, whole }: Props) {
   const box = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
+  const theme = useResolvedTheme();
+  useEffect(() => {
+    chartRef.current?.applyOptions({ ...chartTheme(), crosshair: { mode: CrosshairMode.Magnet } });
+  }, [theme]);
   const linesRef = useRef<ISeriesApi<"Line" | "Histogram">[]>([]);
 
   useEffect(() => {
     const el = box.current;
     if (!el) return;
     const chart = createChart(el, {
-      ...CHART_THEME,
+      ...chartTheme(),
       width: el.clientWidth,
       height,
       handleScroll: false,

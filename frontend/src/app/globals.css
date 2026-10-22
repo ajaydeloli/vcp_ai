@@ -4,6 +4,35 @@
 
 :root {
   color-scheme: dark;
+  --c-bg: 7 11 20;
+  --c-panel: 13 20 34;
+  --c-panel2: 17 26 44;
+  --c-line: 27 39 64;
+  --c-ink: 230 236 248;
+  --c-mute: 138 151 179;
+  --c-accent: 47 109 246;
+  --c-up: 38 194 129;
+  --c-down: 239 83 80;
+  --c-warn: 245 165 36;
+  --c-violet: 139 92 246;
+  --c-live: 34 211 238;
+}
+
+/* light theme (preferences, 2026-10-22): set on <html data-theme="light"> */
+:root[data-theme="light"] {
+  color-scheme: light;
+  --c-bg: 244 246 250;
+  --c-panel: 255 255 255;
+  --c-panel2: 238 241 247;
+  --c-line: 214 220 232;
+  --c-ink: 17 24 39;
+  --c-mute: 84 96 120;
+  --c-accent: 37 99 235;
+  --c-up: 4 140 96;
+  --c-down: 210 40 40;
+  --c-warn: 176 106 0;
+  --c-violet: 124 58 237;
+  --c-live: 8 132 165;
 }
 
 body {
@@ -13,5 +42,5 @@ body {
 /* thin dark scrollbars inside the tables and lists */
 * {
   scrollbar-width: thin;
-  scrollbar-color: #1b2740 transparent;
+  scrollbar-color: rgb(var(--c-line)) transparent;
 }

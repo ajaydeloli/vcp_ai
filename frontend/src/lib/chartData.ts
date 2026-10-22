@@ -1,5 +1,6 @@
 // Pure helpers that turn API data into chart series, marks and price lines. Kept free of the
 // chart library so they can be tested without a canvas.
+import { themeColor } from "./prefs";
 import type { Bar, StockSetup } from "./schemas";
 
 export const COLORS = {
@@ -13,7 +14,6 @@ export const COLORS = {
   line: "#8ab4ff",
   pivot: "#26c281",
   stop: "#ef5350",
-  mark: "#e6ecf8",
   // bright orange: the old blue (#2f6df6) disappeared against the dark chart background
   breakout: "#ff9f1c",
 } as const;
@@ -94,7 +94,7 @@ export function buildMarkers(bars: Bar[], setup: StockSetup | null): ChartMarker
       time: setup.base_start,
       position: "belowBar",
       shape: "square",
-      color: COLORS.mark,
+      color: themeColor("ink"),
       text: "Base start",
     });
   }
@@ -104,7 +104,7 @@ export function buildMarkers(bars: Bar[], setup: StockSetup | null): ChartMarker
         time: c.peak_date,
         position: "aboveBar",
         shape: "circle",
-        color: COLORS.mark,
+        color: themeColor("ink"),
         text: `P${c.sequence}`,
       });
     }
@@ -114,7 +114,7 @@ export function buildMarkers(bars: Bar[], setup: StockSetup | null): ChartMarker
         time: c.trough_date,
         position: "belowBar",
         shape: "circle",
-        color: COLORS.mark,
+        color: themeColor("ink"),
         text: `T${c.sequence}${depth}`,
       });
     }
@@ -126,7 +126,7 @@ export function buildMarkers(bars: Bar[], setup: StockSetup | null): ChartMarker
       time: p.day,
       position: high ? "aboveBar" : "belowBar",
       shape: "circle",
-      color: COLORS.mark,
+      color: themeColor("ink"),
       text: p.label,
     });
   }

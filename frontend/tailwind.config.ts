@@ -1,23 +1,24 @@
 import type { Config } from "tailwindcss";
 
-// Dark theme after the owner's mockup (FRONTEND_SPECIFICATION 67, decision W4).
+// Colours are CSS variables (src/app/globals.css): the dark theme after the owner's mockup
+// (FRONTEND_SPECIFICATION 67, decision W4) and a light theme (preferences, 2026-10-22).
 const config: Config = {
   content: ["./src/**/*.{ts,tsx}"],
   theme: {
     extend: {
       colors: {
-        bg: "#070b14",
-        panel: "#0d1422",
-        panel2: "#111a2c",
-        line: "#1b2740",
-        ink: "#e6ecf8",
-        mute: "#8a97b3",
-        accent: "#2f6df6",
-        up: "#26c281",
-        down: "#ef5350",
-        warn: "#f5a524",
-        violet: "#8b5cf6",
-        live: "#22d3ee", // live (display only) prices
+        bg: "rgb(var(--c-bg) / <alpha-value>)",
+        panel: "rgb(var(--c-panel) / <alpha-value>)",
+        panel2: "rgb(var(--c-panel2) / <alpha-value>)",
+        line: "rgb(var(--c-line) / <alpha-value>)",
+        ink: "rgb(var(--c-ink) / <alpha-value>)",
+        mute: "rgb(var(--c-mute) / <alpha-value>)",
+        accent: "rgb(var(--c-accent) / <alpha-value>)",
+        up: "rgb(var(--c-up) / <alpha-value>)",
+        down: "rgb(var(--c-down) / <alpha-value>)",
+        warn: "rgb(var(--c-warn) / <alpha-value>)",
+        violet: "rgb(var(--c-violet) / <alpha-value>)",
+        live: "rgb(var(--c-live) / <alpha-value>)",
       },
       fontFamily: { sans: ["ui-sans-serif", "system-ui", "Segoe UI", "Roboto", "sans-serif"] },
     },
