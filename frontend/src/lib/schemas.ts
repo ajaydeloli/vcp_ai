@@ -741,6 +741,7 @@ export const agentProposal = z.object({
   approve_command: z.string().nullable(),
   reject_command: z.string().nullable(),
 });
+const studyGroup = z.object({ group: z.string(), n: num, mean_ret_pct: num, win_rate: num, small_sample: z.boolean().optional() });
 export const agentRun = z.object({
   run_id: z.number(),
   kind: z.string(),
@@ -750,6 +751,29 @@ export const agentRun = z.object({
   ok: z.boolean().nullable(),
   summary: z.string().nullable(),
   error: z.string().nullable(),
+  change: z.string().nullable().optional(),
+  what_if: z
+    .object({
+      days: num,
+      setups: num,
+      ic: num,
+      ic_t: num,
+      top_per_day_pct: num,
+      top_minus_bottom_fifth_pct: num,
+      all_mean_pct: num,
+      baseline_ic: num,
+      baseline_ic_t: num,
+      baseline_top_per_day_pct: num,
+      baseline_top_minus_bottom_fifth_pct: num,
+      top_kept_share: num,
+      horizon: num,
+      top_n: num,
+    })
+    .nullable()
+    .optional(),
+  study_overall: studyGroup.nullable().optional(),
+  study_groups: z.array(studyGroup).optional(),
+  backtest_id: z.string().nullable().optional(),
 });
 export const agentHypothesis = z.object({
   hypothesis_id: z.number(),
@@ -777,7 +801,20 @@ export const agent = z.object({
   notes: z.array(
     z.object({ note_id: z.number(), created_at: z.string(), kind: z.string(), text: z.string(), source: z.string() }),
   ),
+  review: z
+    .object({
+      cycle: z.string(),
+      review_from: day,
+      days_to_review: z.number(),
+      max_per_strategy: z.number(),
+      promotion_min_trades: z.number(),
+      promotion_min_months: z.number(),
+    })
+    .nullable()
+    .optional(),
 });
+export type AgentRun = z.infer<typeof agentRun>;
+export type AgentData = z.infer<typeof agent>;
 export type AgentProposal = z.infer<typeof agentProposal>;
 export type AgentHypothesis = z.infer<typeof agentHypothesis>;
 

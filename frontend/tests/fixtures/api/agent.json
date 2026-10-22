@@ -86,7 +86,12 @@
      "end": "2024-06-30",
      "ok": true,
      "summary": "what-if vcp: IC -0.002 -> -0.003",
-     "error": null
+     "error": null,
+     "change": null,
+     "what_if": null,
+     "study_overall": null,
+     "study_groups": [],
+     "backtest_id": null
     }
    ]
   }
@@ -106,5 +111,13 @@
    "text": "Strategies frozen until April 2027.",
    "source": "seed"
   }
- ]
+ ],
+ "review": {
+  "cycle": "2027-04",
+  "review_from": "2027-04-01",
+  "days_to_review": 161,
+  "max_per_strategy": 3,
+  "promotion_min_trades": 30,
+  "promotion_min_months": 3
+ }
 }

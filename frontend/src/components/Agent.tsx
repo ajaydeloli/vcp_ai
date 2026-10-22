@@ -9,6 +9,7 @@ import { useAgent } from "@/lib/api";
 import { fmtDay, fmtStamp } from "@/lib/fmt";
 import type { AgentHypothesis, AgentProposal } from "@/lib/schemas";
 import { Page } from "./Page";
+import { Pipeline, ReviewCycle, StudyChart, WhatIfCharts } from "./AgentResearch";
 import { Card, Empty, ErrorBox, Loading } from "./ui";
 
 const STATUS_STYLE: Record<string, string> = {
@@ -99,6 +100,7 @@ function HypothesisCard({ h }: { h: AgentHypothesis }) {
         <span className="ml-auto text-[11px] text-mute">{fmtDay(h.created_at.slice(0, 10))}</span>
       </div>
       <p className="mt-1 text-sm text-ink">{h.title}</p>
+      <Pipeline h={h} />
       <p className="mt-1 text-xs text-mute">
         <span className="text-ink">Decision rule: </span>
         {h.decision_rule}
@@ -113,6 +115,17 @@ function HypothesisCard({ h }: { h: AgentHypothesis }) {
             </li>
           ))}
         </ul>
+      ) : null}
+      <WhatIfCharts runs={h.runs} />
+      {h.runs.map((r) => (r.kind === "study" ? <StudyChart key={`s${r.run_id}`} run={r} /> : null))}
+      {h.runs.some((r) => r.backtest_id) ? (
+        <p className="mt-2 text-[11px] text-mute">
+          Backtests of this hypothesis are on the{" "}
+          <a href="/backtest" className="text-accent hover:underline">
+            Backtest
+          </a>{" "}
+          page: {h.runs.filter((r) => r.backtest_id).map((r) => r.backtest_id).join(", ")}.
+        </p>
       ) : null}
       {h.conclusion ? (
         <p className="mt-2 text-xs text-ink">
@@ -191,6 +204,7 @@ export function AgentPage() {
                 .map(([s, n]) => `${s.replace(/_/g, " ")} ${n}`)
                 .join(" · ")}`}
             >
+              <ReviewCycle d={d} />
               {d.hypotheses.length === 0 ? (
                 <Empty>No hypothesis registered yet.</Empty>
               ) : (

@@ -8,7 +8,7 @@ the command to copy, it has no approve button, because any local program could p
 from __future__ import annotations
 
 import json
-from datetime import datetime
+from datetime import date, datetime
 from pathlib import Path
 from typing import Any
 
@@ -19,6 +19,8 @@ from vcp_scanner.data.providers._time import IST
 
 MAX_PROPOSALS = 100
 MAX_NOTES = 20
+PROMOTION_MIN_TRADES = 30  # AGENT_SPECIFICATION section 7.2 (owner)
+PROMOTION_MIN_MONTHS = 3
 
 
 def _rows(con: Any, sql: str, args: list[Any] | None = None) -> list[tuple[Any, ...]]:
@@ -68,12 +70,13 @@ def agent_state(path: Path) -> m.AgentResponse:
         runs: dict[int, list[m.AgentRun]] = {}
         run_sql = (
             "SELECT hypothesis_id, run_id, kind, window_name, start_date, end_date, ok,"
-            " summary, error FROM agent_runs ORDER BY run_id"
+            " summary, error, params_json, result_json FROM agent_runs ORDER BY run_id"
         )
         for r in _rows(con, run_sql):
             runs.setdefault(int(r[0]), []).append(m.AgentRun(
                 run_id=int(r[1]), kind=str(r[2]), window=str(r[3]), start=r[4], end=r[5],
-                ok=r[6], summary=r[7] or None, error=r[8]))  # fmt: skip
+                ok=r[6], summary=r[7] or None, error=r[8],
+                **_details(str(r[2]), r[9], r[10])))  # fmt: skip
         hyps = [
             m.AgentHypothesis(
                 hypothesis_id=int(r[0]), created_at=r[1], strategy=str(r[2]), title=str(r[3]),
@@ -106,5 +109,100 @@ def agent_state(path: Path) -> m.AgentResponse:
     return m.AgentResponse(
         as_of=None, data_time=datetime.fromtimestamp(path.stat().st_mtime, IST), available=True,
         reason=None, pending=sum(p.status == "PENDING" for p in proposals), proposals=proposals,
-        ai_watchlist=watch, budget_left=budget, hypotheses=hyps, notes=notes,
+        ai_watchlist=watch, budget_left=budget, hypotheses=hyps, notes=notes, review=review(),
     )  # fmt: skip
+
+
+def review(today: date | None = None) -> m.AgentReview:
+    from vcp_scanner.agent.lab import CYCLE, MAX_PER_STRATEGY
+    from vcp_scanner.api.reports import REVIEW_FROM
+
+    now = today or datetime.now(IST).date()
+    return m.AgentReview(
+        cycle=CYCLE, review_from=REVIEW_FROM, days_to_review=max(0, (REVIEW_FROM - now).days),
+        max_per_strategy=MAX_PER_STRATEGY, promotion_min_trades=PROMOTION_MIN_TRADES,
+        promotion_min_months=PROMOTION_MIN_MONTHS,
+    )  # fmt: skip
+
+
+def _load(raw: Any) -> Any:
+    if raw is None or raw == "":
+        return None
+    try:
+        return json.loads(raw) if isinstance(raw, str) else raw
+    except ValueError:
+        return None
+
+
+def _num(x: Any) -> float | None:
+    return float(x) if isinstance(x, int | float) and not isinstance(x, bool) else None
+
+
+def _change(params: Any) -> str | None:
+    """A what-if change in words: weights {pattern: 60, rs: 0} -> "pattern 60, rs 0"."""
+    if not isinstance(params, dict):
+        return None
+    parts = []
+    for key in ("weights", "sub_weights", "bounds"):
+        val = params.get(key)
+        if isinstance(val, dict):
+            parts += [
+                f"{k} {v:g}" if isinstance(v, int | float) else f"{k} {v}" for k, v in val.items()
+            ]
+    return ", ".join(parts) or None
+
+
+def _group(g: Any, name: str) -> m.StudyGroup | None:
+    if not isinstance(g, dict):
+        return None
+    n = _num(g.get("n"))
+    return m.StudyGroup(group=str(g.get("group", name)), n=None if n is None else int(n),
+                        mean_ret_pct=_num(g.get("mean_ret_pct")), win_rate=_num(g.get("win_rate")),
+                        small_sample=bool(g.get("small_sample", False)))  # fmt: skip
+
+
+def _pick(d: dict[str, Any], suffix: str) -> Any:
+    """The value of the ``top_<n>...<suffix>`` key (the N is the run's ``top_n``)."""
+    return next((v for k, v in d.items() if k.startswith("top_") and k.endswith(suffix)), None)
+
+
+def _top(d: dict[str, Any]) -> float | None:
+    return _num(_pick(d, "_per_day_mean_pct"))
+
+
+def _details(kind: str, params_json: Any, result_json: Any) -> dict[str, Any]:
+    """Chartable figures of a run from its stored result; a result in an unknown shape gives
+    none (the summary line still shows)."""
+    params, res = _load(params_json), _load(result_json)
+    if not isinstance(res, dict):
+        return {}
+    if kind == "what_if":
+        b, w = res.get("baseline") or {}, res.get("what_if") or {}
+        rc = res.get("ranking_change") or {}
+        top_n = params.get("top_n") if isinstance(params, dict) else None
+        kept = next(
+            (v for k, v in rc.items() if k.startswith("top_") and k.endswith("_kept_share")), None
+        )
+        return {
+            "change": _change(params),
+            "what_if": m.WhatIfMetrics(
+                days=w.get("days_ranked"), setups=w.get("setups_with_outcome"),
+                ic=_num(w.get("ic_mean")), ic_t=_num(w.get("ic_t")),
+                top_per_day_pct=_top(w),
+                top_minus_bottom_fifth_pct=_num(w.get("top_minus_bottom_fifth_pct")),
+                all_mean_pct=_num(w.get("all_mean_pct")),
+                baseline_ic=_num(b.get("ic_mean")), baseline_ic_t=_num(b.get("ic_t")),
+                baseline_top_per_day_pct=_top(b),
+                baseline_top_minus_bottom_fifth_pct=_num(b.get("top_minus_bottom_fifth_pct")),
+                top_kept_share=_num(kept),
+                horizon=params.get("horizon") if isinstance(params, dict) else None,
+                top_n=top_n if isinstance(top_n, int) else None,
+            ),
+        }  # fmt: skip
+    if kind == "study":
+        groups = [g for g in (_group(x, "") for x in res.get("groups") or []) if g]
+        return {"study_overall": _group({**(res.get("overall") or {}), "group": "All"}, "All"),
+                "study_groups": groups}  # fmt: skip
+    if kind == "backtest" and res.get("backtest_id"):
+        return {"backtest_id": str(res["backtest_id"])}
+    return {}

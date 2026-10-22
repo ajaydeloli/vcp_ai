@@ -995,6 +995,33 @@ class AgentWatch(BaseModel):
     reason: str
 
 
+class WhatIfMetrics(BaseModel):
+    """One score variant against the frozen score on the same setups (agent/whatif.py)."""
+
+    days: int | None
+    setups: int | None
+    ic: float | None  # mean within-day rank correlation with the later return
+    ic_t: float | None
+    top_per_day_pct: float | None  # mean return of the top N per day
+    top_minus_bottom_fifth_pct: float | None
+    all_mean_pct: float | None  # mean return of every setup (the reference)
+    baseline_ic: float | None
+    baseline_ic_t: float | None
+    baseline_top_per_day_pct: float | None
+    baseline_top_minus_bottom_fifth_pct: float | None
+    top_kept_share: float | None  # share of the baseline's top picks the variant keeps
+    horizon: int | None
+    top_n: int | None
+
+
+class StudyGroup(BaseModel):
+    group: str
+    n: int | None
+    mean_ret_pct: float | None
+    win_rate: float | None
+    small_sample: bool = False
+
+
 class AgentRun(BaseModel):
     run_id: int
     kind: str  # study | backtest | what_if
@@ -1004,6 +1031,22 @@ class AgentRun(BaseModel):
     ok: bool | None
     summary: str | None
     error: str | None
+    change: str | None = None  # what the run changed, in words ("pattern 60, rs 0")
+    what_if: WhatIfMetrics | None = None
+    study_overall: StudyGroup | None = None
+    study_groups: list[StudyGroup] = []
+    backtest_id: str | None = None
+
+
+class AgentReview(BaseModel):
+    """The research rules the page shows next to the lab (AGENT_SPECIFICATION, owner rules)."""
+
+    cycle: str
+    review_from: date
+    days_to_review: int
+    max_per_strategy: int
+    promotion_min_trades: int
+    promotion_min_months: int
 
 
 class AgentHypothesis(BaseModel):
@@ -1036,6 +1079,7 @@ class AgentResponse(Stamped):
     budget_left: dict[str, int]
     hypotheses: list[AgentHypothesis]
     notes: list[AgentNote]
+    review: AgentReview | None = None
 
 
 # --- the alerts page (2026-10-21) ---------------------------------------------------------
