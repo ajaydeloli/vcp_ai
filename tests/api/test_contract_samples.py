@@ -45,6 +45,8 @@ CASES = {
     "fundamentals": "fundamentals",
     "agent": "agent",
     "alerts": "alerts",
+    "leaders": "leaders",
+    "leader_run": "leaders/1",
 }
 
 

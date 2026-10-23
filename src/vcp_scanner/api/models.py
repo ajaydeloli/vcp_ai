@@ -1177,3 +1177,71 @@ class TrendTemplateResponse(Stamped):
     nearly_total: int
     stages: list[TTStageRow]
     into_stage2: list[TTStock]  # weekly stage 2 now, not at week_ago
+
+
+# ---- Past Leaders (owner, 2026-10-23): the stored superperformance study ----------------------
+
+
+class LeaderRow(BaseModel):
+    """One 50 %+ run of the stored study (research and display only)."""
+
+    run_id: int
+    symbol: str
+    sector: str | None  # today's classification
+    launch_date: date  # the low the run started from
+    launch_close: float  # adjusted
+    peak_date: date
+    peak_close: float
+    gain_pct: float
+    gain_band: str  # 50-100 | doubled (100-199) | tripled (200+)
+    sessions_to_peak: int
+    complete: bool  # the full 252 sessions after the launch are known
+    max_pullback_pct: float  # deepest close below a high inside the run
+    to50: int | None  # sessions from the launch to +50 %
+    launch_stage: str | None
+    launch_rs: int | None
+    launch_tt: bool | None
+    launch_dist_high_pct: float | None  # % below the 52-week high on the launch day
+    breakout_date: date | None  # first breakout after the launch
+    base_length: int | None  # sessions, the base before that breakout
+    base_depth_pct: float | None
+    vcp_before_breakout: str | None  # VCP | VCP_LIKE | NONE; null = no scan covered it
+    bases_count: int  # further bases up to the peak
+    giveback_pct: float | None  # deepest close below the peak in the 252 sessions after it
+    giveback_of_gain_pct: float | None
+    giveback_final: bool  # the whole give-back window is known
+
+
+class LeadersStudy(BaseModel):
+    study_id: str
+    created_at: datetime
+    study_version: str
+    data_end: date
+    lift_end: date | None  # last launch day with 252 sessions after it
+    survivorship_status: str
+    survivorship_detail: str | None
+    vcp_source: str
+    runs_total: int  # runs in the study, before the filters
+
+
+class LeadersResponse(Stamped):
+    study: LeadersStudy | None  # None: no study stored yet
+    years: list[int]  # launch years in the study, for the filter
+    sectors: list[str]  # sectors in the study ("Unclassified" for none)
+    runs: list[LeaderRow]  # newest launch first
+
+
+class LeaderBase(BaseModel):
+    seq: int  # 1 = the first breakout after the launch
+    base_start: date  # the base high
+    breakout_date: date
+    base_high: float
+    depth_pct: float
+    length: int  # sessions
+
+
+class LeaderRunResponse(Stamped):
+    study_id: str
+    run: LeaderRow
+    bases: list[LeaderBase]
+    bars: list[Bar]  # 40 sessions before the launch to 60 after the peak

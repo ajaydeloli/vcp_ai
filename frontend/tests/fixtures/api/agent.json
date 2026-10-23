@@ -115,7 +115,7 @@
  "review": {
   "cycle": "2027-04",
   "review_from": "2027-04-01",
-  "days_to_review": 161,
+  "days_to_review": 177,
   "max_per_strategy": 3,
   "promotion_min_trades": 30,
   "promotion_min_months": 3

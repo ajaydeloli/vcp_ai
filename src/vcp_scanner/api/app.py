@@ -21,6 +21,7 @@ from vcp_scanner.api import (
     fundamentals,
     health,
     ipos,
+    leaders,
     report_files,
     reports,
     trend_template,
@@ -371,6 +372,26 @@ def create_app(
         with db.cursor() as cur:
             return ipos.recent_listings(cur, db.data_time())
 
+    @app.get(f"{api}/leaders", response_model=m.LeadersResponse)
+    def past_leaders(
+        year: Annotated[int | None, Query(ge=2000, le=2100)] = None,
+        sector: Annotated[str | None, Query(max_length=80)] = None,
+        band: Annotated[str | None, Query(pattern="^(50-100|doubled|tripled)$")] = None,
+        vcp: bool | None = None,
+    ) -> m.LeadersResponse:
+        """The stored superperformance study's 50 %+ runs (research and display only)."""
+        with db.cursor() as cur:
+            return leaders.leaders(cur, db.data_time(), year=year, sector=sector, band=band,
+                                   vcp=vcp)  # fmt: skip
+
+    @app.get(f"{api}/leaders/{{run_id}}", response_model=m.LeaderRunResponse)
+    def past_leader(run_id: int) -> m.LeaderRunResponse:
+        with db.cursor() as cur:
+            out = leaders.leader_run(cur, run_id, db.data_time())
+        if out is None:
+            raise HTTPException(status_code=404, detail=f"No run {run_id} in the stored study.")
+        return out
+
     @app.get(f"{api}/backtests", response_model=m.BacktestsResponse)
     def stored_backtests() -> m.BacktestsResponse:
         return backtests.stored_runs(research)
@@ -455,7 +476,7 @@ def create_app(
     @app.get(f"{api}/agent", response_model=m.AgentResponse)
     def agent_page() -> m.AgentResponse:
         """The AI's proposals, watchlist, research lab and recent notebook (read-only)."""
-        return agent.agent_state(data / "agent" / "agent.duckdb")
+        return agent.agent_state(data / "agent" / "agent.duckdb", clock().astimezone(IST).date())
 
     @app.get(f"{api}/reports", response_model=m.ReportsResponse)
     def report_list() -> m.ReportsResponse:

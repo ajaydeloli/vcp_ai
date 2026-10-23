@@ -38,6 +38,8 @@ const CASES: Record<string, z.ZodTypeAny> = {
   fundamentals: s.fundamentals,
   agent: s.agent,
   alerts: s.alerts,
+  leaders: s.leaders,
+  leader_run: s.leaderRun,
 };
 
 /** The same schema, but an unknown key anywhere is an error (a new API field must be noticed). */

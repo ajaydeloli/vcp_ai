@@ -160,6 +160,41 @@ def add_market_health(store: DuckDBStore) -> None:
     )  # fmt: skip
 
 
+def add_superperformance(store: DuckDBStore) -> None:
+    """A stored superperformance study with three synthetic runs (Past Leaders page): ALPHA
+    doubled with a VCP and two bases, GAMMA tripled with no sector and no scan, BETA +50 to 99 %
+    still open."""
+    c = store.conn
+    put(c, "superperformance_studies", study_id="sp-test", created_at=T0,
+        study_version="superperformance-1.0.0", data_end=AS_OF, source="test",
+        vcp_source="vcp-1.1.0: test scans", survivorship_status="PARTIAL",
+        survivorship_detail="synthetic", params_json="{}",
+        summary_json='{"lift_end": "2025-09-26"}')  # fmt: skip
+    runs = [
+        (1, "ALPHA", "Capital Goods", date(2024, 3, 1), 106.0, date(2024, 12, 2), 233.2, 120.0,
+         "doubled", 197, True, "VCP", 2),
+        (2, "GAMMA", None, date(2024, 6, 3), 111.0, date(2025, 3, 3), 366.3, 230.0, "tripled",
+         190, True, None, 0),
+        (3, "BETA", "Chemicals", date(2026, 4, 1), 160.0, date(2026, 9, 1), 264.0, 65.0,
+         "50-100", 107, False, "NONE", 0),
+    ]  # fmt: skip
+    for rid, sym, sec, ld, lc, pd, pc, g, band, n, done, vcp, nb in runs:
+        put(c, "superperformance_runs", study_id="sp-test", run_id=rid, instrument_id=iid(sym),
+            symbol=sym, sector=sec, launch_date=ld, launch_close=lc, peak_date=pd,
+            peak_close=pc, gain_pct=g, gain_band=band, sessions_to_peak=n, complete=done,
+            to50=40, max_pullback_pct=18.0, pullbacks_10=2, bases_count=max(0, nb - 1),
+            launch_stage="STAGE_4", launch_rs=35, launch_tt=False, launch_dist_high_pct=45.0,
+            vcp_before_breakout=vcp, giveback_pct=None if not done else 30.0,
+            giveback_of_gain_pct=None if not done else 60.0, giveback_final=done,
+            sector_peers=1)  # fmt: skip
+    for seq, (start, day, high) in enumerate(
+        [(date(2024, 2, 1), date(2024, 4, 1), 115.0), (date(2024, 6, 3), date(2024, 7, 1), 160.0)],
+        start=1,
+    ):
+        put(c, "superperformance_bases", study_id="sp-test", run_id=1, seq=seq, base_start=start,
+            breakout_date=day, base_high=high, depth_pct=8.0, length=20)  # fmt: skip
+
+
 def build_main_db(db: Path, ctx: Context) -> None:
     spec = {s.strategy_id: s for s in ctx.strategies}
     with DuckDBStore(str(db)) as store:
@@ -323,6 +358,7 @@ def build_main_db(db: Path, ctx: Context) -> None:
         add_fundamentals(store)
         add_shareholding(store)
         add_market_health(store)
+        add_superperformance(store)
         # NSE index closes (Market Overview step 3) for the last 30 sessions only: the NIFTY
         # lines start at 100 on their first stored day, later than the chart's first day.
         for k, d in enumerate(SESSIONS[-30:]):

@@ -69,6 +69,8 @@ export const paths = {
   activity: (days: number) => `activity${query({ days })}`,
   paper: () => "paper",
   ipos: () => "ipos",
+  leaders: () => "leaders",
+  leaderRun: (runId: number) => `leaders/${runId}`,
   backtests: () => "backtests",
   reports: () => "reports",
   agent: () => "agent",
@@ -168,6 +170,15 @@ export const usePaper = () =>
   useQuery({ queryKey: ["paper"], queryFn: () => getJson(paths.paper(), s.paper), ...opts });
 export const useIpos = () =>
   useQuery({ queryKey: ["ipos"], queryFn: () => getJson(paths.ipos(), s.ipos), ...opts });
+export const useLeaders = () =>
+  useQuery({ queryKey: ["leaders"], queryFn: () => getJson(paths.leaders(), s.leaders), ...opts });
+export const useLeaderRun = (runId: number | null) =>
+  useQuery({
+    queryKey: ["leaderRun", runId],
+    queryFn: () => getJson(paths.leaderRun(runId ?? 0), s.leaderRun),
+    enabled: runId !== null,
+    ...opts,
+  });
 export const useBacktests = () =>
   useQuery({ queryKey: ["backtests"], queryFn: () => getJson(paths.backtests(), s.backtests), ...opts });
 export const useTrendTemplate = () => useQuery({ queryKey: ["trendTemplate"], queryFn: () => getJson(paths.trendTemplate(), s.trendTemplate), ...opts });

@@ -2536,3 +2536,21 @@ Display only (FUNDAMENTALS_SPECIFICATION §2, §15); the rules of point in time,
 - **One condition short:** stocks failing exactly one condition (top 60 by RS), the condition and its gap ("489 vs 517 needed (5.5% short)"); buttons filter by the failing condition.
 - **Into Stage 2 this week:** weekly Stage 2 now, another stage five scans back, with the stage it came from.
 - **Weekly stage by sector:** a 100 % bar per sector (Stage 1 to 4 and Transition), sorted by Stage 2 share; "All our stocks" first.
+
+---
+
+# Past Leaders page (as built 2026-10-23, owner)
+
+`/leaders`, from `GET /api/v1/leaders` and `GET /api/v1/leaders/{run_id}` (read-only; the tables `vcp research superperformance` writes, DATABASE_SCHEMA §88; nothing recomputed per request). Research and display only; the study uses every year, including the validation window, and the page says so.
+
+- **Study line:** runs in the study, prices to, when it was made, survivorship (PARTIAL, detail on hover). No study stored: "No study stored yet. Run: vcp research superperformance".
+- **Filters** (in the browser, over all runs loaded once): symbol, launch year, sector (`Unclassified` = none), gain band (+50 to +99 %, doubled = +100 to +199 %, tripled or more), **VCP at launch** (our detector's weekly scan before the first breakout after the launch said VCP or A+ VCP). Reset filters. The API takes the same filters (`year`, `sector`, `band`, `vcp`) for other callers.
+- **Runs table** (25 a page, every column sorts; default newest launch first): Symbol (links to Stock Analysis), Sector, Launch (date, adjusted close), Peak (date, close), Gain (an open run, whose 252 sessions are not all known, carries "*"), Days to peak, Max pullback, Stage, RS and TT on the launch day, Base (sessions, depth) before the first breakout, VCP (VCP, VCP-like, None, No scan), Give-back (deepest close below the peak in the year after; share of the gain; "so far" while that year is open). Missing values are a dash.
+- **Export CSV / Excel** (`src/lib/tableFiles.ts`, like the Screener): every matching run, every column, numbers as numbers.
+- **Chart** button per row (`aria-pressed`): a card above the table (scrolled into view) with daily candles from 40 sessions before the launch to 60 after the peak, the 50-day average, ▲ Launch, ▼ Top, and each base as an orange line at its high from the base high to its breakout, marked B1, B2 …; the bases are listed under the chart. Close chart.
+
+# Top bar with More (as built 2026-10-23, owner; replaces the 14-link bar)
+
+- From 1024 px (`lg`): Market Overview, Screener, Trend Template, Stock Analysis, Watchlist, Past Leaders, then **More ▾** with Fundamentals, Recent IPOs, Strategies, Paper Trading, Backtest, Reports, Alerts, AI Agent, System Status.
+- More is a disclosure button (`aria-expanded`, `aria-controls`, accessible name "More pages", or "More pages, current: <page>" when the page is inside it) over a list "More pages": Enter / Space / ↓ open it (↓ focuses the first link), ↑ ↓ Home End move and wrap, Escape closes it and returns the focus to the button, a click outside or Tab out of it closes it. The current page's link has `aria-current="page"` and is highlighted; the button is underlined in the accent colour and, from 1280 px, reads "More · <page>".
+- Below 1024 px there are no links on the bar: the logo opens the side menu with every page (the More pages under a "More" heading). The date pill is hidden between 1024 and 1279 px to make room.

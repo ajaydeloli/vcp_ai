@@ -891,3 +891,74 @@ export const trendTemplate = z.object({
 });
 export type TrendTemplateData = z.infer<typeof trendTemplate>;
 export type TTStock = z.infer<typeof ttStock>;
+
+// ---- Past Leaders (owner, 2026-10-23): the stored superperformance study ----------------------
+export const leaderRow = z.object({
+  run_id: z.number(),
+  symbol: z.string(),
+  sector: z.string().nullable(),
+  launch_date: day,
+  launch_close: z.number(),
+  peak_date: day,
+  peak_close: z.number(),
+  gain_pct: z.number(),
+  gain_band: z.enum(["50-100", "doubled", "tripled"]),
+  sessions_to_peak: z.number(),
+  complete: z.boolean(),
+  max_pullback_pct: z.number(),
+  to50: num,
+  launch_stage: z.string().nullable(),
+  launch_rs: num,
+  launch_tt: z.boolean().nullable(),
+  launch_dist_high_pct: num,
+  breakout_date: dayN,
+  base_length: num,
+  base_depth_pct: num,
+  vcp_before_breakout: z.string().nullable(),
+  bases_count: z.number(),
+  giveback_pct: num,
+  giveback_of_gain_pct: num,
+  giveback_final: z.boolean(),
+});
+
+export const leadersStudy = z.object({
+  study_id: z.string(),
+  created_at: z.string(),
+  study_version: z.string(),
+  data_end: day,
+  lift_end: dayN,
+  survivorship_status: z.string(),
+  survivorship_detail: z.string().nullable(),
+  vcp_source: z.string(),
+  runs_total: z.number(),
+});
+
+export const leaders = z.object({
+  ...stamp,
+  study: leadersStudy.nullable(),
+  years: z.array(z.number()),
+  sectors: z.array(z.string()),
+  runs: z.array(leaderRow),
+});
+
+export const leaderBase = z.object({
+  seq: z.number(),
+  base_start: day,
+  breakout_date: day,
+  base_high: z.number(),
+  depth_pct: z.number(),
+  length: z.number(),
+});
+
+export const leaderRun = z.object({
+  ...stamp,
+  study_id: z.string(),
+  run: leaderRow,
+  bases: z.array(leaderBase),
+  bars: z.array(bar),
+});
+
+export type LeaderRow = z.infer<typeof leaderRow>;
+export type Leaders = z.infer<typeof leaders>;
+export type LeaderBase = z.infer<typeof leaderBase>;
+export type LeaderRun = z.infer<typeof leaderRun>;

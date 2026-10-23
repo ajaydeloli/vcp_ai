@@ -98,6 +98,36 @@ def add_research_parser(subparsers: argparse._SubParsersAction) -> None:  # type
     fs.add_argument("--db", default="data/vcp_scanner.duckdb")
     fs.add_argument("--config-dir", default="config")
 
+    sp = sub.add_parser(
+        "superperformance",
+        help="Past leaders: every 50 %+ run, what came before, during and at the end "
+        "(research and display only; the Past Leaders page)",
+    )  # fmt: skip
+    sp.add_argument(
+        "--db",
+        default="data/vcp_scanner.duckdb",
+        help="Main database; the study is stored here (replacing the last one)",
+    )
+    sp.add_argument(
+        "--source-db",
+        metavar="PATH",
+        help="Read the data from this copy instead (e.g. the newest backup while the "
+        "daily run holds the main database); still stored in --db",
+    )
+    sp.add_argument(
+        "--research-db",
+        default="data/golden_src.duckdb",
+        help="Weekly VCP scans of the research database",
+    )
+    sp.add_argument("--out", default="reports/research", help="Folder for the summary JSON")
+    sp.add_argument("--no-store", action="store_true", help="Compute and write the JSON only")
+    sp.add_argument(
+        "--no-serving-copy",
+        action="store_true",
+        help="Do not refresh the dashboard's serving copy after storing",
+    )
+    sp.add_argument("--config-dir", default="config")  # fmt: skip
+
     imp = sub.add_parser("import-labels", help="Turn the sheet's CSV into golden fixtures")
     imp.add_argument("--candidates", required=True, help="candidates.json from the sheet folder")
     imp.add_argument("--labels", required=True, help="The downloaded vcp_labels.csv")
@@ -120,9 +150,11 @@ def run_research(args: argparse.Namespace) -> int:
         return _score_outcomes(args)
     if cmd == "fundamentals":
         return _fundamentals_study(args)
+    if cmd == "superperformance":
+        return _superperformance(args)
     _err(
         "Usage: vcp research {golden,labelling-sheet,review-sheet,import-labels,outcomes,"
-        "score-outcomes,fundamentals} ..."
+        "score-outcomes,fundamentals,superperformance} ..."
     )
     return 1
 
@@ -470,4 +502,78 @@ def _fundamentals_study(args: argparse.Namespace) -> int:
         finally:
             store.conn.close()
         print(f"Stored {n} shadow scores ({version}) in fundamental_research_scores")
+    return 0
+
+
+def _superperformance(args: argparse.Namespace) -> int:
+    """The superperformance study (owner, 2026-10-23). Reads only the local databases."""
+    import json
+    import time
+
+    import duckdb
+
+    from vcp_scanner.research import superperformance as sp
+    from vcp_scanner.research import superperformance_data as spd
+    from vcp_scanner.run_state import run_progress
+
+    store_it = not args.no_store
+    db = Path(args.db)
+    if store_it:
+        progress = run_progress(db.resolve().parent / "logs")
+        if progress is not None and progress.state == "running":
+            _err("The daily run is in progress; the study is not stored while it writes. Wait "
+                 "for it, or use --no-store (with --source-db for a backup).")  # fmt: skip
+            return 1
+    source = Path(args.source_db) if args.source_db else db
+    if not source.exists():
+        _err(f"Database not found: {source}")
+        return 1
+    t0 = time.monotonic()
+    con = duckdb.connect(str(source), read_only=True)
+    research_path = Path(args.research_db)
+    research = (
+        duckdb.connect(str(research_path), read_only=True) if research_path.exists() else None
+    )
+    try:
+        spd.build_universe(con, args.config_dir)
+        ctx, sectors, vcp_source = spd.load_context(con, research)
+        stage_cfg = load_scanner_config(args.config_dir).strategy.stage
+        p = sp.Params()
+        res = sp.StudyResult()
+        print(f"Universe rebuilt ({len(ctx.calendar)} sessions, {time.monotonic() - t0:.0f} s); "
+              "studying each stock ...", flush=True)  # fmt: skip
+        for k, stock in enumerate(spd.iter_stocks(con, sectors), start=1):
+            sp.study_stock(stock, ctx, p, stage_cfg, res)
+            if k % 500 == 0:
+                print(f"  {k} stocks, {len(res.runs)} runs ({time.monotonic() - t0:.0f} s)",
+                      flush=True)  # fmt: skip
+    finally:
+        con.close()
+        if research is not None:
+            research.close()
+    sp.add_sector_peers(res.runs)
+    summary = sp.summarize(res, ctx, p)
+    summary.update(source=str(source), vcp_source=vcp_source,
+                   survivorship_status=spd.SURVIVORSHIP,
+                   survivorship_detail=spd.SURVIVORSHIP_DETAIL)  # fmt: skip
+    out = Path(args.out)
+    out.mkdir(parents=True, exist_ok=True)
+    path = out / f"superperformance_{summary['data_end']}.json"
+    path.write_text(json.dumps(summary, indent=1, default=str) + "\n", encoding="utf-8")
+    c = summary["counts"]
+    print(f"{c['runs']} runs of 50 %+ in {c['stocks']} stocks ({c['doubled']} doubled, "
+          f"{c['tripled']} tripled; {c['complete']} with the full 252 sessions). "
+          f"Summary: {path} ({time.monotonic() - t0:.0f} s)", flush=True)  # fmt: skip
+    if not store_it:
+        return 0
+    store = _open_store(str(db))
+    try:
+        study_id = spd.store(store.conn, res.runs, summary, str(source), vcp_source)
+    finally:
+        store.close()
+    print(f"Stored study {study_id} in {db}.", flush=True)
+    if not args.no_serving_copy:
+        from vcp_scanner.serving import refresh_serving_copy
+
+        print(f"Serving copy refreshed: {refresh_serving_copy(db)}", flush=True)
     return 0

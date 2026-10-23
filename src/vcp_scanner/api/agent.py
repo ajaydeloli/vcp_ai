@@ -30,7 +30,8 @@ def _rows(con: Any, sql: str, args: list[Any] | None = None) -> list[tuple[Any, 
         return []
 
 
-def agent_state(path: Path) -> m.AgentResponse:
+def agent_state(path: Path, today: date | None = None) -> m.AgentResponse:
+    """``today`` = the app's clock (the review countdown); the real date when not given."""
     if not path.exists():
         return m.AgentResponse(
             as_of=None, data_time=datetime.now(IST), available=False,
@@ -109,7 +110,7 @@ def agent_state(path: Path) -> m.AgentResponse:
     return m.AgentResponse(
         as_of=None, data_time=datetime.fromtimestamp(path.stat().st_mtime, IST), available=True,
         reason=None, pending=sum(p.status == "PENDING" for p in proposals), proposals=proposals,
-        ai_watchlist=watch, budget_left=budget, hypotheses=hyps, notes=notes, review=review(),
+        ai_watchlist=watch, budget_left=budget, hypotheses=hyps, notes=notes, review=review(today),
     )  # fmt: skip
 
 

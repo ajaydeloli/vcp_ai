@@ -1284,6 +1284,98 @@ CREATE TABLE IF NOT EXISTS shareholding_fetch_runs (
 )
 """
 
+# Superperformance study (owner, 2026-10-23; research and display only, the Past Leaders page).
+# Written by ``vcp research superperformance``, which replaces the previous study: it is derived
+# from stored data and can be rebuilt at any time. Nothing in the scan, score or ledger reads it.
+_DDL_SUPERPERFORMANCE_STUDIES = """
+CREATE TABLE IF NOT EXISTS superperformance_studies (
+    study_id             VARCHAR PRIMARY KEY,
+    created_at           TIMESTAMPTZ NOT NULL,
+    study_version        VARCHAR NOT NULL,   -- superperformance-1.0.0
+    data_end             DATE NOT NULL,      -- last session of the prices read
+    source               VARCHAR NOT NULL,   -- database the study read
+    vcp_source           VARCHAR NOT NULL,   -- detector version and the scans used
+    survivorship_status  VARCHAR NOT NULL,
+    survivorship_detail  VARCHAR,
+    params_json          VARCHAR NOT NULL,
+    summary_json         VARCHAR NOT NULL    -- lift tables, paths, warning signs, case studies
+)
+"""
+
+_DDL_SUPERPERFORMANCE_RUNS = """
+CREATE TABLE IF NOT EXISTS superperformance_runs (
+    study_id                  VARCHAR NOT NULL,
+    run_id                    INTEGER NOT NULL,
+    instrument_id             VARCHAR NOT NULL,
+    symbol                    VARCHAR NOT NULL,
+    sector                    VARCHAR,            -- today's classification (not point in time)
+    launch_date               DATE NOT NULL,      -- the low the run started from
+    launch_close              DOUBLE NOT NULL,    -- adjusted
+    peak_date                 DATE NOT NULL,
+    peak_close                DOUBLE NOT NULL,
+    gain_pct                  DOUBLE NOT NULL,
+    gain_band                 VARCHAR NOT NULL,   -- 50-100 | doubled | tripled
+    sessions_to_peak          INTEGER NOT NULL,
+    complete                  BOOLEAN NOT NULL,   -- the full 252 sessions after the launch known
+    to20                      INTEGER,            -- sessions from the launch to +20 %
+    to50                      INTEGER,
+    to100                     INTEGER,
+    max_pullback_pct          DOUBLE NOT NULL,    -- deepest close below a high inside the run
+    pullbacks_10              INTEGER NOT NULL,   -- pullbacks of 10 %+ inside the run
+    breakout_date             DATE,               -- first breakout after the launch
+    breakout_gain_pct         DOUBLE,             -- its close above the launch close
+    bases_count               INTEGER NOT NULL,   -- further bases (breakouts) up to the peak
+    launch_stage              VARCHAR,            -- launch-day readings, known that day
+    launch_rs                 INTEGER,
+    launch_tt                 BOOLEAN,
+    launch_dist_high_pct      DOUBLE,
+    launch_rs_led             BOOLEAN,
+    launch_eps_yoy            DOUBLE,
+    launch_sales_yoy          DOUBLE,
+    launch_eps_accel          DOUBLE,
+    launch_promoter_chg       DOUBLE,
+    launch_fii_chg            DOUBLE,
+    launch_market             VARCHAR,            -- Market Health label
+    base_length               INTEGER,            -- the base before the first breakout
+    base_depth_pct            DOUBLE,
+    base_tight_pct            DOUBLE,
+    base_dryup                DOUBLE,
+    vcp_before_breakout       VARCHAR,            -- VCP | VCP_LIKE | NONE | NULL (no scan)
+    pct_above_50              DOUBLE,
+    closes_below_50           INTEGER,
+    weeks_above_10w_pct       DOUBLE,
+    rs90_share                DOUBLE,
+    updown_volume             DOUBLE,
+    climax_week               DATE,
+    climax_gain_pct           DOUBLE,
+    climax_near_top           BOOLEAN,
+    heavy_break_sessions      INTEGER,            -- peak to the first heavy close below the 50-day
+    heavy_break_drawdown_pct  DOUBLE,
+    rs_rollover_sessions      INTEGER,
+    stage34_sessions          INTEGER,
+    stage34                   VARCHAR,
+    giveback_pct              DOUBLE,             -- deepest close below the peak afterwards
+    giveback_of_gain_pct      DOUBLE,
+    giveback_final            BOOLEAN NOT NULL,
+    sector_peers              INTEGER NOT NULL,   -- same-sector runs launched within 30 days
+    PRIMARY KEY (study_id, run_id)
+)
+"""
+
+_DDL_SUPERPERFORMANCE_BASES = """
+CREATE TABLE IF NOT EXISTS superperformance_bases (
+    study_id       VARCHAR NOT NULL,
+    run_id         INTEGER NOT NULL,
+    seq            INTEGER NOT NULL,   -- 1 = the first breakout after the launch
+    base_start     DATE NOT NULL,      -- the base high
+    breakout_date  DATE NOT NULL,
+    base_high      DOUBLE NOT NULL,
+    depth_pct      DOUBLE NOT NULL,
+    length         INTEGER NOT NULL,   -- sessions
+    PRIMARY KEY (study_id, run_id, seq)
+)
+"""
+
 _ALL_DDL: list[tuple[str, str]] = [
     ("instruments", _DDL_INSTRUMENTS),
     ("provider_instruments", _DDL_PROVIDER_INSTRUMENTS),
@@ -1346,6 +1438,9 @@ _ALL_DDL: list[tuple[str, str]] = [
     ("shareholding_filings", _DDL_SHAREHOLDING_FILINGS),
     ("shareholding_snapshots", _DDL_SHAREHOLDING_SNAPSHOTS),
     ("shareholding_fetch_runs", _DDL_SHAREHOLDING_FETCH_RUNS),
+    ("superperformance_studies", _DDL_SUPERPERFORMANCE_STUDIES),
+    ("superperformance_runs", _DDL_SUPERPERFORMANCE_RUNS),
+    ("superperformance_bases", _DDL_SUPERPERFORMANCE_BASES),
 ]
 
 
