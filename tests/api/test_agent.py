@@ -21,7 +21,7 @@ READ_TOOLS = {
     "run_status", "market_health", "setups", "screener", "stock", "fundamentals_table",
     "paper_ledger", "activity", "backtests", "spec", "notebook_search", "decision_log",
     "daily_brief", "score_history", "data_quality", "corporate_actions", "price_bars",
-    "scan_run", "backtest", "hypotheses", "candidates", "shadow_compare",
+    "scan_run", "backtest", "hypotheses", "candidates", "shadow_compare", "review_pack",
 }  # fmt: skip
 LAB_WRITES = {"register_hypothesis", "run_study", "run_backtest", "what_if_score",
               "conclude_hypothesis"}  # fmt: skip

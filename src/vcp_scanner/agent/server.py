@@ -835,6 +835,27 @@ def build_server(
                      "note": "no started candidate yet"})  # fmt: skip
 
     @tool
+    def review_pack() -> str:
+        """The April 2027 review pack (step A5; a preview before 2027-04-01): per paper strategy
+        the ledger's record, a replay of the frozen rules to the same day (portfolio return,
+        max drawdown, the equal-weight universe index, and whether the stored ledger agrees
+        with the replay), the five criteria of STRATEGY_SPECIFICATION 21.6 and the verdict;
+        the candidates' shadow results; every hypothesis of this cycle; the F7 finding; open
+        questions; the decisions the owner makes. Read-only. To record a point for the review,
+        add_note it (kind question or finding). `vcp report review` writes the same as HTML."""
+        from datetime import datetime as _dt
+
+        from vcp_scanner.data.providers._time import IST
+        from vcp_scanner.reporting.review import build_pack
+
+        pack = build_pack(Path(data_dir) / "serving" / "vcp_serving.duckdb", config_dir,
+                          store.path, _dt.now(IST).date())  # fmt: skip
+        for s in pack["strategies"]:
+            if s.get("replay"):
+                s["replay"] = {k: v for k, v in s["replay"].items() if k != "equity"}
+        return _dump(_compact(pack, 60))
+
+    @tool
     def proposals(status: str | None = None, limit: int = 30) -> str:
         """Proposals and the owner's decisions (status PENDING, APPROVED, REJECTED, APPLIED,
         FAILED), with the owner's comments: read a rejection's reason before proposing again.

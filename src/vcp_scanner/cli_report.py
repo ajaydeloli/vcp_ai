@@ -22,19 +22,42 @@ def add_report_parser(subparsers: argparse._SubParsersAction) -> None:  # type: 
         s.add_argument("--serving", default=None, help="Serving copy (default: next to --db)")
         s.add_argument("--config-dir", default="config")
         s.add_argument("--out-dir", default=None, help="Default: <project>/reports")
+    r = sub.add_parser("review", help="Write reports/review/<date>.html (+ .json): the April 2027 "
+                       "review pack (a preview before then)")  # fmt: skip
+    r.add_argument(
+        "--date",
+        default=None,
+        metavar="YYYY-MM-DD",
+        help="The pack's day (default: today); data are the latest stored",
+    )
+    r.add_argument("--db", default="data/vcp_scanner.duckdb")
+    r.add_argument("--serving", default=None, help="Serving copy (default: next to --db)")
+    r.add_argument("--config-dir", default="config")
+    r.add_argument("--out-dir", default=None, help="Default: <project>/reports")
 
 
 def run_report(args: argparse.Namespace) -> int:
     from vcp_scanner.reporting.build import write_daily, write_weekly
 
     cmd = getattr(args, "report_command", None)
-    if cmd not in ("daily", "weekly"):
-        _err("Usage: vcp report {daily,weekly} [--date YYYY-MM-DD]")
+    if cmd not in ("daily", "weekly", "review"):
+        _err("Usage: vcp report {daily,weekly,review} [--date YYYY-MM-DD]")
         return 1
     db = Path(args.db).resolve()
     serving = Path(args.serving) if args.serving else default_serving_path(str(db))
     out = Path(args.out_dir) if args.out_dir else db.parent.parent / "reports"
     day = date.fromisoformat(args.date) if args.date else None
+    if cmd == "review":
+        from vcp_scanner.reporting.review import write_review
+
+        try:
+            path = write_review(Path(serving), args.config_dir,
+                                db.parent / "agent" / "agent.duckdb", out, day)  # fmt: skip
+        except Exception as exc:
+            _err(f"Review pack not written: {exc}")
+            return 1
+        print(f"Review pack written: {path} (and {path.with_suffix('.json').name})")
+        return 0
     try:
         write = write_daily if cmd == "daily" else write_weekly
         path = write(Path(serving), args.config_dir, db.parent, out, day)

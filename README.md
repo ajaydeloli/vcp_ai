@@ -25,8 +25,8 @@ API and the frontend are built; the strategies are frozen.
 - **Alerts:** Telegram evening summary and intraday pivot alerts (`vcp alerts`), monitoring only.
 - **AI agent:** an MCP server for Claude Code (`vcp agent`, AGENT_SPECIFICATION): read tools,
   a research lab with pre-registration, proposals the owner approves in a terminal, and
-  strategy candidates that run in a shadow paper ledger beside the frozen strategies (steps
-  A1-A4). Step A5, the April 2027 review pack, is next.
+  strategy candidates that run in a shadow paper ledger beside the frozen strategies, and the
+  April 2027 review pack (`vcp report review`; steps A1-A5).
 - **Reports:** `vcp report daily|weekly` and the daily run write `reports/daily/<date>.html`
   and, on Fridays, `reports/weekly/<ISO week>.html` (monitoring step M4).
 - **Not built:** a Settings page; portfolio return and drawdown in the reports (judged at the

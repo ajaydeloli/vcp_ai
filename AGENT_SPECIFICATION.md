@@ -99,7 +99,7 @@ Local only at first: a stdio MCP server started by Claude Desktop or Claude Code
 | A2 | Tier 1 research tools with pre-registration and window checks; hypothesis and result reports (**done 2026-10-19**: `register_hypothesis`, `hypotheses`, `run_study`, `run_backtest`, `conclude_hypothesis`; 25 tools). A2b `what_if_score` (**done 2026-10-20**; 26 tools) | 3–4 days |
 | A3 | Tier 2 proposals, dashboard Proposals page, `vcp agent approve/reject`, apply for data fixes, sectors and watchlist (**done 2026-10-21**: proposal tools, `vcp agent proposals/approve/reject`, apply; the dashboard's AI Agent page) | 3–4 days |
 | A4 | Strategy candidates: branch build, checks, shadow paper ledger, weekly shadow comparison; a scan diff for every candidate branch (the same stored days scanned with the frozen and the candidate code into research tables: setups added, dropped and re-scored, per strategy), so a change shows its effect on scanner results before approval (**done 2026-10-26**: `propose_candidate`, `candidates`, `shadow_compare`; 34 tools; owner choices: settings and paper rules only, candidate scans in the main database under their own hash, scan diff from 2026-10-01; see §7) | 4–6 days |
-| A5 | Review pack for April 2027 | 1–2 days |
+| A5 | Review pack for April 2027 (**done 2026-10-26**: `vcp report review`, the agent tool `review_pack` (35 tools), written with every weekly summary from 2027-04-01; STRATEGY_SPECIFICATION §21.11) | 1–2 days |
 
 ---
 

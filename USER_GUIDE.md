@@ -555,6 +555,7 @@ done
 | Command | What it does |
 |---|---|
 | `vcp report daily [--date D]` | Write `reports/daily/<date>.html`. |
+| `vcp report review [--date D]` | Write `reports/review/<date>.html` (and `.json`): the April 2027 review pack, a preview before then. Per strategy the paper record, the portfolio return and drawdown against the equal-weight universe index (a replay of the frozen rules), whether the ledger agrees with that replay, the five criteria and the verdict; then the candidates' shadow results, the research done, the fundamentals finding, open questions and the decisions for you. From 2027-04-01 the daily run writes it with each weekly summary. |
 | `vcp report weekly [--date D]` | Write `reports/weekly/<ISO week>.html`. |
 
 ### 8.9 `vcp health` (Market Health Score)

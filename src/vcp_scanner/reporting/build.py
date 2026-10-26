@@ -438,6 +438,7 @@ def write_reports(
         known = None
     if week_is_over(latest, known):
         paths.append(write_weekly(serving, config_dir, data_dir, out_dir, latest))
+        paths += _review_pack(serving, config_dir, data_dir, out_dir, latest)
         return paths
     before = week_bounds(latest)[0] - timedelta(days=1)
     missing = out_dir / "weekly" / f"{week_bounds(before)[2]}.html"
@@ -446,6 +447,25 @@ def write_reports(
     if had_sessions and not missing.exists():
         paths.append(write_weekly(serving, config_dir, data_dir, out_dir, before))
     return paths
+
+
+def _review_pack(serving: Source, config_dir: str | Path, data_dir: str | Path,
+                 out_dir: Path, latest: date) -> list[Path]:  # fmt: skip
+    """From the review date on (STRATEGY_SPECIFICATION 21.6: the first weekly summary on or after
+    2027-04-01), each weekly summary comes with the review pack (AGENT_SPECIFICATION A5). A
+    failure is printed; the weekly summary stays written."""
+    from vcp_scanner.api.reports import REVIEW_FROM
+    from vcp_scanner.reporting.review import write_review
+
+    if latest < REVIEW_FROM:
+        return []
+    path = serving.path if isinstance(serving, ServingDb) else Path(serving)
+    try:
+        return [write_review(path, str(config_dir), Path(data_dir) / "agent" / "agent.duckdb",
+                             out_dir, latest)]  # fmt: skip
+    except Exception as exc:
+        print(f"WARNING: review pack not written: {exc}")
+        return []
 
 
 __all__: list[Any] = [
