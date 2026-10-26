@@ -30,7 +30,11 @@ function ShadowTable({ c }: { c: AgentCandidate }) {
   if (!s) {
     return (
       <p className="text-xs text-mute">
-        {c.shadow_error ? `Shadow comparison unavailable: ${c.shadow_error}` : c.status === "active" ? "No shadow trades yet." : "Not started: only an approved candidate runs in the shadow ledger."}
+        {c.shadow_error
+          ? `Shadow comparison unavailable: ${c.shadow_error}`
+          : c.status === "active"
+            ? "No shadow trades yet."
+            : "Not started: only an approved candidate runs in the shadow ledger."}
       </p>
     );
   }

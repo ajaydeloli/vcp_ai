@@ -53,7 +53,11 @@ describe("Strategy candidates (agent step A4)", () => {
     expect(within(card).queryByRole("table", { name: /Scan diff/ })).toBeNull();
     fireEvent.click(within(card).getByRole("button", { name: "Show setups" }));
     const table = within(card).getByRole("table", { name: "Scan diff of flat_base-c1" });
-    expect(within(table).getAllByRole("row").map((r) => r.textContent)).toEqual([
+    expect(
+      within(table)
+        .getAllByRole("row")
+        .map((r) => r.textContent),
+    ).toEqual([
       "DayStockChangeFrozenCandidate",
       expect.stringMatching(/ALPHA.*Dropped.*flat base 70\.0/),
       expect.stringMatching(/BETA.*Reclassified.*tight flat base 60\.0.*flat base 58\.5/),
@@ -71,7 +75,9 @@ describe("Strategy candidates (agent step A4)", () => {
   it("compares an active candidate's shadow ledger with the frozen one and says what is missing", () => {
     renderApp(<AgentCandidates items={[ACTIVE]} minTrades={30} minMonths={3} />);
     const t = screen.getByRole("table", { name: "Shadow ledger of vcp-c1" });
-    const rows = within(t).getAllByRole("row").map((r) => r.textContent ?? "");
+    const rows = within(t)
+      .getAllByRole("row")
+      .map((r) => r.textContent ?? "");
     expect(rows[1]).toMatch(/^Frozen61/);
     expect(rows[2]).toMatch(/^Candidate71/);
     expect(screen.getByText(/Candidate minus frozen: \+0\.90% per trade \(95% range -3\.10% to \+4\.90%\)/)).toBeInTheDocument();
