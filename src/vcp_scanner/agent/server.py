@@ -112,6 +112,7 @@ def _dump(obj: Any) -> str:
 def build_server(
     config_dir: str = "config", data_dir: str = "data", agent_db: str | Path | None = None,
     repo_root: str | Path = ".", client: Any = None,
+    launcher: Callable[[int], None] | None = None,
 ) -> Any:  # fmt: skip
     from mcp.server.fastmcp import FastMCP
 
@@ -641,7 +642,25 @@ def build_server(
 
     from vcp_scanner.agent.proposals import Proposals
 
-    props = Proposals(store, root, config_dir)
+    def _launch_build(pid: int) -> None:
+        """A candidate's build runs on its own (it scans a backup copy for minutes): a detached
+        `vcp agent candidate-build` with its log in data/agent/candidates/."""
+        import subprocess
+        import sys
+
+        log_dir = Path(data_dir) / "agent" / "candidates"
+        log_dir.mkdir(parents=True, exist_ok=True)
+        exe = Path(sys.executable).parent / "vcp"
+        main_db = str(Path(data_dir) / "vcp_scanner.duckdb")
+        with (log_dir / f"build-P{pid}.log").open("a", encoding="utf-8") as log:
+            subprocess.Popen(
+                [str(exe) if exe.exists() else "vcp", "agent", "candidate-build", str(pid),
+                 "--config-dir", config_dir, "--main-db", main_db, "--db", str(store.path)],
+                cwd=root, stdout=log, stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL,
+                start_new_session=True,
+            )  # fmt: skip
+
+    props = Proposals(store, root, config_dir, launcher or _launch_build)
 
     def _pdict(p: Any) -> dict[str, Any]:
         return {"proposal_id": p.proposal_id, "kind": p.kind, "status": p.status,
@@ -651,7 +670,9 @@ def build_server(
 
     def _proposed(p: Any) -> str:
         nxt = ("applied (pre-approved kind)" if p.status in ("APPLIED", "FAILED") else
-               f"waiting for the owner: `vcp agent approve {p.proposal_id}` or `vcp agent "
+               "building in the background (branch, checks, scan diff on a backup copy; "
+               "minutes): read it with `candidates` or `proposals`" if p.status == "BUILDING"
+               else f"waiting for the owner: `vcp agent approve {p.proposal_id}` or `vcp agent "
                f"reject {p.proposal_id} \"reason\"` in their own terminal")  # fmt: skip
         return _dump({**_pdict(p), "next": nxt})
 
@@ -709,6 +730,109 @@ def build_server(
         return _proposed(props.create("watchlist", title[:200],
                                       {"add": add or [], "remove": remove or []}, rationale,
                                       rationale))  # fmt: skip
+
+    @tool
+    def propose_candidate(strategy_id: str, hypothesis_id: int, overrides: list[dict[str, Any]],
+                          old: str, new: str, why: str, evidence: str) -> str:  # fmt: skip
+        """Propose a strategy candidate (step A4): ONE idea for ONE frozen strategy, as setting
+        changes, never code. overrides: up to 5 of {"file", "path", "new"}, e.g. {"file":
+        "strategies/flat_base.yaml", "path": "classification.flat_base.max_depth_pct", "new":
+        12}. Allowed: the strategy's own file (not strategy_id/algorithm_version/enabled/stage);
+        for VCP strategy.yaml vcp.* / classification.* and scoring.yaml components.vcp.*; for any
+        strategy backtest.yaml defaults.entry / defaults.regime / defaults.rule (paper rules).
+        hypothesis_id: a registered hypothesis of this strategy. old/new/why/evidence: the spec
+        text (evidence: run ids and numbers; development data generates ideas only, validation
+        is a sanity check, only the shadow ledger can promote). A background build then makes
+        branch candidate/<id>, checks it and runs the scan diff (stored days since 2026-10-01,
+        on a backup copy). The owner approves in a terminal; the daily run then shadows it.
+        Promotion needs 30 shadow trades and 3 months, and is the owner's at the review."""
+        payload = {"strategy_id": strategy_id, "hypothesis_id": hypothesis_id,
+                   "overrides": overrides,
+                   "spec": {"old": old, "new": new, "why": why, "evidence": evidence}}  # fmt: skip
+        changes = "; ".join(f"{o.get('path')}={o.get('new')!r}" for o in overrides)[:150]
+        return _proposed(props.create("candidate", f"Candidate {strategy_id}: {changes}", payload,
+                                      why, evidence))  # fmt: skip
+
+    @tool
+    def candidates(candidate_id: str | None = None, diff_rows: int = 25) -> str:
+        """Strategy candidates: proposals being built or waiting, those on main (active or
+        retired) with their changes, the scan diff (setups ADDED / DROPPED / RECLASSIFIED /
+        RESCORED against the frozen scan on the same days) and, once started, the shadow
+        comparison. ``candidate_id`` shows one with its diff rows."""
+        from datetime import datetime as _dt
+
+        import duckdb as _duckdb
+
+        from vcp_scanner.agent import candidate_build as cb
+        from vcp_scanner.agent import shadow as sh
+        from vcp_scanner.agent.candidates import load_candidates
+        from vcp_scanner.data.providers._time import IST
+
+        on_main = {c.candidate_id: c.as_dict() for c in load_candidates(config_dir)}
+        building = [_pdict(p) for p in props.find(limit=200) if p.kind == "candidate"]
+        cb.migrate(store.path)
+        con = _duckdb.connect(str(store.path), read_only=True)
+        try:
+            rows = con.execute(
+                "SELECT candidate_id, change, as_of_date, symbol, frozen_class, candidate_class,"
+                " frozen_score, candidate_score FROM candidate_scan_diff"
+                " WHERE candidate_id = coalesce(?, candidate_id)"
+                " ORDER BY as_of_date DESC, change, symbol LIMIT ?",
+                [candidate_id, max(0, min(diff_rows, 200))],
+            ).fetchall()
+        finally:
+            con.close()
+        compared: list[dict[str, Any]] = []
+        main_db = Path(data_dir) / "serving" / "vcp_serving.duckdb"
+        if main_db.exists():
+            con = _duckdb.connect(str(main_db), read_only=True)
+            try:
+                compared = sh.comparisons(con, config_dir, _dt.now(IST).date())
+            except _duckdb.CatalogException:  # serving copy older than the shadow table
+                compared = []
+            finally:
+                con.close()
+        keys = ("candidate_id", "change", "date", "symbol", "frozen_class", "candidate_class",
+                "frozen_score", "candidate_score")  # fmt: skip
+        out = {
+            "proposals": building,
+            "on_main": on_main,
+            "shadow": compared,
+            "scan_diff_rows": [dict(zip(keys, r, strict=True)) for r in rows],
+            "rules": "promotion needs >= 30 shadow trades and 3 months (owner, 2026-10-19)",
+        }
+        if candidate_id:
+            out["proposals"] = [
+                p for p in building if p["change"].get("candidate_id") == candidate_id
+            ]
+            out["on_main"] = {k: v for k, v in on_main.items() if k == candidate_id}
+            out["shadow"] = [c for c in compared if c.get("candidate_id") == candidate_id]
+        return _dump(_compact(out, 60))
+
+    @tool
+    def shadow_compare() -> str:
+        """Frozen paper ledger against each started candidate's shadow ledger on the same days
+        (trades entered since the candidate's start): closed and open trades, win rate, average
+        and total return, profit factor, drawdown, the difference in mean return with its 95 %
+        range once both sides have 5 trades, and what is still needed to judge (30 trades,
+        3 months). Read the range: a lone good number on few trades is noise."""
+        from datetime import datetime as _dt
+
+        import duckdb as _duckdb
+
+        from vcp_scanner.agent import shadow as sh
+        from vcp_scanner.data.providers._time import IST
+
+        main_db = Path(data_dir) / "serving" / "vcp_serving.duckdb"
+        con = _duckdb.connect(str(main_db), read_only=True)
+        try:
+            rows = sh.comparisons(con, config_dir, _dt.now(IST).date())
+        except _duckdb.CatalogException:
+            rows = []
+        finally:
+            con.close()
+        return _dump({"candidates": rows} if rows else {"candidates": [],
+                     "note": "no started candidate yet"})  # fmt: skip
 
     @tool
     def proposals(status: str | None = None, limit: int = 30) -> str:

@@ -9,11 +9,14 @@ import { useAgent } from "@/lib/api";
 import { fmtDay, fmtStamp } from "@/lib/fmt";
 import type { AgentHypothesis, AgentProposal } from "@/lib/schemas";
 import { Page } from "./Page";
+import { AgentCandidates } from "./AgentCandidates";
 import { Pipeline, ReviewCycle, StudyChart, WhatIfCharts } from "./AgentResearch";
 import { Card, Empty, ErrorBox, Loading } from "./ui";
 
 const STATUS_STYLE: Record<string, string> = {
   PENDING: "bg-warn/20 text-warn",
+  BUILDING: "bg-accent/20 text-accent",
+  BUILD_FAILED: "bg-down/20 text-down",
   APPLIED: "bg-up/20 text-up",
   APPROVED: "bg-up/20 text-up",
   REJECTED: "bg-down/20 text-down",
@@ -48,6 +51,14 @@ function Command({ text, label }: { text: string; label: string }) {
   );
 }
 
+/** A candidate's change in words (its payload also carries the checks and the scan diff). */
+function changeText(p: AgentProposal): string {
+  const c = p.change as { overrides?: { path: string; old: unknown; new: unknown }[]; candidate_id?: string } | null;
+  if (p.kind !== "candidate" || !c?.overrides) return JSON.stringify(p.change);
+  const parts = c.overrides.map((o) => `${o.path}: ${JSON.stringify(o.old)} → ${JSON.stringify(o.new)}`);
+  return `${c.candidate_id ?? ""} ${parts.join("; ")}`.trim();
+}
+
 function ProposalCard({ p }: { p: AgentProposal }) {
   return (
     <li className="rounded-lg border border-line bg-panel2/40 p-3" aria-label={`Proposal ${p.proposal_id}`}>
@@ -60,7 +71,7 @@ function ProposalCard({ p }: { p: AgentProposal }) {
       <p className="mt-1 text-sm text-ink">{p.title}</p>
       <dl className="mt-2 grid grid-cols-[6rem_1fr] gap-x-2 gap-y-1 text-xs">
         <dt className="text-mute">Change</dt>
-        <dd className="break-all font-mono text-[11px] text-ink">{JSON.stringify(p.change)}</dd>
+        <dd className="break-all font-mono text-[11px] text-ink">{changeText(p)}</dd>
         <dt className="text-mute">Why</dt>
         <dd className="text-ink">{p.rationale}</dd>
         <dt className="text-mute">Evidence</dt>
@@ -141,7 +152,7 @@ export function AgentPage() {
   const q = useAgent();
   const [show, setShow] = useState<"open" | "all">("open");
   const d = q.data;
-  const proposals = (d?.proposals ?? []).filter((p) => show === "all" || p.status === "PENDING");
+  const proposals = (d?.proposals ?? []).filter((p) => show === "all" || p.status === "PENDING" || p.status === "BUILDING");
   return (
     <Page active="AI Agent" title="AI agent">
       {q.isLoading ? <Loading what="the agent" /> : null}
@@ -182,6 +193,9 @@ export function AgentPage() {
               </ul>
             )}
           </Card>
+          <div className="lg:col-span-2 lg:order-last">
+            <AgentCandidates items={d.candidates ?? []} minTrades={d.review?.promotion_min_trades ?? 30} minMonths={d.review?.promotion_min_months ?? 3} />
+          </div>
           <div className="space-y-4">
             <Card title="AI watchlist" subtitle="Pre-approved: the AI adds and removes symbols itself. Your own lists are on the Watchlist page.">
               {d.ai_watchlist.length === 0 ? (

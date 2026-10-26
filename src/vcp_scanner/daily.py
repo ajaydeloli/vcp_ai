@@ -117,6 +117,7 @@ def run_daily(args: argparse.Namespace, cli_main: Callable[[list[str]], int]) ->
     started = datetime.now(UTC)
     today = started.astimezone(IST).date()
     results: list[tuple[str, int]] = []
+    notes: list[str] = []  # reported in the summary without failing the run
 
     if not getattr(args, "no_backup", False):
         backup_dir = Path(getattr(args, "backup_dir", None) or default_backup_dir(db))
@@ -206,6 +207,17 @@ def run_daily(args: argparse.Namespace, cli_main: Callable[[list[str]], int]) ->
             step(f"{sid} forward labels", ["compute", "labels", "--strategy", sid, "--db", db,
                                            "--config-dir", cfg])  # fmt: skip
         step("paper ledger", ["paper", "update", "--db", db, "--config-dir", cfg])
+        # Strategy candidates' shadow ledger (AGENT_SPECIFICATION step A4): after the frozen
+        # ledger, never part of the run's result. A problem is noted, the run is not failed.
+        print(f"\n=== shadow ledger ({datetime.now(UTC).astimezone(IST):%H:%M} IST)")
+        try:
+            shadow_code = cli_main(["agent", "shadow", "update", "--main-db", db,
+                                    "--config-dir", cfg])  # fmt: skip
+        except Exception as exc:  # noqa: BLE001 - must never stop the frozen run
+            print(f"shadow ledger error: {exc}")
+            shadow_code = 1
+        if shadow_code != 0:
+            notes.append("shadow ledger: needs attention (vcp agent candidates)")
 
     # Fundamentals (FUNDAMENTALS_SPECIFICATION F4): display and research only. An unreachable
     # NSE is a warning inside the step (exit 0); only a real error fails it.
@@ -257,6 +269,7 @@ def run_daily(args: argparse.Namespace, cli_main: Callable[[list[str]], int]) ->
         f"{f' (NSE holiday {holiday})' if holiday else ''} | "
         f"scanned {', '.join(d.isoformat() for d in scan_dates) or 'nothing new'} | "
         f"surveillance lists collected: {', '.join(collected) or 'NONE'} | "
+        + "".join(f"{n} | " for n in notes)
         + (f"FAILED: {', '.join(failed)}" if failed else "all steps OK")
     )
     print("\n=== Daily run summary\n" + summary)

@@ -49,6 +49,29 @@ def add_agent_parser(subparsers: argparse._SubParsersAction) -> None:  # type: i
     rj.add_argument("comment")
     rj.add_argument("--by", default=None, help="Your name (default: git user.name)")
     rj.add_argument("--db", default=DEFAULT_AGENT_DB)
+    # Strategy candidates (step A4)
+    cl = sub.add_parser(
+        "candidates", help="Show strategy candidates, scan diffs and shadow results"
+    )
+    cl.add_argument("--config-dir", default="config")
+    cl.add_argument("--main-db", default="data/vcp_scanner.duckdb")
+    cl.add_argument("--db", default=DEFAULT_AGENT_DB)
+    cb = sub.add_parser("candidate-build", help="Build a candidate proposal (started by the AI's "
+                        "propose_candidate; runs in the background)")  # fmt: skip
+    cb.add_argument("proposal_id", type=int)
+    cb.add_argument("--config-dir", default="config")
+    cb.add_argument("--main-db", default="data/vcp_scanner.duckdb")
+    cb.add_argument("--db", default=DEFAULT_AGENT_DB)
+    sh = sub.add_parser("shadow", help="Shadow ledger of active candidates (the daily run)")
+    sh.add_argument("shadow_command", choices=("update", "compare"))
+    sh.add_argument("--config-dir", default="config")
+    sh.add_argument("--main-db", default="data/vcp_scanner.duckdb")
+    rt = sub.add_parser("retire", help="Stop shadowing a candidate (owner, interactive)")
+    rt.add_argument("candidate_id")
+    rt.add_argument("reason")
+    rt.add_argument("--by", default=None, help="Your name (default: git user.name)")
+    rt.add_argument("--config-dir", default="config")
+    rt.add_argument("--db", default=DEFAULT_AGENT_DB)
 
 
 def run_agent(args: argparse.Namespace) -> int:
@@ -61,10 +84,10 @@ def run_agent(args: argparse.Namespace) -> int:
         serve(args.config_dir, args.data_dir)
         return 0
     if cmd is None:
-        _err("Usage: vcp agent {serve,notes,audit,seed,note,hypotheses,proposals,approve,reject}"
-             " ...")  # fmt: skip
+        _err("Usage: vcp agent {serve,notes,audit,seed,note,hypotheses,proposals,approve,reject,"
+             "candidates,shadow,retire} ...")  # fmt: skip
         return 1
-    store = AgentStore(Path(args.db))
+    store = AgentStore(Path(getattr(args, "db", DEFAULT_AGENT_DB)))
     if cmd == "seed":
         from vcp_scanner.agent.seed import seed_notebook
 
@@ -106,6 +129,8 @@ def run_agent(args: argparse.Namespace) -> int:
         return 0
     if cmd in ("proposals", "approve", "reject"):
         return _proposals(cmd, args, store)
+    if cmd in ("candidates", "candidate-build", "shadow", "retire"):
+        return _candidates(cmd, args, store)
     _err(f"Unknown agent command: {cmd}")
     return 1
 
@@ -171,3 +196,85 @@ def _proposals(cmd: str, args: argparse.Namespace, store: object) -> int:
     except ProposalError as exc:
         _err(str(exc))
         return 1
+
+
+def _candidates(cmd: str, args: argparse.Namespace, store: object) -> int:  # noqa: C901
+    import sys
+    from datetime import datetime
+
+    from vcp_scanner.agent import candidate_build, shadow
+    from vcp_scanner.agent.candidates import load_candidates
+    from vcp_scanner.agent.store import AgentStore
+    from vcp_scanner.cli import main as cli_main
+    from vcp_scanner.data.providers._time import IST
+
+    assert isinstance(store, AgentStore)
+    root = Path.cwd()
+    today = datetime.now(IST).date()
+    if cmd == "shadow":
+        if args.shadow_command == "update":
+            results = shadow.update(args.main_db, args.config_dir, cli_main)
+            if not results:
+                print("Shadow ledger: no active candidates")
+            for r in results:
+                print(f"  {r.candidate_id:22} {'ok' if r.ok else 'FAILED'}: {r.text}")
+            return 0 if all(r.ok for r in results) else 1
+        import duckdb
+
+        conn = duckdb.connect(args.main_db, read_only=True)
+        try:
+            rows = shadow.comparisons(conn, args.config_dir, today)
+        finally:
+            conn.close()
+        print(json.dumps(rows, indent=2, default=str) if rows else "No started candidates")
+        return 0
+    if cmd == "candidate-build":
+        from vcp_scanner.agent.proposals import Proposals
+        from vcp_scanner.backup import default_backup_dir
+
+        props = Proposals(store, root, args.config_dir)
+        print(candidate_build.build(props, args.proposal_id, root, args.config_dir, cli_main,
+                                    default_backup_dir(args.main_db)))  # fmt: skip
+        return 0 if props.get(args.proposal_id).status == "PENDING" else 1
+    if cmd == "retire":
+        if not sys.stdin.isatty():
+            _err("`vcp agent retire` must be run by the owner in an interactive terminal")
+            return 1
+        typed = input(f"Type {args.candidate_id} to stop shadowing it: ").strip()
+        if typed != args.candidate_id:
+            print("Not confirmed; nothing changed.")
+            return 1
+        try:
+            by = _owner_name(args.by)
+            print(candidate_build.retire(root, args.config_dir, args.candidate_id, by,
+                                         args.reason, store.path))  # fmt: skip
+        except (ValueError, RuntimeError) as exc:
+            _err(str(exc))
+            return 1
+        store.add_note("decision", f"Candidate {args.candidate_id} retired: {args.reason}",
+                       tags="candidate", source="owner")  # fmt: skip
+        return 0
+    cands = load_candidates(args.config_dir)
+    if not cands:
+        print("No strategy candidates on main (proposals: `vcp agent proposals`)")
+        return 0
+    import duckdb
+
+    conn = duckdb.connect(args.main_db, read_only=True)
+    try:
+        compared = {c["candidate_id"]: c for c in shadow.comparisons(conn, args.config_dir, today)}
+    finally:
+        conn.close()
+    for c in cands:
+        print(f"{c.candidate_id} [{c.strategy_id}] {c.status} {c.candidate_version} "
+              f"(H{c.hypothesis_id}, P{c.proposal_id}) from {c.start_date or '-'}")  # fmt: skip
+        for o in c.overrides:
+            print(f"    {o.file} {o.path}: {o.old!r} -> {o.new!r}")
+        cmp = compared.get(c.candidate_id)
+        if cmp and cmp.get("started"):
+            f, s = cmp["frozen"], cmp["candidate"]
+            print(f"    frozen    : {f['closed']} closed, avg {f['avg_ret']}, open {f['open']}")
+            print(f"    candidate : {s['closed']} closed, avg {s['avg_ret']}, open {s['open']}")
+            print("    " + ("ready to judge" if cmp["ready_to_judge"]
+                            else "needs " + ", ".join(cmp["needs"])))  # fmt: skip
+    return 0

@@ -974,12 +974,12 @@ class BacktestDetailResponse(Stamped):
 class AgentProposal(BaseModel):
     proposal_id: int
     created_at: datetime
-    kind: str  # corporate_action | resolve_event | sector | watchlist
+    kind: str  # corporate_action | resolve_event | sector | watchlist | candidate
     title: str
     change: Any
     rationale: str
     evidence: str
-    status: str  # PENDING | APPROVED | REJECTED | APPLIED | FAILED
+    status: str  # BUILDING | BUILD_FAILED | PENDING | APPROVED | REJECTED | APPLIED | FAILED
     decided_by: str | None
     decided_at: datetime | None
     comment: str | None
@@ -1070,6 +1070,59 @@ class AgentNote(BaseModel):
     source: str
 
 
+class CandidateSide(BaseModel):
+    """One ledger over a candidate's days (agent/candidates.compare)."""
+
+    closed: int
+    open: int
+    win_rate: float | None
+    avg_ret: float | None
+    profit_factor: float | None
+    total_ret: float
+    max_drawdown: float
+
+
+class CandidateShadow(BaseModel):
+    start_date: date
+    days: int
+    frozen: CandidateSide
+    candidate: CandidateSide
+    avg_ret_diff: float | None  # candidate minus frozen, % per trade (5+ trades a side)
+    avg_ret_diff_lo: float | None  # 95 % range
+    avg_ret_diff_hi: float | None
+    ready_to_judge: bool  # 30 shadow trades and 3 months
+    needs: list[str]
+
+
+class CandidateDiffRow(BaseModel):
+    date: date
+    symbol: str
+    change: str  # ADDED | DROPPED | RECLASSIFIED | RESCORED
+    frozen_class: str | None
+    candidate_class: str | None
+    frozen_score: float | None
+    candidate_score: float | None
+
+
+class AgentCandidate(BaseModel):
+    """A strategy candidate (AGENT_SPECIFICATION step A4): its changes, the scan diff against
+    the frozen scan and, once started, the shadow ledger against the frozen ledger."""
+
+    candidate_id: str
+    strategy_id: str
+    base_version: str
+    candidate_version: str
+    status: str  # proposed | active | rejected | retired
+    proposal_id: int
+    hypothesis_id: int | None
+    start_date: date | None
+    changes: list[dict[str, Any]]  # file, path, old, new
+    scan_diff: dict[str, Any] | None  # days, changes per kind, stocks, frozen eligible
+    diff_rows: list[CandidateDiffRow]
+    shadow: CandidateShadow | None
+    shadow_error: str | None = None
+
+
 class AgentResponse(Stamped):
     available: bool
     reason: str | None
@@ -1080,6 +1133,7 @@ class AgentResponse(Stamped):
     hypotheses: list[AgentHypothesis]
     notes: list[AgentNote]
     review: AgentReview | None = None
+    candidates: list[AgentCandidate] = []
 
 
 # --- the alerts page (2026-10-21) ---------------------------------------------------------

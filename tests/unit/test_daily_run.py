@@ -82,7 +82,8 @@ def test_run_daily_chains_the_steps_from_the_last_settled_day(tmp_path: Path) ->
     # sector lists are read on Fridays only (the run's own date decides)
     friday = ["classify update"] if datetime.now(IST).date().weekday() == 4 else []
     assert names[7:] == (per_date + ["compute labels"] * 5
-                         + ["paper update", "fundamentals update", "shareholding update"]
+                         + ["paper update", "agent shadow", "fundamentals update",
+                            "shareholding update"]
                          + friday)  # fmt: skip
     assert all("2026-09-25" in a for a in calls[7 : 7 + len(per_date)])
     # Monitoring phase (spec 21.2): every enabled strategy after VCP, labels per strategy.
@@ -130,3 +131,20 @@ def test_a_bad_strategy_file_fails_the_run_but_vcp_still_runs(tmp_path: Path) ->
     assert ["compute", "vcp"] in [a[:2] for a in calls]
     assert not any("--strategy" in a for a in calls)
     assert "FAILED: strategy config" in (tmp_path / "logs" / "daily_runs.log").read_text()
+
+
+def test_a_shadow_ledger_problem_is_noted_but_never_fails_the_run(tmp_path: Path) -> None:
+    db = _db(tmp_path, [date(2026, 9, 24), date(2026, 9, 25)], scanned=date(2026, 9, 24))
+
+    def fake_main(argv: list[str]) -> int:
+        if argv[:2] == ["agent", "shadow"]:
+            raise RuntimeError("candidate config broken")
+        return 0
+
+    args = argparse.Namespace(
+        db=db, config_dir="config", env_file=".env", history_start="2021-01-01"
+    )
+    assert run_daily(args, fake_main) == 0
+    log = (tmp_path / "logs" / "daily_runs.log").read_text()
+    assert "shadow ledger: needs attention" in log and "all steps OK" in log
+    assert "FAILED" not in log

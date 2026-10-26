@@ -453,6 +453,7 @@ def write_agent_db(data_dir: Path) -> Path:
     """The agent's own file with fixed rows (fixed times: the API sample must not change): one
     pending and one applied proposal, an AI watchlist entry, a concluded hypothesis with a run,
     and two notebook entries."""
+    from json import dumps as _json_dumps
     from pathlib import Path as _P
 
     from vcp_scanner.agent.lab import Lab
@@ -492,6 +493,40 @@ def write_agent_db(data_dir: Path) -> Path:
             "INSERT INTO agent_runs VALUES (1, 1, 'what_if', 'development', DATE '2022-02-01',"
             " DATE '2024-06-30', '{}', ?, ?, TRUE, 'what-if vcp: IC -0.002 -> -0.003', NULL, NULL)",
             [T0, T0],
+        )
+        # A rejected strategy candidate (step A4) with two scan-diff rows.
+        cand = {"candidate_id": "flat_base-c1", "strategy_id": "flat_base",
+                "base_version": "flat_base-1.0.0", "candidate_version": "flat_base-1.0.0+c1",
+                "hypothesis_id": 1, "overrides": [{"file": "strategies/flat_base.yaml",
+                "path": "classification.flat_base.max_depth_pct", "old": 15, "new": 12}],
+                "spec": {"old": "15 %", "new": "12 %", "why": "shallower bases",
+                         "evidence": "run 1"}}  # fmt: skip
+        diff = {"days": 2, "first": "2026-10-01", "last": "2026-10-05", "frozen_eligible": 5,
+                "changes": {"ADDED": 0, "DROPPED": 1, "RECLASSIFIED": 1, "RESCORED": 0},
+                "stocks": 2}  # fmt: skip
+        con.execute(
+            "INSERT INTO agent_proposals VALUES (3, ?, 'candidate', 'Candidate flat_base:"
+            " classification.flat_base.max_depth_pct=12', ?, 'Shallower bases held better',"
+            " 'run 1 (development)', 'REJECTED', 'owner', ?, 'wait for more paper trades', NULL,"
+            " 'built and checked')",
+            [T0, _json_dumps({**cand, "scan_diff": diff}), T0],
+        )  # fmt: skip
+        from vcp_scanner.agent.candidate_build import migrate as _cand_migrate
+
+        con.close()
+        _cand_migrate(path)
+        con = _duckdb.connect(str(path))
+        con.execute(
+            "INSERT INTO strategy_candidates VALUES ('flat_base-c1', 3, 'flat_base',"
+            " 'flat_base-1.0.0', 'flat_base-1.0.0+c1', 'rejected', 'candidate/flat_base-c1',"
+            " 'abc123', 'fh', 'ch', NULL, ?, ?)",
+            [_json_dumps(diff), T0],
+        )
+        con.execute(
+            "INSERT INTO candidate_scan_diff VALUES ('flat_base-c1', DATE '2026-10-05', 'X|ALPHA',"
+            " 'ALPHA', 'DROPPED', 'FLAT_BASE', NULL, 70.0, NULL), ('flat_base-c1',"
+            " DATE '2026-10-01', 'X|BETA', 'BETA', 'RECLASSIFIED', 'TIGHT_FLAT_BASE',"
+            " 'FLAT_BASE', 60.0, 58.5)"
         )
         con.execute(
             "INSERT INTO agent_notes VALUES (1, ?, 'decision', 'Strategies frozen until April"

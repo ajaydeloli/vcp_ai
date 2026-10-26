@@ -10,7 +10,10 @@ proposal even though it can run commands. Applying uses the same paths the owner
 * ``resolve_event``: ``vcp quality resolve <event> --by <owner> --note ...``;
 * ``sector``: one entry appended to ``config/manual_sectors.yaml``, committed to git;
 * ``watchlist``: the AI watchlist in the agent's own database. Pre-approved by the owner
-  (2026-10-19): applied when proposed, still recorded and reversible.
+  (2026-10-19): applied when proposed, still recorded and reversible;
+* ``candidate`` (step A4): a strategy candidate. Created BUILDING; a background build
+  (``candidate_build.build``) makes the branch, checks it and runs the scan diff, then it is
+  PENDING (or BUILD_FAILED). Approval merges the branch locally and starts its shadow ledger.
 """
 
 from __future__ import annotations
@@ -18,7 +21,7 @@ from __future__ import annotations
 import json
 import subprocess
 import sys
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import UTC, date, datetime
@@ -29,9 +32,10 @@ import duckdb
 
 from vcp_scanner.agent.store import AgentStore
 
-KINDS = ("corporate_action", "resolve_event", "sector", "watchlist")
+KINDS = ("corporate_action", "resolve_event", "sector", "watchlist", "candidate")
 PRE_APPROVED = ("watchlist",)
-STATUSES = ("PENDING", "APPROVED", "REJECTED", "APPLIED", "FAILED")
+#: BUILDING and BUILD_FAILED: a strategy candidate's background build (step A4).
+STATUSES = ("BUILDING", "BUILD_FAILED", "PENDING", "APPROVED", "REJECTED", "APPLIED", "FAILED")
 MAX_TEXT = 2000
 
 _DDL = (
@@ -104,10 +108,16 @@ def _yaml_scalar(v: Any) -> str:
 
 
 class Proposals:
-    def __init__(self, store: AgentStore, repo_root: Path, config_dir: str = "config") -> None:
+    def __init__(self, store: AgentStore, repo_root: Path, config_dir: str = "config",
+                 launcher: Callable[[int], None] | None = None) -> None:  # fmt: skip
         self.store = store
         self.root = repo_root
         self.config_dir = Path(config_dir)
+        self.launcher = launcher  # starts a candidate's background build (the MCP server)
+
+    @property
+    def config_path(self) -> Path:
+        return self.config_dir if self.config_dir.is_absolute() else self.root / self.config_dir
 
     @contextmanager
     def _conn(self, read_only: bool = False) -> Iterator[duckdb.DuckDBPyConnection]:
@@ -173,7 +183,61 @@ class Proposals:
             if len(add) + len(remove) > 30:
                 raise ProposalError("watchlist: at most 30 symbols per proposal")
             return {"add": add, "remove": remove}
+        if kind == "candidate":
+            return self._check_candidate(payload)
         raise ProposalError(f"kind must be one of {', '.join(KINDS)}")
+
+    def _check_candidate(self, payload: dict[str, Any]) -> dict[str, Any]:
+        from vcp_scanner.agent import candidates as C
+        from vcp_scanner.patterns.registry import load_runtime
+
+        sid = str(payload.get("strategy_id", "")).strip()
+        try:
+            rt = load_runtime(str(self.config_path), sid)
+        except Exception as exc:
+            raise ProposalError(f"strategy_id {sid!r}: {exc}") from exc
+        try:
+            raw = [{"file": o.get("file"), "path": o.get("path"), "new": o.get("new")}
+                   for o in payload.get("overrides", [])]  # fmt: skip
+            overrides = C.validate_overrides(self.config_path, sid, raw)
+        except (C.CandidateError, AttributeError) as exc:
+            raise ProposalError(f"candidate: {exc}") from exc
+        try:
+            hid = int(payload.get("hypothesis_id"))  # type: ignore[arg-type]
+        except (TypeError, ValueError):
+            msg = "hypothesis_id is required: register the hypothesis first (§4.1)"
+            raise ProposalError(msg) from None
+        with self._conn(read_only=True) as c:
+            try:
+                row = c.execute("SELECT strategy FROM agent_hypotheses WHERE hypothesis_id = ?",
+                                [hid]).fetchone()  # fmt: skip
+            except duckdb.CatalogException:
+                row = None
+            taken = [
+                json.loads(r[0]).get("candidate_id")
+                for r in c.execute(
+                    "SELECT payload_json FROM agent_proposals WHERE kind = 'candidate'"
+                ).fetchall()
+            ]
+        if row is None:
+            raise ProposalError(f"no hypothesis H{hid}: register it first")
+        if str(row[0]) != sid:
+            raise ProposalError(f"H{hid} is about {row[0]}, not {sid}")
+        spec = payload.get("spec") or {}
+        clean_spec = {k: _text(f"spec.{k}", str(spec.get(k, "")), 10)
+                      for k in ("old", "new", "why", "evidence")}  # fmt: skip
+        cid = str(payload.get("candidate_id") or C.next_candidate_id(
+            self.config_path, sid, [t for t in taken if t]))  # fmt: skip
+        if not C.valid_id(cid) or not cid.startswith(f"{sid}-c"):
+            raise ProposalError(f"candidate_id {cid!r} must look like {sid}-c1")
+        out = {"candidate_id": cid, "strategy_id": sid, "base_version": rt.algorithm_version,
+               "candidate_version": f"{rt.algorithm_version}+{cid.rsplit('-', 1)[1]}",
+               "hypothesis_id": hid, "overrides": [o.as_dict() for o in overrides],
+               "spec": clean_spec}  # fmt: skip
+        for key in ("branch", "commit", "checks", "scan_diff"):  # set by the build
+            if key in payload:
+                out[key] = payload[key]
+        return out
 
     # --- create and read -------------------------------------------------------------------
 
@@ -184,9 +248,10 @@ class Proposals:
         with self._conn() as c:
             row = c.execute(
                 "INSERT INTO agent_proposals (created_at, kind, title, payload_json, rationale,"
-                " evidence, status) VALUES (?, ?, ?, ?, ?, ?, 'PENDING') RETURNING proposal_id",
+                " evidence, status) VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING proposal_id",
                 [datetime.now(UTC), kind, _text("title", title), json.dumps(clean, default=str),
-                 _text("rationale", rationale, 10), _text("evidence", evidence, 10)],
+                 _text("rationale", rationale, 10), _text("evidence", evidence, 10),
+                 "BUILDING" if kind == "candidate" else "PENDING"],
             ).fetchone()  # fmt: skip
         assert row is not None
         pid = int(row[0])
@@ -195,7 +260,24 @@ class Proposals:
         if kind in PRE_APPROVED:
             self._decide(pid, "APPROVED", "pre-approved (owner decision 2026-10-19)", None)
             self.apply(pid)
+        if kind == "candidate" and self.launcher is not None:
+            self.launcher(pid)
         return self.get(pid)
+
+    def set_build(self, proposal_id: int, ok: bool, payload: dict[str, Any], result: str) -> None:
+        """A candidate's build finished: PENDING (ready for the owner) or BUILD_FAILED."""
+        with self._conn() as c:
+            c.execute(
+                "UPDATE agent_proposals SET status = ?, payload_json = ?, apply_result = ?"
+                " WHERE proposal_id = ? AND status = 'BUILDING'",
+                ["PENDING" if ok else "BUILD_FAILED", json.dumps(payload, default=str),
+                 result[:MAX_TEXT], proposal_id],
+            )  # fmt: skip
+        self.store.add_note("finding" if ok else "note",
+                            f"P{proposal_id} candidate {payload.get('candidate_id')}: {result}"
+                            + (f"; scan diff {payload.get('scan_diff', {}).get('changes')}"
+                               if ok else ""),
+                            tags=f"p{proposal_id},proposal,candidate")  # fmt: skip
 
     def get(self, proposal_id: int) -> Proposal:
         found = self.find(proposal_id=proposal_id)
@@ -258,6 +340,10 @@ class Proposals:
             raise ProposalError(f"P{proposal_id} is {p.status}, not PENDING")
         comment = _text("comment (why it is rejected: the AI reads it)", comment, 3)
         self._decide(proposal_id, "REJECTED", _text("approver", by), comment)
+        if p.kind == "candidate":
+            from vcp_scanner.agent import candidate_build
+
+            candidate_build.reject(self, p, self.root)
         self.store.add_note("decision", f"P{proposal_id} rejected by {by}: {p.title}. "
                             f"Reason: {comment}", tags=f"p{proposal_id},proposal",
                             source="owner")  # fmt: skip
@@ -294,6 +380,11 @@ class Proposals:
         if add.returncode or done.returncode:
             return f"written; not committed ({(done.stderr or add.stderr).strip()[:200]})"
         return "committed to git (not pushed)"
+
+    def _apply_candidate(self, p: Proposal, payload: dict[str, Any]) -> str:
+        from vcp_scanner.agent import candidate_build
+
+        return candidate_build.apply(self, p, self.root, str(self.config_dir), _today())
 
     def _apply_corporate_action(self, p: Proposal, payload: dict[str, Any]) -> str:
         path = self.config_dir / "manual_corporate_actions.yaml"

@@ -476,7 +476,8 @@ def create_app(
     @app.get(f"{api}/agent", response_model=m.AgentResponse)
     def agent_page() -> m.AgentResponse:
         """The AI's proposals, watchlist, research lab and recent notebook (read-only)."""
-        return agent.agent_state(data / "agent" / "agent.duckdb", clock().astimezone(IST).date())
+        return agent.agent_state(data / "agent" / "agent.duckdb", clock().astimezone(IST).date(),
+                                 config_dir, db)  # fmt: skip
 
     @app.get(f"{api}/reports", response_model=m.ReportsResponse)
     def report_list() -> m.ReportsResponse:

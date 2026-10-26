@@ -271,6 +271,9 @@ def weekly_html(
         )
     )
     sections.append("<h2>Open paper positions</h2>" + paper_tables(paper))
+    shadow = shadow_section(cur, ctx, day)
+    if shadow:
+        sections.append(shadow)
 
     issues = [
         e for e in events
@@ -284,6 +287,46 @@ def weekly_html(
         + "</ul>"
     )
     return page(f"Weekly summary {label}", sections, now)
+
+
+def shadow_section(cur: duckdb.DuckDBPyConnection, ctx: Context, day: date) -> str:
+    """The weekly shadow comparison (AGENT_SPECIFICATION step A4): each started candidate
+    against its frozen strategy on the same days. Empty when no candidate has started."""
+    from vcp_scanner.agent.shadow import comparisons
+
+    try:
+        rows = comparisons(cur, str(ctx.config_dir), day)
+    except Exception as exc:  # a broken candidate must not stop the report
+        return f'<h2>Strategy candidates (shadow ledger)</h2><p class="warn">{esc(exc)}</p>'
+    started = [c for c in rows if c.get("started") or c.get("error")]
+    if not started:
+        return ""
+    body = []
+    for c in started:
+        if c.get("error"):
+            body.append([esc(c["candidate_id"]), esc(c.get("status")), NA, NA, NA,
+                         esc(c["error"])])  # fmt: skip
+            continue
+        f, k = c["frozen"], c["candidate"]
+        diff = (NA if c["avg_ret_diff"] is None else
+                f"{c['avg_ret_diff']:+.2f} pp ({c['avg_ret_diff_lo']:+.2f} to "
+                f"{c['avg_ret_diff_hi']:+.2f})")  # fmt: skip
+        body.append([
+            f"{esc(c['candidate_id'])} ({esc(c['status'])}, from {c['start_date']})",
+            f"{f['closed']} / {num(f['avg_ret'], 2, ' %')}",
+            f"{k['closed']} / {num(k['avg_ret'], 2, ' %')}",
+            f"{num(f['max_drawdown'], 1)} / {num(k['max_drawdown'], 1)}",
+            diff,
+            "enough to judge" if c["ready_to_judge"] else esc("needs " + ", ".join(c["needs"])),
+        ])  # fmt: skip
+    return (
+        "<h2>Strategy candidates (shadow ledger)</h2>"
+        + table(["Candidate", "Frozen: closed / avg", "Candidate: closed / avg",
+                 "Max DD frozen / candidate", "Avg difference (95 % range)", "Judge"], body)
+        + "<p class='muted'>Trades entered since each candidate's start, both ledgers on the "
+        "same days. Promotion needs 30 shadow trades and 3 months, and is the owner's at the "
+        "review.</p>"
+    )  # fmt: skip
 
 
 # --- writing -----------------------------------------------------------------------------

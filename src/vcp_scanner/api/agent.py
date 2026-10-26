@@ -30,8 +30,14 @@ def _rows(con: Any, sql: str, args: list[Any] | None = None) -> list[tuple[Any, 
         return []
 
 
-def agent_state(path: Path, today: date | None = None) -> m.AgentResponse:
-    """``today`` = the app's clock (the review countdown); the real date when not given."""
+MAX_DIFF_ROWS = 40
+
+
+def agent_state(path: Path, today: date | None = None, config_dir: str | Path | None = None,
+                serving: Any = None) -> m.AgentResponse:  # fmt: skip
+    """``today`` = the app's clock (the review countdown); the real date when not given.
+    ``config_dir`` and ``serving`` (the serving copy, ``ServingDb``) add the strategy
+    candidates' shadow comparison (step A4)."""
     if not path.exists():
         return m.AgentResponse(
             as_of=None, data_time=datetime.now(IST), available=False,
@@ -105,13 +111,77 @@ def agent_state(path: Path, today: date | None = None) -> m.AgentResponse:
                 [MAX_NOTES],
             )  # fmt: skip
         ]
+        cands = _candidates(con, today or datetime.now(IST).date(), config_dir, serving)
     finally:
         con.close()
     return m.AgentResponse(
         as_of=None, data_time=datetime.fromtimestamp(path.stat().st_mtime, IST), available=True,
         reason=None, pending=sum(p.status == "PENDING" for p in proposals), proposals=proposals,
         ai_watchlist=watch, budget_left=budget, hypotheses=hyps, notes=notes, review=review(today),
+        candidates=cands,
     )  # fmt: skip
+
+
+def _candidates(con: Any, today: date, config_dir: str | Path | None,
+                serving: Any) -> list[m.AgentCandidate]:  # fmt: skip
+    """Built candidates (``strategy_candidates``) with their changes from the proposal, the
+    scan diff and, for one on main that has started, the shadow comparison."""
+    rows = _rows(con,
+        "SELECT c.candidate_id, c.strategy_id, c.base_version, c.candidate_version, c.status,"
+        " c.proposal_id, c.start_date, c.diff_json, p.payload_json FROM strategy_candidates c"
+        " LEFT JOIN agent_proposals p USING (proposal_id)"
+        " ORDER BY (c.status = 'active') DESC, c.updated_at DESC")  # fmt: skip
+    if not rows:
+        return []
+    diffs: dict[str, list[m.CandidateDiffRow]] = {}
+    for r in _rows(con,
+                   "SELECT candidate_id, as_of_date, symbol, change, frozen_class,"
+                   " candidate_class, frozen_score, candidate_score FROM ("
+                   " SELECT *, row_number() OVER (PARTITION BY candidate_id ORDER BY as_of_date"
+                   " DESC, change, symbol) AS n FROM candidate_scan_diff) WHERE n <= ?",
+                   [MAX_DIFF_ROWS]):  # fmt: skip
+        diffs.setdefault(str(r[0]), []).append(
+            m.CandidateDiffRow(
+                date=r[1],
+                symbol=str(r[2]),
+                change=str(r[3]),
+                frozen_class=r[4],
+                candidate_class=r[5],
+                frozen_score=_num(r[6]),
+                candidate_score=_num(r[7]),
+            )
+        )
+    on_main: dict[str, Any] = {}
+    if config_dir is not None:
+        from vcp_scanner.agent.candidates import load_candidates
+
+        try:
+            on_main = {c.candidate_id: c for c in load_candidates(config_dir)}
+        except Exception:  # a broken candidate file must not break the page
+            on_main = {}
+    out = []
+    for cid, sid, base, version, status, pid, start, diff_json, payload_json in rows:
+        payload = _load(payload_json) or {}
+        shadow, error = None, None
+        cand = on_main.get(str(cid))
+        if cand is not None and cand.start_date is not None and serving is not None:
+            try:
+                from vcp_scanner.agent.shadow import comparison
+
+                with serving.cursor() as cur:
+                    cmp = comparison(cur, str(config_dir), cand, today)
+                shadow = m.CandidateShadow(**{k: cmp[k] for k in m.CandidateShadow.model_fields})
+            except Exception as exc:  # e.g. a serving copy older than the shadow table
+                error = f"{type(exc).__name__}: {str(exc)[:200]}"
+        out.append(m.AgentCandidate(
+            candidate_id=str(cid), strategy_id=str(sid), base_version=str(base),
+            candidate_version=str(version), status=str(status), proposal_id=int(pid),
+            hypothesis_id=payload.get("hypothesis_id"),
+            start_date=cand.start_date if cand is not None else start,
+            changes=list(payload.get("overrides", [])), scan_diff=_load(diff_json),
+            diff_rows=diffs.get(str(cid), []), shadow=shadow, shadow_error=error,
+        ))  # fmt: skip
+    return out
 
 
 def review(today: date | None = None) -> m.AgentReview:

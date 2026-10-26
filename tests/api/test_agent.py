@@ -21,18 +21,20 @@ READ_TOOLS = {
     "run_status", "market_health", "setups", "screener", "stock", "fundamentals_table",
     "paper_ledger", "activity", "backtests", "spec", "notebook_search", "decision_log",
     "daily_brief", "score_history", "data_quality", "corporate_actions", "price_bars",
-    "scan_run", "backtest", "hypotheses",
+    "scan_run", "backtest", "hypotheses", "candidates", "shadow_compare",
 }  # fmt: skip
 LAB_WRITES = {"register_hypothesis", "run_study", "run_backtest", "what_if_score",
               "conclude_hypothesis"}  # fmt: skip
 PROPOSE = {"propose_corporate_action", "propose_resolve_event", "propose_sector",
-           "propose_watchlist", "proposals"}  # fmt: skip
+           "propose_watchlist", "proposals", "propose_candidate"}  # fmt: skip
+LAUNCHED: list[int] = []
 
 
 @pytest.fixture
 def server(ro_env: Env, tmp_path: Path) -> Any:
     return build_server(data_dir=str(ro_env.data_dir), agent_db=tmp_path / "agent.duckdb",
-                        repo_root=REPO, client=ro_env.client)  # fmt: skip
+                        repo_root=REPO, client=ro_env.client,
+                        launcher=LAUNCHED.append)  # a test never starts a real build  # fmt: skip
 
 
 def call(server: Any, tool: str, **args: Any) -> Any:
@@ -154,3 +156,27 @@ def test_seed_is_idempotent_and_read_by_the_decision_log(server: Any, tmp_path: 
 def test_compact_cuts_lists_and_drops_nulls() -> None:
     out = _compact({"a": None, "b": [], "c": 1.23456, "d": list(range(30))}, max_items=5)
     assert out == {"c": 1.235, "d": [0, 1, 2, 3, 4, "... 25 more"]}
+
+
+def test_propose_candidate_starts_a_build_and_candidates_shows_it(server: Any) -> None:
+    hid = call(server, "register_hypothesis", strategy="flat_base", title="t", idea="i",
+               metric="m", decision_rule="d")["hypothesis_id"]  # fmt: skip
+    with pytest.raises(Exception, match="may change"):
+        asyncio.run(server.call_tool("propose_candidate", {
+            "strategy_id": "flat_base", "hypothesis_id": hid, "old": "o" * 10, "new": "n" * 10,
+            "why": "w" * 10, "evidence": "e" * 10,
+            "overrides": [{"file": "strategies/flat_base.yaml", "path": "stage",
+                           "new": "live"}]}))  # fmt: skip
+    LAUNCHED.clear()
+    out = call(server, "propose_candidate", strategy_id="flat_base", hypothesis_id=hid,
+               overrides=[{"file": "strategies/flat_base.yaml",
+                           "path": "classification.flat_base.max_depth_pct", "new": 12}],
+               old="max depth 15 %", new="max depth 12 %", why="shallower bases held better",
+               evidence="run 3 development")  # fmt: skip
+    assert out["status"] == "BUILDING" and "building in the background" in out["next"]
+    assert [out["proposal_id"]] == LAUNCHED
+    assert out["change"]["candidate_id"] == "flat_base-c1"
+    listed = call(server, "candidates")
+    assert [p["proposal_id"] for p in listed["proposals"]] == [out["proposal_id"]]
+    assert not listed.get("on_main") and "30 shadow trades" in listed["rules"]
+    assert call(server, "shadow_compare")["candidates"] == []

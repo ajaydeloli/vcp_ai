@@ -19,12 +19,19 @@ API and the frontend are built; the strategies are frozen.
   gates per strategy: at least 30 closed trades, profit factor 1.3 or better, drawdown no worse
   than -20 %.
 - **Dashboard:** FastAPI at `/api/v1` and a Next.js frontend (`scripts/dashboard.sh`) over a
-  read-only serving copy. Pages: Market Overview, Screener, Stock Analysis, Recent IPOs,
-  Watchlist, Strategies, Paper Trading, System Status. Live prices are display only.
+  read-only serving copy. Pages: Market Overview, Screener, Trend Template, Stock Analysis,
+  Watchlist, Past Leaders, Fundamentals, Recent IPOs, Strategies, Paper Trading, Backtest,
+  Reports, Alerts, AI Agent, System Status. Live prices are display only.
+- **Alerts:** Telegram evening summary and intraday pivot alerts (`vcp alerts`), monitoring only.
+- **AI agent:** an MCP server for Claude Code (`vcp agent`, AGENT_SPECIFICATION): read tools,
+  a research lab with pre-registration, proposals the owner approves in a terminal, and
+  strategy candidates that run in a shadow paper ledger beside the frozen strategies (steps
+  A1-A4). Step A5, the April 2027 review pack, is next.
 - **Reports:** `vcp report daily|weekly` and the daily run write `reports/daily/<date>.html`
   and, on Fridays, `reports/weekly/<ISO week>.html` (monitoring step M4).
-- **Not built:** Trend Template, Fundamentals, Alerts, Backtest, Research & Notes, Reports and
-  Settings dashboard pages; portfolio return and drawdown in the reports (judged at the review).
+- **Not built:** a Settings page; portfolio return and drawdown in the reports (judged at the
+  review); deferred by design: the ML confirmer (Phase 13), WebSocket intraday data (Phase 14)
+  and trade management (Phase 15; the project never places orders).
 
 The project never places orders. Read [Known limitations](#known-limitations) before trusting
 any output for research; the independent audit of Phases 0-5

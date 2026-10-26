@@ -30,6 +30,55 @@
    "reject_command": "vcp agent reject 1 \"reason\""
   },
   {
+   "proposal_id": 3,
+   "created_at": "2026-10-05T15:00:00Z",
+   "kind": "candidate",
+   "title": "Candidate flat_base: classification.flat_base.max_depth_pct=12",
+   "change": {
+    "candidate_id": "flat_base-c1",
+    "strategy_id": "flat_base",
+    "base_version": "flat_base-1.0.0",
+    "candidate_version": "flat_base-1.0.0+c1",
+    "hypothesis_id": 1,
+    "overrides": [
+     {
+      "file": "strategies/flat_base.yaml",
+      "path": "classification.flat_base.max_depth_pct",
+      "old": 15,
+      "new": 12
+     }
+    ],
+    "spec": {
+     "old": "15 %",
+     "new": "12 %",
+     "why": "shallower bases",
+     "evidence": "run 1"
+    },
+    "scan_diff": {
+     "days": 2,
+     "first": "2026-10-01",
+     "last": "2026-10-05",
+     "frozen_eligible": 5,
+     "changes": {
+      "ADDED": 0,
+      "DROPPED": 1,
+      "RECLASSIFIED": 1,
+      "RESCORED": 0
+     },
+     "stocks": 2
+    }
+   },
+   "rationale": "Shallower bases held better",
+   "evidence": "run 1 (development)",
+   "status": "REJECTED",
+   "decided_by": "owner",
+   "decided_at": "2026-10-05T15:00:00Z",
+   "comment": "wait for more paper trades",
+   "result": "built and checked",
+   "approve_command": null,
+   "reject_command": null
+  },
+  {
    "proposal_id": 2,
    "created_at": "2026-10-05T15:00:00Z",
    "kind": "watchlist",
@@ -119,5 +168,60 @@
   "max_per_strategy": 3,
   "promotion_min_trades": 30,
   "promotion_min_months": 3
- }
+ },
+ "candidates": [
+  {
+   "candidate_id": "flat_base-c1",
+   "strategy_id": "flat_base",
+   "base_version": "flat_base-1.0.0",
+   "candidate_version": "flat_base-1.0.0+c1",
+   "status": "rejected",
+   "proposal_id": 3,
+   "hypothesis_id": 1,
+   "start_date": null,
+   "changes": [
+    {
+     "file": "strategies/flat_base.yaml",
+     "path": "classification.flat_base.max_depth_pct",
+     "old": 15,
+     "new": 12
+    }
+   ],
+   "scan_diff": {
+    "days": 2,
+    "first": "2026-10-01",
+    "last": "2026-10-05",
+    "frozen_eligible": 5,
+    "changes": {
+     "ADDED": 0,
+     "DROPPED": 1,
+     "RECLASSIFIED": 1,
+     "RESCORED": 0
+    },
+    "stocks": 2
+   },
+   "diff_rows": [
+    {
+     "date": "2026-10-05",
+     "symbol": "ALPHA",
+     "change": "DROPPED",
+     "frozen_class": "FLAT_BASE",
+     "candidate_class": null,
+     "frozen_score": 70.0,
+     "candidate_score": null
+    },
+    {
+     "date": "2026-10-01",
+     "symbol": "BETA",
+     "change": "RECLASSIFIED",
+     "frozen_class": "TIGHT_FLAT_BASE",
+     "candidate_class": "FLAT_BASE",
+     "frozen_score": 60.0,
+     "candidate_score": 58.5
+    }
+   ],
+   "shadow": null,
+   "shadow_error": null
+  }
+ ]
 }

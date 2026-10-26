@@ -787,6 +787,64 @@ export const agentHypothesis = z.object({
   conclusion: z.string().nullable(),
   runs: z.array(agentRun),
 });
+const candidateSide = z.object({
+  closed: z.number(),
+  open: z.number(),
+  win_rate: num,
+  avg_ret: num,
+  profit_factor: num,
+  total_ret: z.number(),
+  max_drawdown: z.number(),
+});
+export const agentCandidate = z.object({
+  candidate_id: z.string(),
+  strategy_id: z.string(),
+  base_version: z.string(),
+  candidate_version: z.string(),
+  status: z.string(),
+  proposal_id: z.number(),
+  hypothesis_id: z.number().nullable(),
+  start_date: dayN,
+  changes: z.array(z.object({ file: z.string(), path: z.string(), old: z.unknown(), new: z.unknown() })),
+  scan_diff: z
+    .object({
+      days: z.number().optional(),
+      first: dayN.optional(),
+      last: dayN.optional(),
+      frozen_eligible: z.number().optional(),
+      stocks: z.number().optional(),
+      changes: z.record(z.string(), z.number()),
+      paper_rules_only: z.boolean().optional(),
+      note: z.string().optional(),
+    })
+    .passthrough()
+    .nullable(),
+  diff_rows: z.array(
+    z.object({
+      date: day,
+      symbol: z.string(),
+      change: z.string(),
+      frozen_class: z.string().nullable(),
+      candidate_class: z.string().nullable(),
+      frozen_score: num,
+      candidate_score: num,
+    }),
+  ),
+  shadow: z
+    .object({
+      start_date: day,
+      days: z.number(),
+      frozen: candidateSide,
+      candidate: candidateSide,
+      avg_ret_diff: num,
+      avg_ret_diff_lo: num,
+      avg_ret_diff_hi: num,
+      ready_to_judge: z.boolean(),
+      needs: z.array(z.string()),
+    })
+    .nullable(),
+  shadow_error: z.string().nullable().optional(),
+});
 export const agent = z.object({
   ...stamp,
   available: z.boolean(),
@@ -812,8 +870,10 @@ export const agent = z.object({
     })
     .nullable()
     .optional(),
+  candidates: z.array(agentCandidate).optional(),
 });
 export type AgentRun = z.infer<typeof agentRun>;
+export type AgentCandidate = z.infer<typeof agentCandidate>;
 export type AgentData = z.infer<typeof agent>;
 export type AgentProposal = z.infer<typeof agentProposal>;
 export type AgentHypothesis = z.infer<typeof agentHypothesis>;

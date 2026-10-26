@@ -1376,6 +1376,26 @@ CREATE TABLE IF NOT EXISTS superperformance_bases (
 )
 """
 
+# Shadow paper ledger of approved strategy candidates (AGENT_SPECIFICATION step A4). The same
+# rows as ``paper_events`` plus the candidate; insert-only. The frozen ledger never reads it.
+_DDL_SHADOW_PAPER_EVENTS = """
+CREATE TABLE IF NOT EXISTS shadow_paper_events (
+    event_id      VARCHAR     PRIMARY KEY,
+    candidate_id  VARCHAR     NOT NULL,   -- config/candidates/<id>.yaml
+    rule_set      VARCHAR     NOT NULL,   -- shadow-v1
+    strategy_id   VARCHAR     NOT NULL,
+    config_hash   VARCHAR     NOT NULL,   -- the candidate's strategy hash
+    instrument_id VARCHAR,
+    event_date    DATE        NOT NULL,
+    event_type    VARCHAR     NOT NULL,   -- as paper_events
+    price         DOUBLE,
+    scan_date     DATE,
+    metadata_json VARCHAR,
+    code_commit   VARCHAR,
+    recorded_at   TIMESTAMPTZ NOT NULL
+)
+"""
+
 _ALL_DDL: list[tuple[str, str]] = [
     ("instruments", _DDL_INSTRUMENTS),
     ("provider_instruments", _DDL_PROVIDER_INSTRUMENTS),
@@ -1441,6 +1461,7 @@ _ALL_DDL: list[tuple[str, str]] = [
     ("superperformance_studies", _DDL_SUPERPERFORMANCE_STUDIES),
     ("superperformance_runs", _DDL_SUPERPERFORMANCE_RUNS),
     ("superperformance_bases", _DDL_SUPERPERFORMANCE_BASES),
+    ("shadow_paper_events", _DDL_SHADOW_PAPER_EVENTS),
 ]
 
 
