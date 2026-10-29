@@ -19,6 +19,8 @@ data/*
 !data/.gitkeep
 reports/*
 !reports/.gitkeep
+# Build, test and backfill logs of past work (logs/fundamentals_backfill.log stays tracked)
+logs/*
 *.duckdb
 *.duckdb.wal
 *.parquet
