@@ -60,37 +60,34 @@ function changeText(p: AgentProposal): string {
 }
 
 function ProposalCard({ p }: { p: AgentProposal }) {
+  const waiting = p.status === "PENDING";
+  const decided = [p.decided_by ? `Decided by ${p.decided_by}, ${fmtStamp(p.decided_at)}${p.comment ? ` — ${p.comment}` : ""}` : null, p.result ? `Result: ${p.result}` : null]
+    .filter(Boolean)
+    .join(". ");
   return (
-    <li className="rounded-lg border border-line bg-panel2/40 p-3" aria-label={`Proposal ${p.proposal_id}`}>
-      <div className="flex flex-wrap items-center gap-2">
+    <li className="rounded-lg border border-line bg-panel2/40 px-3 py-2" aria-label={`Proposal ${p.proposal_id}`}>
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
         <span className="text-xs font-semibold text-ink">{`P${p.proposal_id}`}</span>
         <Badge status={p.status} />
         <span className="text-[11px] text-mute">{p.kind.replace("_", " ")}</span>
-        <span className="ml-auto text-[11px] text-mute">{fmtStamp(p.created_at)}</span>
+        <span className="min-w-0 flex-1 truncate text-sm text-ink" title={p.title}>
+          {p.title}
+        </span>
+        <span className="text-[11px] text-mute">{fmtStamp(p.created_at)}</span>
       </div>
-      <p className="mt-1 text-sm text-ink">{p.title}</p>
-      <dl className="mt-2 grid grid-cols-[6rem_1fr] gap-x-2 gap-y-1 text-xs">
-        <dt className="text-mute">Change</dt>
-        <dd className="break-all font-mono text-[11px] text-ink">{changeText(p)}</dd>
-        <dt className="text-mute">Why</dt>
-        <dd className="text-ink">{p.rationale}</dd>
-        <dt className="text-mute">Evidence</dt>
-        <dd className="break-words text-ink">{p.evidence}</dd>
-        {p.decided_by ? (
-          <>
-            <dt className="text-mute">Decided</dt>
-            <dd className="text-ink">{`${p.decided_by}, ${fmtStamp(p.decided_at)}${p.comment ? ` — ${p.comment}` : ""}`}</dd>
-          </>
-        ) : null}
-        {p.result ? (
-          <>
-            <dt className="text-mute">Result</dt>
-            <dd className="text-ink">{p.result}</dd>
-          </>
-        ) : null}
-      </dl>
+      <p className="mt-1 break-all font-mono text-[11px] text-ink">{changeText(p)}</p>
+      {decided ? <p className="mt-1 text-[11px] text-mute">{decided}</p> : null}
+      <details open={waiting} className="mt-1 text-xs">
+        <summary className="cursor-pointer text-[11px] text-mute hover:text-ink">Why and evidence</summary>
+        <dl className="mt-1 grid grid-cols-[5rem_1fr] gap-x-2 gap-y-1">
+          <dt className="text-mute">Why</dt>
+          <dd className="text-ink">{p.rationale}</dd>
+          <dt className="text-mute">Evidence</dt>
+          <dd className="break-words text-ink">{p.evidence}</dd>
+        </dl>
+      </details>
       {p.approve_command && p.reject_command ? (
-        <div className="mt-3 space-y-1.5">
+        <div className="mt-2 space-y-1.5">
           <p className="text-[11px] text-mute">Decide in your own Ubuntu terminal (you type the number again to confirm):</p>
           <Command text={p.approve_command} label={`Copy the approve command for P${p.proposal_id}`} />
           <Command text={p.reject_command} label={`Copy the reject command for P${p.proposal_id}`} />
@@ -163,7 +160,7 @@ export function AgentPage() {
         </Card>
       ) : null}
       {d && d.available ? (
-        <div className="grid gap-4 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
+        <div className="space-y-4">
           <Card
             title="Proposals"
             subtitle={`${d.pending} waiting for you. The AI proposes; only you decide, in your own terminal.`}
@@ -184,65 +181,71 @@ export function AgentPage() {
             }
           >
             {proposals.length === 0 ? (
-              <Empty>{show === "open" ? "Nothing is waiting for a decision." : "No proposals yet."}</Empty>
+              <p className="text-xs text-mute">{show === "open" ? "Nothing is waiting for a decision." : "No proposals yet."}</p>
             ) : (
-              <ul className="space-y-3">
+              <ul className="grid gap-2 xl:grid-cols-2">
                 {proposals.map((p) => (
                   <ProposalCard key={p.proposal_id} p={p} />
                 ))}
               </ul>
             )}
           </Card>
-          <div className="lg:col-span-2 lg:order-last">
-            <AgentCandidates items={d.candidates ?? []} minTrades={d.review?.promotion_min_trades ?? 30} minMonths={d.review?.promotion_min_months ?? 3} />
-          </div>
-          <div className="space-y-4">
-            <Card title="AI watchlist" subtitle="Pre-approved: the AI adds and removes symbols itself. Your own lists are on the Watchlist page.">
-              {d.ai_watchlist.length === 0 ? (
-                <Empty>Empty.</Empty>
-              ) : (
-                <ul className="flex flex-wrap gap-1.5">
-                  {d.ai_watchlist.map((w) => (
-                    <li key={w.symbol}>
-                      <a href={`/stocks/${encodeURIComponent(w.symbol)}`} title={w.reason} className="rounded border border-line px-2 py-0.5 text-xs text-ink hover:border-accent">
-                        {w.symbol}
-                      </a>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </Card>
-            <Card
-              title="Research lab"
-              subtitle={`Hypotheses left before the April 2027 review: ${Object.entries(d.budget_left)
-                .map(([s, n]) => `${s.replace(/_/g, " ")} ${n}`)
-                .join(" · ")}`}
-            >
-              <ReviewCycle d={d} />
-              {d.hypotheses.length === 0 ? (
-                <Empty>No hypothesis registered yet.</Empty>
-              ) : (
-                <ul className="space-y-3">
-                  {d.hypotheses.map((h) => (
-                    <HypothesisCard key={h.hypothesis_id} h={h} />
-                  ))}
-                </ul>
-              )}
-            </Card>
-            <Card title="Notebook" subtitle="Recent decisions and findings">
-              {d.notes.length === 0 ? (
-                <Empty>Empty.</Empty>
-              ) : (
-                <ul className="space-y-2 text-xs">
-                  {d.notes.map((n) => (
-                    <li key={n.note_id}>
-                      <span className="text-mute">{`${fmtDay(n.created_at.slice(0, 10))} · ${n.kind} · ${n.source} — `}</span>
-                      <span className="text-ink">{n.text}</span>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </Card>
+          <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
+            <div className="space-y-4">
+              <AgentCandidates items={d.candidates ?? []} minTrades={d.review?.promotion_min_trades ?? 30} minMonths={d.review?.promotion_min_months ?? 3} />
+              <Card
+                title="Research lab"
+                subtitle={`Hypotheses left before the April 2027 review: ${Object.entries(d.budget_left)
+                  .map(([s, n]) => `${s.replace(/_/g, " ")} ${n}`)
+                  .join(" · ")}`}
+              >
+                <ReviewCycle d={d} />
+                {d.hypotheses.length === 0 ? (
+                  <Empty>No hypothesis registered yet.</Empty>
+                ) : (
+                  <ul className="space-y-3">
+                    {d.hypotheses.map((h) => (
+                      <HypothesisCard key={h.hypothesis_id} h={h} />
+                    ))}
+                  </ul>
+                )}
+              </Card>
+            </div>
+            <div className="space-y-4">
+              <Card title="AI watchlist" subtitle="Pre-approved: the AI adds and removes symbols itself. Your own lists are on the Watchlist page.">
+                {d.ai_watchlist.length === 0 ? (
+                  <Empty>Empty.</Empty>
+                ) : (
+                  <ul className="flex flex-wrap gap-1.5">
+                    {d.ai_watchlist.map((w) => (
+                      <li key={w.symbol}>
+                        <a
+                          href={`/stocks/${encodeURIComponent(w.symbol)}`}
+                          title={w.reason}
+                          className="rounded border border-line px-2 py-0.5 text-xs text-ink hover:border-accent"
+                        >
+                          {w.symbol}
+                        </a>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </Card>
+              <Card title="Notebook" subtitle="Recent decisions and findings">
+                {d.notes.length === 0 ? (
+                  <Empty>Empty.</Empty>
+                ) : (
+                  <ul className="space-y-2 text-xs">
+                    {d.notes.map((n) => (
+                      <li key={n.note_id}>
+                        <span className="text-mute">{`${fmtDay(n.created_at.slice(0, 10))} · ${n.kind} · ${n.source} — `}</span>
+                        <span className="text-ink">{n.text}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </Card>
+            </div>
           </div>
         </div>
       ) : null}

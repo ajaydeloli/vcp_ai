@@ -2561,3 +2561,9 @@ Display only (FUNDAMENTALS_SPECIFICATION §2, §15); the rules of point in time,
 - Once started, a table Frozen against Candidate over the trades entered since the start: closed, open, win, average, profit factor, total, max drawdown; under it the difference in average return per trade with its 95% range (only once both sides have 5 closed trades) and what is still needed (30 shadow trades and 3 months) or "Enough to judge at the review". Before that: "Not started: only an approved candidate runs in the shadow ledger".
 - Read-only like the rest of the page: approving stays in the owner's terminal. A candidate proposal shows its change in words ("flat_base-c1 classification.flat_base.max_depth_pct: 15 → 12") instead of its JSON; BUILDING proposals are listed with the waiting ones.
 
+# AI Agent page layout (as built 2026-10-29, owner)
+
+- **Proposals** is a full-width strip at the top, as tall as its content: one line ("Nothing is waiting for a decision.") when nothing waits; otherwise compact cards, two per row from 1280 px. It used to share a row with the right-hand column and stretch to its full height (about 2,750 px of mostly empty card at 1440 px wide).
+- Each proposal card: number, status, kind, title (one line, full text on hover) and date in one row; the change in words; who decided and the result in one line; **Why and evidence** in a fold, open on a waiting proposal (needed to decide), closed on decided ones; the approve / reject commands to copy only while it waits.
+- Below, two columns that do not stretch to each other: left (wider) Strategy candidates and the Research lab (its charts get the width); right the AI watchlist and the Notebook. Below 1024 px everything stacks in that order.
+

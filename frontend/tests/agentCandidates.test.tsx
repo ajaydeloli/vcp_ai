@@ -91,3 +91,25 @@ describe("Strategy candidates (agent step A4)", () => {
     expect(fx.agent.candidates).toHaveLength(1);
   });
 });
+
+describe("Proposals on the AI Agent page", () => {
+  it("opens why and evidence on a waiting proposal and folds them on decided ones", async () => {
+    mockApi();
+    renderApp(<AgentPage />);
+    const waiting = await screen.findByRole("listitem", { name: "Proposal 1" });
+    expect(waiting.querySelector("details")).toHaveAttribute("open");
+    expect(within(waiting).getByRole("button", { name: "Copy the approve command for P1" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "All" }));
+    const done = screen.getByRole("listitem", { name: "Proposal 2" });
+    expect(done.querySelector("details")).not.toHaveAttribute("open");
+    expect(done).toHaveTextContent("Decided by pre-approved");
+    expect(within(done).queryByRole("button", { name: /Copy the approve command/ })).toBeNull();
+  });
+
+  it("says in one line when nothing is waiting", async () => {
+    mockApi({ agent: { ...fx.agent, pending: 0, proposals: fx.agent.proposals.filter((p) => p.status !== "PENDING") } });
+    renderApp(<AgentPage />);
+    expect(await screen.findByText("Nothing is waiting for a decision.")).toBeInTheDocument();
+    expect(screen.queryByRole("listitem", { name: /^Proposal / })).toBeNull();
+  });
+});
