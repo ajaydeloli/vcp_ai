@@ -6,8 +6,8 @@ base_version: vcp-1.1.0
 candidate_version: vcp-1.1.0+c1
 hypothesis_id: 2
 proposal_id: 1
-status: proposed
-start_date: null
+status: active
+start_date: '2026-10-29'
 overrides:
 - file: backtest.yaml
   path: defaults.regime
