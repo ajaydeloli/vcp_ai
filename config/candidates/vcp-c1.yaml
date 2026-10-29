@@ -1,0 +1,32 @@
+# Strategy candidate vcp-c1 (AGENT_SPECIFICATION step A4).
+# Not read by the frozen strategies; the daily run shadows it when status is active.
+candidate_id: vcp-c1
+strategy_id: vcp
+base_version: vcp-1.1.0
+candidate_version: vcp-1.1.0+c1
+hypothesis_id: 2
+proposal_id: 1
+status: proposed
+start_date: null
+overrides:
+- file: backtest.yaml
+  path: defaults.regime
+  old: breadth50
+  new: none
+spec:
+  old: 'VCP paper rules: entry cross_5, regime breadth50 (new entries only while at
+    least 40 % of the universe closes above its 50-day average), exit hold_low8, 10
+    positions.'
+  new: 'VCP paper rules: entry cross_5, regime none (every qualifying breakout may
+    enter), exit hold_low8, 10 positions. The scan, scores and setups are unchanged.'
+  why: Test in the shadow ledger whether the breadth gate is worth its cost for VCP.
+    In development it barely changed per-trade quality (pooled PF 2.03 without vs
+    2.05 with) and its benefit was a lower drawdown; since 2026-10-01 it has kept
+    the VCP paper ledger at zero trades (off on all 17 sessions, 86 detector breakouts),
+    so the frozen record cannot be judged by April without it either.
+  evidence: 'STRATEGY_SPECIFICATION 20.8 stage 2 (development, cross_5, hold_s7):
+    none 1,282 trades PF 2.03, CAGR 18.3 % / DD -14.7 %; breadth50 1,144 trades PF
+    2.05, 17.1 % / -12.4 %. Superperformance study sp-20261023T055702 (all years incl.
+    validation: seen data, idea only). Paper period: breadth50 off 17 of 17 sessions,
+    86 VCP breakouts (counts only; outcomes not looked at). Hypothesis H2; only the
+    shadow ledger from approval can support it.'
