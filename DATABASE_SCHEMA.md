@@ -3053,6 +3053,10 @@ Quarterly shareholding pattern from NSE filings (FUNDAMENTALS_SPECIFICATION §15
 
 # 88. Superperformance Study (Past Leaders, 2026-10-23)
 
+> **Removed 2026-11-06.** This feature was taken out of the scanner; the text below is kept as history only. The tables stay in the database, unused (nothing reads or writes them).
+
+
+
 The owner's study of past leaders: every run of 50 % or more within 252 sessions from an eligible low (`vcp_scanner/research/superperformance.py`). Research and display only: nothing in a scan, score, strategy, backtest or the paper ledger reads these tables. Written by `vcp research superperformance` (never while the daily run is going), which **replaces** the stored study: it is derived from stored data and can be rebuilt at any time. Read by `GET /api/v1/leaders` and `/leaders/{run_id}`.
 
 `superperformance_studies` (one row): `study_id` (`sp-<UTC time>`, PK), `created_at`, `study_version` (`superperformance-1.0.0`), `data_end` (last session read), `source` (the database read), `vcp_source` (detector version and which scans), `survivorship_status` (`PARTIAL`: ASM/GSM history starts 2026-10-01; sectors are today's), `survivorship_detail`, `params_json` (horizon, +50 %, base rules, warning window, bootstrap), `summary_json` (counts, the launch-day and breakout-day lift tables, market rates, run paths, pullbacks, warning signs, sectors by year, case-study series).
@@ -3064,6 +3068,10 @@ The owner's study of past leaders: every run of 50 % or more within 252 sessions
 ---
 
 # 89. Strategy Candidates and the Shadow Ledger (AGENT_SPECIFICATION step A4, 2026-10-26)
+
+> **Removed 2026-11-06.** This feature was taken out of the scanner; the text below is kept as history only. The tables stay in the database, unused (nothing reads or writes them).
+
+
 
 Candidates change settings of one frozen strategy (never code) and run from their own config copy, so every row they write carries their own config hash: the frozen readers, which all filter by the frozen hash, never read them. In the main database a candidate adds rows to the usual scan tables (`trend_template_results` for a VCP candidate, `vcp_patterns` / `strategy_setups`, `setup_scores`, `breakout_events`, `scan_runs`) under its hash, only for sessions the frozen run has already scanned, and its shadow ledger:
 
