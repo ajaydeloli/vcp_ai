@@ -151,3 +151,17 @@ def test_migrate_rebuilds_legacy_trend_conditions_with_config_hash() -> None:
         "SELECT instrument_id, condition_id, passed, config_hash FROM trend_template_conditions"
     ).fetchall()
     assert rows == [("X", 1, True, "LEGACY")]
+
+
+def test_migrate_drops_the_tables_of_removed_features() -> None:
+    store = DuckDBStore(":memory:")
+    store.migrate()
+    store.conn.execute("CREATE TABLE superperformance_runs (x INTEGER)")
+    store.conn.execute("CREATE TABLE shadow_paper_events (x INTEGER)")
+    store.migrate()
+    left = store.conn.execute(
+        "SELECT count(*) FROM information_schema.tables"
+        " WHERE table_name IN ('superperformance_runs', 'shadow_paper_events',"
+        " 'superperformance_bases', 'superperformance_studies')"
+    ).fetchone()
+    assert left == (0,)

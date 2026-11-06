@@ -3053,7 +3053,7 @@ Quarterly shareholding pattern from NSE filings (FUNDAMENTALS_SPECIFICATION §15
 
 # 88. Superperformance Study (Past Leaders, 2026-10-23)
 
-> **Removed 2026-11-06.** This feature was taken out of the scanner; the text below is kept as history only. The tables stay in the database, unused (nothing reads or writes them).
+> **Removed 2026-11-06.** This feature was taken out of the scanner; the text below is kept as history only. The tables (`superperformance_*`, `shadow_paper_events`) were dropped on 2026-11-06 by `DuckDBStore.migrate()`; the 2026-11-06 16:30 backup still holds them.
 
 
 
@@ -3069,7 +3069,7 @@ The owner's study of past leaders: every run of 50 % or more within 252 sessions
 
 # 89. Strategy Candidates and the Shadow Ledger (AGENT_SPECIFICATION step A4, 2026-10-26)
 
-> **Removed 2026-11-06.** This feature was taken out of the scanner; the text below is kept as history only. The tables stay in the database, unused (nothing reads or writes them).
+> **Removed 2026-11-06.** This feature was taken out of the scanner; the text below is kept as history only. The tables (`superperformance_*`, `shadow_paper_events`) were dropped on 2026-11-06 by `DuckDBStore.migrate()`; the 2026-11-06 16:30 backup still holds them.
 
 
 
