@@ -37,7 +37,6 @@ class IntradayConfig(StrictBaseModel):
     approach_pct: Annotated[float, Field(ge=0, le=10)] = 1.0
     near_pivot_pct: Annotated[float, Field(ge=0, le=20)] = 3.0
     chase_warn_pct: Annotated[float, Field(ge=0, le=50)] = 5.0
-    include_ai_watchlist: bool = True
     symbols: list[str] = []
 
 

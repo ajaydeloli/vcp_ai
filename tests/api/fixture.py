@@ -429,7 +429,7 @@ def write_alert_files(data_dir: Path) -> None:
         "watching": [
             {"symbol": "ALPHA", "pivot": 100.0, "strategy": "vcp", "why": "setup",
              "last_price": 99.5, "gap_pct": -0.5},
-            {"symbol": "BETA", "pivot": 50.0, "strategy": "flat_base", "why": "AI watchlist",
+            {"symbol": "BETA", "pivot": 50.0, "strategy": "vcp", "why": "your list",
              "last_price": None, "gap_pct": None}]}))  # fmt: skip
     log = AlertLog(folder / "alerts.duckdb")
     log.record(AS_OF, "EVENING", None, "VCP scanner - evening 2026-10-05", True, None)

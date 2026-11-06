@@ -725,7 +725,6 @@ export const alerts = z.object({
     approach_pct: z.number(),
     chase_warn_pct: z.number(),
     poll_seconds: z.number(),
-    include_ai_watchlist: z.boolean(),
     own_symbols: z.array(z.string()),
   }),
   watcher: z.object({

@@ -959,7 +959,6 @@ class AlertSettings(BaseModel):
     approach_pct: float
     chase_warn_pct: float
     poll_seconds: int
-    include_ai_watchlist: bool
     own_symbols: list[str]
 
 
@@ -974,7 +973,7 @@ class AlertWatched(BaseModel):
     symbol: str
     pivot: float
     strategy: str
-    why: str  # setup | AI watchlist | your list
+    why: str  # setup | your list
     last_price: float | None
     gap_pct: float | None  # + above the pivot, - below
 

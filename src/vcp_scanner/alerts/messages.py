@@ -6,7 +6,7 @@ dashboard shows. Monitoring only: no alert is a trade signal or advice.
 
 from __future__ import annotations
 
-from collections.abc import Callable, Iterable
+from collections.abc import Callable
 from dataclasses import dataclass, replace
 from datetime import datetime
 from typing import Any
@@ -88,7 +88,7 @@ class Watched:
     symbol: str
     pivot: float
     strategy: str
-    why: str  # "setup" | "AI watchlist" | "your list"
+    why: str  # "setup" | "your list"
     score: float | None = None
     grade: str | None = None
     stop: float | None = None
@@ -124,9 +124,9 @@ def _enrich(get: Get, w: Watched) -> Watched:
     return replace(w, **extra)
 
 
-def watch_list(get: Get, cfg: IntradayConfig, ai_watchlist: Iterable[str]) -> list[Watched]:
-    """Setups of the latest scan within ``near_pivot_pct`` below their pivot, plus the AI's and
-    the owner's symbols with their best setup's pivot. One entry per symbol (nearest pivot)."""
+def watch_list(get: Get, cfg: IntradayConfig) -> list[Watched]:
+    """Setups of the latest scan within ``near_pivot_pct`` below their pivot, plus the owner's
+    symbols with their best setup's pivot. One entry per symbol (nearest pivot)."""
     best: dict[str, Watched] = {}
     for s in NAMES:
         try:
@@ -142,8 +142,6 @@ def watch_list(get: Get, cfg: IntradayConfig, ai_watchlist: Iterable[str]) -> li
                     r["symbol"], float(pivot), s, "setup", **_setup_fields(r)
                 )
     extra = [(x.upper(), "your list") for x in cfg.symbols]
-    if cfg.include_ai_watchlist:
-        extra += [(x.upper(), "AI watchlist") for x in ai_watchlist]
     for sym, why in extra:
         if sym in best:
             continue

@@ -166,7 +166,7 @@ def _watch(args: argparse.Namespace) -> int:
             market = (get("live/status").get("feed") or {}).get("market")
             if market == "open":
                 if not watched or time.monotonic() - built_at > 3600:
-                    watched = watch_list(get, cfg.intraday, [])
+                    watched = watch_list(get, cfg.intraday)
                     built_at = time.monotonic()
                     print(f"{_now():%H:%M} watching {len(watched)} stocks")
                     market_line = _market_line(get)
