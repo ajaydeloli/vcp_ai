@@ -176,3 +176,16 @@ def test_retry_after_is_capped() -> None:
     p, waits = _provider(_resp(429, headers={"Retry-After": "3600"}), _resp(200))
     p.get_actions(*WINDOW, INSTS[:1])
     assert max(waits) == 60.0
+
+
+def test_progress_is_logged_every_hundred_instruments(caplog) -> None:  # type: ignore[no-untyped-def]
+    import logging
+
+    insts = [_inst(f"S{k:03d}") for k in range(250)]
+    p = UpstoxCorporateActionProvider("tok", min_request_interval_seconds=0)
+    p._session = MagicMock()
+    p._session.get.return_value = _resp(404)
+    with caplog.at_level(logging.INFO, logger="vcp_scanner.data.providers.upstox_ca"):
+        p.get_actions(*WINDOW, insts)
+    lines = [r.getMessage() for r in caplog.records if "instruments asked" in r.getMessage()]
+    assert len(lines) == 2 and "100 of 250" in lines[0] and "200 of 250" in lines[1]

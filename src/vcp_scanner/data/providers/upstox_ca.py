@@ -21,6 +21,8 @@ from vcp_scanner.infrastructure.clock import Clock, utc_now
 
 logger = logging.getLogger(__name__)
 
+PROGRESS_EVERY = 100  # one log line per this many instruments asked (about 3 minutes)
+
 
 class UpstoxCorporateActionProvider:
     """Fetches corporate actions from Upstox API."""
@@ -103,6 +105,7 @@ class UpstoxCorporateActionProvider:
         self.failed = []
         self.rate_limited = None
         attempted = 0
+        began = self._monotonic()
 
         for instrument in instruments:
             # Upstox keys equities by ISIN ("NSE_EQ|<ISIN>"), never by trading symbol
@@ -123,6 +126,13 @@ class UpstoxCorporateActionProvider:
 
                 self._pace()
                 attempted += 1
+                if attempted % PROGRESS_EVERY == 0:
+                    logger.info(
+                        "Upstox corporate actions: %d of %d instruments asked, %.0f s elapsed",
+                        attempted,
+                        len(instruments),
+                        self._monotonic() - began,
+                    )
                 response = self._session.get(url, timeout=10)
                 if response.status_code == 429:
                     # Wait once (Retry-After, capped), then stop asking for this run.
