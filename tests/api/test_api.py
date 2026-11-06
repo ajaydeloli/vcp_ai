@@ -358,24 +358,3 @@ def test_stock_scores_list_each_scan_day_per_strategy(ro_env: Env) -> None:
     get(ro_env, "/api/v1/stocks/ALPHA/scores?strategy=nope", 404)
     get(ro_env, "/api/v1/stocks/NOPE/scores", 404)
     get(ro_env, "/api/v1/stocks/ALPHA/scores?days=0", 422)
-
-
-def test_alerts_page_shows_setup_watcher_watching_and_log(ro_env: Env) -> None:
-    body = get(ro_env, "/api/v1/alerts")
-    assert body["enabled"] is True and body["telegram_configured"] is False  # no env file
-    assert body["watcher"]["running"] is True and body["watcher"]["market"] == "open"
-    assert [w["symbol"] for w in body["watching"]] == ["ALPHA", "BETA"]  # nearest first
-    assert [(a["kind"], a["ok"]) for a in body["sent"]] == [
-        ("APPROACHING", False),
-        ("EVENING", True),
-    ]
-    assert body["sent"][0]["error"] == "Telegram HTTP 401"
-    assert "TELEGRAM" not in str(body)  # never a secret's name or value
-
-
-def test_alerts_page_says_the_watcher_stopped_and_sees_a_configured_env(env: Env) -> None:
-    env.set_now(datetime(2026, 10, 6, 15, 0, tzinfo=IST))  # an hour after its last check
-    (env.data_dir / "test.env").write_text("TELEGRAM_BOT_TOKEN=1:abc\nTELEGRAM_CHAT_ID=42\n")
-    body = get(env, "/api/v1/alerts")
-    assert body["watcher"]["running"] is False and body["telegram_configured"] is True
-    assert "1:abc" not in str(body)

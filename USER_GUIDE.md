@@ -247,14 +247,13 @@ After working on the main database by hand (a rebuild, a manual scan), refresh t
 
 ### 5.3 The pages
 
-The top bar shows Market Overview, Screener, Trend Template, Stock Analysis, and Watchlist; the other pages are under **More ▾** (Fundamentals, Recent IPOs, Strategies, Paper Trading, Backtest, Reports, Alerts, System Status). Open it with a click, Enter or ↓; ↑ ↓ Home End move through it; Escape or a click elsewhere closes it. When you are on one of those pages, More is highlighted (and names the page on a wide screen). Below 1024 px wide the top bar shows no links: the logo opens the side menu with every page.
+The top bar shows Market Overview, Screener, Stock Analysis and Watchlist; the other pages are under **More ▾** (Fundamentals, Recent IPOs, Strategies, Paper Trading, Backtest, Reports, System Status). Open it with a click, Enter or ↓; ↑ ↓ Home End move through it; Escape or a click elsewhere closes it. When you are on one of those pages, More is highlighted (and names the page on a wide screen). Below 1024 px wide the top bar shows no links: the logo opens the side menu with every page.
 
 | Page | What it shows |
 |---|---|
 | **Market Overview** | NIFTY 50 / SENSEX / NIFTY 500 tiles, the Market Health Score and its pillar cards, the cards below, setups today, recent activity. |
 | **Screener** | Every stock of the latest scan with its Trend Template, setup and score; filters. The **Fundamentals** box adds EPS and sales growth. **Export CSV / Excel** (next to the match count) saves every matching stock, not just the page shown, with the visible columns as plain numbers; the file name carries the strategy and scan date. |
 | **Fundamentals** | Every universe stock's latest quarterly results and, with the **Shareholding** switch above the table, its latest shareholding pattern: promoter, FII and DII % with their change over the quarter, pledge % (▲ when rising). Filters for both: EPS and sales growth, sector, min promoter %, max pledge %, "FII buying", "Pledge rising" (display only). |
-| **Trend Template** | The whole scan through the ten Trend Template conditions: how many stocks pass each condition and how many fail only that one (where stocks drop out); stocks that started or stopped passing since the previous scan; stocks one condition short (the failing condition and how far off, filterable); stocks that moved into weekly Stage 2 this week; and the weekly stage by sector. The pass share over time is on the Dashboard's Leadership card. |
 | **Stock Analysis** | One stock: chart, Trend Template conditions, setup, score, fundamentals, sector. The Fundamentals card ends with the latest shareholding (promoter, FII, DII, pledged; changes over one and four quarters); the **Shareholding pattern** card below the quarterly results has the last eight quarter ends. **My notes** (below the setup) holds your own dated notes on the stock (Ctrl+Enter adds one); a stock with notes shows "📝 N notes" next to its symbol everywhere. Notes are kept in this browser only, like the watch lists: **Export all notes** saves every note as CSV as a backup. Next to the symbol, **TradingView ↗** opens the stock's chart on TradingView in a new tab, and **Copy symbol** copies the NSE symbol to paste into Dhan or Angel One search. |
 | **Recent IPOs** | Recent listings and how they trade. |
 | **Watchlist** | Your lists of stocks, kept in this browser only. **Import** reads a CSV or Excel (.xlsx) file: the symbol column is found by its heading (Symbol, Ticker, Stock, Scrip...) or is the first column; `NSE:RELIANCE`, `RELIANCE.NS` and TradingView's `M_M` are understood. A preview shows the stocks found and the symbols not recognised (left out); add them to the current list or to a new list named after the file. **Export CSV / Excel** saves the current list with its scan results; use it as a backup, or to move lists to another browser. Old `.xls` files must be saved as `.xlsx` or `.csv` first. |
@@ -657,7 +656,7 @@ Alerts tell you, on your phone, what the dashboard would show. They never change
 | `vcp alerts watch [--once]` | The intraday watcher (the dashboard script starts it) |
 | `vcp alerts log` | What was sent, and anything that could not be sent |
 
-The dashboard page **Alerts** shows the same: whether Telegram is set up (yes or no; the token is never shown), the watcher's last check and the stocks it watches with their live distance to the pivot, the alerts sent (and why one could not be), and the settings.
+(The dashboard no longer has an Alerts page; `vcp alerts log` shows what was sent.)
 
 ### 8.17 `vcp api`
 

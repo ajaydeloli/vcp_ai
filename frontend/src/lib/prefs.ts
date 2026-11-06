@@ -30,7 +30,6 @@ export const PAGE_SIZES = [15, 25, 50, 100];
 export const START_PAGES: [string, string][] = [
   ["/dashboard", "Market Overview"],
   ["/screener", "Screener"],
-  ["/trend-template", "Trend Template"],
   ["/watchlist", "Watchlist"],
   ["/stocks", "Stock Analysis"],
   ["/strategies", "Strategies"],

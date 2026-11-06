@@ -7,7 +7,6 @@ import { SystemStatus } from "@/components/SystemStatus";
 import { Backtest } from "@/components/Backtest";
 import { RecentIpos } from "@/components/RecentIpos";
 import { Reports } from "@/components/Reports";
-import { AlertsPage } from "@/components/Alerts";
 import { mockApi, renderApp } from "./helpers";
 
 describe("more pages", () => {
@@ -42,17 +41,6 @@ describe("more pages", () => {
     expect(await screen.findByRole("heading", { name: "Live prices" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Backup" })).toBeInTheDocument();
     expect(await screen.findByRole("heading", { name: "Recent activity" })).toBeInTheDocument();
-  });
-
-  it("Alerts shows the set-up steps, the watched stocks and an alert that could not be sent", async () => {
-    mockApi();
-    renderApp(<AlertsPage />);
-    expect(await screen.findByText(/not set up yet/)).toBeInTheDocument();
-    expect(screen.getByText(/vcp alerts chat-id/)).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "ALPHA" })).toHaveAttribute("href", "/stocks/ALPHA");
-    expect(screen.getByText("-0.5%")).toBeInTheDocument();
-    expect(screen.getByRole("listitem", { name: "APPROACHING alert" })).toHaveTextContent("not sent: Telegram HTTP 401");
-    expect(screen.getByText(/running, last check/)).toBeInTheDocument();
   });
 
   it("an API failure is said plainly", async () => {

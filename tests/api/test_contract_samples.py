@@ -30,7 +30,6 @@ CASES = {
     "market_health": "market/health",
     "stock_history": "stocks/BETA/history",
     "screener": "screener?page_size=10",
-    "trend_template": "trend-template",
     "live_quotes": "live/quotes?symbols=ALPHA,BETA,GAMMA,DELTA,ZZZ",
     "live_indices": "live/indices",
     "live_status": "live/status",
@@ -41,7 +40,6 @@ CASES = {
     "stock_fundamentals": "stocks/ALPHA/fundamentals",
     "stock_fundamentals_none": "stocks/GAMMA/fundamentals",
     "fundamentals": "fundamentals",
-    "alerts": "alerts",
 }
 
 

@@ -14,7 +14,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse
 
 from vcp_scanner.api import (
-    alerts,
     backtests,
     diagnostics,
     fundamentals,
@@ -22,7 +21,6 @@ from vcp_scanner.api import (
     ipos,
     report_files,
     reports,
-    trend_template,
 )
 from vcp_scanner.api import models as m
 from vcp_scanner.api import queries as q
@@ -278,19 +276,6 @@ def create_app(
                 company=company, adjusted=True, bars=rows,
             )  # fmt: skip
 
-    @app.get(f"{api}/trend-template", response_model=m.TrendTemplateResponse)
-    def trend_template_page(on: DateParam = None) -> m.TrendTemplateResponse:
-        with db.cursor() as cur:
-            days = trend_template.scan_days(cur, ctx, on)
-            if not days:
-                return m.TrendTemplateResponse(
-                    as_of=None, data_time=db.data_time(), previous=None, week_ago=None,
-                    population=0, passing=0, passing_previous=None, conditions=[],
-                    new_passers=[], dropped=[], nearly=[], nearly_total=0, stages=[],
-                    into_stage2=[],
-                )  # fmt: skip
-            return trend_template.trend_template(cur, ctx, days[0], db.data_time())
-
     @app.get(f"{api}/stocks/{{symbol}}/setups", response_model=m.StockSetupsResponse)
     def stock_setups(symbol: str, on: DateParam = None) -> m.StockSetupsResponse:
         with db.cursor() as cur:
@@ -437,11 +422,6 @@ def create_app(
         summary, lines = diagnostics.run_log(data, day) if day else (None, [])
         return m.ScanRunsResponse(as_of=day, data_time=db.data_time(), run_summary=summary,
                                   log_warnings=lines, runs=runs)  # fmt: skip
-
-    @app.get(f"{api}/alerts", response_model=m.AlertsResponse)
-    def alerts_page() -> m.AlertsResponse:
-        """Telegram alerts: set up or not, settings, the watcher and what was sent (read-only)."""
-        return alerts.alerts_state(config_dir, data, env_file, clock())
 
     @app.get(f"{api}/reports", response_model=m.ReportsResponse)
     def report_list() -> m.ReportsResponse:

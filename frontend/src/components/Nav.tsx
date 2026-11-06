@@ -9,7 +9,6 @@ import { TopBar } from "./TopBar";
 const TOP = [
   ["Market Overview", "/dashboard"],
   ["Screener", "/screener"],
-  ["Trend Template", "/trend-template"],
   ["Stock Analysis", "/stocks"],
   ["Watchlist", "/watchlist"],
 ] as const;
@@ -22,7 +21,6 @@ const MORE = [
   ["Paper Trading", "/paper"],
   ["Backtest", "/backtest"],
   ["Reports", "/reports"],
-  ["Alerts", "/alerts"],
   ["System Status", "/system"],
 ] as const;
 
