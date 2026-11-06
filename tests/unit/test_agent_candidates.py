@@ -206,7 +206,7 @@ def repo(tmp_path: Path) -> Path:
     """A throwaway git repo (branch main) with a copy of config/."""
     root = tmp_path / "proj"
     root.mkdir()
-    shutil.copytree(CFG, root / "config", ignore=shutil.ignore_patterns("live.yaml"))
+    shutil.copytree(CFG, root / "config", ignore=shutil.ignore_patterns("live.yaml", "candidates"))
     for cmd in (["init", "-q", "-b", "main"], ["config", "user.email", "t@t"],
                 ["config", "user.name", "t"], ["add", "."], ["commit", "-qm", "init"]):  # fmt: skip
         subprocess.run(["git", *cmd], cwd=root, check=True, capture_output=True)
@@ -352,7 +352,9 @@ def test_shadow_rows_are_separate_append_only_and_compared_since_the_start(
 
 def test_shadow_update_with_no_active_candidate_does_nothing(tmp_path: Path) -> None:
     calls: list[list[str]] = []
-    assert sh.update(str(tmp_path / "m.duckdb"), str(CFG), lambda a: calls.append(a) or 0,
+    cfg = tmp_path / "config"  # a copy without the real candidates folder
+    shutil.copytree(CFG, cfg, ignore=shutil.ignore_patterns("live.yaml", "candidates"))
+    assert sh.update(str(tmp_path / "m.duckdb"), str(cfg), lambda a: calls.append(a) or 0,
                      work_dir=tmp_path / "w") == []  # fmt: skip
     assert calls == []
 

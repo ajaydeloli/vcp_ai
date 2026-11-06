@@ -32,8 +32,16 @@ LAUNCHED: list[int] = []
 
 @pytest.fixture
 def server(ro_env: Env, tmp_path: Path) -> Any:
-    return build_server(data_dir=str(ro_env.data_dir), agent_db=tmp_path / "agent.duckdb",
-                        repo_root=REPO, client=ro_env.client,
+    import shutil
+
+    root = tmp_path / "proj"  # a copy of config/ without the real candidates folder
+    shutil.copytree(REPO / "config", root / "config",
+                    ignore=shutil.ignore_patterns("live.yaml", "candidates"))
+    for doc in REPO.glob("*.md"):  # the spec tool reads the project documents
+        shutil.copy(doc, root / doc.name)
+    return build_server(config_dir=str(root / "config"), data_dir=str(ro_env.data_dir),
+                        agent_db=tmp_path / "agent.duckdb", repo_root=root,
+                        client=ro_env.client,
                         launcher=LAUNCHED.append)  # a test never starts a real build  # fmt: skip
 
 

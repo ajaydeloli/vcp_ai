@@ -56,8 +56,19 @@ def test_equity_is_flat_before_the_first_entry_and_carried_over_gaps() -> None:
     assert [v for _d, v in got] == [1.0, 1.0, 1.0, 1.0, 0.9]
 
 
+def _config(env: Env) -> str:
+    """The project's config without its real candidates folder (tests must not see it)."""
+    import shutil
+
+    cfg = env.data_dir / "config_copy"
+    if not cfg.exists():
+        shutil.copytree(Path(__file__).resolve().parents[2] / "config", cfg,
+                        ignore=shutil.ignore_patterns("live.yaml", "candidates"))
+    return str(cfg)
+
+
 def _pack(env: Env, day: date) -> dict[str, Any]:
-    return R.build_pack(env.data_dir / "serving" / "vcp_serving.duckdb", "config",
+    return R.build_pack(env.data_dir / "serving" / "vcp_serving.duckdb", _config(env),
                         env.data_dir / "agent" / "agent.duckdb", day)  # fmt: skip
 
 
@@ -91,7 +102,7 @@ def test_on_the_review_date_too_few_trades_postpone_the_review(ro_env: Env) -> N
 
 
 def test_write_review_makes_the_html_and_the_json(ro_env: Env, tmp_path: Path) -> None:
-    path = R.write_review(ro_env.data_dir / "serving" / "vcp_serving.duckdb", "config",
+    path = R.write_review(ro_env.data_dir / "serving" / "vcp_serving.duckdb", _config(ro_env),
                           ro_env.data_dir / "agent" / "agent.duckdb", tmp_path,
                           date(2026, 10, 6))  # fmt: skip
     assert path == tmp_path / "review" / "2026-10-06.html"
