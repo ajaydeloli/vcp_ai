@@ -16,7 +16,6 @@ import leaderRun from "./fixtures/api/leader_run.json";
 import history from "./fixtures/api/stock_history.json";
 import marketHealth from "./fixtures/api/market_health.json";
 import market from "./fixtures/api/market.json";
-import overlap from "./fixtures/api/overlap.json";
 import paper from "./fixtures/api/paper.json";
 import reports from "./fixtures/api/reports.json";
 import agent from "./fixtures/api/agent.json";
@@ -34,7 +33,7 @@ import stockFundamentals from "./fixtures/api/stock_fundamentals.json";
 import stockFundamentalsNone from "./fixtures/api/stock_fundamentals_none.json";
 
 export const fx = {
-  agent, alerts, trendTemplate, activity, backtests, bars, history, ipos, reports, liveIndices, liveQuotes, liveStatus, market, marketHealth, overlap, paper, search, screener, setupsVcp, status,
+  agent, alerts, trendTemplate, activity, backtests, bars, history, ipos, reports, liveIndices, liveQuotes, liveStatus, market, marketHealth, paper, search, screener, setupsVcp, status,
   stockSetups, strategies, summary, fundamentals, stockFundamentals, stockFundamentalsNone, leaders, leaderRun,
 }; // fmt: skip
 
@@ -67,7 +66,6 @@ export function sample(rel: string): unknown {
       const want = (p.get("symbols") ?? "").split(",").filter(Boolean);
       return { ...fx.liveQuotes, quotes: fx.liveQuotes.quotes.filter((q) => want.includes(q.symbol)) };
     }
-    case "setups/overlap": return fx.overlap;
     case "setups": {
       const id = p.get("strategy") ?? "vcp";
       const base = id === "vcp" ? fx.setupsVcp : { ...fx.setupsVcp, rows: [] };

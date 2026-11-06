@@ -16,7 +16,6 @@ const CASES: Record<string, z.ZodTypeAny> = {
   summary: s.summary,
   market: s.market,
   setups_vcp: s.setups,
-  overlap: s.overlap,
   bars: s.bars,
   stock_setups: s.stockSetups,
   activity: s.activity,

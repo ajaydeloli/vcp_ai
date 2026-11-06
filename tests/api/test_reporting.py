@@ -31,7 +31,7 @@ def test_daily_report_has_the_planned_sections_and_the_disclaimer(
     path = write_daily(_serving(ro_env), CONFIG, ro_env.data_dir, tmp_path, now=NOW)
     text = path.read_text(encoding="utf-8")
     assert path.parent.name == "daily" and re.fullmatch(r"\d{4}-\d{2}-\d{2}\.html", path.name)
-    for heading in ("Market regime", "Ranked setups by strategy", "more than one list",
+    for heading in ("Market regime", "Ranked setups by strategy",
                     "Paper trades today", "Open paper positions", "Daily run health"):  # fmt: skip
         assert heading in text
     assert NOTE in text

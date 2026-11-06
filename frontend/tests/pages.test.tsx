@@ -24,10 +24,9 @@ describe("more pages", () => {
     expect(screen.getByText(/No listing matches/)).toBeInTheDocument();
   });
 
-  it("Strategies shows one card per strategy and the overlap", async () => {
+  it("Strategies shows one card per strategy", async () => {
     mockApi();
     renderApp(<Strategies />);
-    expect(await screen.findByRole("heading", { name: "Stocks in more than one strategy" })).toBeInTheDocument();
     expect(await screen.findAllByText(/algorithm/)).not.toHaveLength(0);
   });
 

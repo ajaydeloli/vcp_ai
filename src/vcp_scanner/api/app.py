@@ -165,13 +165,6 @@ def create_app(
             )
             return result
 
-    @app.get(f"{api}/setups/overlap", response_model=m.OverlapResponse)
-    def setups_overlap(on: DateParam = None) -> m.OverlapResponse:
-        with db.cursor() as cur:
-            day = on or newest_scan(cur)
-            rows = q.overlap(cur, ctx, day) if day else []
-            return m.OverlapResponse(as_of=day, data_time=db.data_time(), rows=rows)
-
     @app.get(f"{api}/setups", response_model=m.SetupsResponse)
     def setups(
         strategy: str = "vcp", on: DateParam = None,
@@ -202,7 +195,6 @@ def create_app(
         has_setup: bool = False, min_grade: Annotated[int | None, Query(ge=0, le=3)] = None,
         status: Annotated[str | None, Query(max_length=40)] = None,
         classification: Annotated[str | None, Query(max_length=40)] = None,
-        min_strategies: Annotated[int | None, Query(ge=2, le=10)] = None,
         sector: Annotated[str | None, Query(max_length=60)] = None,
         min_eps_yoy: Annotated[float | None, Query(ge=-1000, le=100000)] = None,
         min_sales_yoy: Annotated[float | None, Query(ge=-1000, le=100000)] = None,
@@ -216,7 +208,7 @@ def create_app(
             q=q_, symbols={x.strip().upper() for x in (symbols or "").split(",") if x.strip()},
             stages=stage or [], tt_pass=tt_pass, near_high=near_high, min_rs=min_rs,
             min_conditions=min_conditions, has_setup=has_setup, min_grade=min_grade,
-            status=status, classification=classification, min_strategies=min_strategies,
+            status=status, classification=classification,
             universe_only=universe_only, eq_only=eq_only, sector=sector,
             min_eps_yoy=min_eps_yoy, min_sales_yoy=min_sales_yoy, sort=sort,
             descending=direction == "desc", page=page, page_size=page_size,

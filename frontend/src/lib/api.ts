@@ -62,7 +62,6 @@ export const paths = {
   marketHealth: () => "market/health",
   market: (days: number) => `market${query({ days })}`,
   setups: (strategy: string, status?: string) => `setups${query({ strategy, status })}`,
-  overlap: () => "setups/overlap",
   bars: (symbol: string, days: number) =>
     `stocks/${encodeURIComponent(symbol)}/bars${query({ days })}`,
   stockSetups: (symbol: string) => `stocks/${encodeURIComponent(symbol)}/setups`,
@@ -84,7 +83,7 @@ export const paths = {
         strategy: f.strategy, q: f.q, symbols: f.symbols?.join(","), tt_pass: f.ttPass, near_high: f.nearHigh, min_rs: f.minRs,
         min_conditions: f.minConditions, universe_only: f.universeOnly ? undefined : false, eq_only: f.eqOnly ? undefined : false, has_setup: f.hasSetup || undefined,
         min_grade: f.minGrade, status: f.status, classification: f.classification,
-        min_strategies: f.minStrategies, sector: f.sector, min_eps_yoy: f.minEpsYoy,
+        sector: f.sector, min_eps_yoy: f.minEpsYoy,
         min_sales_yoy: f.minSalesYoy, sort: f.sort, direction: f.direction,
         page: f.page, page_size: f.pageSize,
       })}${stages}`;
@@ -136,13 +135,6 @@ export const useSetups = (strategy: string, status?: string, enabled = true) =>
   useQuery({
     queryKey: ["setups", strategy, status ?? null],
     queryFn: () => getJson(paths.setups(strategy, status), s.setups),
-    enabled,
-    ...opts,
-  });
-export const useOverlap = (enabled = true) =>
-  useQuery({
-    queryKey: ["overlap"],
-    queryFn: () => getJson(paths.overlap(), s.overlap),
     enabled,
     ...opts,
   });

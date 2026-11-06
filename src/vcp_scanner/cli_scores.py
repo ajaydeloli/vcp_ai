@@ -106,8 +106,7 @@ def run_compute_scores(args: argparse.Namespace) -> int:
             [trend_scan],
         ).fetchone()
         repo = DuckDBScoreRepository(store, snapshot)
-        inputs = repo.load_inputs(as_of, trend_scan, vcp_scan, cfg.strategy.vcp.volatility.measure,
-                                  strategy_scan=not is_vcp)  # fmt: skip
+        inputs = repo.load_inputs(as_of, trend_scan, vcp_scan, cfg.strategy.vcp.volatility.measure)
         scored = score_scan(inputs, scoring, float(cfg.strategy.trend_template.min_rs_rank),
                             runtime.scoring)  # fmt: skip
         scan_id = score_scan_id(strategy_id, iso, config_hash, snapshot)

@@ -22,7 +22,6 @@ CASES = {
     "summary": "summary",
     "market": "market?days=60",
     "setups_vcp": "setups?strategy=vcp",
-    "overlap": "setups/overlap",
     "bars": "stocks/ALPHA/bars?days=60",
     "stock_setups": "stocks/ALPHA/setups",
     "activity": "activity?days=7",

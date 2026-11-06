@@ -110,25 +110,6 @@ export const setupRow = z.object({
 
 export const setups = z.object({ ...stamp, strategy_id: z.string(), rows: z.array(setupRow) });
 
-export const overlap = z.object({
-  ...stamp,
-  rows: z.array(
-    z.object({
-      instrument_id: z.string(),
-      symbol: z.string(),
-      company: z.string().nullable(),
-      strategies: z.array(
-        z.object({
-          strategy_id: z.string(),
-          classification: z.string(),
-          grade: z.number(),
-          score: num,
-        }),
-      ),
-    }),
-  ),
-});
-
 export const bar = z.object({
   day,
   open: num,
@@ -513,7 +494,6 @@ export type Summary = z.infer<typeof summary>;
 export type Market = z.infer<typeof market>;
 export type SetupRow = z.infer<typeof setupRow>;
 export type Setups = z.infer<typeof setups>;
-export type Overlap = z.infer<typeof overlap>;
 export type Bar = z.infer<typeof bar>;
 export type Bars = z.infer<typeof bars>;
 export type StockSetup = z.infer<typeof stockSetup>;

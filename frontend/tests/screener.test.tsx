@@ -40,8 +40,6 @@ describe("screener page", () => {
     await waitFor(() => expect(calls.some((c) => c.includes("strategy=vcp") && c.includes("min_grade=3"))).toBe(true));
     expect(screen.queryByLabelText("Setup class")).toBeNull();
     expect(screen.queryByLabelText("VCP setup")).toBeNull();
-    await userEvent.selectOptions(screen.getByLabelText("On strategies"), "2");
-    await waitFor(() => expect(calls.some((c) => c.includes("min_strategies=2"))).toBe(true));
     await userEvent.selectOptions(screen.getByLabelText("Trend Template"), "yes");
     expect(screen.queryByLabelText(/Stage 2/)).toBeNull();
     await userEvent.click(screen.getByRole("button", { name: "More" }));

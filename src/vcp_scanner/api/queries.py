@@ -269,27 +269,6 @@ def score_history(
     return out
 
 
-def overlap(cur: Cur, ctx: Context, day: date) -> list[m.OverlapRow]:
-    by: dict[str, list[m.SetupRow]] = defaultdict(list)
-    for spec in ctx.strategies:
-        for row in setup_rows(cur, ctx, spec, day, eligible=True):
-            by[row.instrument_id].append(row)
-    rows = []
-    for iid, items in by.items():
-        if len(items) < 2:
-            continue
-        rows.append(
-            m.OverlapRow(
-                instrument_id=iid, symbol=items[0].symbol, company=items[0].company,
-                strategies=[m.OverlapEntry(strategy_id=r.strategy_id,
-                                           classification=r.classification, grade=r.grade,
-                                           score=r.score) for r in items],
-            )
-        )  # fmt: skip
-    rows.sort(key=lambda r: (-len(r.strategies), r.symbol))
-    return rows
-
-
 # --- screener -------------------------------------------------------------------------------
 
 SCREENER_SORTS = (
@@ -412,12 +391,6 @@ def screener(
     if not getattr(f, "universe_only", True):
         rows.extend(_outside_rows(cur, day, set(ids), getattr(f, "eq_only", True)))
     needle = (f.q or "").strip().upper()
-    several = (
-        {r.instrument_id for r in overlap(cur, ctx, day) if len(r.strategies) >= f.min_strategies}
-        if f.min_strategies
-        else None
-    )
-
     def keep(x: m.ScreenerRow) -> bool:
         checks = (
             not needle or needle in x.symbol.upper() or needle in (x.company or "").upper(),
@@ -433,7 +406,6 @@ def screener(
             f.status is None or (x.status or "").upper() == f.status.upper(),
             f.classification is None
             or (x.classification or "").upper() == f.classification.upper(),
-            several is None or x.instrument_id in several,
             not getattr(f, "sector", None) or (x.sector or "").upper() == f.sector.upper(),
             _at_least(x.eps_yoy, getattr(f, "min_eps_yoy", None)),
             _at_least(x.sales_yoy, getattr(f, "min_sales_yoy", None)),

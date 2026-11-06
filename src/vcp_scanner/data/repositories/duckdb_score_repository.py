@@ -16,7 +16,6 @@ from vcp_scanner.domain.strategy import VCP_STRATEGY_ID
 from vcp_scanner.scoring.components import SMA200_SLOPE_LAG
 from vcp_scanner.scoring.engine import (
     BARS_NEEDED,
-    GenericPatternInputs,
     PatternInputs,
     ScoredSetup,
     SetupInputs,
@@ -54,12 +53,10 @@ class DuckDBScoreRepository:
 
     def load_inputs(
         self, as_of: date, trend_scan: str, vcp_scan: str, volatility_measure: str,
-        strategy_scan: bool = False,
     ) -> list[SetupInputs]:  # fmt: skip
         """Inputs for every PASS row of ``trend_scan`` (module docstring of scoring.engine).
 
-        ``strategy_scan``: ``vcp_scan`` is a file-configured strategy's scan
-        (``strategy_setups``); only passers with a primary setup are scored (decision O4)."""
+"""
         q = self._store.conn.execute
         passers = q(
             "SELECT instrument_id, rs_rank FROM trend_template_results"
@@ -70,22 +67,7 @@ class DuckDBScoreRepository:
         if not ids:
             return []
         vol_col = "atr_contraction_ratio" if volatility_measure == "atr" else "tr_contraction_ratio"
-        if strategy_scan:
-            generic: dict[str, PatternInputs | GenericPatternInputs] = {}
-            for iid, cls, status, conf, grade, details, dryup in q(
-                "SELECT instrument_id, classification, status, confirmation_state, grade,"
-                " details_json, dryup_volume_ratio FROM strategy_setups"
-                " WHERE scan_id = ? AND is_primary", [vcp_scan],
-            ).fetchall():  # fmt: skip
-                measures = json.loads(details).get("measures", {}) if details else {}
-                generic[iid] = GenericPatternInputs(cls, status, conf, int(grade), measures,
-                                                    dryup)  # fmt: skip
-            passers = [p for p in passers if p[0] in generic]
-            ids = [r[0] for r in passers]
-            if not ids:
-                return []
-            return self._inputs(as_of, passers, ids, generic)
-        patterns: dict[str, PatternInputs | GenericPatternInputs] = {
+        patterns: dict[str, PatternInputs] = {
             r[0]: PatternInputs(*r[1:])
             for r in q(
                 f"""
@@ -101,7 +83,7 @@ class DuckDBScoreRepository:
 
     def _inputs(
         self, as_of: date, passers: list[tuple[Any, ...]], ids: list[str],
-        patterns: dict[str, PatternInputs | GenericPatternInputs],
+        patterns: dict[str, PatternInputs],
     ) -> list[SetupInputs]:  # fmt: skip
         q = self._store.conn.execute
         feats: dict[str, dict[int, tuple[Any, ...]]] = {}

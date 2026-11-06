@@ -29,7 +29,7 @@ def test_strategies_are_the_frozen_vcp(ro_env: Env) -> None:
 
 
 def test_every_response_carries_as_of_and_data_time(ro_env: Env) -> None:
-    urls = ["status", "strategies", "summary", "market", "setups", "setups/overlap",
+    urls = ["status", "strategies", "summary", "market", "setups",
             "stocks/ALPHA/bars", "stocks/ALPHA/setups", "activity", "paper",
             "search?q=alp"]  # fmt: skip
     for u in urls:
@@ -292,8 +292,6 @@ def test_screener_filters_sorts_and_pages(ro_env: Env) -> None:
     assert syms("has_setup=true&sort=symbol&direction=asc") == ["ALPHA", "BETA"]
     assert syms("q=alp") == ["ALPHA"]
     assert syms("classification=a_plus_vcp") == ["ALPHA"]
-    overlap = {r["symbol"] for r in get(ro_env, "/api/v1/setups/overlap")["rows"]}
-    assert set(syms("min_strategies=2")) == overlap
     assert syms("symbols=gamma, alpha,NOPE&sort=symbol&direction=asc") == ["ALPHA", "GAMMA"]
     assert syms("sort=rs_rank&direction=asc") == ["F00", "GAMMA", "BETA", "ALPHA"]
     page = get(ro_env, "/api/v1/screener?page=2&page_size=3")

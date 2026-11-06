@@ -64,7 +64,7 @@ def test_registry_has_vcp_with_its_version() -> None:
     vcp = load_runtime(ROOT / "config", "vcp")
     assert vcp.tiers == ("NONE", "VCP_LIKE", "VCP", "A_PLUS_VCP")
     assert [vcp.grade(t) for t in vcp.tiers] == [0, 1, 2, 3]
-    assert vcp.grade(None) == 0 and vcp.min_grade == 1 and vcp.detector is None
+    assert vcp.grade(None) == 0 and vcp.min_grade == 1
     assert vcp.scoring is VCP_PATTERN_SCORING
 
 

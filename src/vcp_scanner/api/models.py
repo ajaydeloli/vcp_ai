@@ -127,24 +127,6 @@ class SetupsResponse(Stamped):
     rows: list[SetupRow]
 
 
-class OverlapEntry(BaseModel):
-    strategy_id: str
-    classification: str
-    grade: int
-    score: float | None
-
-
-class OverlapRow(BaseModel):
-    instrument_id: str
-    symbol: str
-    company: str | None
-    strategies: list[OverlapEntry]
-
-
-class OverlapResponse(Stamped):
-    rows: list[OverlapRow]
-
-
 class HealthItem(BaseModel):
     id: str
     label: str

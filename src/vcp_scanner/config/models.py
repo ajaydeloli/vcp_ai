@@ -834,27 +834,3 @@ class StrategyFileConfig(StrictBaseModel):
 # -- Settings of file-configured strategies (STRATEGY_SPECIFICATION 13, 14) ----------------------
 
 
-class PatternScoringConfig(StrictBaseModel):
-    """A strategy's pattern-score part (STRATEGY_SPECIFICATION 9.2): sub-component weights (sum
-    100) and worst/best bounds. The names are checked against the strategy's scorer."""
-
-    weights: dict[str, float]
-    bounds: dict[str, NormalizationBounds]
-
-    @model_validator(mode="after")
-    def validate_weights(self) -> PatternScoringConfig:
-        if set(self.weights) != set(self.bounds):
-            raise ValueError("pattern weights and bounds must name the same sub-components")
-        if any(w < 0 for w in self.weights.values()):
-            raise ValueError("pattern weights must be >= 0")
-        if not math.isclose(sum(self.weights.values()), 100.0, abs_tol=1e-6):
-            raise ValueError(f"pattern weights sum to {sum(self.weights.values())}, not 100")
-        return self
-
-    def check_names(self, names: tuple[str, ...], label: str) -> None:
-        _expect_names(self.weights, names, label)
-
-
-class RankingConfig(StrictBaseModel):
-    min_grade: Annotated[int, Field(ge=1, le=3)] = 2
-    pivot_ready_max_distance_pct: Annotated[float, Field(gt=0)] = 3.0

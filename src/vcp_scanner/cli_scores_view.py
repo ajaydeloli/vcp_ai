@@ -153,14 +153,6 @@ def run_scores_explain(args: argparse.Namespace) -> int:
         ).fetchall()
     bounds = _bounds(cfg)
     pattern = "VCP" if strategy_id == "vcp" else "PATTERN"
-    if pattern == "PATTERN":
-        from vcp_scanner.config.models import PatternScoringConfig
-        from vcp_scanner.patterns.registry import load_runtime
-
-        settings = load_runtime(args.config_dir, strategy_id).settings
-        pcfg = getattr(settings, "scoring", None)
-        if isinstance(pcfg, PatternScoringConfig):
-            bounds.update({("PATTERN", k): (b.worst, b.best) for k, b in pcfg.bounds.items()})
     print(f"{args.symbol.upper()} on {as_of}: final score {_fmt(head[1])} "
           f"({head[18]}; ranks setups, not a probability)")  # fmt: skip
     rank = (f"ranking percentile {_fmt(head[2], 0)} among {head[6] or '-'} setups"

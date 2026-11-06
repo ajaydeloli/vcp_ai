@@ -1,10 +1,9 @@
 """Strategy registry (STRATEGY_SPECIFICATION 3.1).
 
 One entry per strategy: its id, the algorithm version the code implements, and how to build its
-runtime from its config file (``config/strategies/<id>.yaml``): tiers on the common grade scale
-(section 6.3), the lowest ranked grade, the pattern-score part (section 9.2) and, for strategies
-other than VCP, the detector (section 8). VCP keeps its own scan path (``vcp compute vcp``) and
-its thresholds in ``strategy.yaml`` / ``scoring.yaml`` (decision O3).
+runtime from its config file (``config/strategies/<id>.yaml``). VCP is the only strategy; it
+keeps its own scan path (``vcp compute vcp``) and its thresholds in ``strategy.yaml`` /
+``scoring.yaml`` (decision O3).
 """
 
 from __future__ import annotations
@@ -13,16 +12,11 @@ from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from pathlib import Path
 
-from typing import Any
-
-from pydantic import BaseModel, ValidationError
-
 from vcp_scanner.config.models import StrategyFileConfig
 from vcp_scanner.config.strategies import load_strategy_files
 from vcp_scanner.domain.errors import ConfigError
 from vcp_scanner.domain.strategy import VCP_GRADES, VCP_STRATEGY_ID
-from vcp_scanner.patterns.strategy_base import StrategyDetector
-from vcp_scanner.scoring.engine import VCP_PATTERN_SCORING, FilePatternScoring, PatternScoring
+from vcp_scanner.scoring.engine import VCP_PATTERN_SCORING, PatternScoring
 from vcp_scanner.versioning import VCP_ALGORITHM_VERSION
 
 
@@ -36,8 +30,6 @@ class StrategyRuntime:
     min_grade: int  # lowest grade that is ranked
     scoring: PatternScoring
     file: StrategyFileConfig
-    detector: StrategyDetector | None = None  # None: VCP (own scan path)
-    settings: BaseModel | None = None
 
     def grade(self, classification: str | None) -> int:
         return self.grades.get(classification or "", 0)
@@ -59,28 +51,6 @@ def _vcp(file: StrategyFileConfig) -> StrategyRuntime:
                            VCP_PATTERN_SCORING, file)  # fmt: skip
 
 
-def _file_strategy(
-    settings_model: type[Any],
-    detector_cls: type[Any],
-    score_subs: tuple[str, ...],
-) -> Callable[[StrategyFileConfig], StrategyRuntime]:
-    def build(file: StrategyFileConfig) -> StrategyRuntime:
-        raw = {k: v for k in ("detector", "classification", "ranking", "scoring")
-               if (v := getattr(file, k)) is not None}  # fmt: skip
-        try:
-            settings = settings_model(**raw)
-            scoring = FilePatternScoring(score_subs, settings.scoring, settings.ranking.min_grade)
-        except (ValidationError, ValueError) as err:
-            raise ConfigError(f"Invalid settings for strategy {file.strategy_id}:\n{err}") from err
-        grades = {"NONE": 0, **{k.upper(): t.grade for k, t in settings.classification.items()}}
-        detector = detector_cls(settings)  # type: ignore[arg-type]
-        return StrategyRuntime(file.strategy_id, file.algorithm_version, grades,
-                               settings.ranking.min_grade, scoring, file, detector,
-                               settings)  # fmt: skip
-
-    return build
-
-
 REGISTRY: dict[str, StrategyEntry] = {
     VCP_STRATEGY_ID: StrategyEntry(VCP_STRATEGY_ID, VCP_ALGORITHM_VERSION, _vcp),
 }
@@ -100,8 +70,7 @@ def get_strategy(strategy_id: str) -> StrategyEntry:
 
 
 def load_strategies(config_dir: str | Path) -> dict[str, StrategyFileConfig]:
-    """The strategy files of ``config_dir``, checked against this registry; every file's
-    strategy settings are validated too (a bad file blocks every scan, section 17)."""
+    """The strategy files of ``config_dir``, checked against this registry."""
     files = load_strategy_files(config_dir, registered_versions())
     for f in files.values():
         REGISTRY[f.strategy_id].build(f)

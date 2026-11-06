@@ -169,21 +169,6 @@ def daily_html(
             + ('<p class="muted">Top 20 shown.</p>' if len(rows) > 20 else "")
         )  # fmt: skip
 
-    multi = [o for o in q.overlap(cur, ctx, day) if len(o.strategies) > 1]
-    sections.append(
-        "<h2>Stocks on more than one list</h2>"
-        + table(
-            ["Stock", "Strategies"],
-            [
-                [
-                    esc(o.symbol),
-                    esc(", ".join(f"{e.strategy_id} (grade {e.grade})" for e in o.strategies)),
-                ]
-                for o in multi
-            ],
-        )
-    )
-
     events = r.activity(cur, ctx, day, 0, data_time).events
     today = [e for e in events if e.day == day and e.kind in ("PAPER_ENTRY", "PAPER_EXIT")]
     sections.append(

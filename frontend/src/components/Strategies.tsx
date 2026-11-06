@@ -1,18 +1,16 @@
 "use client";
 
-import { useOverlap, useStrategies, useSummary } from "@/lib/api";
-import { DASH, fmtInt, fmtNum, strategyLabel } from "@/lib/fmt";
+import { useStrategies, useSummary } from "@/lib/api";
+import { fmtInt, fmtNum, strategyLabel } from "@/lib/fmt";
 import { Page } from "./Page";
-import { Card, Empty, ErrorBox, GradeBadge, Loading, TINT } from "./ui";
+import { Card, ErrorBox, GradeBadge, Loading, TINT } from "./ui";
 
 const BOXES = [TINT.blue, TINT.green, TINT.violet, TINT.amber, TINT.cyan, TINT.pink] as const;
 
-/** The five frozen strategies: their grade tiers, today's counts, and the stocks several share. */
+/** The frozen strategy: its grade tiers and today's counts. */
 export function Strategies() {
   const strategies = useStrategies();
   const summary = useSummary();
-  const overlap = useOverlap();
-  const shared = (overlap.data?.rows ?? []).filter((r) => r.strategies.length > 1);
 
   return (
     <Page active="Strategies" title="Strategies">
@@ -60,52 +58,6 @@ export function Strategies() {
         </div>
       )}
 
-      <Card
-        title="Stocks in more than one strategy"
-        subtitle={overlap.data?.as_of ? `Scan of ${overlap.data.as_of}` : undefined}
-        box={TINT.orange}
-      >
-        {overlap.isError ? (
-          <ErrorBox error={overlap.error} />
-        ) : overlap.isPending ? (
-          <Loading what="overlap" />
-        ) : shared.length === 0 ? (
-          <Empty>No stock is in more than one strategy today.</Empty>
-        ) : (
-          <table className="w-full text-xs">
-            <thead className="text-[11px] uppercase text-mute">
-              <tr>
-                <th className="px-2 py-2 text-left font-medium">Symbol</th>
-                <th className="px-2 py-2 text-center font-medium">Strategies</th>
-                <th className="px-2 py-2 text-left font-medium">Where</th>
-              </tr>
-            </thead>
-            <tbody>
-              {shared.map((r) => (
-                <tr key={r.instrument_id} className="border-t border-line/60">
-                  <td className="px-2 py-2">
-                    <a href={`/stocks/${encodeURIComponent(r.symbol)}`} className="font-medium text-ink hover:text-accent">
-                      {r.symbol}
-                    </a>
-                    <span className="block text-[11px] text-mute">{r.company ?? DASH}</span>
-                  </td>
-                  <td className="px-2 py-2 text-center tabular-nums">{r.strategies.length}</td>
-                  <td className="px-2 py-2">
-                    <span className="flex flex-wrap gap-1.5">
-                      {r.strategies.map((x) => (
-                        <span key={x.strategy_id} className="flex items-center gap-1 text-mute">
-                          {strategyLabel(x.strategy_id)}
-                          <GradeBadge classification={x.classification} grade={x.grade} />
-                        </span>
-                      ))}
-                    </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </Card>
     </Page>
   );
 }

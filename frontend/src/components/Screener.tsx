@@ -176,7 +176,6 @@ function Filters({
     q.minConditions !== undefined ||
     q.minGrade !== undefined ||
     q.status !== undefined ||
-    q.minStrategies !== undefined ||
     q.sector !== undefined ||
     q.minEpsYoy !== undefined ||
     q.minSalesYoy !== undefined ||
@@ -261,18 +260,6 @@ function Filters({
             <option value="FORMING">Forming</option>
             <option value="PIVOT_READY">Pivot ready</option>
             <option value="BREAKOUT">Breakout</option>
-          </select>
-        </Field>
-        <Field id="scr-several" label="On strategies">
-          <select
-            id="scr-several"
-            value={q.minStrategies ?? ""}
-            onChange={(e) => onChange({ minStrategies: numOrUndef(e.target.value) })}
-            className={FIELD}
-          >
-            <option value="">Any</option>
-            <option value="2">2 or more</option>
-            <option value="3">3 or more</option>
           </select>
         </Field>
         <Field id="scr-tt" label="Trend Template">

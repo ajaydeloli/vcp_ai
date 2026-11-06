@@ -17,7 +17,6 @@ export type ScreenerQuery = {
   minGrade?: number;
   status?: string;
   classification?: string;
-  minStrategies?: number;
   /** NSE sector (S1) */
   sector?: string;
   /** fundamentals (F5), display and filter only: minimum EPS / sales growth year on year, % */
