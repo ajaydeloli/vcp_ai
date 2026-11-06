@@ -1,7 +1,7 @@
-"""The review pack for the April 2027 review (AGENT_SPECIFICATION step A5; STRATEGY_SPECIFICATION
+"""The review pack for the April 2027 review (STRATEGY_SPECIFICATION
 21.1, 21.3, 21.6; FUNDAMENTALS_SPECIFICATION 12).
 
-Read-only: the serving copy and the agent's own file. For each paper strategy:
+Read-only: the serving copy. For each paper strategy:
 
 * the ledger's record (closed trades, win rate, average, profit factor), as stored;
 * a replay of the frozen rules from the paper start to the ledger's last closed session, with
@@ -12,9 +12,7 @@ Read-only: the serving copy and the agent's own file. For each paper strategy:
 * the five criteria of 21.6 and the verdict: not judged (fewer than 30 closed trades), working,
   or not working (which criteria failed).
 
-Then the strategy candidates' shadow results (step A4), the research done this cycle (every
-hypothesis, so a lone success among many is read as such), the F7 finding, open questions, and
-the decisions the owner makes. Before 2027-04-01 the pack is a preview.
+Then the F7 finding and the decisions the owner makes. Before 2027-04-01 the pack is a preview.
 """
 
 from __future__ import annotations
@@ -196,53 +194,8 @@ def strategy_review(ro: _Ro, cfg: Any, config_dir: str, sid: str, start: date,
     }  # fmt: skip
 
 
-def _agent(agent_db: Path) -> dict[str, Any]:
-    """Research this cycle and open questions, from the agent's own file (read-only)."""
-    from vcp_scanner.agent.lab import CYCLE, MAX_PER_STRATEGY
-
-    out: dict[str, Any] = {"cycle": CYCLE, "max_per_strategy": MAX_PER_STRATEGY,
-                           "hypotheses": [], "questions": [], "candidates": []}  # fmt: skip
-    if not agent_db.exists():
-        return out
-    con = duckdb.connect(str(agent_db), read_only=True)
-
-    def rows(sql: str, args: list[Any] | None = None) -> list[tuple[Any, ...]]:
-        try:
-            return list(con.execute(sql, args or []).fetchall())
-        except duckdb.CatalogException:
-            return []
-
-    try:
-        out["hypotheses"] = [
-            {"id": r[0], "strategy": r[1], "title": r[2], "decision_rule": r[3], "status": r[4],
-             "outcome": r[5], "conclusion": r[6],
-             "runs": r[7], "validation_runs": r[8]}
-            for r in rows(
-                "SELECT h.hypothesis_id, h.strategy, h.title, h.decision_rule, h.status,"
-                " h.outcome, h.conclusion, count(r.run_id),"
-                " count(r.run_id) FILTER (WHERE r.window_name = 'validation')"
-                " FROM agent_hypotheses h LEFT JOIN agent_runs r USING (hypothesis_id)"
-                " WHERE h.cycle = ? GROUP BY ALL ORDER BY h.hypothesis_id", [CYCLE])
-        ]  # fmt: skip
-        out["questions"] = [
-            {"id": r[0], "on": str(r[1])[:10], "text": r[2], "source": r[3]}
-            for r in rows("SELECT note_id, created_at, text, source FROM agent_notes"
-                          " WHERE kind = 'question' ORDER BY note_id DESC LIMIT 30")
-        ]  # fmt: skip
-        out["candidates"] = [
-            {"candidate_id": r[0], "strategy_id": r[1], "candidate_version": r[2],
-             "status": r[3], "start_date": None if r[4] is None else str(r[4])}
-            for r in rows("SELECT candidate_id, strategy_id, candidate_version, status,"
-                          " start_date FROM strategy_candidates ORDER BY candidate_id")
-        ]  # fmt: skip
-    finally:
-        con.close()
-    return out
-
-
-def build_pack(serving: Path, config_dir: str, agent_db: Path, today: date) -> dict[str, Any]:
-    """The whole pack as plain data (also what the agent's ``review_pack`` tool returns)."""
-    from vcp_scanner.agent.shadow import comparisons
+def build_pack(serving: Path, config_dir: str, today: date) -> dict[str, Any]:
+    """The whole pack as plain data ."""
     from vcp_scanner.backtest.periods import load_backtest_config
     from vcp_scanner.cli_paper import _paper_strategies
     from vcp_scanner.config import load_scanner_config
@@ -255,10 +208,6 @@ def build_pack(serving: Path, config_dir: str, agent_db: Path, today: date) -> d
         ro = _Ro(con)
         strategies = [strategy_review(ro, cfg, config_dir, sid, start, bcfg.defaults)
                       for sid in _paper_strategies(config_dir, None)]  # fmt: skip
-        try:
-            shadow = comparisons(con, config_dir, today)
-        except duckdb.CatalogException:  # a serving copy older than the shadow table
-            shadow = []
         surv = sorted({str(r[0]) for r in con.execute(
             "SELECT DISTINCT survivorship_status FROM scan_runs WHERE scan_type ="
             " 'TREND_TEMPLATE' AND as_of_date >= ? AND survivorship_status IS NOT NULL",
@@ -276,7 +225,6 @@ def build_pack(serving: Path, config_dir: str, agent_db: Path, today: date) -> d
                  f"{MIN_CLOSED_TRADES}): 21.6 postpones the review")  # fmt: skip
     else:
         state = "due: decide per strategy"
-    agent = _agent(agent_db)
     decisions = []
     for s in strategies:
         if int(s["criteria"][0]["value"]) < MIN_CLOSED_TRADES:
@@ -285,14 +233,6 @@ def build_pack(serving: Path, config_dir: str, agent_db: Path, today: date) -> d
             decisions.append(f"{s['strategy_id']}: real money (a separate decision, with "
                              "position sizing), continue on paper, or retire. Pack: "
                              f"{s['verdict']}.")  # fmt: skip
-    for c in shadow:
-        if c.get("started"):
-            ready = c.get("ready_to_judge")
-            decisions.append(
-                f"Candidate {c['candidate_id']}: " + ("promote (a new version; restarts that "
-                "strategy's paper clock), keep shadowing, or retire." if ready else
-                "not ready to judge (" + ", ".join(c.get("needs", [])) + "): keep shadowing "
-                "or retire."))  # fmt: skip
     decisions.append("Fundamentals: keep them display only (the F7 recommendation), or write a "
                      "new hypothesis down before testing anything else.")  # fmt: skip
     return {
@@ -306,10 +246,8 @@ def build_pack(serving: Path, config_dir: str, agent_db: Path, today: date) -> d
         "thresholds": {"min_closed_trades": MIN_CLOSED_TRADES,
                        "min_profit_factor": MIN_PROFIT_FACTOR,
                        "max_drawdown_pct": MAX_DRAWDOWN_PCT},
-        "strategies": strategies, "candidates": shadow, "candidate_list": agent["candidates"],
-        "research": {"cycle": agent["cycle"], "max_per_strategy": agent["max_per_strategy"],
-                     "hypotheses": agent["hypotheses"]},
-        "f7": F7_FINDING, "questions": agent["questions"], "decisions": decisions,
+        "strategies": strategies,
+        "f7": F7_FINDING, "decisions": decisions,
         "survivorship": surv,
     }  # fmt: skip
 
@@ -389,70 +327,10 @@ def render_html(pack: dict[str, Any]) -> str:
             + agree
             + div
         )
-    cands = [c for c in pack["candidates"] if c.get("started")]
-    if cands:
-        body = [[esc(c["candidate_id"]), esc(c["start_date"]),
-                 f"{c['frozen']['closed']} / {_pct(c['frozen']['avg_ret'])}",
-                 f"{c['candidate']['closed']} / {_pct(c['candidate']['avg_ret'])}",
-                 "n/a" if c["avg_ret_diff"] is None else
-                 f"{c['avg_ret_diff']:+.2f} pp ({c['avg_ret_diff_lo']:+.2f} to "
-                 f"{c['avg_ret_diff_hi']:+.2f})",
-                 "ready to judge" if c["ready_to_judge"] else esc(", ".join(c["needs"]))]
-                for c in cands]  # fmt: skip
-        sec.append(
-            "<h2>Strategy candidates (shadow ledger)</h2>"
-            + table(
-                [
-                    "Candidate",
-                    "Since",
-                    "Frozen: closed / avg",
-                    "Candidate: closed / avg",
-                    "Difference (95 % range)",
-                    "Judge",
-                ],
-                body,
-            )
-        )
-    else:
-        sec.append("<h2>Strategy candidates (shadow ledger)</h2><p class='muted'>No candidate "
-                   "has started.</p>")  # fmt: skip
-    hyps = pack["research"]["hypotheses"]
-    tried: dict[str, int] = {}
-    for h in hyps:
-        tried[h["strategy"]] = tried.get(h["strategy"], 0) + 1
-    word = "hypothesis" if len(hyps) == 1 else "hypotheses"
-    cap = pack["research"]["max_per_strategy"]
-    sec.append(
-        f"<h2>Research this cycle ({esc(pack['research']['cycle'])})</h2>"
-        f"<p>{len(hyps)} {word} registered (at most {cap} per strategy): "
-        + (", ".join(f"{esc(k)} {v}" for k, v in sorted(tried.items())) or "none")
-        + ". Every one is listed, supported or not, so a "
-        "lone success among several tries is read as such.</p>"
-        + table(
-            ["H", "Strategy", "Title", "Runs (validation)", "Outcome", "Conclusion"],
-            [
-                [
-                    str(h["id"]),
-                    esc(h["strategy"]),
-                    esc(h["title"]),
-                    f"{h['runs']} ({h['validation_runs']})",
-                    esc(h["outcome"] or h["status"]),
-                    esc(h["conclusion"] or ""),
-                ]
-                for h in hyps
-            ],
-        )  # fmt: skip
-    )
     sec.append(f"<h2>Fundamentals (F7)</h2><p>{esc(pack['f7'])}</p>")
-    if pack["questions"]:
-        sec.append(
-            "<h2>Open questions (notebook)</h2><ul>"
-            + "".join(f"<li>{esc(q['on'])}: {esc(q['text'])}</li>" for q in pack["questions"])
-            + "</ul>"
-        )
     sec.append("<h2>Decisions for the owner</h2><ol>" + "".join(
         f"<li>{esc(d)}</li>" for d in pack["decisions"]) + "</ol><p class='muted'>Nothing here "
-        "changes a strategy: a decision is recorded in the notebook and applied as a new "
+        "changes a strategy: a decision is applied as a new "
         "version.</p>")  # fmt: skip
     sec.append("<h2>Limits</h2><ul><li>Survivorship of the paper-period scans: "
                f"{esc(', '.join(pack['survivorship']) or 'n/a')}.</li><li>The portfolio and "
@@ -467,11 +345,11 @@ def render_html(pack: dict[str, Any]) -> str:
     return page(f"{title} {pack['made_on']}", sec, when)
 
 
-def write_review(serving: Path, config_dir: str, agent_db: Path, out_dir: Path,
+def write_review(serving: Path, config_dir: str, out_dir: Path,
                  today: date | None = None) -> Path:  # fmt: skip
     """``reports/review/<date>.html`` and the same pack as ``.json``."""
     day = today or datetime.now(IST).date()
-    pack = build_pack(serving, config_dir, agent_db, day)
+    pack = build_pack(serving, config_dir, day)
     folder = out_dir / "review"
     folder.mkdir(parents=True, exist_ok=True)
     path = folder / f"{day}.html"

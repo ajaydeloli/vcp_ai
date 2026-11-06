@@ -57,7 +57,7 @@ def send_evening(config_dir: str, data_dir: str) -> str:
     """The evening summary through the in-process API; returns a one-line result. Never raises
     (the daily run calls it last)."""
     try:
-        from vcp_scanner.agent.server import Api
+        from vcp_scanner.alerts.api_client import Api
         from vcp_scanner.alerts.messages import evening_message
         from vcp_scanner.alerts.telegram import (
             AlertLog,
@@ -118,8 +118,6 @@ def _market_line(get: Any) -> str | None:
 def _watch(args: argparse.Namespace) -> int:
     import httpx
 
-    from vcp_scanner.agent.proposals import Proposals
-    from vcp_scanner.agent.store import AgentStore
     from vcp_scanner.alerts.messages import pivot_alerts, watch_list
     from vcp_scanner.alerts.telegram import (
         AlertLog,
@@ -149,7 +147,6 @@ def _watch(args: argparse.Namespace) -> int:
         load_dotenv(args.env_file)
         channel = channel_from_env()
     log = AlertLog(Path(args.data_dir) / "alerts" / "alerts.duckdb")
-    agent_db = Path(args.data_dir) / "agent" / "agent.duckdb"
 
     def get(path: str, **params: Any) -> Any:
         clean = {k: v for k, v in params.items() if v is not None}
@@ -169,9 +166,7 @@ def _watch(args: argparse.Namespace) -> int:
             market = (get("live/status").get("feed") or {}).get("market")
             if market == "open":
                 if not watched or time.monotonic() - built_at > 3600:
-                    ai = ([s for s, *_ in Proposals(AgentStore(agent_db), Path.cwd()).watchlist()]
-                          if agent_db.exists() else [])  # fmt: skip
-                    watched = watch_list(get, cfg.intraday, ai)
+                    watched = watch_list(get, cfg.intraday)
                     built_at = time.monotonic()
                     print(f"{_now():%H:%M} watching {len(watched)} stocks")
                     market_line = _market_line(get)

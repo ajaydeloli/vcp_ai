@@ -11,14 +11,11 @@ import liveQuotes from "./fixtures/api/live_quotes.json";
 import liveStatus from "./fixtures/api/live_status.json";
 import backtests from "./fixtures/api/backtests.json";
 import ipos from "./fixtures/api/ipos.json";
-import leaders from "./fixtures/api/leaders.json";
-import leaderRun from "./fixtures/api/leader_run.json";
 import history from "./fixtures/api/stock_history.json";
 import marketHealth from "./fixtures/api/market_health.json";
 import market from "./fixtures/api/market.json";
 import paper from "./fixtures/api/paper.json";
 import reports from "./fixtures/api/reports.json";
-import agent from "./fixtures/api/agent.json";
 import alerts from "./fixtures/api/alerts.json";
 import trendTemplate from "./fixtures/api/trend_template.json";
 import screener from "./fixtures/api/screener.json";
@@ -33,8 +30,8 @@ import stockFundamentals from "./fixtures/api/stock_fundamentals.json";
 import stockFundamentalsNone from "./fixtures/api/stock_fundamentals_none.json";
 
 export const fx = {
-  agent, alerts, trendTemplate, activity, backtests, bars, history, ipos, reports, liveIndices, liveQuotes, liveStatus, market, marketHealth, paper, search, screener, setupsVcp, status,
-  stockSetups, strategies, summary, fundamentals, stockFundamentals, stockFundamentalsNone, leaders, leaderRun,
+  alerts, trendTemplate, activity, backtests, bars, history, ipos, reports, liveIndices, liveQuotes, liveStatus, market, marketHealth, paper, search, screener, setupsVcp, status,
+  stockSetups, strategies, summary, fundamentals, stockFundamentals, stockFundamentalsNone,
 }; // fmt: skip
 
 /** What the API would answer for a path ("setups?strategy=vcp"); undefined: no such sample. */
@@ -52,10 +49,8 @@ export function sample(rel: string): unknown {
     case "ipos": return fx.ipos;
     case "backtests": return fx.backtests;
     case "reports": return fx.reports;
-    case "agent": return fx.agent;
     case "alerts": return fx.alerts;
     case "trend-template": return fx.trendTemplate;
-    case "leaders": return fx.leaders;
     case "reports/generate": return { ...fx.reports.files[0], name: "2026-10-01.html", label: "Daily report 2026-10-01" };
     case "search": return fx.search;
     case "screener": return fx.screener;
@@ -73,8 +68,6 @@ export function sample(rel: string): unknown {
       return { ...base, strategy_id: id, rows: id === "vcp" ? rows : [] };
     }
   }
-  const lr = /^leaders\/(\d+)$/.exec(path);
-  if (lr) return Number(lr[1]) === fx.leaderRun.run.run_id ? fx.leaderRun : undefined;
   const m = /^stocks\/([^/]+)\/(bars|setups|history|fundamentals)$/.exec(path);
   if (m) {
     const symbol = decodeURIComponent(m[1] ?? "");

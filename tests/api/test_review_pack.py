@@ -4,7 +4,6 @@ pack on the API fixture (a hand-made ledger the replay does not reproduce)."""
 
 from __future__ import annotations
 
-import asyncio
 import json
 from datetime import date
 from pathlib import Path
@@ -68,8 +67,7 @@ def _config(env: Env) -> str:
 
 
 def _pack(env: Env, day: date) -> dict[str, Any]:
-    return R.build_pack(env.data_dir / "serving" / "vcp_serving.duckdb", _config(env),
-                        env.data_dir / "agent" / "agent.duckdb", day)  # fmt: skip
+    return R.build_pack(env.data_dir / "serving" / "vcp_serving.duckdb", _config(env), day)
 
 
 def test_the_pack_on_the_fixture_reports_the_ledger_and_its_disagreement(ro_env: Env) -> None:
@@ -87,10 +85,6 @@ def test_the_pack_on_the_fixture_reports_the_ledger_and_its_disagreement(ro_env:
     assert vcp["replay"]["agrees"] is False
     assert any("GAMMA" in x and x.startswith("EXIT")
                for x in vcp["replay"]["differences"]["stored_not_recomputed"])  # fmt: skip
-    # Research of the cycle, every hypothesis listed; the candidate that never started is not
-    # in the shadow results, only in the list.
-    assert [h["outcome"] for h in pack["research"]["hypotheses"]] == ["rejected"]
-    assert pack["candidates"] == [] and pack["candidate_list"][0]["status"] == "rejected"
     assert "display only" in pack["f7"]
     assert pack["decisions"][0] == ("vcp: not judged: 1 of 30 closed trades; paper continues "
                                     "up to 2027-10-01 (nothing to decide yet).")  # fmt: skip
@@ -103,8 +97,7 @@ def test_on_the_review_date_too_few_trades_postpone_the_review(ro_env: Env) -> N
 
 def test_write_review_makes_the_html_and_the_json(ro_env: Env, tmp_path: Path) -> None:
     path = R.write_review(ro_env.data_dir / "serving" / "vcp_serving.duckdb", _config(ro_env),
-                          ro_env.data_dir / "agent" / "agent.duckdb", tmp_path,
-                          date(2026, 10, 6))  # fmt: skip
+                          tmp_path, date(2026, 10, 6))  # fmt: skip
     assert path == tmp_path / "review" / "2026-10-06.html"
     html = path.read_text()
     assert "Review pack (preview) 2026-10-06" in html and "Verdict per strategy" in html
@@ -124,18 +117,3 @@ def test_the_weekly_summary_brings_the_pack_from_the_review_date(
     [path] = _review_pack(serving, "config", ro_env.data_dir, tmp_path, date(2027, 4, 2))
     assert path.name == "2027-04-02.html"
     assert "Review pack (postponed) 2027-04-02" in path.read_text()  # 1 trade of 30
-
-
-def test_the_agent_tool_returns_the_pack_without_the_equity_curves(
-    ro_env: Env, tmp_path: Path
-) -> None:
-    from vcp_scanner.agent.server import build_server
-
-    server = build_server(data_dir=str(ro_env.data_dir), agent_db=ro_env.data_dir / "agent" /
-                          "agent.duckdb", repo_root=Path.cwd(), client=ro_env.client,
-                          launcher=lambda pid: None)  # fmt: skip
-    res = asyncio.run(server.call_tool("review_pack", {}))
-    content = res[0] if isinstance(res, tuple) else res
-    pack = json.loads(content[0].text)
-    vcp = next(s for s in pack["strategies"] if s["strategy_id"] == "vcp")
-    assert "equity" not in vcp["replay"] and vcp["ledger"]["closed"] == 1

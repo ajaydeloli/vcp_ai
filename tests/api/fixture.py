@@ -160,41 +160,6 @@ def add_market_health(store: DuckDBStore) -> None:
     )  # fmt: skip
 
 
-def add_superperformance(store: DuckDBStore) -> None:
-    """A stored superperformance study with three synthetic runs (Past Leaders page): ALPHA
-    doubled with a VCP and two bases, GAMMA tripled with no sector and no scan, BETA +50 to 99 %
-    still open."""
-    c = store.conn
-    put(c, "superperformance_studies", study_id="sp-test", created_at=T0,
-        study_version="superperformance-1.0.0", data_end=AS_OF, source="test",
-        vcp_source="vcp-1.1.0: test scans", survivorship_status="PARTIAL",
-        survivorship_detail="synthetic", params_json="{}",
-        summary_json='{"lift_end": "2025-09-26"}')  # fmt: skip
-    runs = [
-        (1, "ALPHA", "Capital Goods", date(2024, 3, 1), 106.0, date(2024, 12, 2), 233.2, 120.0,
-         "doubled", 197, True, "VCP", 2),
-        (2, "GAMMA", None, date(2024, 6, 3), 111.0, date(2025, 3, 3), 366.3, 230.0, "tripled",
-         190, True, None, 0),
-        (3, "BETA", "Chemicals", date(2026, 4, 1), 160.0, date(2026, 9, 1), 264.0, 65.0,
-         "50-100", 107, False, "NONE", 0),
-    ]  # fmt: skip
-    for rid, sym, sec, ld, lc, pd, pc, g, band, n, done, vcp, nb in runs:
-        put(c, "superperformance_runs", study_id="sp-test", run_id=rid, instrument_id=iid(sym),
-            symbol=sym, sector=sec, launch_date=ld, launch_close=lc, peak_date=pd,
-            peak_close=pc, gain_pct=g, gain_band=band, sessions_to_peak=n, complete=done,
-            to50=40, max_pullback_pct=18.0, pullbacks_10=2, bases_count=max(0, nb - 1),
-            launch_stage="STAGE_4", launch_rs=35, launch_tt=False, launch_dist_high_pct=45.0,
-            vcp_before_breakout=vcp, giveback_pct=None if not done else 30.0,
-            giveback_of_gain_pct=None if not done else 60.0, giveback_final=done,
-            sector_peers=1)  # fmt: skip
-    for seq, (start, day, high) in enumerate(
-        [(date(2024, 2, 1), date(2024, 4, 1), 115.0), (date(2024, 6, 3), date(2024, 7, 1), 160.0)],
-        start=1,
-    ):
-        put(c, "superperformance_bases", study_id="sp-test", run_id=1, seq=seq, base_start=start,
-            breakout_date=day, base_high=high, depth_pct=8.0, length=20)  # fmt: skip
-
-
 def build_main_db(db: Path, ctx: Context) -> None:
     spec = {s.strategy_id: s for s in ctx.strategies}
     with DuckDBStore(str(db)) as store:
@@ -360,7 +325,6 @@ def build_main_db(db: Path, ctx: Context) -> None:
         add_fundamentals(store)
         add_shareholding(store)
         add_market_health(store)
-        add_superperformance(store)
         # NSE index closes (Market Overview step 3) for the last 30 sessions only: the NIFTY
         # lines start at 100 on their first stored day, later than the chart's first day.
         for k, d in enumerate(SESSIONS[-30:]):
@@ -451,96 +415,6 @@ def write_report_files(folder: Path) -> None:
         os.utime(p, (1_790_000_000, 1_790_000_000))  # a fixed time: the API sample must not change
 
 
-def write_agent_db(data_dir: Path) -> Path:
-    """The agent's own file with fixed rows (fixed times: the API sample must not change): one
-    pending and one applied proposal, an AI watchlist entry, a concluded hypothesis with a run,
-    and two notebook entries."""
-    from json import dumps as _json_dumps
-    from pathlib import Path as _P
-
-    from vcp_scanner.agent.lab import Lab
-    from vcp_scanner.agent.proposals import Proposals
-    from vcp_scanner.agent.store import AgentStore
-
-    path = data_dir / "agent" / "agent.duckdb"
-    store = AgentStore(path)
-    store.migrate()
-    Lab(store).migrate()
-    Proposals(store, _P("."), "config").migrate()
-    import duckdb as _duckdb
-
-    con = _duckdb.connect(str(path))
-    try:
-        con.execute(
-            "INSERT INTO agent_proposals VALUES (1, ?, 'corporate_action', 'ALPHA SPLIT ex"
-            " 2026-09-01', ?, 'Shows as a 5x jump', 'Notice https://example.org/a; 500 -> 101',"
-            " 'PENDING', NULL, NULL, NULL, NULL, NULL)",
-            [T0, '{"symbol": "ALPHA", "action_type": "SPLIT", "ex_date": "2026-09-01",'
-                 ' "ratio": [10, 2]}'],
-        )  # fmt: skip
-        con.execute(
-            "INSERT INTO agent_proposals VALUES (2, ?, 'watchlist', 'AI watchlist +BETA',"
-            " '{\"add\": [\"BETA\"], \"remove\": []}', 'Near its pivot', 'Near its pivot',"
-            " 'APPLIED', 'pre-approved', ?, NULL, ?, 'AI watchlist: added 1, removed 0')",
-            [T0, T0, T0],
-        )
-        con.execute("INSERT INTO agent_watchlist VALUES ('BETA', ?, 2, 'AI watchlist +BETA')", [T0])
-        con.execute(
-            "INSERT INTO agent_hypotheses VALUES (1, ?, '2027-04', 'vcp', 'Pattern-heavier score',"
-            " 'raise the pattern weight', 'IC at 60 sessions', 'IC +0.03 with t >= 2',"
-            " 'CONCLUDED', 'rejected', 'IC -0.003 (t -0.2)', ?)",
-            [T0, T0],
-        )
-        con.execute(
-            "INSERT INTO agent_runs VALUES (1, 1, 'what_if', 'development', DATE '2022-02-01',"
-            " DATE '2024-06-30', '{}', ?, ?, TRUE, 'what-if vcp: IC -0.002 -> -0.003', NULL, NULL)",
-            [T0, T0],
-        )
-        # A rejected strategy candidate (step A4) with two scan-diff rows.
-        cand = {"candidate_id": "flat_base-c1", "strategy_id": "flat_base",
-                "base_version": "flat_base-1.0.0", "candidate_version": "flat_base-1.0.0+c1",
-                "hypothesis_id": 1, "overrides": [{"file": "strategies/flat_base.yaml",
-                "path": "classification.flat_base.max_depth_pct", "old": 15, "new": 12}],
-                "spec": {"old": "15 %", "new": "12 %", "why": "shallower bases",
-                         "evidence": "run 1"}}  # fmt: skip
-        diff = {"days": 2, "first": "2026-10-01", "last": "2026-10-05", "frozen_eligible": 5,
-                "changes": {"ADDED": 0, "DROPPED": 1, "RECLASSIFIED": 1, "RESCORED": 0},
-                "stocks": 2}  # fmt: skip
-        con.execute(
-            "INSERT INTO agent_proposals VALUES (3, ?, 'candidate', 'Candidate flat_base:"
-            " classification.flat_base.max_depth_pct=12', ?, 'Shallower bases held better',"
-            " 'run 1 (development)', 'REJECTED', 'owner', ?, 'wait for more paper trades', NULL,"
-            " 'built and checked')",
-            [T0, _json_dumps({**cand, "scan_diff": diff}), T0],
-        )  # fmt: skip
-        from vcp_scanner.agent.candidate_build import migrate as _cand_migrate
-
-        con.close()
-        _cand_migrate(path)
-        con = _duckdb.connect(str(path))
-        con.execute(
-            "INSERT INTO strategy_candidates VALUES ('flat_base-c1', 3, 'flat_base',"
-            " 'flat_base-1.0.0', 'flat_base-1.0.0+c1', 'rejected', 'candidate/flat_base-c1',"
-            " 'abc123', 'fh', 'ch', NULL, ?, ?)",
-            [_json_dumps(diff), T0],
-        )
-        con.execute(
-            "INSERT INTO candidate_scan_diff VALUES ('flat_base-c1', DATE '2026-10-05', 'X|ALPHA',"
-            " 'ALPHA', 'DROPPED', 'FLAT_BASE', NULL, 70.0, NULL), ('flat_base-c1',"
-            " DATE '2026-10-01', 'X|BETA', 'BETA', 'RECLASSIFIED', 'TIGHT_FLAT_BASE',"
-            " 'FLAT_BASE', 60.0, 58.5)"
-        )
-        con.execute(
-            "INSERT INTO agent_notes VALUES (1, ?, 'decision', 'Strategies frozen until April"
-            " 2027.', NULL, 'seed'), (2, ?, 'finding', 'H1 concluded: rejected.', 'h1', 'agent')",
-            [T0, T0],
-        )
-    finally:
-        con.close()
-    os.utime(path, (1_790_000_000, 1_790_000_000))
-    return path
-
-
 def write_alert_files(data_dir: Path) -> None:
     """The intraday watcher's state (checked a minute before the test clock) and two logged
     alerts, one sent and one not (fixed times: the API sample must not change)."""
@@ -555,7 +429,7 @@ def write_alert_files(data_dir: Path) -> None:
         "watching": [
             {"symbol": "ALPHA", "pivot": 100.0, "strategy": "vcp", "why": "setup",
              "last_price": 99.5, "gap_pct": -0.5},
-            {"symbol": "BETA", "pivot": 50.0, "strategy": "flat_base", "why": "AI watchlist",
+            {"symbol": "BETA", "pivot": 50.0, "strategy": "vcp", "why": "your list",
              "last_price": None, "gap_pct": None}]}))  # fmt: skip
     log = AlertLog(folder / "alerts.duckdb")
     log.record(AS_OF, "EVENING", None, "VCP scanner - evening 2026-10-05", True, None)

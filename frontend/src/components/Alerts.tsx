@@ -79,7 +79,7 @@ function Watching({ d }: { d: AlertsData }) {
   return (
     <Card
       title="Watching now"
-      subtitle={`Setups within ${s.intraday_near_pivot_pct}% of the pivot${s.include_ai_watchlist ? ", the AI watchlist" : ""}${s.own_symbols.length ? " and your symbols" : ""}. Alerts: within ${s.approach_pct}% below the pivot, and above it.`}
+      subtitle={`Setups within ${s.intraday_near_pivot_pct}% of the pivot${s.own_symbols.length ? " and your symbols" : ""}. Alerts: within ${s.approach_pct}% below the pivot, and above it.`}
     >
       {d.watching.length === 0 ? (
         <Empty>{d.watcher.market === "open" ? "Nothing near a pivot right now." : "The watcher lists stocks in market hours."}</Empty>
@@ -151,7 +151,6 @@ function Settings({ d }: { d: AlertsData }) {
     ["Approaching alert", `within ${s.approach_pct}% below the pivot`],
     ["Entry limit warning", `more than ${s.chase_warn_pct}% above the pivot`],
     ["Checks", `every ${s.poll_seconds} s in market hours`],
-    ["AI watchlist", s.include_ai_watchlist ? "watched" : "not watched"],
     ["Your symbols", s.own_symbols.length ? s.own_symbols.join(", ") : "none"],
   ];
   return (

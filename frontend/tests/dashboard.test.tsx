@@ -41,12 +41,11 @@ describe("dashboard page (market view)", () => {
       ["Trend Template", "/trend-template"],
       ["Stock Analysis", "/stocks"],
       ["Watchlist", "/watchlist"],
-      ["Past Leaders", "/leaders"],
     ] as const) {
       expect(within(nav).getByRole("link", { name })).toHaveAttribute("href", href);
     }
-    // the top bar keeps six pages; the rest sit in the More dropdown, closed until asked
-    expect(within(nav).getAllByRole("link")).toHaveLength(6);
+    // the top bar keeps five pages; the rest sit in the More dropdown, closed until asked
+    expect(within(nav).getAllByRole("link")).toHaveLength(5);
     expect(within(nav).getByRole("button", { name: "More pages" })).toHaveAttribute("aria-expanded", "false");
     expect(within(nav).queryByRole("link", { name: "Backtest" })).not.toBeInTheDocument();
     expect(screen.queryByRole("complementary", { name: "Menu" })).not.toBeInTheDocument();
@@ -60,7 +59,7 @@ describe("dashboard page (market view)", () => {
     expect(more).toHaveAttribute("aria-expanded", "true");
     const list = screen.getByRole("list", { name: "More pages" });
     const names = within(list).getAllByRole("link").map((a) => a.textContent);
-    expect(names).toEqual(["Fundamentals", "Recent IPOs", "Strategies", "Paper Trading", "Backtest", "Reports", "Alerts", "AI Agent", "System Status"]);
+    expect(names).toEqual(["Fundamentals", "Recent IPOs", "Strategies", "Paper Trading", "Backtest", "Reports", "Alerts", "System Status"]);
     expect(within(list).getByRole("link", { name: "Backtest" })).toHaveAttribute("href", "/backtest");
 
     await userEvent.click(document.body); // a click outside
@@ -109,10 +108,8 @@ describe("dashboard page (market view)", () => {
     expect(within(menu).getByRole("link", { name: "Reports" })).toHaveAttribute("href", "/reports");
     expect(within(menu).getByRole("link", { name: "Fundamentals" })).toHaveAttribute("href", "/fundamentals");
     expect(within(menu).getByRole("link", { name: "Alerts" })).toHaveAttribute("href", "/alerts");
-    expect(within(menu).getByRole("link", { name: "AI Agent" })).toHaveAttribute("href", "/agent");
     expect(within(menu).getByRole("link", { name: "Trend Template" })).toHaveAttribute("href", "/trend-template");
-    expect(within(menu).getByRole("link", { name: "Past Leaders" })).toHaveAttribute("href", "/leaders");
-    expect(within(menu).getAllByRole("link")).toHaveLength(15); // every page, the More ones too
+    expect(within(menu).getAllByRole("link")).toHaveLength(13); // every page, the More ones too
     expect(within(menu).queryByText("later")).not.toBeInTheDocument();
     await userEvent.keyboard("{Escape}");
     expect(screen.queryByRole("complementary", { name: "Menu" })).not.toBeInTheDocument();

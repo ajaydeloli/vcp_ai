@@ -136,12 +136,12 @@ def test_the_evening_message_says_run_market_breakouts_and_near_pivot() -> None:
     assert "RUN PROBLEM" in evening_message(_get(failed), EveningConfig(strategies=["vcp"]))
 
 
-def test_the_watch_list_takes_near_setups_and_the_ai_watchlist() -> None:
+def test_the_watch_list_takes_near_setups_and_the_owners_symbols() -> None:
     api = {**API, "stocks/MINE/setups": {"setups": [
         {"strategy_id": "flat_base", "pivot": 200.0, "score": 50},
         {"strategy_id": "vcp", "pivot": 210.0, "score": 60}]}}  # fmt: skip
-    got = watch_list(_get(api), IntradayConfig(near_pivot_pct=3.0), ["mine", "NOSETUP"])
-    assert [(w.symbol, w.pivot, w.why) for w in got] == [("MINE", 210.0, "AI watchlist"),
+    got = watch_list(_get(api), IntradayConfig(near_pivot_pct=3.0, symbols=["mine", "NOSETUP"]))
+    assert [(w.symbol, w.pivot, w.why) for w in got] == [("MINE", 210.0, "your list"),
                                                         ("NEAR", 100.0, "setup")]  # fmt: skip
 
 
@@ -193,7 +193,7 @@ def test_the_watcher_state_file_has_prices_and_gaps(tmp_path: Path) -> None:
 
     path = tmp_path / "alerts" / "watch_state.json"
     write_watch_state(path, "open", [Watched("A", 100.0, "vcp", "setup"),
-                                     Watched("B", 50.0, "vcp", "AI watchlist")],
+                                     Watched("B", 50.0, "vcp", "your list")],
                       {"A": 101.5}, None)  # fmt: skip
     body = json.loads(path.read_text())
     assert body["market"] == "open" and body["updated_at"].endswith("+05:30")
