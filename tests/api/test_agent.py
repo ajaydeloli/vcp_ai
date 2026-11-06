@@ -59,7 +59,7 @@ def test_read_tools_return_compact_api_data(server: Any) -> None:
     assert stock["setups"]["symbol"] == "ALPHA"
     assert stock["fundamentals"]["shareholding"]["promoter_pct"] == 48.5
     brief = call(server, "daily_brief")
-    assert brief["as_of"] == "2026-10-05" and set(brief["setups"]) >= {"vcp", "flat_base"}
+    assert brief["as_of"] == "2026-10-05" and set(brief["setups"]) >= {"vcp"}
     assert {p["strategy_id"] for p in brief["paper"]} >= {"vcp"}
 
 
@@ -70,8 +70,8 @@ def test_tools_read_a_past_scan_day_and_a_score_history(server: Any) -> None:
     assert (
         call(server, "stock", symbol="ALPHA", date="2026-10-05")["setups"]["as_of"] == "2026-10-05"
     )
-    hist = call(server, "score_history", symbol="alpha", strategy="flat_base")
-    assert [(r["day"], r["strategy_id"]) for r in hist["rows"]] == [("2026-10-05", "flat_base")]
+    hist = call(server, "score_history", symbol="alpha", strategy="vcp")
+    assert [(r["day"], r["strategy_id"]) for r in hist["rows"]] == [("2026-10-05", "vcp")]
     with pytest.raises(Exception, match="YYYY-MM-DD"):
         asyncio.run(server.call_tool("setups", {"date": "16 Oct"}))
 
@@ -84,9 +84,10 @@ def test_diagnostic_tools_and_setup_filters(server: Any) -> None:
     assert call(server, "scan_run")["as_of"] == "2026-10-05"
     bt = call(server, "backtest", backtest_id="bt-dev", trades=5)
     assert bt["run"]["backtest_id"] == "bt-dev" and bt["run"]["period"] == "development"
-    every = call(server, "setups", strategy="flat_base")["rows"]
-    high = call(server, "setups", strategy="flat_base", min_score=75)["rows"]
-    assert len(high) < len(every) and all(r["score"] >= 75 for r in high)
+    every = call(server, "setups", strategy="vcp")["rows"]
+    cut = max(r["score"] for r in every)
+    high = call(server, "setups", strategy="vcp", min_score=cut)["rows"]
+    assert 0 < len(high) < len(every) and all(r["score"] >= cut for r in high)
     near = call(server, "setups", strategy="vcp", max_pivot_distance_pct=100)
     assert all(0 <= r["pivot_distance_pct"] <= 100 for r in near.get("rows", []))
 
@@ -159,23 +160,23 @@ def test_compact_cuts_lists_and_drops_nulls() -> None:
 
 
 def test_propose_candidate_starts_a_build_and_candidates_shows_it(server: Any) -> None:
-    hid = call(server, "register_hypothesis", strategy="flat_base", title="t", idea="i",
+    hid = call(server, "register_hypothesis", strategy="vcp", title="t", idea="i",
                metric="m", decision_rule="d")["hypothesis_id"]  # fmt: skip
     with pytest.raises(Exception, match="may change"):
         asyncio.run(server.call_tool("propose_candidate", {
-            "strategy_id": "flat_base", "hypothesis_id": hid, "old": "o" * 10, "new": "n" * 10,
+            "strategy_id": "vcp", "hypothesis_id": hid, "old": "o" * 10, "new": "n" * 10,
             "why": "w" * 10, "evidence": "e" * 10,
-            "overrides": [{"file": "strategies/flat_base.yaml", "path": "stage",
+            "overrides": [{"file": "strategies/vcp.yaml", "path": "stage",
                            "new": "live"}]}))  # fmt: skip
     LAUNCHED.clear()
-    out = call(server, "propose_candidate", strategy_id="flat_base", hypothesis_id=hid,
-               overrides=[{"file": "strategies/flat_base.yaml",
-                           "path": "classification.flat_base.max_depth_pct", "new": 12}],
+    out = call(server, "propose_candidate", strategy_id="vcp", hypothesis_id=hid,
+               overrides=[{"file": "strategy.yaml",
+                           "path": "vcp.progressive_tolerance_pct", "new": 12}],
                old="max depth 15 %", new="max depth 12 %", why="shallower bases held better",
                evidence="run 3 development")  # fmt: skip
     assert out["status"] == "BUILDING" and "building in the background" in out["next"]
     assert [out["proposal_id"]] == LAUNCHED
-    assert out["change"]["candidate_id"] == "flat_base-c1"
+    assert out["change"]["candidate_id"] == "vcp-c1"
     listed = call(server, "candidates")
     assert [p["proposal_id"] for p in listed["proposals"]] == [out["proposal_id"]]
     assert not listed.get("on_main") and "30 shadow trades" in listed["rules"]

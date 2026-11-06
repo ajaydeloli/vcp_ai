@@ -109,11 +109,7 @@
   }
  ],
  "budget_left": {
-  "vcp": 2,
-  "flat_base": 3,
-  "three_weeks_tight": 3,
-  "cup_handle": 3,
-  "double_bottom": 3
+  "vcp": 2
  },
  "hypotheses": [
   {

@@ -13,23 +13,15 @@ from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from pathlib import Path
 
+from typing import Any
+
 from pydantic import BaseModel, ValidationError
 
-from vcp_scanner.config.models import (
-    CupHandleSettings,
-    DoubleBottomSettings,
-    FlatBaseSettings,
-    StrategyFileConfig,
-    ThreeWeeksTightSettings,
-)
+from vcp_scanner.config.models import StrategyFileConfig
 from vcp_scanner.config.strategies import load_strategy_files
 from vcp_scanner.domain.errors import ConfigError
 from vcp_scanner.domain.strategy import VCP_GRADES, VCP_STRATEGY_ID
-from vcp_scanner.patterns.cup_handle import detector as cup_handle
-from vcp_scanner.patterns.double_bottom import detector as double_bottom
-from vcp_scanner.patterns.flat_base import detector as flat_base
 from vcp_scanner.patterns.strategy_base import StrategyDetector
-from vcp_scanner.patterns.three_weeks_tight import detector as three_weeks_tight
 from vcp_scanner.scoring.engine import VCP_PATTERN_SCORING, FilePatternScoring, PatternScoring
 from vcp_scanner.versioning import VCP_ALGORITHM_VERSION
 
@@ -67,14 +59,9 @@ def _vcp(file: StrategyFileConfig) -> StrategyRuntime:
                            VCP_PATTERN_SCORING, file)  # fmt: skip
 
 
-_Settings = FlatBaseSettings | ThreeWeeksTightSettings | CupHandleSettings | DoubleBottomSettings
-_Detector = (flat_base.FlatBaseDetector | three_weeks_tight.ThreeWeeksTightDetector
-             | cup_handle.CupHandleDetector | double_bottom.DoubleBottomDetector)  # fmt: skip
-
-
 def _file_strategy(
-    settings_model: type[_Settings],
-    detector_cls: type[_Detector],
+    settings_model: type[Any],
+    detector_cls: type[Any],
     score_subs: tuple[str, ...],
 ) -> Callable[[StrategyFileConfig], StrategyRuntime]:
     def build(file: StrategyFileConfig) -> StrategyRuntime:
@@ -96,25 +83,7 @@ def _file_strategy(
 
 REGISTRY: dict[str, StrategyEntry] = {
     VCP_STRATEGY_ID: StrategyEntry(VCP_STRATEGY_ID, VCP_ALGORITHM_VERSION, _vcp),
-    flat_base.STRATEGY_ID: StrategyEntry(
-        flat_base.STRATEGY_ID, flat_base.ALGORITHM_VERSION,
-        _file_strategy(FlatBaseSettings, flat_base.FlatBaseDetector, flat_base.SCORE_SUBS),
-    ),
-    three_weeks_tight.STRATEGY_ID: StrategyEntry(
-        three_weeks_tight.STRATEGY_ID, three_weeks_tight.ALGORITHM_VERSION,
-        _file_strategy(ThreeWeeksTightSettings, three_weeks_tight.ThreeWeeksTightDetector,
-                       three_weeks_tight.SCORE_SUBS),
-    ),
-    cup_handle.STRATEGY_ID: StrategyEntry(
-        cup_handle.STRATEGY_ID, cup_handle.ALGORITHM_VERSION,
-        _file_strategy(CupHandleSettings, cup_handle.CupHandleDetector, cup_handle.SCORE_SUBS),
-    ),
-    double_bottom.STRATEGY_ID: StrategyEntry(
-        double_bottom.STRATEGY_ID, double_bottom.ALGORITHM_VERSION,
-        _file_strategy(DoubleBottomSettings, double_bottom.DoubleBottomDetector,
-                       double_bottom.SCORE_SUBS),
-    ),
-}  # fmt: skip
+}
 
 
 def registered_versions() -> dict[str, str]:

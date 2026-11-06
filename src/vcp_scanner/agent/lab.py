@@ -24,7 +24,7 @@ import duckdb
 
 from vcp_scanner.agent.store import AgentStore
 
-STRATEGIES = ("vcp", "flat_base", "three_weeks_tight", "cup_handle", "double_bottom")
+STRATEGIES = ("vcp",)
 WINDOWS = {
     "development": (date(2022, 2, 1), date(2024, 6, 30)),
     "validation": (date(2024, 7, 1), date(2026, 9, 30)),

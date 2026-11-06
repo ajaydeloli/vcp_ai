@@ -52,10 +52,6 @@ export const tone = (v: number | null | undefined): string =>
 
 export const STRATEGY_LABEL: Record<string, string> = {
   vcp: "VCP",
-  flat_base: "Flat base",
-  three_weeks_tight: "3 weeks tight",
-  cup_handle: "Cup & handle",
-  double_bottom: "Double bottom",
 };
 
 export const strategyLabel = (id: string): string => STRATEGY_LABEL[id] ?? id;

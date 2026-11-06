@@ -54,14 +54,6 @@ describe("stock analysis page", () => {
     expect(await screen.findByText(/No breakout or paper trade for ALPHA/)).toBeInTheDocument();
   });
 
-  it("another strategy can be shown from the strategies card", async () => {
-    mockApi();
-    renderApp(<StockAnalysis symbol="ALPHA" />);
-    const card = (await screen.findByText("Setups across strategies")).closest("section") as HTMLElement;
-    await userEvent.click(await within(card).findByRole("button", { name: /Flat base/i }));
-    expect(within(card).getByRole("button", { name: /Flat base/i })).toHaveAttribute("aria-pressed", "true");
-  });
-
   it("without a symbol it opens the best-ranked VCP setup", async () => {
     const calls = mockApi();
     renderApp(<StockAnalysis symbol={null} />);

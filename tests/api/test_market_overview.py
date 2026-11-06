@@ -129,33 +129,6 @@ def test_sector_horizons_match_the_score_settings() -> None:
     assert list(health.SECTOR_HORIZONS) == s.leadership.sector_horizons
 
 
-# --- review 2026-10-11: one failure rate on the page, each stock once per breakout day ---------
-
-
-def test_a_stock_breaking_out_in_two_strategies_counts_once(db: Any) -> None:
-    store, ctx = db
-    c = store.conn
-    s = SESSIONS
-    vcp, flat = ctx.strategy("vcp"), ctx.strategy("flat_base")
-    put(c, "setup_scores", scan_id="x", strategy_id="vcp", instrument_id="X", as_of_date=s[0],
-        classification="VCP", eligible=True, final_setup_score=80.0, scoring_version="s1",
-        config_hash=vcp.config_hash, data_snapshot_id="LIVE")  # fmt: skip
-    put(c, "vcp_breakout_events", breakout_event_id="v", instrument_id="DUP",
-        config_hash=vcp.config_hash, breakout_date=s[1], pivot_price=100.0,
-        detected_as_of=s[1])  # fmt: skip
-    put(c, "strategy_breakout_events", breakout_event_id="f", strategy_id="flat_base",
-        instrument_id="DUP", base_start_date=s[0], config_hash=flat.config_hash,
-        breakout_date=s[1], pivot_price=101.0, pivot_date=s[0], pivot_source="x",
-        volume_ratio=2.0, detected_as_of=s[1], method="x")  # fmt: skip
-    # closes at 100.5: below the flat-base pivot (101) but not below the VCP pivot (100)
-    for d in s[2:]:
-        close(c, "DUP", d, 100.5)
-    flow = {p.day: p for p in health._flow(c, ctx, s)}
-    assert flow[s[1]].breakouts == 1  # one stock, not two events
-    known = flow[s[1 + health.FAIL_WITHIN]]
-    assert (known.judged, known.failed) == (1, 0)  # still above its lowest pivot: held
-
-
 # --- leaders vs the index: the leaders of 20 sessions ago, followed forward --------------------
 
 

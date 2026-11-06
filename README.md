@@ -12,8 +12,9 @@ API and the frontend are built; the strategies are frozen.
 - **Data and scans:** ingestion, corporate-action adjustment, universe snapshots, features,
   relative strength, Trend Template, VCP detection and setup scores (Phases 0-8), run every
   evening by `vcp run daily`.
-- **Strategies (frozen, paper only):** `vcp-1.1.0`, `flat_base-1.0.0`,
-  `three_weeks_tight-1.1.0`, `cup_handle-1.1.0`, `double_bottom-1.0.0`. No strategy changes
+- **Strategy (frozen, paper only):** `vcp-1.1.0`. The four other strategies (flat base, three
+  weeks tight, cup and handle, double bottom) were removed on 2026-11-06 (owner decision;
+  see CHANGELOG). No strategy changes
   until the review on or after **2027-04-01** (`STRATEGY_SPECIFICATION.md` section 21).
 - **Paper ledger:** rule set `paper-v1`, started 2026-10-01, updated by the daily run. Review
   gates per strategy: at least 30 closed trades, profit factor 1.3 or better, drawdown no worse

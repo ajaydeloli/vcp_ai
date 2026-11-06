@@ -58,31 +58,14 @@ def test_vcp_scan_ids_are_unchanged_and_others_carry_the_strategy() -> None:
 # -- registry ----------------------------------------------------------------------------------
 
 
-def test_registry_has_the_three_strategies_with_their_versions() -> None:
-    assert set(REGISTRY) == {"vcp", "flat_base", "three_weeks_tight", "cup_handle",
-                             "double_bottom"}  # fmt: skip
+def test_registry_has_vcp_with_its_version() -> None:
+    assert set(REGISTRY) == {"vcp"}
     assert get_strategy("vcp").algorithm_version == VCP_ALGORITHM_VERSION
     vcp = load_runtime(ROOT / "config", "vcp")
     assert vcp.tiers == ("NONE", "VCP_LIKE", "VCP", "A_PLUS_VCP")
     assert [vcp.grade(t) for t in vcp.tiers] == [0, 1, 2, 3]
     assert vcp.grade(None) == 0 and vcp.min_grade == 1 and vcp.detector is None
     assert vcp.scoring is VCP_PATTERN_SCORING
-    flat = load_runtime(ROOT / "config", "flat_base")
-    assert flat.tiers == ("NONE", "FLAT_BASE_LIKE", "FLAT_BASE", "TIGHT_FLAT_BASE")
-    assert flat.min_grade == 2 and flat.detector is not None  # decision G1
-    tight = load_runtime(ROOT / "config", "three_weeks_tight")
-    assert tight.grade("THREE_WEEKS_TIGHT_A") == 3 and tight.min_grade == 2
-
-
-def test_bad_strategy_settings_are_refused(tmp_path: Path) -> None:
-    text = (ROOT / "config" / "strategies" / "flat_base.yaml").read_text(encoding="utf-8")
-    _write(tmp_path, "flat_base", text.replace("depth: 30", "depth: 31"))  # weights sum 101
-    with pytest.raises(ConfigError, match="flat_base"):
-        load_strategies(tmp_path)
-    _write(tmp_path, "flat_base", text.replace("min_grade: 2", "min_grade: 3").replace(
-        "grade: 3", "grade: 2"))  # fmt: skip
-    with pytest.raises(ConfigError, match="flat_base"):
-        load_strategies(tmp_path)
 
 
 def test_unknown_strategy_is_refused() -> None:

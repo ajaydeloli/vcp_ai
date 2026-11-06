@@ -24,7 +24,6 @@ import alerts from "./fixtures/api/alerts.json";
 import trendTemplate from "./fixtures/api/trend_template.json";
 import screener from "./fixtures/api/screener.json";
 import search from "./fixtures/api/search.json";
-import setupsFlat from "./fixtures/api/setups_flat_base.json";
 import setupsVcp from "./fixtures/api/setups_vcp.json";
 import status from "./fixtures/api/status.json";
 import stockSetups from "./fixtures/api/stock_setups.json";
@@ -35,7 +34,7 @@ import stockFundamentals from "./fixtures/api/stock_fundamentals.json";
 import stockFundamentalsNone from "./fixtures/api/stock_fundamentals_none.json";
 
 export const fx = {
-  agent, alerts, trendTemplate, activity, backtests, bars, history, ipos, reports, liveIndices, liveQuotes, liveStatus, market, marketHealth, overlap, paper, search, screener, setupsFlat, setupsVcp, status,
+  agent, alerts, trendTemplate, activity, backtests, bars, history, ipos, reports, liveIndices, liveQuotes, liveStatus, market, marketHealth, overlap, paper, search, screener, setupsVcp, status,
   stockSetups, strategies, summary, fundamentals, stockFundamentals, stockFundamentalsNone, leaders, leaderRun,
 }; // fmt: skip
 
@@ -71,9 +70,9 @@ export function sample(rel: string): unknown {
     case "setups/overlap": return fx.overlap;
     case "setups": {
       const id = p.get("strategy") ?? "vcp";
-      const base = id === "vcp" ? fx.setupsVcp : id === "flat_base" ? fx.setupsFlat : { ...fx.setupsVcp, rows: [] };
+      const base = id === "vcp" ? fx.setupsVcp : { ...fx.setupsVcp, rows: [] };
       const rows = base.rows.filter((r) => !p.get("status") || r.status === p.get("status"));
-      return { ...base, strategy_id: id, rows: id === "vcp" || id === "flat_base" ? rows : [] };
+      return { ...base, strategy_id: id, rows: id === "vcp" ? rows : [] };
     }
   }
   const lr = /^leaders\/(\d+)$/.exec(path);

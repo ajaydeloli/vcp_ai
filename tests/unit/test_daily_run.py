@@ -71,24 +71,22 @@ def test_run_daily_chains_the_steps_from_the_last_settled_day(tmp_path: Path) ->
     ]
     assert calls[1][calls[1].index("--start") + 1] == "2026-09-26"  # day after last settled
     # 2026-09-25 had prices but no scan: universe, RS, Trend Template, VCP and scores for it.
-    paper = ["flat_base", "three_weeks_tight", "cup_handle", "double_bottom"]
     per_date = [
         "ingest universe",
         "compute rs",
         "compute trend-template",
         "compute vcp",
         "compute scores",
-    ] + [n for _ in paper for n in ("compute setups", "compute scores")]
+    ]
     # sector lists are read on Fridays only (the run's own date decides)
     friday = ["classify update"] if datetime.now(IST).date().weekday() == 4 else []
-    assert names[7:] == (per_date + ["compute labels"] * 5
+    assert names[7:] == (per_date + ["compute labels"]
                          + ["paper update", "agent shadow", "fundamentals update",
                             "shareholding update"]
                          + friday)  # fmt: skip
     assert all("2026-09-25" in a for a in calls[7 : 7 + len(per_date)])
-    # Monitoring phase (spec 21.2): every enabled strategy after VCP, labels per strategy.
-    strategy_args = [a[a.index("--strategy") + 1] for a in calls if "--strategy" in a]
-    assert strategy_args == [x for sid in paper for x in (sid, sid)] + paper
+    # Only VCP is paper-tracked now, so no step is run for another strategy.
+    assert not any("--strategy" in a for a in calls)
     # The fake security-master step collected nothing, so the summary says so; steps passed.
     assert code == 0
     log = (tmp_path / "logs" / "daily_runs.log").read_text()
@@ -115,8 +113,8 @@ def test_a_bad_strategy_file_fails_the_run_but_vcp_still_runs(tmp_path: Path) ->
 
     cfg = tmp_path / "config"
     shutil.copytree(Path(__file__).resolve().parents[2] / "config", cfg)
-    bad = cfg / "strategies" / "flat_base.yaml"
-    bad.write_text(bad.read_text().replace("max_depth_pct: 20", "max_depth_pct: -1"))
+    bad = cfg / "strategies" / "ascending_base.yaml"  # a strategy the code does not implement
+    bad.write_text("strategy_id: ascending_base\nalgorithm_version: ascending_base-1.0.0\n")
     db = _db(tmp_path, [date(2026, 9, 24), date(2026, 9, 25)], scanned=date(2026, 9, 24))
     calls: list[list[str]] = []
 

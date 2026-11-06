@@ -7,26 +7,6 @@
    "strategy_id": "vcp",
    "latest_scan": "2026-10-05",
    "ledger_through": "2026-10-05"
-  },
-  {
-   "strategy_id": "flat_base",
-   "latest_scan": "2026-10-05",
-   "ledger_through": "2026-10-05"
-  },
-  {
-   "strategy_id": "three_weeks_tight",
-   "latest_scan": "2026-10-05",
-   "ledger_through": "2026-10-05"
-  },
-  {
-   "strategy_id": "cup_handle",
-   "latest_scan": "2026-10-05",
-   "ledger_through": "2026-10-05"
-  },
-  {
-   "strategy_id": "double_bottom",
-   "latest_scan": "2026-10-05",
-   "ledger_through": "2026-10-05"
   }
  ],
  "daily_run": "2026-10-05 19:15 IST | prices to 2026-10-05 | scanned 2026-10-05 | surveillance lists collected: ASM, GSM, T2T | all steps OK",

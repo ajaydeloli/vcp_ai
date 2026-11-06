@@ -335,6 +335,8 @@ def build_main_db(db: Path, ctx: Context) -> None:
         # --- file strategies ------------------------------------------------------------------
         def strat(sid: str, sym: str, cls: str, grade: int, elig: bool, score: float,
                   details: str = "{}") -> None:  # fmt: skip
+            if sid not in spec:  # the four extra strategies were removed (only VCP remains)
+                return
             h = spec[sid].config_hash
             put(c, "strategy_setups", setup_id=f"st-{sid}-{sym}", strategy_id=sid,
                 scan_id=f"setup-{sid}-{AS_OF}", instrument_id=iid(sym), as_of_date=AS_OF,

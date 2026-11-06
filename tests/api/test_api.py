@@ -13,10 +13,7 @@ from tests.api.fixture import AS_OF, PREV, iid
 from vcp_scanner.data.providers._time import IST
 from vcp_scanner.serving import refresh_serving_copy
 
-FROZEN = {
-    "vcp": "64da9482a769", "flat_base": "c4918be30855", "three_weeks_tight": "9ed3b8e7c31a",
-    "cup_handle": "e36477f23b36", "double_bottom": "dd7107637b1b",
-}  # fmt: skip
+FROZEN = {"vcp": "64da9482a769"}
 
 
 def get(env: Env, url: str, status: int = 200) -> dict[str, Any]:
@@ -26,13 +23,9 @@ def get(env: Env, url: str, status: int = 200) -> dict[str, Any]:
     return body
 
 
-def test_strategies_are_the_five_frozen_ones(ro_env: Env) -> None:
+def test_strategies_are_the_frozen_vcp(ro_env: Env) -> None:
     body = get(ro_env, "/api/v1/strategies")
     assert {s["strategy_id"]: s["config_hash"] for s in body["strategies"]} == FROZEN
-    flat = next(s for s in body["strategies"] if s["strategy_id"] == "flat_base")
-    assert flat["stage"] == "paper" and flat["min_grade"] == 2
-    ranked = {t["name"]: t["ranked"] for t in flat["tiers"]}
-    assert ranked["FLAT_BASE"] and not ranked["FLAT_BASE_LIKE"]
 
 
 def test_every_response_carries_as_of_and_data_time(ro_env: Env) -> None:
@@ -85,19 +78,11 @@ def test_setups_filters(ro_env: Env) -> None:
     ] == ["ALPHA"]
     assert [r["symbol"] for r in get(ro_env, "/api/v1/setups?strategy=vcp&status=breakout")["rows"]
             ] == ["BETA"]  # fmt: skip
-    flat = get(ro_env, "/api/v1/setups?strategy=flat_base")["rows"]
-    assert [r["symbol"] for r in flat] == ["GAMMA", "ALPHA"]  # score 80 before 70
     body = get(ro_env, f"/api/v1/setups?strategy=vcp&date={PREV}")
     assert body["rows"] == [] and body["as_of"] == PREV.isoformat()
     assert len(get(ro_env, "/api/v1/setups?strategy=vcp&limit=1")["rows"]) == 1
     get(ro_env, "/api/v1/setups?strategy=nope", 404)
     get(ro_env, "/api/v1/setups?strategy=vcp&min_grade=9", 422)
-
-
-def test_overlap_lists_stocks_on_several_lists(ro_env: Env) -> None:
-    rows = get(ro_env, "/api/v1/setups/overlap")["rows"]
-    assert [r["symbol"] for r in rows] == ["ALPHA"]
-    assert {e["strategy_id"] for e in rows[0]["strategies"]} == {"vcp", "flat_base", "cup_handle"}
 
 
 def test_summary_counts(ro_env: Env) -> None:
@@ -106,8 +91,6 @@ def test_summary_counts(ro_env: Env) -> None:
     by = {s["strategy_id"]: s for s in body["strategies"]}
     assert by["vcp"] == {"strategy_id": "vcp", "ranked": 2, "grade2_plus": 2, "breakouts": 1,
                          "mean_top10_score": 88.5}  # fmt: skip
-    assert by["flat_base"]["ranked"] == 2 and by["double_bottom"]["ranked"] == 0
-    assert by["double_bottom"]["mean_top10_score"] is None  # no setups: null, not 0
     assert get(ro_env, f"/api/v1/summary?date={PREV}")["strategies"][0]["ranked"] == 0
 
 
@@ -155,17 +138,13 @@ def test_stock_setups_carry_marks_conditions_and_score_parts(ro_env: Env) -> Non
     assert [c["name"] for c in body["conditions"]] == ["close_above_sma150", "sma200_rising",
                                                        "rs_rank_min"]  # fmt: skip
     by = {s["strategy_id"]: s for s in body["setups"]}
-    assert set(by) == {"vcp", "flat_base", "cup_handle"}
+    assert set(by) == {"vcp"}
     vcp = by["vcp"]
     assert [c["sequence"] for c in vcp["contractions"]] == [1, 2]
     assert vcp["contractions"][0]["trough_price"] == 118.0 and vcp["points"] == []
     assert {p["component"] for p in vcp["score_parts"]} == {"TREND", "VCP"}
     assert vcp["details"]["base_high"] is not None and vcp["details"]["unmet_rules"] == {}
-    cup = by["cup_handle"]
-    assert [p["label"] for p in cup["points"]] == ["L", "B"] and cup["contractions"] == []
     bars = {b["day"]: b for b in get(ro_env, "/api/v1/stocks/ALPHA/bars?days=260")["bars"]}
-    assert cup["points"][0]["price"] == bars["2026-08-03"]["high"]  # a lip is drawn on the high
-    assert cup["points"][1]["price"] == bars["2026-08-20"]["low"]  # a bottom on the low
     assert body["close"] == bars[AS_OF.isoformat()]["close"]
     # a stock with one setup, and a date with none
     assert [s["strategy_id"] for s in get(ro_env, "/api/v1/stocks/BETA/setups")["setups"]] == [
@@ -224,9 +203,6 @@ def test_paper_panel(ro_env: Env) -> None:
     assert crit["Closed trades"]["value"] == 1.0 and crit["Closed trades"]["met"] is False
     assert crit["Profit factor"]["met"] is None  # fewer than 30 closed trades: not judged
     assert crit["Portfolio max drawdown"]["value"] is None  # not computed in v1: null
-    idle = next(s for s in body["strategies"] if s["strategy_id"] == "flat_base")
-    assert idle["closed"] == 0 and idle["win_rate_pct"] is None and idle["avg_return_pct"] is None
-    assert idle["open"] == []
 
 
 def test_status_is_clean_when_everything_is_current(ro_env: Env) -> None:
@@ -248,16 +224,14 @@ def test_status_warnings(env: Env) -> None:
     # (d) backups older than 7 days
     env.set_now(datetime(2026, 10, 14, 14, 0, tzinfo=IST))
     assert any("older than 7 days" in w for w in get(env, "/api/v1/status")["warnings"])
-    # (b) a strategy without a scan and (c) a paper ledger that is behind
+    # (c) a paper ledger that is behind
     env.set_now(datetime(2026, 10, 6, 14, 0, tzinfo=IST))
     with duckdb.connect(str(env.db)) as con:
-        con.execute("DELETE FROM setup_scores WHERE strategy_id = 'double_bottom'")
-        con.execute("DELETE FROM paper_events WHERE strategy_id = 'cup_handle'"
+        con.execute("DELETE FROM paper_events WHERE strategy_id = 'vcp'"
                     " AND event_type = 'DAY_CLOSED' AND event_date = ?", [AS_OF])  # fmt: skip
     refresh_serving_copy(env.db)
     warnings = get(env, "/api/v1/status")["warnings"]
-    assert any(w.startswith("double_bottom: no scan for 2026-10-05") for w in warnings)
-    assert any(w.startswith("cup_handle: paper ledger not updated for 2026-10-05")
+    assert any(w.startswith("vcp: paper ledger not updated for 2026-10-05")
                for w in warnings)  # fmt: skip
 
 
@@ -380,9 +354,9 @@ def test_stock_scores_list_each_scan_day_per_strategy(ro_env: Env) -> None:
     body = get(ro_env, "/api/v1/stocks/alpha/scores?days=30")
     assert body["symbol"] == "ALPHA" and body["as_of"] == AS_OF.isoformat()
     assert {r["day"] for r in body["rows"]} == {AS_OF.isoformat()}  # PREV had no scan
-    assert {r["strategy_id"] for r in body["rows"]} == {"vcp", "flat_base", "cup_handle"}
-    flat = get(ro_env, "/api/v1/stocks/ALPHA/scores?strategy=flat_base")["rows"]
-    assert [r["strategy_id"] for r in flat] == ["flat_base"] and flat[0]["score"] == 70
+    assert {r["strategy_id"] for r in body["rows"]} == {"vcp"}
+    only = get(ro_env, "/api/v1/stocks/ALPHA/scores?strategy=vcp")["rows"]
+    assert [r["strategy_id"] for r in only] == ["vcp"]
     get(ro_env, "/api/v1/stocks/ALPHA/scores?strategy=nope", 404)
     get(ro_env, "/api/v1/stocks/NOPE/scores", 404)
     get(ro_env, "/api/v1/stocks/ALPHA/scores?days=0", 422)

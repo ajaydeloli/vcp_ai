@@ -28,8 +28,7 @@ class EveningConfig(StrictBaseModel):
     enabled: bool = True
     near_pivot_pct: Annotated[float, Field(ge=0, le=20)] = 2.0
     max_setups: Annotated[int, Field(ge=0, le=50)] = 10
-    strategies: list[str] = ["vcp", "flat_base", "three_weeks_tight", "cup_handle",
-                             "double_bottom"]  # fmt: skip
+    strategies: list[str] = ["vcp"]
 
 
 class IntradayConfig(StrictBaseModel):

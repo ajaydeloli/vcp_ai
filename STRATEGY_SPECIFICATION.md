@@ -404,6 +404,8 @@ Owner decision 2026-10-05 (option A of three): pure functions in `features/base_
 
 ---
 
+> **Removed 2026-11-06 (owner decision).** Sections 13 to 15 describe four strategies (flat base, three weeks tight, cup and handle, double bottom) whose code, configs and tests were removed from the project. They are kept below as a historical record only; their paper-ledger rows stay in the database. Only `vcp-1.1.0` is scanned, scored and paper-tracked.
+
 # 13. Flat / tight base (`flat_base`, `flat_base-1.0.0`) — signed off 2026-10-05
 
 A stock in Stage 2 that, after an advance, moves sideways for at least five weeks within a shallow range (O'Neil's flat base; Minervini's tight base). Every number below is a config value under `detector:` and a starting hypothesis, tuned only on the development period.
@@ -987,6 +989,8 @@ Validation is now spent for these versions (§10.4): changing a rule because of 
 After validation (§20.9) showed no edge outside the strong 2022–2024 advance, the owner decided (2026-10-06) to **stop strategy research** and move to reporting and monitoring. Live paper trading from 2026-10-01 (`config/backtest.yaml`, period `live_paper`) is now the only fair test. This section replaces Multi-Strategy steps 6 (High tight flag), 7e (ranking, combined list, go-live) and the open part of 8, and narrows PROJECT_DESIGN Phases 10–12 to what monitoring needs; Phase 13 (ML) and the API are deferred.
 
 ## 21.1 What is frozen
+
+> 2026-11-06: only `vcp-1.1.0` remains; the other four strategies in the table below were removed (owner decision).
 
 Until the review (§21.6), nothing below changes. A change to any of them is a new version, restarts that strategy's paper clock, and is logged.
 

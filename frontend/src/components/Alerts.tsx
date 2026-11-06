@@ -12,10 +12,6 @@ import { Card, Empty, ErrorBox, Loading } from "./ui";
 
 const NAMES: Record<string, string> = {
   vcp: "VCP",
-  flat_base: "Flat base",
-  three_weeks_tight: "3 weeks tight",
-  cup_handle: "Cup & handle",
-  double_bottom: "Double bottom",
 };
 const num = (x: number | null, d = 2) => (x === null ? "–" : x.toLocaleString(numberLocale(), { minimumFractionDigits: d, maximumFractionDigits: d }));
 

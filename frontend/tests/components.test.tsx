@@ -119,28 +119,6 @@ describe("stock panel", () => {
     expect(screen.getByText("Pivot").nextElementSibling).toHaveTextContent("120.00");
     expect(screen.getByText("A+ VCP")).toBeInTheDocument();
     expect(screen.getByTitle("NSE classification")).toHaveTextContent("Capital Goods · Heavy Electrical Equipment");
-    for (const name of ["VCP", "Flat base", "Cup & handle"]) {
-      expect(screen.getByRole("button", { name })).toBeInTheDocument();
-    }
-  });
-
-  it("another strategy's chip changes the marks and the figures", async () => {
-    mockApi();
-    renderApp(<Harness />);
-    await screen.findByText("Alpha Industries Ltd");
-    await userEvent.click(screen.getByRole("button", { name: "Cup & handle" }));
-    const candles = liveCharts()[0]!.of("candles")[0]!;
-    await waitFor(() => expect(candles.markers.map((m) => m.text)).toEqual(expect.arrayContaining(["L", "B"])));
-    expect(candles.markers.map((m) => m.text)).not.toContain("P1");
-  });
-
-  it("reports the strategy picked on a chip", async () => {
-    const onSelect = vi.fn();
-    mockApi();
-    renderApp(<StockPanel selection={{ symbol: "ALPHA", strategy: "vcp" }} onSelect={onSelect} />);
-    await screen.findByText("Alpha Industries Ltd");
-    await userEvent.click(screen.getByRole("button", { name: "Flat base" }));
-    expect(onSelect).toHaveBeenCalledWith({ symbol: "ALPHA", strategy: "flat_base" });
   });
 
   it("says when there is nothing selected", () => {
@@ -226,12 +204,6 @@ describe("setup overview", () => {
     expect(card).toHaveTextContent("VCP17.0 / 40");
   });
 
-  it("a setup with no score parts says so", async () => {
-    mockApi();
-    overview("flat_base");
-    const card = (await screen.findByText("Score breakdown")).closest("section")!;
-    expect(card).toHaveTextContent("No score parts stored");
-  });
 });
 
 describe("chart range buttons", () => {
@@ -266,9 +238,6 @@ describe("paper panel", () => {
     const vcp = within(results).getByRole("cell", { name: "VCP" }).closest("tr")!;
     expect(vcp).toHaveTextContent("1 / 30");
     expect(vcp).toHaveTextContent("-5.15%");
-    const idle = within(results).getByRole("cell", { name: "Flat base" }).closest("tr")!;
-    expect(idle).toHaveTextContent("0 / 30");
-    expect(within(idle).getAllByText("—").length).toBeGreaterThanOrEqual(3); // win %, avg, PF
     expect(screen.getByText(/Not computed yet: .*drawdown/)).toBeInTheDocument();
     const open = screen.getByText("Open positions").closest("div")!;
     expect(open).toHaveTextContent("BETA");

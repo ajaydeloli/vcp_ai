@@ -65,7 +65,7 @@ def test_the_pack_on_the_fixture_reports_the_ledger_and_its_disagreement(ro_env:
     pack = _pack(ro_env, date(2026, 10, 6))
     assert pack["state"].startswith("preview") and pack["total_closed"] == 1
     by = {s["strategy_id"]: s for s in pack["strategies"]}
-    assert list(by) == ["vcp", "flat_base", "three_weeks_tight", "cup_handle", "double_bottom"]
+    assert list(by) == ["vcp"]
     vcp = by["vcp"]
     assert vcp["through"] == "2026-10-05" and vcp["sessions"] == 2
     assert (vcp["ledger"]["closed"], vcp["ledger"]["avg_ret"], vcp["ledger"]["open"]) == (
@@ -76,8 +76,6 @@ def test_the_pack_on_the_fixture_reports_the_ledger_and_its_disagreement(ro_env:
     assert vcp["replay"]["agrees"] is False
     assert any("GAMMA" in x and x.startswith("EXIT")
                for x in vcp["replay"]["differences"]["stored_not_recomputed"])  # fmt: skip
-    assert by["three_weeks_tight"]["replay"]["agrees"] is True
-    assert vcp["replay"]["index_ret"] == pytest.approx(by["flat_base"]["replay"]["index_ret"])
     # Research of the cycle, every hypothesis listed; the candidate that never started is not
     # in the shadow results, only in the list.
     assert [h["outcome"] for h in pack["research"]["hypotheses"]] == ["rejected"]
@@ -99,10 +97,10 @@ def test_write_review_makes_the_html_and_the_json(ro_env: Env, tmp_path: Path) -
     assert path == tmp_path / "review" / "2026-10-06.html"
     html = path.read_text()
     assert "Review pack (preview) 2026-10-06" in html and "Verdict per strategy" in html
-    assert "differs from the replay" in html and "agrees with a replay" in html
+    assert "differs from the replay" in html
     assert "Fundamentals (F7)" in html and "Decisions for the owner" in html
     data = json.loads(path.with_suffix(".json").read_text())
-    assert data["version"] == "review-pack-1" and len(data["strategies"]) == 5
+    assert data["version"] == "review-pack-1" and len(data["strategies"]) == 1
 
 
 def test_the_weekly_summary_brings_the_pack_from_the_review_date(

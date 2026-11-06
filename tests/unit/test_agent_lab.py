@@ -44,8 +44,7 @@ def test_the_budget_is_per_strategy_per_cycle(lab: Lab) -> None:
         _register(lab)
     with pytest.raises(LabRuleError, match="test budget for vcp is used"):
         _register(lab)
-    _register(lab, "flat_base")  # another strategy has its own budget
-    assert lab.budget()["vcp"] == 0 and lab.budget()["flat_base"] == MAX_PER_STRATEGY - 1
+    assert lab.budget() == {"vcp": 0}  # VCP is the only strategy with a budget
 
 
 def test_windows_development_freely_validation_once_after_development(lab: Lab) -> None:

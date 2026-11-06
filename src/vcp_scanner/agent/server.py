@@ -161,8 +161,7 @@ def build_server(
     def setups(strategy: str = "vcp", min_grade: int | None = None, status: str | None = None,
                limit: int = 20, date: str | None = None, min_score: float | None = None,
                max_pivot_distance_pct: float | None = None) -> str:  # fmt: skip
-        """Ranked setups of one strategy (vcp, flat_base, three_weeks_tight, cup_handle,
-        double_bottom) on the latest scan, or on a past scan day with date=YYYY-MM-DD (no rows:
+        """Ranked setups of one strategy (vcp) on the latest scan, or on a past scan day with date=YYYY-MM-DD (no rows:
         no scan that day, e.g. a holiday). status: FORMING, PIVOT_READY, BREAKOUT. min_score
         keeps scores at or above it; max_pivot_distance_pct keeps setups still below their
         pivot by at most that many % (breakouts, already above the pivot, are dropped)."""
@@ -398,7 +397,7 @@ def build_server(
                 for x in api.get("paper").get("strategies", [])
             ],  # fmt: skip
         }
-        for s in ("vcp", "flat_base", "three_weeks_tight", "cup_handle", "double_bottom"):
+        for s in ("vcp",):
             rows = api.get("setups", strategy=s, limit=5).get("rows", [])
             brief["setups"][s] = [{k: r.get(k) for k in ("symbol", "classification", "grade",
                                    "status", "score", "pivot", "pivot_distance_pct")}
@@ -736,8 +735,7 @@ def build_server(
                           old: str, new: str, why: str, evidence: str) -> str:  # fmt: skip
         """Propose a strategy candidate (step A4): ONE idea for ONE frozen strategy, as setting
         changes, never code. overrides: up to 5 of {"file", "path", "new"}, e.g. {"file":
-        "strategies/flat_base.yaml", "path": "classification.flat_base.max_depth_pct", "new":
-        12}. Allowed: the strategy's own file (not strategy_id/algorithm_version/enabled/stage);
+        "strategy.yaml", "path": "vcp.<setting>", "new": <value>}. Allowed: the strategy's own file (not strategy_id/algorithm_version/enabled/stage);
         for VCP strategy.yaml vcp.* / classification.* and scoring.yaml components.vcp.*; for any
         strategy backtest.yaml defaults.entry / defaults.regime / defaults.rule (paper rules).
         hypothesis_id: a registered hypothesis of this strategy. old/new/why/evidence: the spec

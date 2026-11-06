@@ -14,8 +14,7 @@ from typing import Any
 from vcp_scanner.alerts.telegram import EveningConfig, IntradayConfig
 
 Get = Callable[..., Any]
-NAMES = {"vcp": "VCP", "flat_base": "Flat base", "three_weeks_tight": "3 weeks tight",
-         "cup_handle": "Cup & handle", "double_bottom": "Double bottom"}  # fmt: skip
+NAMES = {"vcp": "VCP"}
 SESSION_MIN = 375  # 09:15-15:30 IST
 
 

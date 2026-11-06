@@ -77,23 +77,3 @@ def test_verdicts_and_hash_are_order_independent() -> None:
             verdict_row(StrategyResult("B", D1, None, "TOO_DEEP"))]  # fmt: skip
     assert rows[1] == ("B", None, None, None, None, None, "TOO_DEEP")
     assert results_hash(rows) == results_hash(rows[::-1])
-
-
-def test_file_pattern_scoring_uses_the_strategy_parts() -> None:
-    rt = load_runtime(ROOT / "config", "flat_base")
-    from vcp_scanner.config import load_scanner_config
-
-    scoring = load_scanner_config(ROOT / "config").strategy.scoring
-    p = GenericPatternInputs("FLAT_BASE", "PIVOT_READY", "CONFIRMED", 2,
-                             {"depth": 10.0, "weekly_tightness": 6.5, "right_side": 5.0,
-                              "length": 7.5, "prior_advance": 40.0}, 0.4)  # fmt: skip
-    x = SetupInputs("A", D1, 90.0, 100.0, 105.0, 95.0, 90.0, 88.0, [], [], p)
-    s = score_setup(x, scoring, 70, rt.scoring)
-    comps = {c.component: c for c in s.components}
-    assert set(comps) == {"TREND", "PATTERN", "VOLUME", "RS"} and s.eligible
-    assert comps["PATTERN"].score == pytest.approx(50.0)  # each sub-component at its midpoint
-    dry = next(x for x in comps["VOLUME"].subs if x.name == "dryup_quality")
-    assert dry.raw == 0.4  # the setup's own dry-up measure
-    assert s.final.effective_weights["PATTERN"] > 0
-    grade1 = GenericPatternInputs("FLAT_BASE_LIKE", "FORMING", "CONFIRMED", 1, {}, None)
-    assert not rt.scoring.eligible(grade1)  # decision G1: grade 2+ only

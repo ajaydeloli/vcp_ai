@@ -25,7 +25,7 @@ Contents:
 
 A research scanner for NSE stocks.
 
-- **Every evening** it loads the day's prices from NSE and checks every stock of the universe against Minervini's Trend Template. It then looks for five setups: VCP, flat base, three weeks tight, cup with handle and double bottom.
+- **Every evening** it loads the day's prices from NSE and checks every stock of the universe against Minervini's Trend Template. It then looks for the VCP setup.
 - **It scores and ranks** the setups it finds.
 - **A paper ledger** records what each strategy would have done.
 - **A local dashboard** shows the results, a Market Health Score and live prices.
@@ -259,7 +259,7 @@ The top bar shows Market Overview, Screener, Trend Template, Stock Analysis, Wat
 | **Past Leaders** | Every run of 50 % or more within a year since 2022 (the stored superperformance study): sector, the launch (the low it started from) and the peak with their prices, gain, days to the peak, the deepest pullback inside the run, the weekly stage, RS and Trend Template on the launch day, the base before the first breakout and whether our VCP detector flagged it, and how much was given back after the top. Filters for launch year, sector, gain (+50 to +99 %, doubled, tripled or more) and **VCP at launch**; every column sorts; **Export CSV / Excel** saves all matching runs. **Chart** on a row shows the run: launch ▲, each base as an orange line at its high with B1, B2 … at the breakout, the top ▼ and the 50-day. A gain with * is still open (the year after the launch is not over). Research and display only; it uses every year, including the validation window. Rebuilt with `vcp research superperformance`. |
 | **Recent IPOs** | Recent listings and how they trade. |
 | **Watchlist** | Your lists of stocks, kept in this browser only. **Import** reads a CSV or Excel (.xlsx) file: the symbol column is found by its heading (Symbol, Ticker, Stock, Scrip...) or is the first column; `NSE:RELIANCE`, `RELIANCE.NS` and TradingView's `M_M` are understood. A preview shows the stocks found and the symbols not recognised (left out); add them to the current list or to a new list named after the file. **Export CSV / Excel** saves the current list with its scan results; use it as a backup, or to move lists to another browser. Old `.xls` files must be saved as `.xlsx` or `.csv` first. |
-| **Strategies** | The five frozen strategies, their tiers and configs. |
+| **Strategies** | The frozen VCP strategy, its tiers and config. |
 | **Paper Trading** | The paper ledger: open positions, closed trades, results per strategy. |
 | **Backtest** | Stored backtest runs (read-only). |
 | **Reports** | The daily and weekly HTML reports. |
@@ -444,7 +444,7 @@ Updated by the evening run. To look at it in the terminal:
 
 ```bash
 vcp paper status                                   # every paper strategy
-vcp paper status --strategy flat_base
+vcp paper status --strategy vcp
 ```
 
 ### 7.9 Checks worth running now and then
@@ -472,7 +472,7 @@ vcp config validate
 | `--as-of YYYY-MM-DD` | (required where shown) | the session to work on |
 | `--instrument ID_OR_SYMBOL` | all | restrict to a stock (repeatable) |
 | `--data-snapshot-id ID` | `LIVE` | read a frozen data snapshot (research); LIVE is the working data |
-| `--strategy ID` | `vcp` | `vcp`, `flat_base`, `three_weeks_tight`, `cup_handle`, `double_bottom` |
+| `--strategy ID` | `vcp` | `vcp` |
 
 **Global flags** go before the command: `--log-level DEBUG|INFO|WARNING|ERROR`, `--log-format text|json`, `--log-file PATH`. For example `vcp --log-level DEBUG run daily`.
 
@@ -525,9 +525,6 @@ vcp compute rs --as-of $D
 vcp compute trend-template --as-of $D
 vcp compute vcp --as-of $D
 vcp compute scores --as-of $D
-for s in flat_base three_weeks_tight cup_handle double_bottom; do
-  vcp compute setups --strategy $s --as-of $D && vcp compute scores --strategy $s --as-of $D
-done
 ```
 
 ### 8.5 `vcp run`
@@ -716,7 +713,7 @@ The dashboard page **Alerts** shows the same: whether Telegram is set up (yes or
 
 **Frozen until the review on or after 2027-04-01** (STRATEGY_SPECIFICATION §21):
 
-- **The five strategies:** `vcp-1.1.0`, `flat_base-1.0.0`, `three_weeks_tight-1.1.0`, `cup_handle-1.1.0` and `double_bottom-1.0.0`, with their scan configs.
+- **The strategy:** `vcp-1.1.0`, with its scan config.
 - **The trade rules:** entry `cross_5`, regime `breadth50`, exit `hold_low8`, a 20-session watch, 10 positions, 15 bps a side.
 - **Scoring and labels:** `scoring-1.0.0` and `labels-1.0.0`.
 - **The paper ledger:** rule set `paper-v1`, started 2026-10-01. It is append-only and never edited.

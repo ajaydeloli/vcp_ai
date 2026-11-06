@@ -55,8 +55,8 @@ class CandidateError(ValueError):
 
 @dataclass(frozen=True, slots=True)
 class Override:
-    file: str  # relative to the config directory, e.g. "strategies/flat_base.yaml"
-    path: str  # dotted keys, e.g. "classification.flat_base.max_depth_pct"
+    file: str  # relative to the config directory, e.g. "strategy.yaml"
+    path: str  # dotted keys, e.g. "vcp.<setting>"
     old: Any
     new: Any
 

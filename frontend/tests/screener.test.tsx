@@ -36,9 +36,8 @@ describe("screener page", () => {
     const calls = mockApi();
     renderApp(<Screener />);
     await screen.findByRole("link", { name: "ALPHA" });
-    await userEvent.selectOptions(screen.getByLabelText("Strategy"), "flat_base");
     await userEvent.selectOptions(screen.getByLabelText("Min setup grade"), "3");
-    await waitFor(() => expect(calls.some((c) => c.includes("strategy=flat_base") && c.includes("min_grade=3"))).toBe(true));
+    await waitFor(() => expect(calls.some((c) => c.includes("strategy=vcp") && c.includes("min_grade=3"))).toBe(true));
     expect(screen.queryByLabelText("Setup class")).toBeNull();
     expect(screen.queryByLabelText("VCP setup")).toBeNull();
     await userEvent.selectOptions(screen.getByLabelText("On strategies"), "2");

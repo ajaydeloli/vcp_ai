@@ -41,32 +41,33 @@ def _other_rule() -> str:
 
 
 def test_overrides_are_checked_against_the_frozen_files() -> None:
-    ok = C.validate_overrides(CFG, "flat_base", [
-        {"file": "strategies/flat_base.yaml", "path": "classification.flat_base.max_depth_pct",
+    ok = C.validate_overrides(CFG, "vcp", [
+        {"file": "strategy.yaml", "path": "vcp.progressive_tolerance_pct",
          "new": 12}])  # fmt: skip
-    assert ok[0].old == 15 and ok[0].new == 12
+    assert ok[0].old == 10 and ok[0].new == 12
     bad = [
-        ({"file": "strategies/flat_base.yaml", "path": "algorithm_version", "new": "x"},
+        ({"file": "strategies/vcp.yaml", "path": "algorithm_version", "new": "x"},
          "may change"),
-        ({"file": "strategies/cup_handle.yaml", "path": "detector.min_duration_days", "new": 9},
-         "may change"),  # another strategy's file
-        ({"file": "strategy.yaml", "path": "vcp.min_contractions", "new": 3}, "may change"),
-        ({"file": "strategies/flat_base.yaml", "path": "classification.nope", "new": 1},
+        ({"file": "strategies/other.yaml", "path": "detector.min_duration_days", "new": 9},
+         "may change"),  # not VCP's own file
+        ({"file": "config.yaml", "path": "vcp.progressive_tolerance_pct", "new": 12},
+         "may change"),
+        ({"file": "strategy.yaml", "path": "classification.nope", "new": 1},
          "has no setting"),
-        ({"file": "strategies/flat_base.yaml", "path": "classification.flat_base.max_depth_pct",
-          "new": "12"}, "same kind"),
-        ({"file": "strategies/flat_base.yaml", "path": "classification.flat_base.max_depth_pct",
-          "new": 15}, "already"),
-        ({"file": "strategies/flat_base.yaml", "path": "classification.flat_base"}, "missing"),
+        ({"file": "strategy.yaml", "path": "vcp.progressive_tolerance_pct", "new": "12"},
+         "same kind"),
+        ({"file": "strategy.yaml", "path": "vcp.progressive_tolerance_pct", "new": 10},
+         "already"),
+        ({"file": "strategy.yaml", "path": "vcp.progressive_tolerance_pct"}, "missing"),
     ]  # fmt: skip
     for change, msg in bad:
         with pytest.raises(C.CandidateError, match=msg):
-            C.validate_overrides(CFG, "flat_base", [change])
+            C.validate_overrides(CFG, "vcp", [change])
     with pytest.raises(C.CandidateError, match="at most"):
-        C.validate_overrides(CFG, "flat_base", [{"file": "x", "path": str(i), "new": 1}
+        C.validate_overrides(CFG, "vcp", [{"file": "x", "path": str(i), "new": 1}
                                                 for i in range(6)])  # fmt: skip
     with pytest.raises(C.CandidateError, match="at least one"):
-        C.validate_overrides(CFG, "flat_base", [])
+        C.validate_overrides(CFG, "vcp", [])
 
 
 def test_vcp_candidates_change_only_vcp_parts_of_the_shared_files() -> None:
@@ -94,53 +95,49 @@ def test_a_candidate_runs_from_its_own_copy_and_never_edits_the_frozen_files(
     tmp_path: Path,
 ) -> None:
     before = {p: p.read_bytes() for p in CFG.rglob("*.yaml")}
-    ov = C.validate_overrides(CFG, "flat_base", [
-        {"file": "strategies/flat_base.yaml", "path": "classification.flat_base.max_depth_pct",
+    ov = C.validate_overrides(CFG, "vcp", [
+        {"file": "strategy.yaml", "path": "vcp.progressive_tolerance_pct",
          "new": 12}])  # fmt: skip
     cand = C.materialize(CFG, ov, tmp_path / "c1")
     assert not (cand / "live.yaml").exists() and not (cand / C.CANDIDATES_DIR).exists()
-    checks = C.check(CFG, cand, "flat_base", paper_only=False)
+    checks = C.check(CFG, cand, "vcp", paper_only=False)
     assert checks["frozen_hash"] != checks["candidate_hash"]
     # Other strategies keep the frozen hash in the candidate copy.
-    assert C.strategy_hash(cand, "cup_handle") == C.strategy_hash(CFG, "cup_handle")
     assert {p: p.read_bytes() for p in CFG.rglob("*.yaml")} == before
     # Only paper rules: the scan (hash) is unchanged; a scan change claimed as paper-only fails.
-    paper = C.validate_overrides(CFG, "flat_base", [{"file": "backtest.yaml",
+    paper = C.validate_overrides(CFG, "vcp", [{"file": "backtest.yaml",
                                                      "path": "defaults.rule",
                                                      "new": _other_rule()}])  # fmt: skip
     p_dir = C.materialize(CFG, paper, tmp_path / "c2")
-    assert C.check(CFG, p_dir, "flat_base", paper_only=True)["candidate_hash"] == \
+    assert C.check(CFG, p_dir, "vcp", paper_only=True)["candidate_hash"] == \
         checks["frozen_hash"]  # fmt: skip
     with pytest.raises(C.CandidateError, match="paper-rule"):
-        C.check(CFG, cand, "flat_base", paper_only=True)
+        C.check(CFG, cand, "vcp", paper_only=True)
 
 
 def test_an_invalid_candidate_config_is_refused(tmp_path: Path) -> None:
-    ov = C.validate_overrides(CFG, "flat_base", [
-        {"file": "strategies/flat_base.yaml", "path": "classification.flat_base.max_depth_pct",
+    ov = C.validate_overrides(CFG, "vcp", [
+        {"file": "strategy.yaml", "path": "vcp.progressive_tolerance_pct",
          "new": -1}])  # fmt: skip
     with pytest.raises(C.CandidateError, match="does not validate"):
-        C.check(CFG, C.materialize(CFG, ov, tmp_path / "bad"), "flat_base", paper_only=False)
+        C.check(CFG, C.materialize(CFG, ov, tmp_path / "bad"), "vcp", paper_only=False)
 
 
 def test_candidate_file_round_trip_and_ids(tmp_path: Path) -> None:
-    cand = C.Candidate("flat_base-c1", "flat_base", "flat_base-1.0.0", "flat_base-1.0.0+c1", 3,
+    cand = C.Candidate("vcp-c1", "vcp", "vcp-1.1.0", "vcp-1.1.0+c1", 3,
                        5, "active", date(2026, 10, 27),
-                       [C.Override("strategies/flat_base.yaml", "a.b", 1, 2)], SPEC)  # fmt: skip
+                       [C.Override("strategy.yaml", "a.b", 1, 2)], SPEC)  # fmt: skip
     path = C.candidate_path(tmp_path, cand.candidate_id)
     C.write_file(path, cand)
     assert C.read_file(path) == cand
-    assert [c.candidate_id for c in C.load_candidates(tmp_path, "active")] == ["flat_base-c1"]
-    assert C.next_candidate_id(tmp_path, "flat_base", ["flat_base-c2"]) == "flat_base-c3"
+    assert [c.candidate_id for c in C.load_candidates(tmp_path, "active")] == ["vcp-c1"]
+    assert C.next_candidate_id(tmp_path, "vcp", ["vcp-c2"]) == "vcp-c3"
     assert C.valid_id("double_bottom-c12") and not C.valid_id("Flat base")
 
 
 def test_scan_steps_vcp_needs_its_own_trend_template() -> None:
     v = [a[:2] for a in C.scan_steps("vcp", date(2026, 10, 1), "db", "cand")]
     assert v == [["compute", "trend-template"], ["compute", "vcp"], ["compute", "scores"]]
-    f = C.scan_steps("flat_base", date(2026, 10, 1), "db", "cand")
-    assert [a[:2] for a in f] == [["compute", "setups"], ["compute", "scores"]]
-    assert all("--config-dir" in a and a[a.index("--config-dir") + 1] == "cand" for a in f)
 
 
 # ------------------------------------------------------------------------------ scan diff
@@ -153,7 +150,7 @@ def _scores(conn: Any, rows: list[tuple[str, str, date, str, bool, float]]) -> N
             " classification, eligible, final_setup_score, fundamental_available,"
             " weights_renormalized, trend_weight, vcp_weight, volume_weight, rs_weight,"
             " fundamental_weight, scoring_version, config_hash, data_snapshot_id, created_at)"
-            " VALUES (?, 'flat_base', ?, ?, ?, ?, ?, FALSE, FALSE, 1, 1, 1, 1, 0, 's', ?, 'LIVE',"
+            " VALUES (?, 'vcp', ?, ?, ?, ?, ?, FALSE, FALSE, 1, 1, 1, 1, 0, 's', ?, 'LIVE',"
             " ?)",
             [f"{h}-{d}", iid, d, cls, ok, score, h, datetime(2026, 10, 1, tzinfo=UTC)],
         )
@@ -171,8 +168,8 @@ def test_scan_diff_names_added_dropped_reclassified_and_rescored(tmp_path: Path)
             ("F", "G", d, "FLAT_BASE", True, 40.0), ("C", "G", d, "FLAT_BASE", True, 45.0),
             ("C", "H", d, "FLAT_BASE", False, 80.0),                # not eligible: ignored
         ])  # fmt: skip
-        rows = C.scan_diff(store.conn, "flat_base", "F", "C", [d])
-        assert C.scanned_days(store.conn, "flat_base", "F", date(2026, 10, 1)) == [d]
+        rows = C.scan_diff(store.conn, "vcp", "F", "C", [d])
+        assert C.scanned_days(store.conn, "vcp", "F", date(2026, 10, 1)) == [d]
     got = {r["instrument_id"]: r["change"] for r in rows}
     assert got == {"B": "DROPPED", "D": "ADDED", "E": "RECLASSIFIED", "G": "RESCORED"}
     s = C.diff_summary(rows, [d], {d: 4})
@@ -224,17 +221,12 @@ def _git(root: Path, *args: str) -> str:
 def test_a_candidate_needs_a_registered_hypothesis_of_its_strategy(repo: Path) -> None:
     store = AgentStore(repo / "agent.duckdb")
     props = Proposals(store, repo, "config")
-    payload = {"strategy_id": "flat_base", "hypothesis_id": 1, "spec": SPEC, "overrides": [
-        {"file": "strategies/flat_base.yaml", "path": "classification.flat_base.max_depth_pct",
+    payload = {"strategy_id": "vcp", "hypothesis_id": 1, "spec": SPEC, "overrides": [
+        {"file": "strategy.yaml", "path": "vcp.progressive_tolerance_pct",
          "new": 12}]}  # fmt: skip
     with pytest.raises(ProposalError, match="no hypothesis H1"):
         props.create("candidate", "t", payload, "rationale x", "evidence x")
-    hid = Lab(store).register("cup_handle", "title", "idea", "metric", "decision rule")
-    with pytest.raises(ProposalError, match="is about cup_handle"):
-        props.create(
-            "candidate", "t", {**payload, "hypothesis_id": hid}, "rationale x", "evidence xx"
-        )
-    hid = Lab(store).register("flat_base", "title", "idea", "metric", "decision rule")
+    hid = Lab(store).register("vcp", "title", "idea", "metric", "decision rule")
     with pytest.raises(ProposalError, match="spec.why"):
         props.create(
             "candidate",
@@ -245,7 +237,7 @@ def test_a_candidate_needs_a_registered_hypothesis_of_its_strategy(repo: Path) -
         )
     with pytest.raises(ProposalError, match="may change"):
         props.create("candidate", "t", {**payload, "hypothesis_id": hid, "overrides": [
-            {"file": "strategies/flat_base.yaml", "path": "stage", "new": "live"}]},
+            {"file": "strategies/vcp.yaml", "path": "stage", "new": "live"}]},
                      "rationale x", "evidence xx")  # fmt: skip
 
 
@@ -255,15 +247,15 @@ def test_propose_build_approve_merges_on_main_and_starts_the_shadow(
     store = AgentStore(repo / "agent.duckdb")
     launched: list[int] = []
     props = Proposals(store, repo, "config", launcher=launched.append)
-    hid = Lab(store).register("flat_base", "title", "idea", "metric", "decision rule")
+    hid = Lab(store).register("vcp", "title", "idea", "metric", "decision rule")
     # Paper rules only: no scan to diff, so the build needs no backup.
-    payload = {"strategy_id": "flat_base", "hypothesis_id": hid, "spec": SPEC,
+    payload = {"strategy_id": "vcp", "hypothesis_id": hid, "spec": SPEC,
                "overrides": [{"file": "backtest.yaml", "path": "defaults.rule",
                               "new": _other_rule()}]}  # fmt: skip
-    p = props.create("candidate", "Candidate flat_base rule", payload, "rationale x", "evidence xx")
+    p = props.create("candidate", "Candidate vcp rule", payload, "rationale x", "evidence xx")
     assert p.status == "BUILDING" and launched == [p.proposal_id]
-    assert p.payload["candidate_id"] == "flat_base-c1"
-    assert p.payload["candidate_version"] == "flat_base-1.0.0+c1"
+    assert p.payload["candidate_id"] == "vcp-c1"
+    assert p.payload["candidate_version"] == "vcp-1.1.0+c1"
     # The owner cannot approve while it is being built.
     with pytest.raises(ProposalError, match="not PENDING"):
         props.approve(p.proposal_id, "owner")
@@ -276,16 +268,16 @@ def test_propose_build_approve_merges_on_main_and_starts_the_shadow(
     # The build left main and the owner's working tree alone; the branch holds the file.
     assert _git(repo, "rev-parse", "main") == head_before
     assert not (repo / "config" / "candidates").exists()
-    assert "config/candidates/flat_base-c1.yaml" in _git(
-        repo, "show", "--name-only", "--format=", "candidate/flat_base-c1"
+    assert "config/candidates/vcp-c1.yaml" in _git(
+        repo, "show", "--name-only", "--format=", "candidate/vcp-c1"
     )
-    assert cb.worktree_dir(repo, "flat_base-c1").exists()
+    assert cb.worktree_dir(repo, "vcp-c1").exists()
     done = props.approve(p.proposal_id, "owner")
     assert done.status == "APPLIED", done.apply_result
-    cand = C.read_file(C.candidate_path(repo / "config", "flat_base-c1"))
+    cand = C.read_file(C.candidate_path(repo / "config", "vcp-c1"))
     assert cand.status == "active" and cand.start_date is not None
     assert "active from" in _git(repo, "log", "-1", "--format=%s")
-    assert not cb.worktree_dir(repo, "flat_base-c1").exists()
+    assert not cb.worktree_dir(repo, "vcp-c1").exists()
     con = duckdb.connect(str(store.path), read_only=True)
     try:
         assert con.execute("SELECT status FROM strategy_candidates").fetchall() == [("active",)]
@@ -293,7 +285,7 @@ def test_propose_build_approve_merges_on_main_and_starts_the_shadow(
         con.close()
     # Next candidate of the same strategy gets the next id.
     p2 = props.create("candidate", "t", payload, "rationale x", "evidence xx")
-    assert p2.payload["candidate_id"] == "flat_base-c2"
+    assert p2.payload["candidate_id"] == "vcp-c2"
 
 
 def test_a_failed_build_is_recorded_and_a_rejection_keeps_the_branch(
@@ -301,9 +293,9 @@ def test_a_failed_build_is_recorded_and_a_rejection_keeps_the_branch(
 ) -> None:
     store = AgentStore(repo / "agent.duckdb")
     props = Proposals(store, repo, "config")
-    hid = Lab(store).register("flat_base", "title", "idea", "metric", "decision rule")
-    payload = {"strategy_id": "flat_base", "hypothesis_id": hid, "spec": SPEC, "overrides": [
-        {"file": "strategies/flat_base.yaml", "path": "classification.flat_base.max_depth_pct",
+    hid = Lab(store).register("vcp", "title", "idea", "metric", "decision rule")
+    payload = {"strategy_id": "vcp", "hypothesis_id": hid, "spec": SPEC, "overrides": [
+        {"file": "strategy.yaml", "path": "vcp.progressive_tolerance_pct",
          "new": 12}]}  # fmt: skip
     p = props.create("candidate", "t", payload, "rationale x", "evidence xx")
     # A scan change needs a backup to diff on: none here, so the build fails, said plainly.
@@ -333,13 +325,13 @@ def test_shadow_rows_are_separate_append_only_and_compared_since_the_start(
     with DuckDBStore(db) as store:
         store.migrate()
         repo = sh.ShadowRepository(store.conn)
-        ev = [PaperEvent("flat_base", "A", date(2026, 10, 13), "ENTRY", 10.0, start),
-              PaperEvent("flat_base", "A", date(2026, 10, 20), "EXIT", 11.0, start,
+        ev = [PaperEvent("vcp", "A", date(2026, 10, 13), "ENTRY", 10.0, start),
+              PaperEvent("vcp", "A", date(2026, 10, 20), "EXIT", 11.0, start,
                          {"ret_pct": 10.0, "entry_day": "2026-10-13"})]  # fmt: skip
-        assert repo.append("flat_base-c1", "C", ev, None) == 2
-        assert repo.append("flat_base-c1", "C", ev, None) == 0  # same events: ignored
+        assert repo.append("vcp-c1", "C", ev, None) == 2
+        assert repo.append("vcp-c1", "C", ev, None) == 0  # same events: ignored
         assert store.conn.execute("SELECT count(*) FROM paper_events").fetchone()[0] == 0
-        frozen = C.strategy_hash(CFG, "flat_base")
+        frozen = C.strategy_hash(CFG, "vcp")
         for e, d, meta in [("ENTRY", date(2026, 10, 1), {}),  # before the start: left out
                            ("EXIT", date(2026, 10, 14), {"ret_pct": -4.0,
                                                          "entry_day": "2026-10-01"}),
@@ -347,10 +339,10 @@ def test_shadow_rows_are_separate_append_only_and_compared_since_the_start(
                            ("EXIT", date(2026, 10, 21), {"ret_pct": 3.0,
                                                          "entry_day": "2026-10-15"})]:  # fmt: skip
             store.conn.execute(
-                "INSERT INTO paper_events VALUES (?, 'paper-v1', 'flat_base', ?, 'A', ?, ?, NULL,"
+                "INSERT INTO paper_events VALUES (?, 'paper-v1', 'vcp', ?, 'A', ?, ?, NULL,"
                 " NULL, ?, NULL, ?)", [f"e{d}{e}", frozen, d, e, json.dumps(meta),
                                        datetime.now(UTC)])  # fmt: skip
-        cand = C.Candidate("flat_base-c1", "flat_base", "v", "v+c1", 1, 1, "active", start, [],
+        cand = C.Candidate("vcp-c1", "vcp", "v", "v+c1", 1, 1, "active", start, [],
                            SPEC)  # fmt: skip
         out = sh.comparison(store.conn, str(CFG), cand, date(2026, 10, 26))
     assert out["frozen"]["closed"] == 1 and out["frozen"]["avg_ret"] == 3.0
@@ -367,16 +359,16 @@ def test_shadow_update_with_no_active_candidate_does_nothing(tmp_path: Path) -> 
 
 def test_shadow_update_scans_only_days_the_frozen_run_scanned(repo: Path, tmp_path: Path) -> None:
     cfg = repo / "config"
-    ov = C.validate_overrides(cfg, "flat_base", [
-        {"file": "strategies/flat_base.yaml", "path": "classification.flat_base.max_depth_pct",
+    ov = C.validate_overrides(cfg, "vcp", [
+        {"file": "strategy.yaml", "path": "vcp.progressive_tolerance_pct",
          "new": 12}])  # fmt: skip
     C.write_file(
-        C.candidate_path(cfg, "flat_base-c1"),
+        C.candidate_path(cfg, "vcp-c1"),
         C.Candidate(
-            "flat_base-c1", "flat_base", "v", "v+c1", 1, 1, "active", date(2026, 10, 12), ov, SPEC
+            "vcp-c1", "vcp", "v", "v+c1", 1, 1, "active", date(2026, 10, 12), ov, SPEC
         ),
     )
-    frozen = C.strategy_hash(cfg, "flat_base")
+    frozen = C.strategy_hash(cfg, "vcp")
     db = str(tmp_path / "m.duckdb")
     with DuckDBStore(db) as store:
         store.migrate()
@@ -393,7 +385,7 @@ def test_shadow_update_scans_only_days_the_frozen_run_scanned(repo: Path, tmp_pa
     assert [r.ok for r in out] == [True], out
     days = sorted({a[a.index("--as-of") + 1] for a in calls})
     assert days == ["2026-10-12", "2026-10-13"]  # from the start, not before; no later day
-    assert all(a[a.index("--config-dir") + 1].endswith("flat_base-c1/config") for a in calls)
+    assert all(a[a.index("--config-dir") + 1].endswith("vcp-c1/config") for a in calls)
     # A failing scan is reported for that candidate, never raised.
     out = sh.update(db, str(cfg), lambda a: 1, work_dir=tmp_path / "w")
     assert not out[0].ok and "scan failed" in out[0].text
@@ -409,9 +401,9 @@ def test_the_weekly_report_shows_started_candidates_only(repo: Path, tmp_path: P
     with DuckDBStore(str(tmp_path / "m.duckdb")) as store:
         store.migrate()
         assert shadow_section(store.conn, ctx, date(2026, 10, 30)) == ""  # nothing started
-        C.write_file(C.candidate_path(cfg, "flat_base-c1"), C.Candidate(
-            "flat_base-c1", "flat_base", "v", "v+c1", 1, 1, "active", date(2026, 10, 27), [],
+        C.write_file(C.candidate_path(cfg, "vcp-c1"), C.Candidate(
+            "vcp-c1", "vcp", "v", "v+c1", 1, 1, "active", date(2026, 10, 27), [],
             SPEC))  # fmt: skip
         html = shadow_section(store.conn, ctx, date(2026, 10, 30))
-    assert "Strategy candidates (shadow ledger)" in html and "flat_base-c1 (active" in html
+    assert "Strategy candidates (shadow ledger)" in html and "vcp-c1 (active" in html
     assert "needs 30 more closed shadow trades, 88 more days" in html
