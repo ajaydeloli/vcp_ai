@@ -582,9 +582,7 @@ def build_parser() -> argparse.ArgumentParser:
     from vcp_scanner.cli_research import add_research_parser
 
     add_research_parser(subparsers)
-    from vcp_scanner.cli_agent import add_agent_parser
 
-    add_agent_parser(subparsers)
     from vcp_scanner.cli_alerts import add_alerts_parser
 
     add_alerts_parser(subparsers)
@@ -1125,10 +1123,6 @@ def main(argv: Sequence[str] | None = None) -> int:
 
         return run_research(args)
 
-    if args.command == "agent":
-        from vcp_scanner.cli_agent import run_agent
-
-        return run_agent(args)
 
     if args.command == "alerts":
         from vcp_scanner.cli_alerts import run_alerts

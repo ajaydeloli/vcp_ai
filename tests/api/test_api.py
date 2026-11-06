@@ -360,37 +360,6 @@ def test_stock_scores_list_each_scan_day_per_strategy(ro_env: Env) -> None:
     get(ro_env, "/api/v1/stocks/ALPHA/scores?days=0", 422)
 
 
-def test_agent_page_lists_proposals_pending_first_with_commands(ro_env: Env) -> None:
-    body = get(ro_env, "/api/v1/agent")
-    assert body["available"] is True and body["pending"] == 1
-    first, rejected, second = body["proposals"]  # waiting first, then newest first
-    assert (first["proposal_id"], first["status"]) == (1, "PENDING")
-    assert (rejected["kind"], rejected["status"]) == ("candidate", "REJECTED")
-    assert first["approve_command"] == "vcp agent approve 1"
-    assert first["reject_command"] == 'vcp agent reject 1 "reason"'
-    assert first["change"]["ratio"] == [10, 2]
-    assert second["status"] == "APPLIED" and second["approve_command"] is None
-    assert [w["symbol"] for w in body["ai_watchlist"]] == ["BETA"]
-    h = body["hypotheses"][0]
-    assert (h["outcome"], len(h["runs"]), body["budget_left"]["vcp"]) == ("rejected", 1, 2)
-    assert [n["kind"] for n in body["notes"]] == ["finding", "decision"]
-    # Strategy candidates (step A4): changes from the proposal, the diff newest day first.
-    (c,) = body["candidates"]
-    assert (c["candidate_id"], c["status"], c["hypothesis_id"]) == ("flat_base-c1", "rejected", 1)
-    assert c["changes"][0]["old"] == 15 and c["changes"][0]["new"] == 12
-    assert c["scan_diff"]["changes"]["DROPPED"] == 1
-    assert [(r["symbol"], r["change"]) for r in c["diff_rows"]] == [
-        ("ALPHA", "DROPPED"), ("BETA", "RECLASSIFIED")]  # fmt: skip
-    assert c["shadow"] is None  # not on main, never started
-
-
-def test_agent_page_without_an_agent_file(env: Env) -> None:
-    (env.data_dir / "agent" / "agent.duckdb").unlink()
-    body = get(env, "/api/v1/agent")
-    assert body["available"] is False and "has not run yet" in body["reason"]
-    assert body["proposals"] == [] and body["pending"] == 0
-
-
 def test_alerts_page_shows_setup_watcher_watching_and_log(ro_env: Env) -> None:
     body = get(ro_env, "/api/v1/alerts")
     assert body["enabled"] is True and body["telegram_configured"] is False  # no env file

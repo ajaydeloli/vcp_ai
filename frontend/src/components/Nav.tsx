@@ -12,7 +12,6 @@ const TOP = [
   ["Trend Template", "/trend-template"],
   ["Stock Analysis", "/stocks"],
   ["Watchlist", "/watchlist"],
-  ["Past Leaders", "/leaders"],
 ] as const;
 
 /** In the top bar's More dropdown. */
@@ -24,7 +23,6 @@ const MORE = [
   ["Backtest", "/backtest"],
   ["Reports", "/reports"],
   ["Alerts", "/alerts"],
-  ["AI Agent", "/agent"],
   ["System Status", "/system"],
 ] as const;
 
