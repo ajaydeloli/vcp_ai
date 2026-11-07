@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { THEME_BOOT } from "@/lib/themeBoot";
 import { Providers } from "./providers";
+// Inter, bundled with the dashboard (no font is fetched from the web; owner, 2026-11-07)
+import "@fontsource-variable/inter";
 import "./globals.css";
 
 export const metadata: Metadata = {

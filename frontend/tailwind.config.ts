@@ -21,7 +21,7 @@ const config: Config = {
         violet: "rgb(var(--c-violet) / <alpha-value>)",
         live: "rgb(var(--c-live) / <alpha-value>)",
       },
-      fontFamily: { sans: ["ui-sans-serif", "system-ui", "Segoe UI", "Roboto", "sans-serif"] },
+      fontFamily: { sans: ["Inter Variable", "Inter", "ui-sans-serif", "system-ui", "Segoe UI", "Roboto", "sans-serif"] },
     },
   },
   plugins: [],

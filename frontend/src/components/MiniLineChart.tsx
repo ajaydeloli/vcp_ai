@@ -4,7 +4,7 @@
 // regime threshold).
 import { createChart, CrosshairMode, LineStyle, type IChartApi, type ISeriesApi, type Time } from "lightweight-charts";
 import { useEffect, useRef } from "react";
-import { chartTheme } from "@/lib/chartTheme";
+import { chartTheme, redrawWhenFontsReady } from "@/lib/chartTheme";
 import { useResolvedTheme } from "@/lib/prefs";
 
 export type MiniSeries = {
@@ -57,6 +57,7 @@ export function MiniLineChart({ series, height = 120, threshold, label, plain, w
       crosshair: { mode: CrosshairMode.Magnet },
     });
     chartRef.current = chart;
+    redrawWhenFontsReady(chart);
     // refit on a new width: a chart first drawn while its column was still narrow would
     // otherwise keep that bar spacing and leave its lines squeezed to the right
     const ro = new ResizeObserver(() => {
