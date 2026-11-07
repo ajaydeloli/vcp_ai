@@ -16,7 +16,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       <head>
         <script dangerouslySetInnerHTML={{ __html: THEME_BOOT }} />
       </head>
-      <body className="bg-bg font-sans text-ink antialiased">
+      <body className="bg-bg font-sans text-ink antialiased lg:pl-14">
         <Providers>{children}</Providers>
       </body>
     </html>

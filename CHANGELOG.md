@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Navigation is a **vertical icon rail on the left** of every page (owner, 2026-11-07): the logo, then one icon per page (Market Overview, Screener, Chart, Watchlist, Fundamentals, Recent IPOs, Strategies, Paper Trading, Backtest, Reports, System Status), the name as a tooltip, the open page marked. The top bar keeps the name, the current page, search, preferences and the date; the More dropdown is gone. Below 1024 px the logo still opens the side menu, now with the icons beside the names.
 - Removed the **Stock Analysis** page (owner, 2026-11-07); the Chart page has all of it (chart, VCP setup and pattern, Trend Template, score, fundamentals, notes, history) and now shows the live price in its header. Every link to a stock (Screener, Watchlist, Fundamentals, Recent IPOs, new highs, the search box) opens its chart; old `/stocks/SYMBOL` addresses redirect to `/chart/SYMBOL`. The old chart component, the stock panel and their helpers are gone.
 - Dark theme: cards and panels a little darker, `#151518` (was `#18181b`).
 - Top bar: the page background colour (`#111113` in the dark theme) with a thin white line under it, instead of the panel colour and a grey line.

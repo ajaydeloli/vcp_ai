@@ -257,7 +257,7 @@ After working on the main database by hand (a rebuild, a manual scan), refresh t
 
 ### 5.3 The pages
 
-The top bar shows Market Overview, Screener, Chart and Watchlist; the other pages are under **More ▾** (Fundamentals, Recent IPOs, Strategies, Paper Trading, Backtest, Reports, System Status). Open it with a click, Enter or ↓; ↑ ↓ Home End move through it; Escape or a click elsewhere closes it. When you are on one of those pages, More is highlighted (and names the page on a wide screen). Below 1024 px wide the top bar shows no links: the logo opens the side menu with every page.
+A vertical bar of icons on the left of every page leads to each page (hover an icon for its name; the open page is marked): Market Overview, Screener, Chart, Watchlist, Fundamentals, Recent IPOs, Strategies, Paper Trading, Backtest, Reports and System Status. The top bar shows the page you are on, the stock search, preferences and today's date. Below 1024 px wide the icon bar is hidden: the logo opens the side menu with every page.
 
 | Page | What it shows |
 |---|---|

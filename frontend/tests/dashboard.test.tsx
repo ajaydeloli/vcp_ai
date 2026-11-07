@@ -33,68 +33,34 @@ describe("dashboard page (market view)", () => {
     expect(screen.getAllByText(/not NIFTY/).length).toBeGreaterThanOrEqual(1); // the index tile
     // "No real money" is on the Paper Trading page with the paper panel (tests/components.test.tsx)
 
-    // navigation
+    // navigation: the icon rail on the left, every page, the current one marked
     const nav = screen.getByRole("navigation", { name: "Main" });
     expect(within(nav).getByRole("link", { name: "Market Overview" })).toHaveAttribute("aria-current", "page");
     for (const [name, href] of [
       ["Screener", "/screener"],
       ["Chart", "/chart"],
       ["Watchlist", "/watchlist"],
+      ["Backtest", "/backtest"],
+      ["System Status", "/system"],
     ] as const) {
-      expect(within(nav).getByRole("link", { name })).toHaveAttribute("href", href);
+      const link = within(nav).getByRole("link", { name });
+      expect(link).toHaveAttribute("href", href);
+      expect(link).toHaveAttribute("title", name); // the name is the tooltip
+      expect(link.querySelector("svg")).not.toBeNull(); // an icon, not text
+      expect(link).not.toHaveAttribute("aria-current");
     }
-    // the top bar keeps four pages; the rest sit in the More dropdown, closed until asked
-    expect(within(nav).getAllByRole("link")).toHaveLength(4);
-    expect(within(nav).getByRole("button", { name: "More pages" })).toHaveAttribute("aria-expanded", "false");
-    expect(within(nav).queryByRole("link", { name: "Backtest" })).not.toBeInTheDocument();
+    expect(within(nav).getAllByRole("link")).toHaveLength(12); // the logo and the eleven pages
+    expect(screen.queryByRole("button", { name: /More pages/ })).not.toBeInTheDocument();
     expect(screen.queryByRole("complementary", { name: "Menu" })).not.toBeInTheDocument();
   });
 
-  it("the More dropdown opens with the mouse or the keyboard and closes on Escape or an outside click", async () => {
-    mockApi();
-    renderApp(<Nav active="Market Overview" />);
-    const more = screen.getByRole("button", { name: "More pages" });
-    await userEvent.click(more);
-    expect(more).toHaveAttribute("aria-expanded", "true");
-    const list = screen.getByRole("list", { name: "More pages" });
-    const names = within(list).getAllByRole("link").map((a) => a.textContent);
-    expect(names).toEqual(["Fundamentals", "Recent IPOs", "Strategies", "Paper Trading", "Backtest", "Reports", "System Status"]);
-    expect(within(list).getByRole("link", { name: "Backtest" })).toHaveAttribute("href", "/backtest");
-
-    await userEvent.click(document.body); // a click outside
-    expect(screen.queryByRole("list", { name: "More pages" })).not.toBeInTheDocument();
-
-    more.focus();
-    await userEvent.keyboard("{ArrowDown}");
-    await waitFor(() => expect(screen.getByRole("link", { name: "Fundamentals" })).toHaveFocus());
-    await userEvent.keyboard("{ArrowDown}");
-    expect(screen.getByRole("link", { name: "Recent IPOs" })).toHaveFocus();
-    await userEvent.keyboard("{End}");
-    expect(screen.getByRole("link", { name: "System Status" })).toHaveFocus();
-    await userEvent.keyboard("{ArrowDown}"); // wraps round
-    expect(screen.getByRole("link", { name: "Fundamentals" })).toHaveFocus();
-    await userEvent.keyboard("{Escape}");
-    expect(screen.queryByRole("list", { name: "More pages" })).not.toBeInTheDocument();
-    expect(more).toHaveFocus();
-
-    await userEvent.keyboard("{Enter}");
-    expect(screen.getByRole("list", { name: "More pages" })).toBeInTheDocument();
-    await userEvent.tab(); // into the list
-    await userEvent.tab({ shift: true }); // back to the button: still open
-    expect(screen.getByRole("list", { name: "More pages" })).toBeInTheDocument();
-  });
-
-  it("a page inside More highlights the More button and its own link", async () => {
+  it("the rail marks the page that is open", () => {
     mockApi();
     renderApp(<Nav active="Backtest" />);
     const nav = screen.getByRole("navigation", { name: "Main" });
-    const more = within(nav).getByRole("button", { name: "More pages, current: Backtest" });
-    expect(more).toHaveTextContent("More · Backtest"); // the page's name shows on a wide screen
-    expect(more.className).toContain("border-accent");
-    expect(within(nav).getAllByRole("link").every((a) => !a.hasAttribute("aria-current"))).toBe(true);
-    await userEvent.click(more);
-    expect(screen.getByRole("link", { name: "Backtest" })).toHaveAttribute("aria-current", "page");
-    expect(screen.getByRole("link", { name: "Reports" })).not.toHaveAttribute("aria-current");
+    expect(within(nav).getByRole("link", { name: "Backtest" })).toHaveAttribute("aria-current", "page");
+    expect(within(nav).getByRole("link", { name: "Backtest" }).className).toContain("text-accent");
+    expect(within(nav).getAllByRole("link").filter((l) => l.hasAttribute("aria-current"))).toHaveLength(1);
   });
 
   it("the logo opens a side bar with every page, and it closes again", async () => {

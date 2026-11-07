@@ -25,7 +25,7 @@ export function StatusBar() {
   const scan = s?.strategies.reduce<string | null>((a, x) => (x.latest_scan && (!a || x.latest_scan > a) ? x.latest_scan : a), null);
 
   return (
-    <footer className="fixed inset-x-0 bottom-0 z-10 border-t border-line bg-panel/95 px-4 py-2 text-xs backdrop-blur">
+    <footer className="fixed inset-x-0 bottom-0 z-10 lg:left-14 border-t border-line bg-panel/95 px-4 py-2 text-xs backdrop-blur">
       <div className="flex flex-wrap items-center gap-x-5 gap-y-1">
         {status.isError ? (
           <span role="alert" className="text-down">

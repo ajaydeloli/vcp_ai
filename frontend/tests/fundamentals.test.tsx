@@ -57,7 +57,7 @@ describe("fundamentals page", () => {
     expect(screen.getByText(/2 of 4 universe stocks have results filed/)).toBeInTheDocument();
     const nav = screen.getByRole("navigation", { name: "Main" });
     // Fundamentals sits in the More dropdown (2026-10-23): the button names it as the current page
-    expect(within(nav).getByRole("button", { name: "More pages, current: Fundamentals" })).toBeInTheDocument();
+    expect(within(nav).getByRole("link", { name: "Fundamentals" })).toHaveAttribute("aria-current", "page");
     for (const name of ["Quarter", "Published", "EPS YoY", "Sales YoY", "ROE", "D/E"]) {
       expect(screen.getByRole("columnheader", { name: new RegExp(`^${name}`) })).toBeInTheDocument();
     }
