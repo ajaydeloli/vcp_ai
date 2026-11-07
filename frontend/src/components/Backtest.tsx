@@ -15,7 +15,13 @@ function Pct({ v, digits = 1, sign = true }: { v: number | null; digits?: number
 }
 
 const rules = (r: BacktestRun): string =>
-  [r.entry, r.regime === "none" ? "no regime gate" : r.regime && `${r.regime} regime`, r.rule]
+  [
+    r.entry,
+    r.regime === "none" ? "no regime gate" : r.regime && `${r.regime} regime`,
+    r.rule,
+    // a research filter (not the paper rules)
+    r.max_above_sma50 != null ? `max ${r.max_above_sma50}% above 50-day` : null,
+  ]
     .filter((x): x is string => !!x)
     .join(" · ") || DASH;
 

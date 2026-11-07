@@ -294,6 +294,7 @@ export const backtestRun = z.object({
   classes: z.array(z.string()),
   min_score: num,
   baseline: z.boolean(),
+  max_above_sma50: num,
   paper_rules: z.boolean(),
   completed_at: z.string().nullable(),
   every_trade: backtestStats,

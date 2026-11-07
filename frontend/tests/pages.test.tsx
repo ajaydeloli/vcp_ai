@@ -57,7 +57,10 @@ describe("more pages", () => {
     expect(screen.queryByText("breakout · no regime gate · hold_low8")).not.toBeInTheDocument();
     await userEvent.click(screen.getByRole("checkbox", { name: "Frozen paper rules only" }));
     expect(screen.getByText("breakout · no regime gate · hold_low8")).toBeInTheDocument();
-    expect(screen.getByText("3 of 3 runs")).toBeInTheDocument();
+    // a research filter is named in the rules and is not marked as the paper rules
+    expect(screen.getByText("cross_5 · breadth50 regime · hold_low8 · max 10% above 50-day")).toBeInTheDocument();
+    expect(screen.getAllByText("paper rules")).toHaveLength(2);
+    expect(screen.getByText("4 of 4 runs")).toBeInTheDocument();
   });
 
   it("Reports lists the files and shows the newest daily report", async () => {

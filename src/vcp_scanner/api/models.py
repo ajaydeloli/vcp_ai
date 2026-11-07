@@ -683,6 +683,8 @@ class BacktestRun(BaseModel):
     classes: list[str]
     min_score: float | None
     baseline: bool
+    #: research filter: no entry more than this % above the 50-day average (None: off)
+    max_above_sma50: float | None = None
     paper_rules: bool  # entry, regime, exit rule, positions and costs of the frozen paper rules
     completed_at: datetime | None
     every_trade: BacktestStats

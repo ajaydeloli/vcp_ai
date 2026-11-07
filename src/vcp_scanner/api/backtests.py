@@ -62,6 +62,7 @@ def _run(row: tuple[Any, ...]) -> m.BacktestRun:
         all(s.get(k) == v for k, v in PAPER.items())
         and cost == PAPER_COST_BPS
         and not s.get("baseline")
+        and s.get("max_above_sma50") is None  # a research filter is not the paper rules
     )
     return m.BacktestRun(
         backtest_id=str(bid), strategy_id=str(sid), algorithm_version=algo, period=period,
@@ -70,6 +71,7 @@ def _run(row: tuple[Any, ...]) -> m.BacktestRun:
         max_positions=_i(s.get("max_positions")),
         classes=[str(c) for c in classes] if isinstance(classes, list) else [],
         min_score=_f(s.get("min_score")), baseline=bool(s.get("baseline")),
+        max_above_sma50=_f(s.get("max_above_sma50")),
         paper_rules=is_paper, completed_at=done.astimezone(IST) if done else None,
         every_trade=_stats(metrics.get("every_trade") or {}),
         portfolio=_portfolio(metrics.get("portfolio") or {}),

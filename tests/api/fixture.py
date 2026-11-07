@@ -393,6 +393,8 @@ def build_research_db(path: Path) -> Path:
         ("bt-val", "vcp", "validation", date(2024, 7, 1), date(2026, 9, 30), paper, metrics),
         ("bt-exp", "flat_base", "development", date(2022, 2, 1), date(2024, 6, 30),
          {**paper, "entry": "breakout", "regime": "none"}, {"every_trade": {}, "portfolio": {}}),
+        ("bt-sma", "vcp", "validation", date(2024, 7, 1), date(2026, 9, 30),
+         {**paper, "max_above_sma50": 10.0}, metrics),
     ]  # fmt: skip
     with DuckDBStore(str(path)) as store:
         store.migrate()

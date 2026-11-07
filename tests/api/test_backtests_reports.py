@@ -13,7 +13,7 @@ def test_backtests_list_the_stored_runs_with_units_converted(ro_env: Env) -> Non
     body = get(ro_env, "/api/v1/backtests")
     assert body["available"] is True and body["reason"] is None
     runs = {r["backtest_id"]: r for r in body["runs"]}
-    assert set(runs) == {"bt-dev", "bt-val", "bt-exp"}
+    assert set(runs) == {"bt-dev", "bt-val", "bt-exp", "bt-sma"}
     dev = runs["bt-dev"]
     assert dev["paper_rules"] is True and dev["period"] == "development"
     assert dev["portfolio"]["win_rate_pct"] == 45.0  # stored as a fraction
@@ -27,6 +27,12 @@ def test_an_experiment_is_not_marked_as_the_paper_rules_and_gaps_are_null(ro_env
     assert exp["paper_rules"] is False and exp["entry"] == "breakout"
     assert exp["portfolio"]["trades"] is None and exp["portfolio"]["profit_factor"] is None
     assert exp["portfolio"]["max_drawdown_pct"] is None  # never 0
+
+
+def test_a_research_filter_is_shown_and_is_not_the_paper_rules(ro_env: Env) -> None:
+    runs = {r["backtest_id"]: r for r in get(ro_env, "/api/v1/backtests")["runs"]}
+    assert runs["bt-sma"]["max_above_sma50"] == 10.0 and runs["bt-sma"]["paper_rules"] is False
+    assert runs["bt-dev"]["max_above_sma50"] is None and runs["bt-dev"]["paper_rules"] is True
 
 
 def test_a_missing_research_database_is_said_not_hidden(env: Env, tmp_path: Path) -> None:
