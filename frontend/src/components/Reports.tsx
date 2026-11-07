@@ -14,12 +14,16 @@ const key = (f: ReportFile): string => `${f.kind}/${f.name}`;
 
 function Group({ title, files, picked, onPick }: { title: string; files: ReportFile[]; picked: string; onPick: (k: string) => void }) {
   return (
-    <section aria-label={title}>
-      <h3 className="mb-1 text-[11px] uppercase text-mute">{title}</h3>
+    // each list scrolls on its own, so the weekly list never sinks below a long daily one
+    <section aria-label={title} className="flex min-h-0 flex-1 basis-0 flex-col rounded border border-line p-2">
+      <h3 className="mb-1.5 shrink-0 text-[11px] uppercase text-mute">
+        {title}
+        {files.length > 0 ? <span className="ml-1 normal-case">({files.length})</span> : null}
+      </h3>
       {files.length === 0 ? (
         <p className="text-xs text-mute">None yet.</p>
       ) : (
-        <ul className="space-y-1">
+        <ul className="max-h-52 min-h-0 flex-1 space-y-1 overflow-y-auto pr-1 lg:max-h-none">
           {files.map((f) => (
             <li key={key(f)}>
               <button
@@ -95,8 +99,8 @@ function Generate({ onDone }: { onDone: (k: string) => void }) {
   );
 }
 
-/** The daily and weekly HTML reports. On a wide screen the page fits the window: the list of
- *  reports and the report each scroll on their own. */
+/** The daily and weekly HTML reports. On a wide screen the page fits the window: the daily list,
+ *  the weekly list (one above the other, half the height each) and the report each scroll on their own. */
 export function Reports() {
   const reports = useReports();
   const [chosen, setChosen] = useState<string | null>(null);
@@ -118,7 +122,7 @@ export function Reports() {
           <Empty>No report has been written yet. The daily run writes one; to write it now run: vcp report daily</Empty>
         ) : (
           <div className="grid min-h-0 flex-1 gap-4 lg:grid-cols-[18rem_minmax(0,1fr)]">
-            <div className="max-h-60 space-y-4 overflow-y-auto pr-1 lg:max-h-none">
+            <div className="flex min-h-0 flex-col gap-3">
               <Group title="Daily" files={daily} picked={picked} onPick={setChosen} />
               <Group title="Weekly" files={weekly} picked={picked} onPick={setChosen} />
             </div>
