@@ -110,7 +110,6 @@ function Logo({ mark = true }: { mark?: boolean }) {
       {mark ? <Image src="/shreevault-mark.png" alt="" aria-hidden="true" width={36} height={36} priority className="h-9 w-9 rounded-md" /> : null}
       <span className="text-left">
         <span className="block text-base font-semibold leading-tight text-ink">ShreeVault</span>
-        <span className="block text-[10px] uppercase tracking-wide text-mute">NSE VCP scanner</span>
       </span>
     </>
   );

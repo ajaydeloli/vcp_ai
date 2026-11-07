@@ -5,7 +5,7 @@ import { Providers } from "./providers";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "ShreeVault - NSE VCP scanner",
+  title: "ShreeVault",
   description: "Read-only research dashboard for the NSE VCP scanner. Not financial advice.",
 };
 
