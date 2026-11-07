@@ -22,7 +22,12 @@ import {
   type Toggle,
 } from "@/lib/chartSettings";
 
-export const BTN = "inline-flex h-8 items-center gap-1.5 rounded border border-line bg-panel2 px-2.5 text-xs text-ink hover:border-accent";
+const BTN_BASE = "inline-flex h-8 items-center gap-1.5 rounded border px-2.5 text-xs";
+export const BTN = `${BTN_BASE} border-line bg-panel2 text-ink hover:border-accent`;
+/** A toolbar button that shows whether it is on: the chosen one is filled with the accent
+ *  colour (separate class lists, so the "off" background cannot win over the "on" one). */
+export const toggleBtn = (on: boolean) =>
+  on ? `${BTN_BASE} border-accent bg-accent font-semibold text-white` : `${BTN_BASE} border-line bg-panel2 text-ink hover:border-accent`;
 const SMALL = "h-7 rounded border border-line bg-panel2 px-1.5 text-xs text-ink";
 type Change = (p: Partial<ChartSettings>) => void;
 
@@ -51,7 +56,7 @@ function Dropdown({ label, title, children, wide = false }: { label: ReactNode; 
   }, [open]);
   return (
     <div ref={wrap} className="relative">
-      <button ref={button} type="button" aria-haspopup="true" aria-expanded={open} onClick={() => setOpen((o) => !o)} className={`${BTN} ${open ? "border-accent" : ""}`}>
+      <button ref={button} type="button" aria-haspopup="true" aria-expanded={open} onClick={() => setOpen((o) => !o)} className={open ? `${BTN_BASE} border-accent bg-panel2 text-ink` : BTN}>
         {label} <span aria-hidden="true">▾</span>
       </button>
       {open ? (

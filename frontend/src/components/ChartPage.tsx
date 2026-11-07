@@ -24,14 +24,13 @@ import { CHART_RANGES, type ChartRange, type Interval } from "@/lib/indicators";
 import { useWatchlists } from "@/lib/watchlist";
 import type { StockSetup, StockSetups } from "@/lib/schemas";
 import { ChartLinks } from "./ChartLinks";
-import { BTN, ColorMenu, IndicatorMenu } from "./ChartMenus";
+import { BTN, ColorMenu, IndicatorMenu, toggleBtn } from "./ChartMenus";
 import { Nav } from "./Nav";
 import { ProChart } from "./ProChart";
 import { StatusBar } from "./StatusBar";
 import { Card, Empty, ErrorBox, GradeBadge, Loading, StatusPill } from "./ui";
 import { WatchStar } from "./WatchStar";
 
-const ON = "border-accent bg-accent text-white";
 const SELECT = "h-8 rounded border border-line bg-panel2 px-2 text-xs text-ink";
 
 export function ChartPage({ symbol: given }: { symbol: string | null }) {
@@ -203,7 +202,7 @@ function Toolbar({
             aria-label={v.title}
             aria-pressed={settings.interval === v.id}
             onClick={() => onChange({ interval: v.id })}
-            className={`${BTN} w-8 justify-center ${settings.interval === v.id ? ON : ""}`}
+            className={`${toggleBtn(settings.interval === v.id)} w-8 justify-center`}
           >
             {v.label}
           </button>
@@ -263,7 +262,7 @@ function Toolbar({
         aria-pressed={settings.log}
         onClick={() => onChange({ log: !settings.log })}
         title="Logarithmic price scale"
-        className={`${BTN} ${settings.log ? ON : ""}`}
+        className={toggleBtn(settings.log)}
       >
         Log
       </button>

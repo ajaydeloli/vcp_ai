@@ -28,6 +28,15 @@ describe("chart page", () => {
     const nav = screen.getByRole("navigation", { name: "Main" });
     expect(within(nav).getByRole("link", { name: "Chart" })).toHaveAttribute("aria-current", "page");
     expect(screen.getByRole("button", { name: "Daily" })).toHaveAttribute("aria-pressed", "true");
+    // the chosen interval and the Log button are filled with the accent colour, the others not
+    expect(screen.getByRole("button", { name: "Daily" }).className).toMatch(/\bbg-accent\b/);
+    expect(screen.getByRole("button", { name: "Daily" }).className).not.toMatch(/bg-panel2/);
+    expect(screen.getByRole("button", { name: "Weekly" }).className).not.toMatch(/\bbg-accent\b/);
+    expect(screen.getByRole("button", { name: "Log" }).className).not.toMatch(/\bbg-accent\b/);
+    await userEvent.click(screen.getByRole("button", { name: "Log" }));
+    expect(screen.getByRole("button", { name: "Log" }).className).toMatch(/\bbg-accent\b/);
+    expect(screen.getByRole("button", { name: "Log" })).toHaveAttribute("aria-pressed", "true");
+    await userEvent.click(screen.getByRole("button", { name: "Log" }));
     expect(screen.getByRole("button", { name: /Indicators \(8\)/ })).toBeInTheDocument();
     // the RS line against the Nifty 500 (the default benchmark), in its own pane
     await waitFor(() => expect(byScale("rs")[0]!.data.length).toBeGreaterThan(0));
