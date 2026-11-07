@@ -273,6 +273,8 @@ describe("chart page", () => {
     expect(screen.queryByRole("heading", { name: "Trend Template" })).not.toBeInTheDocument();
     await userEvent.click(within(tabs).getByRole("button", { name: "Fundamentals" }));
     expect(await screen.findByTestId("side-panel")).toHaveTextContent(/Quarterly results/i);
+    // wide enough for its tables: their own sideways scroll is opened up
+    expect(screen.getByTestId("side-panel").className).toMatch(/overflow-x-auto\]:overflow-x-visible/);
     await userEvent.click(within(tabs).getByRole("button", { name: "History" }));
     expect(await screen.findByRole("heading", { name: "History and paper trades" })).toBeInTheDocument();
     await userEvent.click(within(tabs).getByRole("button", { name: "Notes" }));

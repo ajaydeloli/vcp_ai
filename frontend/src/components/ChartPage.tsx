@@ -436,7 +436,14 @@ function SideBar({
   }, [floating, onMode]);
   const body = open === "lists" ? lists : symbol && open !== "none" ? <TabBody tab={open as SideTab} symbol={symbol} bare={floating} /> : null;
   // how wide a floating panel may grow: tables and charts need more room than lists
-  const maxWide = open === "fundamentals" || open === "history" ? "lg:max-w-[44rem]" : "lg:max-w-[26rem]";
+  // Fundamentals: as wide as its tables need, so the quarterly results and shareholding do not
+  // scroll sideways (their own scroll boxes are opened up); never wider than the screen
+  const maxWide =
+    open === "fundamentals"
+      ? "lg:max-w-[calc(100vw-6rem)] [&_.overflow-x-auto]:overflow-x-visible"
+      : open === "history"
+        ? "lg:max-w-[44rem]"
+        : "lg:max-w-[26rem]";
   const width = open === "fundamentals" || open === "history" ? "lg:w-[30rem]" : open === "lists" ? "lg:w-[13rem]" : "lg:w-[18rem]";
   return (
     <div className="relative flex min-w-0 flex-col-reverse gap-2 lg:flex-row lg:items-start">

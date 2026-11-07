@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Chart page: the floating **Fundamentals** panel is as wide as its quarterly results and shareholding tables need (up to the screen width), so they no longer scroll sideways.
 - Chart page: the **Stock Analysis cards are sidebar tabs** (owner, 2026-11-07): VCP, Trend (Trend Template and stage), Score (breakdown), Fundamentals (summary, quarterly results, shareholding), Notes, History, Watch lists; one panel at a time, floating or pinned. The **VCP** tab merges the VCP pattern card into it: key levels, base (length, start, high / low), prior advance, volume dry-up, breakout, stage, the contraction table and the rules a higher grade still misses. The Stock Analysis page is unchanged.
 - Chart page: the floating side panel runs the full height of the chart (from below the toolbar to the bottom) and is as wide as its content needs (13 to 26 rem), in one bordered box.
 - Chart page: the sidebar's open panel now **floats over the chart** (owner, 2026-11-07), so the chart keeps its full width; Esc or ✕ closes it. **Pin** puts it beside the chart instead (kept per browser).
