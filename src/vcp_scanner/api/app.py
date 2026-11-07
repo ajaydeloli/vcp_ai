@@ -286,6 +286,15 @@ def create_app(
             closes=[m.IndexClose(day=d, close=float(c)) for d, c in rows],
         )  # fmt: skip
 
+    @app.get(f"{api}/stocks/{{symbol}}/rs-ranks", response_model=m.RsRanksResponse)
+    def stock_rs_ranks(symbol: str) -> m.RsRanksResponse:
+        """The stock's RS rank on every stored scan day (the Chart page's RS Rating labels)."""
+        with db.cursor() as cur:
+            iid, sym, _company = stock_or_404(cur, symbol)
+            ranks = q.rs_ranks(cur, ctx, iid)
+        return m.RsRanksResponse(as_of=ranks[-1].day if ranks else None,
+                                 data_time=db.data_time(), symbol=sym, ranks=ranks)  # fmt: skip
+
     @app.get(f"{api}/stocks/{{symbol}}/bars", response_model=m.BarsResponse)
     def stock_bars(
         symbol: str, days: Annotated[int, Query(ge=20, le=5000)] = 260

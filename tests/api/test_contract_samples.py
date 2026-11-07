@@ -41,6 +41,7 @@ CASES = {
     "stock_fundamentals_none": "stocks/GAMMA/fundamentals",
     "fundamentals": "fundamentals",
     "index_closes": "indices/closes?name=Nifty%20500",
+    "rs_ranks": "stocks/ALPHA/rs-ranks",
 }
 
 

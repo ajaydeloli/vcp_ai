@@ -367,3 +367,12 @@ def test_index_closes_for_the_rs_line(ro_env: Env) -> None:
     assert days == sorted(days) and body["as_of"] == days[-1]
     assert get(ro_env, "/api/v1/indices/closes")["name"] == "Nifty 500"  # the default benchmark
     get(ro_env, "/api/v1/indices/closes?name=India%20VIX", 422)  # only the four benchmarks
+
+
+def test_rs_ranks_of_a_stock_on_each_scan_day(ro_env: Env) -> None:
+    body = get(ro_env, "/api/v1/stocks/ALPHA/rs-ranks")
+    assert body["symbol"] == "ALPHA" and body["ranks"]
+    days = [r["day"] for r in body["ranks"]]
+    assert days == sorted(days) and body["as_of"] == days[-1]
+    assert all(1 <= r["rs_rank"] <= 99 for r in body["ranks"])
+    get(ro_env, "/api/v1/stocks/NOPE/rs-ranks", 404)

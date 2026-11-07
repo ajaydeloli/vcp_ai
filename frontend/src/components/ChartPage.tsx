@@ -5,7 +5,7 @@
 // the watch list and the top VCP setups on the left, and the VCP setup on the right.
 import type { IChartApi } from "lightweight-charts";
 import { useEffect, useRef, useState } from "react";
-import { useBars, useIndexCloses, useSetups, useStockSetups } from "@/lib/api";
+import { useBars, useIndexCloses, useRsRanks, useSetups, useStockSetups } from "@/lib/api";
 import {
   BENCHMARKS,
   CHART_TYPES,
@@ -99,6 +99,7 @@ function ChartArea({
   const stock = useStockSetups(symbol);
   const rsOn = settings.indicators.includes("rs");
   const bench = useIndexCloses(settings.benchmark, rsOn);
+  const ranks = useRsRanks(symbol, rsOn);
   const api = useRef<IChartApi | null>(null);
   const wrap = useRef<HTMLElement>(null);
   const setup = vcpSetup(stock.data);
@@ -152,7 +153,15 @@ function ChartArea({
         ) : list.length === 0 ? (
           <Empty>No price bars for {symbol}.</Empty>
         ) : (
-          <ProChart symbol={symbol} bars={list} setup={setup} settings={settings} benchmark={rsOn ? (bench.data?.closes ?? null) : null} apiRef={api} />
+          <ProChart
+            symbol={symbol}
+            bars={list}
+            setup={setup}
+            settings={settings}
+            benchmark={rsOn ? (bench.data?.closes ?? null) : null}
+            rsRanks={rsOn ? (ranks.data?.ranks ?? null) : null}
+            apiRef={api}
+          />
         )}
       </div>
     </section>

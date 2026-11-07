@@ -24,13 +24,16 @@ import {
   dailyBars,
   ema,
   heikinAshi,
+  lastPerBar,
   macd,
   periodOf,
   rangeStart,
   rsi,
+  rsLabels,
   rsLine,
   rsNewHighs,
   sma,
+  LABEL_GAP,
   YEAR_BARS,
   type OBar,
   type Series,
@@ -39,7 +42,7 @@ import { useResolvedTheme } from "@/lib/prefs";
 import type { Bar, StockSetup } from "@/lib/schemas";
 import { chartTheme } from "./ChartView";
 
-const RIGHT_GAP = 6;
+const RIGHT_GAP = 12; // empty bars after the last one: room for the "RS Rating NN" label
 const AVERAGE_IDS = ["sma10", "sma20", "sma30", "sma50", "sma150", "sma200", "ema10", "ema21", "ema50", "ema200"];
 const PANE_HEIGHT: Record<string, number> = { rs: 0.14, volume: 0.16, rsi: 0.14, macd: 0.16 };
 const PANES = ["rs", "volume", "rsi", "macd"];
@@ -76,7 +79,14 @@ export type Computed = {
 
 export type IndexClose = { day: string; close: number };
 
-export function compute(raw: Bar[], s: ChartSettings, benchmark: IndexClose[] | null = null): Computed {
+export type RsRank = { day: string; rs_rank: number };
+
+export function compute(
+  raw: Bar[],
+  s: ChartSettings,
+  benchmark: IndexClose[] | null = null,
+  ranks: RsRank[] | null = null,
+): Computed {
   const daily = dailyBars(raw);
   const bars = aggregate(daily, s.interval);
   const closes: Series = bars.map((b) => b.close);
@@ -96,6 +106,9 @@ export function compute(raw: Bar[], s: ChartSettings, benchmark: IndexClose[] | 
   if (on.has("volma")) lines.volma = sma(bars.map((b) => b.volume), 50);
   if (on.has("rsi")) lines.rsi = rsi(closes);
   if (on.has("rs") && benchmark && benchmark.length > 0) lines.rs = rsLine(daily, benchmark, bars, s.interval);
+  if (on.has("rs") && ranks && ranks.length > 0) {
+    lines.rsRank = lastPerBar(ranks.map((r) => ({ day: r.day, value: r.rs_rank })), daily, bars, s.interval);
+  }
   return {
     bars,
     drawn: s.type === "heikin" ? heikinAshi(bars) : bars,
@@ -119,16 +132,18 @@ type Props = {
   settings: ChartSettings;
   /** the RS line's benchmark closes (null while loading or when the RS line is off) */
   benchmark?: IndexClose[] | null;
+  /** the stock's RS rank per scan day, for the RS Rating labels */
+  rsRanks?: RsRank[] | null;
   /** the chart itself, for the page's screenshot button */
   apiRef?: MutableRefObject<IChartApi | null>;
 };
 
-export function ProChart({ symbol, bars, setup, settings, benchmark = null, apiRef }: Props) {
+export function ProChart({ symbol, bars, setup, settings, benchmark = null, rsRanks = null, apiRef }: Props) {
   const box = useRef<HTMLDivElement>(null);
   const h = useRef<Handles | null>(null);
   const theme = useResolvedTheme();
   const [hover, setHover] = useState<number | null>(null);
-  const data = useMemo(() => compute(bars, settings, benchmark), [bars, settings, benchmark]);
+  const data = useMemo(() => compute(bars, settings, benchmark, rsRanks), [bars, settings, benchmark, rsRanks]);
   const on = useMemo(() => new Set(settings.indicators), [settings.indicators]);
 
   // the chart and every series, once
@@ -253,10 +268,21 @@ export function ProChart({ symbol, bars, setup, settings, benchmark = null, apiR
     c.rsi.applyOptions({ visible: on.has("rsi") });
     c.rs.setData(points(ob, lines.rs));
     c.rs.applyOptions({ visible: on.has("rs") });
-    // a dot where the RS line makes a new one-year high
+    // a dot where the RS line makes a new one-year high; the first dot of each run and the
+    // line's last bar carry the RS rank of that day ("RS 91", "RS Rating 87")
     const rsHighs = lines.rs ? rsNewHighs(lines.rs, YEAR_BARS[settings.interval]) : [];
+    let lastRs = -1;
+    if (lines.rs) for (let k = lines.rs.length - 1; k >= 0; k--) if (lines.rs[k] !== null) { lastRs = k; break; }
+    const labels = lines.rs ? rsLabels(rsHighs, lines.rsRank ?? [], lastRs, LABEL_GAP[settings.interval]) : [];
     c.rs.setMarkers(
-      rsHighs.map((k) => ({ time: ob[k]!.day as Time, position: "inBar" as const, shape: "circle" as const, color: color("rs"), size: 0.5 })),
+      labels.map((l) => ({
+        time: ob[l.index]!.day as Time,
+        position: (l.text ? "aboveBar" : "inBar") as "aboveBar" | "inBar",
+        shape: "circle" as const,
+        color: color("rs"),
+        size: l.dot ? 0.5 : 0.1,
+        text: l.text,
+      })),
     );
     const m = data.macd;
     c.macdLine.setData(points(ob, m?.macd));
@@ -320,6 +346,7 @@ export function ProChart({ symbol, bars, setup, settings, benchmark = null, apiR
     ...AVERAGE_IDS.filter((id) => on.has(id)).map((id) => ({ id, label: INDICATORS.find((x) => x.id === id)!.label, v: val(id), digits: 2 })),
     ...(on.has("bb") ? [{ id: "bb", label: "BB", v: val("bbMid"), digits: 2 }] : []),
     ...(on.has("rs") ? [{ id: "rs", label: `RS vs ${settings.benchmark}`, v: val("rs"), digits: 1 }] : []),
+    ...(on.has("rs") && val("rsRank") !== null ? [{ id: "rs", label: "RS Rating", v: val("rsRank"), digits: 0 }] : []),
     ...(on.has("rsi") ? [{ id: "rsi", label: "RSI 14", v: val("rsi"), digits: 1 }] : []),
     ...(on.has("macd") ? [{ id: "macd", label: "MACD", v: data.macd?.macd[i] ?? null, digits: 2 }] : []),
   ];
@@ -346,7 +373,7 @@ export function ProChart({ symbol, bars, setup, settings, benchmark = null, apiR
         {legendLines.length > 0 ? (
           <p className="flex flex-wrap gap-x-3">
             {legendLines.map((l) => (
-              <span key={l.id} style={{ color: color(l.id) }}>
+              <span key={l.label} style={{ color: color(l.id) }}>
                 {l.label} {fmtNum(l.v, l.digits)}
               </span>
             ))}

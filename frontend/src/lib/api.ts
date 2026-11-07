@@ -63,6 +63,7 @@ export const paths = {
   market: (days: number) => `market${query({ days })}`,
   setups: (strategy: string, status?: string) => `setups${query({ strategy, status })}`,
   indexCloses: (name: string) => `indices/closes${query({ name })}`,
+  rsRanks: (symbol: string) => `stocks/${encodeURIComponent(symbol)}/rs-ranks`,
   bars: (symbol: string, days: number) =>
     `stocks/${encodeURIComponent(symbol)}/bars${query({ days })}`,
   stockSetups: (symbol: string) => `stocks/${encodeURIComponent(symbol)}/setups`,
@@ -139,6 +140,14 @@ export const useIndexCloses = (name: string, enabled: boolean) =>
   useQuery({
     queryKey: ["indexCloses", name],
     queryFn: () => getJson(paths.indexCloses(name), s.indexCloses),
+    enabled,
+    ...opts,
+  });
+/** The stock's RS rank on each stored scan day (the Chart page's RS Rating labels). */
+export const useRsRanks = (symbol: string, enabled: boolean) =>
+  useQuery({
+    queryKey: ["rsRanks", symbol],
+    queryFn: () => getJson(paths.rsRanks(symbol), s.rsRanks),
     enabled,
     ...opts,
   });

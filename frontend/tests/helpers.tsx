@@ -7,6 +7,7 @@ import { vi } from "vitest";
 import activity from "./fixtures/api/activity.json";
 import bars from "./fixtures/api/bars.json";
 import indexCloses from "./fixtures/api/index_closes.json";
+import rsRanks from "./fixtures/api/rs_ranks.json";
 import liveIndices from "./fixtures/api/live_indices.json";
 import liveQuotes from "./fixtures/api/live_quotes.json";
 import liveStatus from "./fixtures/api/live_status.json";
@@ -30,7 +31,7 @@ import stockFundamentalsNone from "./fixtures/api/stock_fundamentals_none.json";
 
 export const fx = {
   activity, backtests, bars, history, ipos, reports, liveIndices, liveQuotes, liveStatus, market, marketHealth, paper, search, screener, setupsVcp, status,
-  stockSetups, strategies, summary, fundamentals, stockFundamentals, stockFundamentalsNone, indexCloses,
+  stockSetups, strategies, summary, fundamentals, stockFundamentals, stockFundamentalsNone, indexCloses, rsRanks,
 }; // fmt: skip
 
 /** What the API would answer for a path ("setups?strategy=vcp"); undefined: no such sample. */
@@ -66,6 +67,8 @@ export function sample(rel: string): unknown {
       return { ...base, strategy_id: id, rows: id === "vcp" ? rows : [] };
     }
   }
+  const rr = /^stocks\/([^/]+)\/rs-ranks$/.exec(path);
+  if (rr) return { ...fx.rsRanks, symbol: decodeURIComponent(rr[1] ?? "") };
   const m = /^stocks\/([^/]+)\/(bars|setups|history|fundamentals)$/.exec(path);
   if (m) {
     const symbol = decodeURIComponent(m[1] ?? "");

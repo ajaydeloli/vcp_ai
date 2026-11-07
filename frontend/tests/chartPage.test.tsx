@@ -32,6 +32,10 @@ describe("chart page", () => {
     await waitFor(() => expect(byScale("rs")[0]!.data.length).toBeGreaterThan(0));
     expect(calls.some((c) => c === "indices/closes?name=Nifty%20500")).toBe(true);
     expect(screen.getByTestId("chart-legend")).toHaveTextContent("RS vs Nifty 500");
+    // today's RS Rating at the line's end, and in the legend
+    await waitFor(() => expect(byScale("rs")[0]!.markers.map((mk) => mk.text)).toContain("RS Rating 91"));
+    expect(screen.getByTestId("chart-legend")).toHaveTextContent("RS Rating 91");
+    expect(calls).toContain("stocks/ALPHA/rs-ranks");
     const legend = screen.getByTestId("chart-legend");
     expect(legend).toHaveTextContent("ALPHA · 1D · NSE");
     expect(legend).toHaveTextContent(fx.bars.bars[fx.bars.bars.length - 1]!.day);

@@ -35,6 +35,7 @@ const CASES: Record<string, z.ZodTypeAny> = {
   stock_fundamentals_none: s.stockFundamentals,
   fundamentals: s.fundamentals,
   index_closes: s.indexCloses,
+  rs_ranks: s.rsRanks,
 };
 
 /** The same schema, but an unknown key anywhere is an error (a new API field must be noticed). */

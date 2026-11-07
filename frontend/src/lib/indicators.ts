@@ -267,3 +267,44 @@ export function rsNewHighs(rs: Series, lookback: number): number[] {
 
 /** About a year of bars for each interval (the RS new-high lookback). */
 export const YEAR_BARS: Record<Interval, number> = { D: 250, W: 52, M: 12 };
+
+/** About a month of bars: the least room between two RS labels. */
+export const LABEL_GAP: Record<Interval, number> = { D: 20, W: 4, M: 2 };
+
+/** Dated values (e.g. the RS rank of each scan day) per chart bar: the value of the bar's last
+ *  session that has one; null for a bar with none. */
+export function lastPerBar(values: { day: string; value: number }[], daily: OBar[], bars: OBar[], interval: Interval): Series {
+  const period = periodOf(daily, interval);
+  const byBar = new Map<string, number>();
+  for (const v of [...values].sort((a, b) => (a.day < b.day ? -1 : a.day > b.day ? 1 : 0))) {
+    const p = period.get(v.day);
+    if (p) byBar.set(p, v.value);
+  }
+  return bars.map((b) => byBar.get(b.day) ?? null);
+}
+
+/** The RS line's labels: the first bar of each run of new RS highs, and the last bar (today's
+ *  rating), each with the RS rank of that bar where one is stored. Labels keep at least
+ *  ``minGap`` bars apart (and away from the last bar's label), so they do not overlap. */
+export function rsLabels(
+  highs: number[],
+  ranks: Series,
+  lastIndex: number,
+  minGap = 0,
+): { index: number; text: string; dot: boolean }[] {
+  const set = new Set(highs);
+  const out: { index: number; text: string; dot: boolean }[] = [];
+  let lastLabel = -Infinity;
+  for (const k of highs) {
+    if (k === lastIndex) continue;
+    const r = ranks[k];
+    const label = !set.has(k - 1) && r !== null && r !== undefined && k - lastLabel >= minGap && lastIndex - k >= minGap;
+    if (label) lastLabel = k;
+    out.push({ index: k, dot: true, text: label ? `RS ${r}` : "" });
+  }
+  const last = ranks[lastIndex];
+  if (lastIndex >= 0) {
+    out.push({ index: lastIndex, dot: set.has(lastIndex), text: last === null || last === undefined ? "" : `RS Rating ${last}` });
+  }
+  return out;
+}

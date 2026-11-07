@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_CHART, parseChart } from "@/lib/chartSettings";
-import { aggregate, bollinger, ema, heikinAshi, macd, periodOf, rangeStart, rsi, rsLine, rsNewHighs, sma, weekKey, type OBar } from "@/lib/indicators";
+import { aggregate, bollinger, ema, heikinAshi, lastPerBar, macd, periodOf, rangeStart, rsi, rsLabels, rsLine, rsNewHighs, sma, weekKey, type OBar } from "@/lib/indicators";
 
 const bar = (day: string, o: number, h: number, l: number, c: number, v = 100): OBar => ({ day, open: o, high: h, low: l, close: c, volume: v });
 
@@ -88,5 +88,25 @@ describe("chart indicators", () => {
     expect(rsLine(daily, idx, w, "W")).toEqual([100, (15 / 100 / (11 / 100)) * 100]);
     expect(rsLine(daily, [], daily, "D")).toEqual([null, null, null, null]);
     expect(rsNewHighs([100, 101, 99, 102, 102, 103], 2)).toEqual([3, 5]);
+  });
+
+  it("RS ranks per bar, and labels on the first dot of each run and on the last bar", () => {
+    const daily = [bar("2026-10-29", 1, 1, 1, 1), bar("2026-10-30", 1, 1, 1, 1), bar("2026-11-02", 1, 1, 1, 1)];
+    const ranks = [
+      { day: "2026-10-30", value: 80 },
+      { day: "2026-10-29", value: 75 },
+    ];
+    expect(lastPerBar(ranks, daily, daily, "D")).toEqual([75, 80, null]);
+    expect(lastPerBar(ranks, daily, aggregate(daily, "W"), "W")).toEqual([80, null]);
+    // new highs at bars 2, 3 (one run) and 6; the last bar is 7
+    expect(rsLabels([2, 3, 6], [70, 71, 72, 73, 74, 75, 76, 87], 7)).toEqual([
+      { index: 2, dot: true, text: "RS 72" },
+      { index: 3, dot: true, text: "" },
+      { index: 6, dot: true, text: "RS 76" },
+      { index: 7, dot: false, text: "RS Rating 87" },
+    ]);
+    expect(rsLabels([4], [null, null, null, null, null], 4)).toEqual([{ index: 4, dot: true, text: "" }]);
+    // with a gap of 3 bars: the run at 6 is too close to the label at 2 and to the last bar
+    expect(rsLabels([2, 3, 6], [70, 71, 72, 73, 74, 75, 76, 87], 7, 3).map((l) => l.text)).toEqual(["RS 72", "", "", "RS Rating 87"]);
   });
 });

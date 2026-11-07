@@ -687,3 +687,14 @@ def live_universe(cur: Cur, ctx: Context) -> list[tuple[str, str | None]]:
         [day, ctx.scan_hash, LIVE],
     ).fetchall()
     return [(str(r[0]), None if r[1] is None else str(r[1])) for r in rows]
+
+
+def rs_ranks(cur: Cur, ctx: Context, instrument_id: str) -> list[m.RsRankDay]:
+    """The stock's RS rank on each stored Trend Template scan day (current scan config)."""
+    rows = cur.execute(
+        "SELECT as_of_date, rs_rank FROM trend_template_results WHERE instrument_id = ?"
+        " AND config_hash = ? AND data_snapshot_id = ? AND rs_rank IS NOT NULL"
+        " ORDER BY as_of_date",
+        [instrument_id, ctx.scan_hash, LIVE],
+    ).fetchall()
+    return [m.RsRankDay(day=d, rs_rank=int(r)) for d, r in rows]

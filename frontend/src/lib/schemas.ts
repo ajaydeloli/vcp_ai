@@ -502,6 +502,11 @@ export const indexCloses = z.object({
   closes: z.array(z.object({ day, close: z.number() })),
 });
 export type IndexCloses = z.infer<typeof indexCloses>;
+export const rsRanks = z.object({
+  ...stamp,
+  symbol: z.string(),
+  ranks: z.array(z.object({ day, rs_rank: z.number() })),
+});
 export type StockSetup = z.infer<typeof stockSetup>;
 export type StockSetups = z.infer<typeof stockSetups>;
 export type ActivityEvent = z.infer<typeof activityEvent>;

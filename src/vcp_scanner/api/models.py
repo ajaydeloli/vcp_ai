@@ -363,6 +363,18 @@ class ScreenerResponse(Stamped):
     rows: list[ScreenerRow]
 
 
+class RsRankDay(BaseModel):
+    day: date
+    rs_rank: int
+
+
+class RsRanksResponse(Stamped):
+    """A stock's RS rank (1-99) on every stored scan day, oldest first (the Chart page's labels)."""
+
+    symbol: str
+    ranks: list[RsRankDay]
+
+
 class IndexClose(BaseModel):
     day: date
     close: float
