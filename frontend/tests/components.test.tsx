@@ -128,7 +128,7 @@ describe("stock panel", () => {
   });
 
   it("a stock without bars is said so, not drawn", async () => {
-    mockApi({ "stocks/NEWCO/bars?days=400": { ...fx.bars, symbol: "NEWCO", bars: [] } });
+    mockApi({ "stocks/NEWCO/bars?days=5000": { ...fx.bars, symbol: "NEWCO", bars: [] } });
     renderApp(<StockPanel selection={{ symbol: "NEWCO", strategy: "vcp" }} onSelect={() => {}} />);
     expect(await screen.findByText(/No price bars for NEWCO/)).toBeInTheDocument();
     expect(liveCharts()).toHaveLength(0);

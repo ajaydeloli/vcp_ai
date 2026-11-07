@@ -266,7 +266,7 @@ def create_app(
 
     @app.get(f"{api}/stocks/{{symbol}}/bars", response_model=m.BarsResponse)
     def stock_bars(
-        symbol: str, days: Annotated[int, Query(ge=20, le=1500)] = 260
+        symbol: str, days: Annotated[int, Query(ge=20, le=5000)] = 260
     ) -> m.BarsResponse:
         with db.cursor() as cur:
             iid, sym, company = stock_or_404(cur, symbol)

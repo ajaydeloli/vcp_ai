@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Stock chart shows the whole stored history (owner, 2026-11-07): it asked for only the last 400 sessions (about 1.6 years), so **All** stopped there although prices go back to 2021. It now loads everything (the bars API allows up to 5000 sessions) and the range buttons are 3M, 6M, 1Y, 2Y, 5Y and All.
 - The dashboard starts at Windows logon (owner, 2026-11-07): Task Scheduler task **VCP dashboard** (headless, no time limit) runs the new `scripts/dashboard_autostart.sh`, which skips if it is already running and logs to `data/logs/dashboard.out`. `scripts/dashboard.sh` now rebuilds the frontend when its source is newer than the last build (an old build kept showing removed pages).
 - Removed the Trend Template and Alerts pages from the dashboard (owner, 2026-11-06), with their menu entries and API routes `GET /api/v1/trend-template` and `/alerts` (the Past Leaders and AI Agent pages went with the AI layer). The Trend Template scan (`vcp compute trend-template`), the stock and screener columns and the Telegram alerts (`vcp alerts`) are unchanged.
 - Dropped the tables of the removed features (owner, 2026-11-06): `superperformance_studies`, `superperformance_runs`, `superperformance_bases` and `shadow_paper_events`. Their DDL is gone and `DuckDBStore.migrate()` drops them from any database (the stored data was derived and unused). The old agent notebook file `data/agent/agent.duckdb` and `data/agent/candidates` were moved to `data/backups/agent_archive/`.

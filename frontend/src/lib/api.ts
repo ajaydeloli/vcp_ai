@@ -133,7 +133,8 @@ export const useSetups = (strategy: string, status?: string, enabled = true) =>
     enabled,
     ...opts,
   });
-export const useBars = (symbol: string | null, days = 400) =>
+/** The whole stored history (about 250 sessions a year since 2021); the chart's range buttons pick the view. */
+export const useBars = (symbol: string | null, days = 5000) =>
   useQuery({
     queryKey: ["bars", symbol, days],
     queryFn: () => getJson(paths.bars(symbol ?? "", days), s.bars),

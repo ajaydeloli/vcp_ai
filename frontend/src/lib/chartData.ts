@@ -37,6 +37,8 @@ export const RANGES = [
   { id: "3M", label: "3M", bars: 63 },
   { id: "6M", label: "6M", bars: 126 },
   { id: "1Y", label: "1Y", bars: 252 },
+  { id: "2Y", label: "2Y", bars: 504 },
+  { id: "5Y", label: "5Y", bars: 1260 },
   { id: "ALL", label: "All", bars: Infinity },
 ] as const;
 export type RangeId = (typeof RANGES)[number]["id"];
