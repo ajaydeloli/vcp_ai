@@ -7,7 +7,7 @@ import { DASH, fmtDay, fmtNum, fmtPct, tone } from "@/lib/fmt";
 import { SUPPORTING_NOTE, fmtCrore, fmtPp, gateText, quarterLabel, statusText } from "@/lib/fundamentals";
 import type { FundamentalQuarter, FundamentalSummary } from "@/lib/schemas";
 import { ShareholdingBlock } from "./Shareholding";
-import { Card, Empty, ErrorBox, Loading, TINT } from "./ui";
+import { Card, Empty, ErrorBox, Loading } from "./ui";
 
 /** "2026-07-17T19:50:03+05:30" -> "17 Jul 2026" (the API stamps IST; the date part is IST). */
 const publishedDay = (iso: string | null | undefined): string => (iso ? fmtDay(iso.slice(0, 10)) : DASH);
@@ -129,7 +129,7 @@ export function FundamentalsCard({ symbol }: { symbol: string }) {
   const res = useStockFundamentals(symbol);
   const s = res.data?.summary ?? null;
   return (
-    <Card title="Fundamentals" box={TINT.amber} right={s ? <Freshness s={s} /> : undefined}>
+    <Card title="Fundamentals" right={s ? <Freshness s={s} /> : undefined}>
       {res.isError ? (
         <ErrorBox error={res.error} />
       ) : res.isPending ? (
@@ -178,7 +178,7 @@ export function QuarterlyResultsCard({ symbol }: { symbol: string }) {
   return (
     <Card
       title="Quarterly results"
-      box={TINT.amber}
+     
       subtitle="Each quarter as published. EPS on today's share basis (splits and bonuses applied); growth against the same quarter a year earlier."
     >
       {res.isError ? (

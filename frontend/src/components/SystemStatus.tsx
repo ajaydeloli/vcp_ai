@@ -4,7 +4,7 @@ import { useActivity, useLiveStatus, useStatus } from "@/lib/api";
 import { DASH, fmtDay, fmtNum, fmtStamp, strategyLabel } from "@/lib/fmt";
 import { feedState } from "@/lib/live";
 import { Page } from "./Page";
-import { Card, Empty, ErrorBox, Loading, TINT } from "./ui";
+import { Card, Empty, ErrorBox, Loading } from "./ui";
 
 function Row({ k, v }: { k: string; v: string }) {
   return (
@@ -29,27 +29,27 @@ export function SystemStatus() {
       {status.isPending ? <Loading what="status" /> : null}
       {s ? (
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          <Card title="Data" subtitle="End-of-day data used by every scan" box={TINT.blue}>
+          <Card title="Data" subtitle="End-of-day data used by every scan">
             <ul className="divide-y divide-line">
               <Row k="Prices to" v={fmtDay(s.prices_date)} />
               <Row k="Data copy made" v={fmtStamp(s.data_time)} />
               <Row k="Daily run" v={s.daily_run ?? DASH} />
             </ul>
           </Card>
-          <Card title="Strategies" subtitle="Latest scan and paper ledger" box={TINT.green}>
+          <Card title="Strategies" subtitle="Latest scan and paper ledger">
             <ul className="divide-y divide-line">
               {s.strategies.map((x) => (
                 <Row key={x.strategy_id} k={strategyLabel(x.strategy_id)} v={`scan ${fmtDay(x.latest_scan)} · ledger ${fmtDay(x.ledger_through)}`} />
               ))}
             </ul>
           </Card>
-          <Card title="Backup" box={TINT.amber}>
+          <Card title="Backup">
             <ul className="divide-y divide-line">
               <Row k="Newest" v={s.newest_backup ?? DASH} />
               <Row k="Age (days)" v={fmtNum(s.backup_age_days, 1)} />
             </ul>
           </Card>
-          <Card title="Live prices" subtitle="Display only. Never used by a scan." box={TINT.cyan}>
+          <Card title="Live prices" subtitle="Display only. Never used by a scan.">
             <ul className="divide-y divide-line">
               <Row k="State" v={feedState(feed)} />
               <Row k="Provider" v={feed?.provider ?? DASH} />
@@ -59,7 +59,7 @@ export function SystemStatus() {
             </ul>
             {feed?.message ? <p className="mt-2 text-xs text-mute">{feed.message}</p> : null}
           </Card>
-          <Card title="Warnings" box={TINT.orange} className="md:col-span-2">
+          <Card title="Warnings" className="md:col-span-2">
             {s.warnings.length === 0 ? (
               <p className="text-xs text-up">No warnings.</p>
             ) : (
@@ -73,7 +73,7 @@ export function SystemStatus() {
         </div>
       ) : null}
 
-      <Card title="Recent activity" subtitle="Last 7 days" box={TINT.pink}>
+      <Card title="Recent activity" subtitle="Last 7 days">
         {activity.isError ? (
           <ErrorBox error={activity.error} />
         ) : activity.isPending ? (

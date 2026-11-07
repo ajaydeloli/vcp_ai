@@ -7,7 +7,7 @@ import { useStockFundamentals } from "@/lib/api";
 import { DASH, fmtDay, fmtInt, fmtPct, tone } from "@/lib/fmt";
 import { fmtPp, quarterLabel } from "@/lib/fundamentals";
 import type { ShareholdingQuarter, ShareholdingSummary } from "@/lib/schemas";
-import { Card, Empty, ErrorBox, Loading, TINT } from "./ui";
+import { Card, Empty, ErrorBox, Loading } from "./ui";
 
 export const NO_SHAREHOLDING = "No shareholding pattern filed yet";
 const PLEDGE_NOTE =
@@ -183,7 +183,7 @@ export function ShareholdingCard({ symbol }: { symbol: string }) {
   return (
     <Card
       title="Shareholding pattern"
-      box={TINT.violet}
+     
       subtitle="Quarter-end filings to NSE, % of the company's shares. FII: foreign portfolio investors; DII: mutual funds, insurers, banks and other domestic institutions."
       right={s ? <PledgeFlag s={s} /> : undefined}
     >

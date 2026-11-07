@@ -3,9 +3,7 @@
 import { useStrategies, useSummary } from "@/lib/api";
 import { fmtInt, fmtNum, strategyLabel } from "@/lib/fmt";
 import { Page } from "./Page";
-import { Card, ErrorBox, GradeBadge, Loading, TINT } from "./ui";
-
-const BOXES = [TINT.blue, TINT.green, TINT.violet, TINT.amber, TINT.cyan, TINT.pink] as const;
+import { Card, ErrorBox, GradeBadge, Loading } from "./ui";
 
 /** The frozen strategy: its grade tiers and today's counts. */
 export function Strategies() {
@@ -20,14 +18,13 @@ export function Strategies() {
         <Loading what="strategies" />
       ) : (
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {strategies.data.strategies.map((s, i) => {
+          {strategies.data.strategies.map((s) => {
             const c = summary.data?.strategies.find((x) => x.strategy_id === s.strategy_id);
             return (
               <Card
                 key={s.strategy_id}
                 title={strategyLabel(s.strategy_id)}
                 subtitle={`Stage ${s.stage} · algorithm ${s.algorithm_version} · config ${s.config_hash.slice(0, 8)}`}
-                box={BOXES[i % BOXES.length]}
               >
                 <div className="grid grid-cols-3 divide-x divide-line text-center">
                   {[

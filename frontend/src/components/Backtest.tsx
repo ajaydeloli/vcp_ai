@@ -6,7 +6,7 @@ import { DASH, fmtDay, fmtInt, fmtNum, fmtPct, sentence, strategyLabel, STRATEGY
 import type { BacktestRun } from "@/lib/schemas";
 import { Page } from "./Page";
 import { Field, FIELD } from "./Screener";
-import { Card, Empty, ErrorBox, Loading, TINT } from "./ui";
+import { Card, Empty, ErrorBox, Loading } from "./ui";
 
 const ORDER = Object.keys(STRATEGY_LABEL);
 
@@ -78,7 +78,7 @@ export function Backtest() {
       <Card
         title="Stored runs"
         subtitle="Portfolio results of runs stored by `vcp backtest run`. Display only; nothing is recalculated here."
-        box={TINT.violet}
+       
         right={bt.data?.available ? <span className="text-xs text-mute">{`${fmtInt(rows.length)} of ${fmtInt(all.length)} runs`}</span> : undefined}
       >
         {bt.isError ? (
@@ -129,7 +129,7 @@ export function Backtest() {
         )}
       </Card>
 
-      <Card title="How to read these" box={TINT.blue}>
+      <Card title="How to read these">
         <ul className="list-disc space-y-1 pl-5 text-xs text-mute">
           <li>Development is the period the rules were chosen on; validation comes after it. Judge a strategy by validation, not by development.</li>
           <li>Survivorship is partial: stocks that were delisted may be missing, so results can look better than real trading.</li>

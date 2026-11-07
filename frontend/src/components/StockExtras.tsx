@@ -2,7 +2,7 @@
 
 import { useStockHistory } from "@/lib/api";
 import { fmtDay, strategyLabel } from "@/lib/fmt";
-import { Card, Empty, ErrorBox, Loading, TINT } from "./ui";
+import { Card, Empty, ErrorBox, Loading } from "./ui";
 
 const ICON: Record<string, { sym: string; cls: string; label: string }> = {
   BREAKOUT: { sym: "▲", cls: "text-accent", label: "Breakout" },
@@ -17,7 +17,7 @@ export function HistoryCard({ symbol }: { symbol: string }) {
   const history = useStockHistory(symbol, 180);
   const events = history.data?.events ?? [];
   return (
-    <Card title="History and paper trades" box={TINT.orange} subtitle="Last 180 days, newest first" className="min-w-0">
+    <Card title="History and paper trades" subtitle="Last 180 days, newest first" className="min-w-0">
       {history.isError ? (
         <ErrorBox error={history.error} />
       ) : history.isPending ? (

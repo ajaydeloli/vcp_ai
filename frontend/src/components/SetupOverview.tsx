@@ -3,7 +3,7 @@
 import { DASH, daysBetween, fmtDay, fmtInt, fmtNum, fmtPct, sentence } from "@/lib/fmt";
 import type { StockSetup, StockSetups } from "@/lib/schemas";
 import { ScoreRing, type Arc } from "./Rings";
-import { Card, TINT } from "./ui";
+import { Card } from "./ui";
 
 function Row({ k, v }: { k: string; v: React.ReactNode }) {
   return (
@@ -91,7 +91,7 @@ export function TrendCard({ stock }: { stock: StockSetups }) {
   return (
     <Card
       title="Trend Template"
-      box={TINT.green}
+     
       right={
         <span className={`text-sm font-medium ${all ? "text-up" : "text-mute"}`}>
           {stock.conditions.length ? `${passed} / ${stock.conditions.length}${all ? " ✓" : ""}` : DASH}
@@ -144,7 +144,7 @@ export function ScoreCard({ setup }: { setup: StockSetup | null }) {
     color: COMPONENT_COLORS[t.component] ?? EXTRA_COLORS[extra++ % EXTRA_COLORS.length] ?? "#8a97b3",
   }));
   return (
-    <Card title="Score breakdown" box={TINT.cyan}>
+    <Card title="Score breakdown">
       {!setup || arcs.length === 0 ? (
         <p className="text-xs text-mute">No score parts stored.</p>
       ) : (

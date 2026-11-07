@@ -4,7 +4,7 @@ import { usePaper } from "@/lib/api";
 import { DASH, fmtDay, fmtNum, strategyLabel } from "@/lib/fmt";
 import { PaperPanel } from "./PaperPanel";
 import { Page } from "./Page";
-import { Card, ErrorBox, Loading, TINT } from "./ui";
+import { Card, ErrorBox, Loading } from "./ui";
 
 /** The paper ledger in full: results, open positions and the review gates of each strategy. */
 export function PaperTrading() {
@@ -16,7 +16,7 @@ export function PaperTrading() {
       <Card
         title="Review gates"
         subtitle={p ? `Each strategy is judged from ${fmtDay(p.review_from)}. A gate with no value yet shows ${DASH}, not 0.` : undefined}
-        box={TINT.violet}
+       
       >
         {paper.isError ? (
           <ErrorBox error={paper.error} />
