@@ -121,7 +121,10 @@ export type ChartSettings = {
   sideDock: boolean;
 };
 
-export type SidePanel = "auto" | "vcp" | "lists" | "none";
+/** The sidebar's tabs, in order. */
+export const SIDE_TABS = ["vcp", "trend", "score", "fundamentals", "notes", "history", "lists"] as const;
+export type SideTab = (typeof SIDE_TABS)[number];
+export type SidePanel = "auto" | "none" | SideTab;
 
 export const DEFAULT_CHART: ChartSettings = {
   interval: "D",
@@ -222,7 +225,7 @@ export function parseChart(raw: string | null): ChartSettings {
       toggles: [...new Set(toggles)],
       params: parseParams(v.params),
       colors: parseColors(v.colors),
-      sidePanel: v.sidePanel === "vcp" || v.sidePanel === "lists" || v.sidePanel === "none" ? v.sidePanel : "auto",
+      sidePanel: v.sidePanel === "none" || SIDE_TABS.includes(v.sidePanel as SideTab) ? (v.sidePanel as SidePanel) : "auto",
       sideDock: v.sideDock === true,
     };
   } catch {

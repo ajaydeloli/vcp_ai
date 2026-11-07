@@ -17,7 +17,7 @@ function Row({ k, v }: { k: string; v: React.ReactNode }) {
   );
 }
 
-const asNumber = (v: unknown): number | null => (typeof v === "number" && Number.isFinite(v) ? v : null);
+export const asNumber = (v: unknown): number | null => (typeof v === "number" && Number.isFinite(v) ? v : null);
 
 /** The rules a setup did not meet for each higher tier (stored as {tier: [rule, ...]}). */
 export function unmetByTier(details: Record<string, unknown>): [string, string[]][] {
@@ -48,6 +48,46 @@ export function componentTotals(setup: StockSetup): { component: string; got: nu
   return [...by.entries()].map(([component, t]) => ({ component, ...t }));
 }
 
+/** The VCP contractions, each with its drop, its days and whether it is tighter than the one before. */
+export function ContractionTable({ setup }: { setup: StockSetup }) {
+  return setup.contractions.length > 0 ? (
+    <table className="mb-3 w-full text-left text-xs">
+      <thead className="bg-panel2 text-mute">
+        <tr>
+          <th className="px-2 py-1 font-medium">Contraction</th>
+          <th className="px-2 py-1 text-right font-medium">Drop %</th>
+          <th className="px-2 py-1 text-right font-medium" title="Calendar days from the peak to the trough">
+            Days
+          </th>
+          <th className="px-2 py-1 text-right font-medium">Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        {setup.contractions.map((c, i) => {
+          const before = setup.contractions[i - 1]?.depth_pct ?? null;
+          const tighter = before !== null && c.depth_pct !== null ? c.depth_pct < before : null;
+          return (
+            <tr key={c.sequence} className="border-t border-line/60">
+              <td className="px-2 py-1.5 text-ink">T{c.sequence}</td>
+              <td className="px-2 py-1.5 text-right tabular-nums">{fmtPct(c.depth_pct)}</td>
+              <td className="px-2 py-1.5 text-right tabular-nums">
+                {fmtInt(daysBetween(c.peak_date, c.trough_date))}
+              </td>
+              <td
+                className={`px-2 py-1.5 text-right ${tighter === null ? "text-mute" : tighter ? "text-up" : "text-warn"}`}
+              >
+                {tighter === null ? "First" : tighter ? "✓ Tighter" : "Wider"}
+              </td>
+            </tr>
+          );
+        })}
+      </tbody>
+    </table>
+  ) : (
+    <p className="mb-3 text-xs text-mute">No contractions stored for this setup.</p>
+  );
+}
+
 function PatternCard({
   stock,
   setup,
@@ -65,42 +105,7 @@ function PatternCard({
     <Card title="VCP pattern" box={TINT.violet} subtitle={setup ? undefined : `No setup stored for this stock on ${fmtDay(stock.as_of)}.`}>
       {setup ? (
         <>
-          {setup.contractions.length > 0 ? (
-            <table className="mb-3 w-full text-left text-xs">
-              <thead className="bg-panel2 text-mute">
-                <tr>
-                  <th className="px-2 py-1 font-medium">Contraction</th>
-                  <th className="px-2 py-1 text-right font-medium">Drop %</th>
-                  <th className="px-2 py-1 text-right font-medium" title="Calendar days from the peak to the trough">
-                    Days
-                  </th>
-                  <th className="px-2 py-1 text-right font-medium">Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {setup.contractions.map((c, i) => {
-                  const before = setup.contractions[i - 1]?.depth_pct ?? null;
-                  const tighter = before !== null && c.depth_pct !== null ? c.depth_pct < before : null;
-                  return (
-                    <tr key={c.sequence} className="border-t border-line/60">
-                      <td className="px-2 py-1.5 text-ink">T{c.sequence}</td>
-                      <td className="px-2 py-1.5 text-right tabular-nums">{fmtPct(c.depth_pct)}</td>
-                      <td className="px-2 py-1.5 text-right tabular-nums">
-                        {fmtInt(daysBetween(c.peak_date, c.trough_date))}
-                      </td>
-                      <td
-                        className={`px-2 py-1.5 text-right ${tighter === null ? "text-mute" : tighter ? "text-up" : "text-warn"}`}
-                      >
-                        {tighter === null ? "First" : tighter ? "✓ Tighter" : "Wider"}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          ) : (
-            <p className="mb-3 text-xs text-mute">No contractions stored for this setup.</p>
-          )}
+          <ContractionTable setup={setup} />
           <dl className="text-xs">
             <Row k="Base depth" v={fmtPct(setup.base_depth_pct)} />
             <Row k="Base duration" v={baseDays === null ? DASH : `${baseDays} days`} />
@@ -125,7 +130,7 @@ function PatternCard({
   );
 }
 
-function TrendCard({ stock }: { stock: StockSetups }) {
+export function TrendCard({ stock }: { stock: StockSetups }) {
   const passed = stock.conditions.filter((c) => c.passed === true).length;
   const all = stock.conditions.length > 0 && passed === stock.conditions.length;
   return (
@@ -173,7 +178,7 @@ function TrendCard({ stock }: { stock: StockSetups }) {
   );
 }
 
-function ScoreCard({ setup }: { setup: StockSetup | null }) {
+export function ScoreCard({ setup }: { setup: StockSetup | null }) {
   const totals = setup ? componentTotals(setup) : [];
   let extra = 0;
   const arcs: (Arc & { got: number })[] = totals.map((t) => ({

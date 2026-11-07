@@ -175,7 +175,7 @@ describe("chart page", () => {
     mockApi({ "stocks/NOSET/setups": { ...fx.stockSetups, symbol: "NOSET", setups: [] } });
     renderApp(<ChartPage symbol="NOSET" />);
     const tabs = await screen.findByRole("group", { name: "Side panels" });
-    const vcp = within(tabs).getByRole("button", { name: "VCP (none)" });
+    const vcp = await within(tabs).findByRole("button", { name: "VCP (none)" });
     const lists = within(tabs).getByRole("button", { name: "Watch lists" });
     // no setup: the watch lists are open, not the VCP panel
     await waitFor(() => expect(lists).toHaveAttribute("aria-pressed", "true"));
@@ -249,5 +249,34 @@ describe("chart page", () => {
     await userEvent.click(screen.getByRole("button", { name: "Watch lists" }));
     await userEvent.click(screen.getByRole("button", { name: "Close the side panel" }));
     expect(screen.queryByTestId("side-panel")).not.toBeInTheDocument();
+  });
+
+  it("the Stock Analysis cards are sidebar tabs; the VCP tab has the pattern merged in", async () => {
+    mockApi();
+    renderApp(<ChartPage symbol="ALPHA" />);
+    const tabs = await screen.findByRole("group", { name: "Side panels" });
+    await screen.findByRole("complementary", { name: "VCP setup of ALPHA" });
+    expect(within(tabs).getAllByRole("button").map((b) => b.textContent)).toEqual([
+      "VCP", "Trend", "Score", "Fundamentals", "Notes", "History", "Watch lists",
+    ]);
+    // VCP: the setup and the pattern (contractions, base, unmet rules) in one panel
+    const vcp = await screen.findByRole("complementary", { name: "VCP setup of ALPHA" });
+    expect(within(vcp).getByRole("columnheader", { name: "Contraction" })).toBeInTheDocument();
+    expect(within(vcp).getByText("Base high / low")).toBeInTheDocument();
+    expect(within(vcp).getByText("Prior advance")).toBeInTheDocument();
+    // one tab at a time
+    await userEvent.click(within(tabs).getByRole("button", { name: "Trend" }));
+    expect(await screen.findByRole("heading", { name: "Trend Template" })).toBeInTheDocument();
+    expect(screen.queryByRole("complementary", { name: "VCP setup of ALPHA" })).not.toBeInTheDocument();
+    await userEvent.click(within(tabs).getByRole("button", { name: "Score" }));
+    expect(await screen.findByRole("heading", { name: "Score breakdown" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Trend Template" })).not.toBeInTheDocument();
+    await userEvent.click(within(tabs).getByRole("button", { name: "Fundamentals" }));
+    expect(await screen.findByTestId("side-panel")).toHaveTextContent(/Quarterly results/i);
+    await userEvent.click(within(tabs).getByRole("button", { name: "History" }));
+    expect(await screen.findByRole("heading", { name: "History and paper trades" })).toBeInTheDocument();
+    await userEvent.click(within(tabs).getByRole("button", { name: "Notes" }));
+    await waitFor(() => expect(screen.getByTestId("side-panel")).toHaveTextContent(/note/i));
+    expect(JSON.parse(window.localStorage.getItem(CHART_KEY) ?? "{}").sidePanel).toBe("notes");
   });
 });

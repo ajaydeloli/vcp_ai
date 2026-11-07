@@ -18,12 +18,18 @@ import {
   type ChartSettings,
   type ChartType,
   type SidePanel,
+  type SideTab,
 } from "@/lib/chartSettings";
-import { DASH, fmtNum, fmtPct, fmtPrice, sentence, tone } from "@/lib/fmt";
+import { DASH, fmtDay, fmtNum, fmtPct, fmtPrice, sentence, tone } from "@/lib/fmt";
 import { CHART_RANGES, type ChartRange, type Interval } from "@/lib/indicators";
 import { useWatchlists } from "@/lib/watchlist";
 import type { StockSetup, StockSetups } from "@/lib/schemas";
 import { ChartLinks } from "./ChartLinks";
+import { FundamentalsCard, QuarterlyResultsCard } from "./Fundamentals";
+import { asNumber, ContractionTable, ScoreCard, TrendCard, unmetByTier } from "./SetupOverview";
+import { ShareholdingCard } from "./Shareholding";
+import { HistoryCard } from "./StockExtras";
+import { StockNotes } from "./StockNotes";
 import { BTN, ColorMenu, IndicatorMenu, toggleBtn } from "./ChartMenus";
 import { Nav } from "./Nav";
 import { ProChart } from "./ProChart";
@@ -386,11 +392,6 @@ function Row({ label, value, hint }: { label: string; value: React.ReactNode; hi
   );
 }
 
-function weeksBetween(from: string | null, to: string | null): number | null {
-  if (!from || !to) return null;
-  return Math.round((Date.parse(to) - Date.parse(from)) / (7 * 86_400_000));
-}
-
 /** The right sidebar: a strip of tabs (VCP, Watch lists) and one panel at a time. A tab
  *  opens its panel and closes the other; the open tab again folds the panel away. At first
  *  (auto) the VCP analysis is open when the stock has a setup, else the watch lists. */
@@ -411,9 +412,16 @@ function SideBar({
 }) {
   const stock = useStockSetups(symbol);
   const has = vcpSetup(stock.data) !== null;
-  const open: SidePanel = mode === "auto" ? (has ? "vcp" : "lists") : mode;
-  const tabs: { id: "vcp" | "lists"; label: string; title: string }[] = [
-    { id: "vcp", label: has || !symbol ? "VCP" : "VCP (none)", title: has ? "VCP analysis" : `No VCP setup for ${symbol ?? "this stock"} on the latest scan` },
+  // while the setup is loading, auto keeps the VCP tab (no flash of the watch lists)
+  const loading = symbol !== null && stock.isPending;
+  const open: SidePanel = mode === "auto" ? (has || loading ? "vcp" : "lists") : mode;
+  const tabs: { id: SideTab; label: string; title: string }[] = [
+    { id: "vcp", label: has || loading || !symbol ? "VCP" : "VCP (none)", title: has ? "VCP setup and pattern" : `No VCP setup for ${symbol ?? "this stock"} on the latest scan` },
+    { id: "trend", label: "Trend", title: "Trend Template conditions and stage" },
+    { id: "score", label: "Score", title: "Score breakdown" },
+    { id: "fundamentals", label: "Fundamentals", title: "Fundamentals, quarterly results and shareholding" },
+    { id: "notes", label: "Notes", title: "My notes on this stock" },
+    { id: "history", label: "History", title: "History and paper trades" },
     { id: "lists", label: "Watch lists", title: "Watch lists and top VCP setups" },
   ];
   const floating = !dock && open !== "none";
@@ -426,8 +434,10 @@ function SideBar({
     document.addEventListener("keydown", key);
     return () => document.removeEventListener("keydown", key);
   }, [floating, onMode]);
-  const body = open === "vcp" && symbol ? <SetupSide symbol={symbol} bare={floating} /> : open === "lists" ? lists : null;
-  const width = open === "vcp" ? "lg:w-[18rem]" : "lg:w-[13rem]";
+  const body = open === "lists" ? lists : symbol && open !== "none" ? <TabBody tab={open as SideTab} symbol={symbol} bare={floating} /> : null;
+  // how wide a floating panel may grow: tables and charts need more room than lists
+  const maxWide = open === "fundamentals" || open === "history" ? "lg:max-w-[44rem]" : "lg:max-w-[26rem]";
+  const width = open === "fundamentals" || open === "history" ? "lg:w-[30rem]" : open === "lists" ? "lg:w-[13rem]" : "lg:w-[18rem]";
   return (
     <div className="relative flex min-w-0 flex-col-reverse gap-2 lg:flex-row lg:items-start">
       {body ? (
@@ -439,7 +449,7 @@ function SideBar({
           // content needs (13 to 26 rem); pinned: a fixed width beside the chart
           className={`min-w-0 ${
             floating
-              ? "lg:absolute lg:bottom-0 lg:right-full lg:top-[6.25rem] lg:z-30 lg:mr-2 lg:flex lg:w-max lg:min-w-[13rem] lg:max-w-[26rem] lg:flex-col lg:rounded-lg lg:border lg:border-line lg:bg-panel lg:p-2 lg:shadow-2xl lg:shadow-black/60"
+              ? `lg:absolute lg:bottom-0 lg:right-full lg:top-[6.25rem] lg:z-30 lg:mr-2 lg:flex lg:w-max lg:min-w-[13rem] ${maxWide} lg:flex-col lg:rounded-lg lg:border lg:border-line lg:bg-panel lg:p-2 lg:shadow-2xl lg:shadow-black/60`
               : width
           }`}
         >
@@ -490,7 +500,29 @@ function SideBar({
   );
 }
 
-/** ``bare``: no card border of its own (inside the floating panel, which has one). */
+/** One sidebar tab's content for the stock. */
+function TabBody({ tab, symbol, bare }: { tab: SideTab; symbol: string; bare: boolean }) {
+  const stock = useStockSetups(symbol);
+  if (tab === "vcp") return <SetupSide symbol={symbol} bare={bare} />;
+  if (tab === "notes") return <StockNotes symbol={symbol} />;
+  if (tab === "history") return <HistoryCard symbol={symbol} />;
+  if (tab === "fundamentals") {
+    return (
+      <div className="space-y-3">
+        <FundamentalsCard symbol={symbol} />
+        <QuarterlyResultsCard symbol={symbol} />
+        <ShareholdingCard symbol={symbol} />
+      </div>
+    );
+  }
+  if (stock.isError) return <ErrorBox error={stock.error} />;
+  if (stock.isPending) return <Loading what="setup" />;
+  return tab === "trend" ? <TrendCard stock={stock.data} /> : <ScoreCard setup={vcpSetup(stock.data)} />;
+}
+
+/** The VCP setup and its pattern in one panel (the Stock Analysis page's "VCP pattern" card
+ *  merged in): grade, status, the key levels, the base, the contractions and the rules a higher
+ *  grade still misses. ``bare``: no card border of its own (inside the floating panel). */
 function SetupSide({ symbol, bare = false }: { symbol: string; bare?: boolean }) {
   const stock = useStockSetups(symbol);
   const s = vcpSetup(stock.data);
@@ -498,10 +530,13 @@ function SetupSide({ symbol, bare = false }: { symbol: string; bare?: boolean })
   const close = d?.close ?? null;
   const toPivot = s?.pivot != null && close != null ? (close / s.pivot - 1) * 100 : null;
   const risk = s?.pivot != null && s.stop != null ? (s.stop / s.pivot - 1) * 100 : null;
-  const depths = (s?.contractions ?? []).map((c) => (c.depth_pct === null ? DASH : `−${Math.abs(c.depth_pct).toFixed(0)}%`));
+  const det = s?.details ?? {};
+  const baseEnd = s?.base_end ?? d?.as_of ?? null;
+  const baseDays = s?.base_start && baseEnd ? Math.round((Date.parse(baseEnd) - Date.parse(s.base_start)) / 86_400_000) : null;
+  const unmet = s ? unmetByTier(s.details) : [];
   return (
     <aside aria-label={`VCP setup of ${symbol}`} className="min-w-0">
-      <Card title="VCP analysis" subtitle={d ? `Scan of ${d.as_of ?? DASH}` : undefined} box={bare ? "bg-transparent" : undefined}>
+      <Card title="VCP setup" subtitle={d ? `Scan of ${d.as_of ?? DASH}` : undefined} box={bare ? "bg-transparent" : undefined}>
         {stock.isError ? (
           <ErrorBox error={stock.error} />
         ) : stock.isPending ? (
@@ -517,18 +552,29 @@ function SetupSide({ symbol, bare = false }: { symbol: string; bare?: boolean })
             <dl className="divide-y divide-line text-xs">
               <Row label="Score" value={fmtNum(s.score, 0)} />
               <Row label="Pivot" value={fmtPrice(s.pivot)} />
+              <Row label="Close" value={fmtPrice(close)} />
               <Row label="Close vs pivot" value={<span className={tone(toPivot)}>{fmtPct(toPivot, 1, true)}</span>} />
               <Row label="Stop" value={`${fmtPrice(s.stop)} (${fmtPct(risk, 1, true)})`} hint="Stop level, and how far below the pivot" />
               <Row label="Base depth" value={fmtPct(s.base_depth_pct, 1)} />
-              <Row label="Base length" value={`${weeksBetween(s.base_start, s.base_end ?? d?.as_of ?? null) ?? DASH} weeks`} />
-              <Row label="Contractions" value={depths.length ? `${depths.length} (${depths.join(", ")})` : DASH} />
-              <Row label="Breakout" value={s.breakout_date ?? DASH} />
+              <Row label="Base length" value={baseDays === null ? DASH : `${Math.round(baseDays / 7)} weeks (${baseDays} days)`} />
+              <Row label="Base start" value={fmtDay(s.base_start)} />
+              <Row label="Base high / low" value={`${fmtPrice(asNumber(det["base_high"]))} / ${fmtPrice(asNumber(det["base_low"]))}`} />
+              <Row label="Prior advance" value={fmtPct(asNumber(det["prior_advance_pct"]))} />
+              <Row label="Volume dry-up" value={fmtNum(asNumber(det["dryup_volume_ratio"]), 2)} hint="Volume in the last contraction against the 50-day average" />
+              <Row label="Breakout" value={s.breakout_date ? fmtDay(s.breakout_date) : DASH} />
               <Row label="Weekly stage" value={d?.weekly_stage ? sentence(d.weekly_stage) : DASH} />
               <Row
                 label="Trend Template"
                 value={d?.trend_template_pass == null ? DASH : d.trend_template_pass ? <span className="text-up">Pass</span> : <span className="text-down">Fail</span>}
               />
             </dl>
+            <h3 className="mb-1 mt-3 text-[11px] uppercase tracking-wide text-mute">Contractions</h3>
+            <ContractionTable setup={s} />
+            {unmet.map(([tier, rules]) => (
+              <p key={tier} className="mt-1 text-xs text-warn">
+                Not {sentence(tier)}: {rules.map(sentence).join(", ")}
+              </p>
+            ))}
           </>
         )}
       </Card>
