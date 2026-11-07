@@ -232,6 +232,10 @@ describe("chart page", () => {
     const panel = await screen.findByTestId("side-panel");
     expect(panel).toHaveAttribute("data-floating", "true");
     expect(panel.className).toMatch(/lg:absolute/);
+    // full height of the chart area, width from its content
+    expect(panel.className).toMatch(/lg:bottom-0/);
+    expect(panel.className).toMatch(/lg:w-max/);
+    expect(panel.className).not.toMatch(/lg:w-\[18rem\]/);
     await userEvent.click(screen.getByRole("button", { name: "Pin" }));
     expect(screen.getByTestId("side-panel")).toHaveAttribute("data-floating", "false");
     expect(JSON.parse(window.localStorage.getItem(CHART_KEY) ?? "{}").sideDock).toBe(true);

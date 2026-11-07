@@ -426,7 +426,7 @@ function SideBar({
     document.addEventListener("keydown", key);
     return () => document.removeEventListener("keydown", key);
   }, [floating, onMode]);
-  const body = open === "vcp" && symbol ? <SetupSide symbol={symbol} /> : open === "lists" ? lists : null;
+  const body = open === "vcp" && symbol ? <SetupSide symbol={symbol} bare={floating} /> : open === "lists" ? lists : null;
   const width = open === "vcp" ? "lg:w-[18rem]" : "lg:w-[13rem]";
   return (
     <div className="relative flex min-w-0 flex-col-reverse gap-2 lg:flex-row lg:items-start">
@@ -435,10 +435,12 @@ function SideBar({
           id="side-panel"
           data-testid="side-panel"
           data-floating={floating ? "true" : "false"}
-          className={`min-w-0 ${width} ${
+          // floating: from below the chart's toolbar to the bottom of the chart, as wide as its
+          // content needs (13 to 26 rem); pinned: a fixed width beside the chart
+          className={`min-w-0 ${
             floating
-              ? "lg:absolute lg:right-full lg:top-[6.25rem] lg:z-30 lg:mr-2 lg:max-h-[calc(100vh-15rem)] lg:overflow-y-auto lg:rounded-lg lg:shadow-2xl lg:shadow-black/60"
-              : ""
+              ? "lg:absolute lg:bottom-0 lg:right-full lg:top-[6.25rem] lg:z-30 lg:mr-2 lg:flex lg:w-max lg:min-w-[13rem] lg:max-w-[26rem] lg:flex-col lg:rounded-lg lg:border lg:border-line lg:bg-panel lg:p-2 lg:shadow-2xl lg:shadow-black/60"
+              : width
           }`}
         >
           <div className="mb-1 hidden justify-end gap-1 lg:flex">
@@ -461,7 +463,7 @@ function SideBar({
               ✕
             </button>
           </div>
-          {body}
+          <div className={floating ? "lg:min-h-0 lg:flex-1 lg:overflow-y-auto" : ""}>{body}</div>
         </div>
       ) : null}
       <div role="group" aria-label="Side panels" className="flex gap-1 lg:sticky lg:top-3 lg:flex-col">
@@ -488,7 +490,8 @@ function SideBar({
   );
 }
 
-function SetupSide({ symbol }: { symbol: string }) {
+/** ``bare``: no card border of its own (inside the floating panel, which has one). */
+function SetupSide({ symbol, bare = false }: { symbol: string; bare?: boolean }) {
   const stock = useStockSetups(symbol);
   const s = vcpSetup(stock.data);
   const d = stock.data;
@@ -498,7 +501,7 @@ function SetupSide({ symbol }: { symbol: string }) {
   const depths = (s?.contractions ?? []).map((c) => (c.depth_pct === null ? DASH : `−${Math.abs(c.depth_pct).toFixed(0)}%`));
   return (
     <aside aria-label={`VCP setup of ${symbol}`} className="min-w-0">
-      <Card title="VCP analysis" subtitle={d ? `Scan of ${d.as_of ?? DASH}` : undefined}>
+      <Card title="VCP analysis" subtitle={d ? `Scan of ${d.as_of ?? DASH}` : undefined} box={bare ? "bg-transparent" : undefined}>
         {stock.isError ? (
           <ErrorBox error={stock.error} />
         ) : stock.isPending ? (
