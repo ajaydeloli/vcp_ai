@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Market Overview: the divergence warning strip is plain like the cards (neutral border and panel colour); only its ⚠ and "Divergence:" stay amber.
 - Dark theme: page background `#111113`, cards and panels `#18181b` (owner, 2026-11-07).
 - Dark theme is neutral black (owner, 2026-11-07): background, panels, lines and grey text lose their blue tint (all pages, since they share the theme). Market Overview's cards and top tiles are plain: one neutral border, no coloured borders or tinted gradients. Other pages' coloured cards come next.
 - Chart page: candle **border colours** (up and down) are configurable in Colours (by default the body colour; colours saved earlier keep the border matching the body), and OHLC bars are drawn a little thicker.

@@ -187,7 +187,7 @@ function Feedback({ d }: { d: Health }) {
 function Warnings({ warnings }: { warnings: Health["warnings"] }) {
   if (warnings.length === 0) return null;
   return (
-    <ul aria-label="Divergence warnings" className="mb-4 space-y-1 rounded-lg border border-warn/50 bg-warn/10 p-3 text-xs text-ink">
+    <ul aria-label="Divergence warnings" className="mb-4 space-y-1 rounded-lg border border-line bg-panel p-3 text-xs text-ink">
       {warnings.map((w) => (
         <li key={w.id} className="flex gap-2">
           <span aria-hidden="true" className="text-warn">
