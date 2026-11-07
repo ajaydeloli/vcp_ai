@@ -10,6 +10,9 @@ Signals come from stored scans (``setup_scores`` + the primary VCP pattern): an 
 * entry rule ``cross_5`` (STRATEGY_SPECIFICATION 20.2) also needs the previous close at or
   below the pivot (a real cross) and the close at most ``max_entry_extension_pct`` above it;
   a day that fails this does not end the watch;
+* research option ``max_above_sma50_pct`` (off unless set; never used by the paper rules): an
+  entry also needs the close at most that many percent above the 50-day simple average of the
+  closes up to and including that day; a day that fails this does not end the watch;
 * market regime (20.3): with ``regime`` set, an entry also needs the regime on at that day's
   close; an "off" day does not end the watch and never closes an open trade;
 * the watch ends without a trade after ``watch_days`` sessions (``INVALIDATION``, reason
@@ -99,6 +102,9 @@ class EngineConfig:
     max_entry_extension_pct: float = 5.0
     #: Market regime by day (20.3); None = no regime filter. A day missing from it is "off".
     regime: Mapping[date, bool] | None = None
+    #: Research only (owner, 2026-11-07): skip an entry whose close is more than this many
+    #: percent above its 50-day simple average (closes up to and including that day). None: off.
+    max_above_sma50_pct: float | None = None
 
     def __post_init__(self) -> None:
         if self.entry not in ENTRY_RULES:
@@ -155,6 +161,12 @@ def _may_enter(bars: Sequence[Bar], i: int, pivot: float, cfg: EngineConfig) -> 
         if i == 0 or bars[i - 1].close > pivot:
             return False
         if bars[i].close > pivot * (1 + cfg.max_entry_extension_pct / 100):
+            return False
+    if cfg.max_above_sma50_pct is not None:
+        if i < 49:
+            return False  # no 50-day average yet: not enough history to judge
+        sma50 = sum(b.close for b in bars[i - 49 : i + 1]) / 50
+        if bars[i].close > sma50 * (1 + cfg.max_above_sma50_pct / 100):
             return False
     return cfg.regime is None or cfg.regime.get(bars[i].day, False)
 

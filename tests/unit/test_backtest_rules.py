@@ -23,7 +23,7 @@ def _sig(bs: list, pivot: float = 104.0) -> Signal:
 
 
 def test_defaults_are_unchanged() -> None:
-    assert BASE.entry == "breakout" and BASE.regime is None
+    assert BASE.entry == "breakout" and BASE.regime is None and BASE.max_above_sma50_pct is None
     assert [r.name for r in ENGINE_RULES[: len(TRADE_RULES)]] == [r.name for r in TRADE_RULES]
     assert all(r.trail is None and r.horizon is None for r in TRADE_RULES)
     with pytest.raises(ValueError, match="unknown entry rule"):
@@ -49,6 +49,19 @@ def test_cross_skips_a_close_more_than_5_pct_above_the_pivot() -> None:
     _set(bs, 67, close=109.0, volume=2000.0)  # +4.8 %: inside the buy zone
     (t,), _ = run_signals([_sig(bs)], {"A": bs}, replace(BASE, entry="cross_5"))
     assert t.entry_day == bs[67].day
+
+
+def test_sma50_distance_filter_skips_extended_closes_only_when_set() -> None:
+    bs = _bars()  # closes 100, pivot 104
+    _set(bs, 65, close=110.0, volume=2000.0)  # ~9.8 % above its 50-day average
+    _set(bs, 66, close=103.0)
+    _set(bs, 67, close=104.5, volume=2000.0)  # ~4.1 % above
+    (t,), _ = run_signals([_sig(bs)], {"A": bs}, BASE)
+    assert t.entry_day == bs[65].day  # off by default
+    (t,), _ = run_signals([_sig(bs)], {"A": bs}, replace(BASE, max_above_sma50_pct=5.0))
+    assert t.entry_day == bs[67].day  # the extended day was skipped; the watch went on
+    (none_), _ = run_signals([_sig(bs)], {"A": bs}, replace(BASE, max_above_sma50_pct=3.0))
+    assert none_ == []  # neither day is within 3 %
 
 
 def test_regime_off_delays_entry_and_never_closes_a_trade() -> None:

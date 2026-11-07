@@ -37,6 +37,9 @@ def _common(p: argparse.ArgumentParser) -> None:
     p.add_argument("--regime", choices=["none", "breadth50", "ew50"], default=None,
                    help="Market regime gate for new entries (20.3). Default: "
                    "config/backtest.yaml defaults.regime")  # fmt: skip
+    p.add_argument("--max-above-sma50", type=float, default=None, metavar="PCT",
+                   help="Research only: skip an entry whose close is more than PCT %% above its "
+                   "50-day average (off by default; not part of the paper rules)")  # fmt: skip
     p.add_argument("--baseline", action="store_true",
                    help="Trade every passer with a pivot (any class or status): the comparison "
                    "baseline for the VCP classes")  # fmt: skip
@@ -126,7 +129,10 @@ def _settings(args: argparse.Namespace) -> dict[str, Any] | None:
             "min_score": args.min_score, "watch_days": args.watch_days,
             "max_positions": args.max_positions, "cost_bps": args.cost_bps,
             "baseline": args.baseline, "entry": args.entry or defaults.entry,
-            "regime": args.regime or defaults.regime}  # fmt: skip
+            "regime": args.regime or defaults.regime,
+            # stored only when set, so runs without it keep their earlier settings
+            **({} if args.max_above_sma50 is None
+               else {"max_above_sma50": args.max_above_sma50})}  # fmt: skip
 
 
 def _strategy_hash(cfg: Any, strategy_id: str, config_dir: str) -> str:
@@ -170,6 +176,7 @@ def _execute(
         min_volume_ratio=cfg.strategy.vcp.breakout.min_volume_ratio,
         cost_bps=settings["cost_bps"], max_positions=settings["max_positions"],
         entry=settings.get("entry", "breakout"), regime=regime,
+        max_above_sma50_pct=settings.get("max_above_sma50"),
     )  # fmt: skip
     classes = settings["classes"]
     if settings["baseline"]:
@@ -230,6 +237,9 @@ def _print(o: dict[str, Any], settings: dict[str, Any]) -> None:
           f"rule {settings['rule']}; entry {settings.get('entry', 'breakout')}; regime "
           f"{settings.get('regime', 'none')}; costs {settings['cost_bps']:g} bps "
           "per side")  # fmt: skip
+    if settings.get("max_above_sma50") is not None:
+        print(f"  Research    : no entry more than {settings['max_above_sma50']:g}% above the "
+              "50-day average")  # fmt: skip
     s = o["every_trade"]
     print(f"  Every trade : {s['trades']} trades, win {_f(s['win_rate'], 100, 1)}%, avg "
           f"{_f(s['avg_ret'])}%, median {_f(s['median_ret'])}%, profit factor "
