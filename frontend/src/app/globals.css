@@ -9,6 +9,8 @@
   --c-panel: 21 21 24; /* #151518 */
   --c-panel2: 28 28 31;
   --c-line: 39 39 43;
+  /* the frame lines of the top bar and the icon rail: white at 25% on the background */
+  --c-frame: 77 77 79;
   --c-ink: 236 236 239;
   --c-mute: 142 142 150;
   --c-accent: 47 109 246;
@@ -26,6 +28,7 @@
   --c-panel: 255 255 255;
   --c-panel2: 238 241 247;
   --c-line: 214 220 232;
+  --c-frame: 190 197 211;
   --c-ink: 17 24 39;
   --c-mute: 84 96 120;
   --c-accent: 37 99 235;
