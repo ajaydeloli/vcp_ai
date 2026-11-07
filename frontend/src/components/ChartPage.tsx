@@ -1,0 +1,420 @@
+"use client";
+
+// The Chart page (owner, 2026-11-07): one stock's chart, full size, with a toolbar (daily,
+// weekly or monthly bars; range; chart type; indicators; log scale; screenshot; full screen),
+// the watch list and the top VCP setups on the left, and the VCP setup on the right.
+import type { IChartApi } from "lightweight-charts";
+import { useEffect, useRef, useState } from "react";
+import { useBars, useSetups, useStockSetups } from "@/lib/api";
+import {
+  CHART_TYPES,
+  DEFAULT_CHART,
+  INDICATORS,
+  loadChart,
+  lastSymbol,
+  rememberSymbol,
+  saveChart,
+  type ChartSettings,
+  type ChartType,
+  type IndicatorGroup,
+} from "@/lib/chartSettings";
+import { DASH, fmtNum, fmtPct, fmtPrice, sentence, tone } from "@/lib/fmt";
+import { CHART_RANGES, type ChartRange, type Interval } from "@/lib/indicators";
+import { useWatchlists } from "@/lib/watchlist";
+import type { StockSetup, StockSetups } from "@/lib/schemas";
+import { ChartLinks } from "./ChartLinks";
+import { Nav } from "./Nav";
+import { ProChart } from "./ProChart";
+import { StatusBar } from "./StatusBar";
+import { Card, Empty, ErrorBox, GradeBadge, Loading, StatusPill } from "./ui";
+import { WatchStar } from "./WatchStar";
+
+const BTN = "inline-flex h-8 items-center gap-1.5 rounded border border-line bg-panel2 px-2.5 text-xs text-ink hover:border-accent";
+const ON = "border-accent bg-accent text-white";
+const SELECT = "h-8 rounded border border-line bg-panel2 px-2 text-xs text-ink";
+
+export function ChartPage({ symbol: given }: { symbol: string | null }) {
+  const [symbol, setSymbol] = useState<string | null>(given);
+  const [settings, setSettings] = useState<ChartSettings>(DEFAULT_CHART);
+  const [loaded, setLoaded] = useState(false);
+  const top = useSetups("vcp");
+
+  // saved settings and, without a symbol in the address, the last stock seen here
+  useEffect(() => {
+    setSettings(loadChart());
+    if (!given) setSymbol((s) => s ?? lastSymbol());
+    setLoaded(true);
+  }, [given]);
+  useEffect(() => {
+    if (loaded) saveChart(settings);
+  }, [settings, loaded]);
+  const shown = symbol ?? top.data?.rows[0]?.symbol ?? null;
+  useEffect(() => {
+    if (shown) rememberSymbol(shown);
+  }, [shown]);
+
+  const pick = (s: string) => {
+    const sym = s.toUpperCase();
+    setSymbol(sym);
+    try {
+      window.history.pushState(null, "", `/chart/${encodeURIComponent(sym)}`);
+    } catch {
+      /* no history (tests) */
+    }
+  };
+  const change = (p: Partial<ChartSettings>) => setSettings((s) => ({ ...s, ...p }));
+
+  return (
+    <div className="flex min-h-screen flex-col">
+      <Nav active="Chart" onPick={pick} />
+      <main className="grid min-w-0 flex-1 gap-3 p-3 pb-14 lg:grid-cols-[12rem_minmax(0,1fr)] 2xl:grid-cols-[12rem_minmax(0,1fr)_19rem]">
+        <h1 className="sr-only">Chart{shown ? `: ${shown}` : ""}</h1>
+        <SideLists current={shown} onPick={pick} top={top.data?.rows ?? []} />
+        {shown === null ? (
+          <Card title="Chart">
+            <Empty>{top.isPending ? "Loading the best VCP setup…" : "Search a symbol or company above to chart it."}</Empty>
+          </Card>
+        ) : (
+          <ChartArea key={shown} symbol={shown} settings={settings} onChange={change} />
+        )}
+        {shown ? <SetupSide symbol={shown} /> : null}
+      </main>
+      <StatusBar />
+    </div>
+  );
+}
+
+function ChartArea({
+  symbol,
+  settings,
+  onChange,
+}: {
+  symbol: string;
+  settings: ChartSettings;
+  onChange: (p: Partial<ChartSettings>) => void;
+}) {
+  const bars = useBars(symbol);
+  const stock = useStockSetups(symbol);
+  const api = useRef<IChartApi | null>(null);
+  const wrap = useRef<HTMLElement>(null);
+  const setup = vcpSetup(stock.data);
+  const list = bars.data?.bars ?? [];
+  const last = list[list.length - 1];
+  const prev = list[list.length - 2];
+  const pct = last?.close != null && prev?.close != null && prev.close !== 0 ? (last.close / prev.close - 1) * 100 : null;
+  const company = bars.data?.company ?? stock.data?.company ?? null;
+
+  const screenshot = () => {
+    const canvas = api.current?.takeScreenshot();
+    if (!canvas) return;
+    const a = document.createElement("a");
+    a.href = canvas.toDataURL("image/png");
+    a.download = `${symbol}_${settings.interval}_${last?.day ?? "chart"}.png`;
+    a.click();
+  };
+  const fullScreen = () => {
+    const el = wrap.current;
+    if (!el) return;
+    if (document.fullscreenElement) void document.exitFullscreen?.();
+    else void el.requestFullscreen?.();
+  };
+
+  return (
+    <section
+      ref={wrap}
+      aria-label={`Chart of ${symbol}`}
+      className="flex min-w-0 flex-col rounded-lg border border-line bg-panel p-3 [&:fullscreen]:rounded-none [&:fullscreen]:p-4"
+    >
+      <div className="mb-2 flex flex-wrap items-baseline gap-x-3 gap-y-1">
+        <span className="text-xl font-semibold text-ink">{symbol}</span>
+        <WatchStar symbol={symbol} />
+        {company ? <span className="text-sm text-mute">{company}</span> : null}
+        <span className="text-base font-semibold tabular-nums text-ink">{fmtPrice(last?.close)}</span>
+        <span className={`text-sm tabular-nums ${tone(pct)}`}>{fmtPct(pct, 2, true)}</span>
+        {last ? <span className="text-xs text-mute">close {last.day}, adjusted prices</span> : null}
+        <span className="ml-auto flex items-center gap-3">
+          <a href={`/stocks/${encodeURIComponent(symbol)}`} className="text-xs text-accent hover:underline">
+            Full analysis →
+          </a>
+          <ChartLinks symbol={symbol} />
+        </span>
+      </div>
+      <Toolbar settings={settings} onChange={onChange} onScreenshot={screenshot} onFullScreen={fullScreen} />
+      <div className="mt-2 h-[calc(100vh-15rem)] min-h-[480px] [:fullscreen_&]:h-[calc(100vh-7rem)]">
+        {bars.isError ? (
+          <ErrorBox error={bars.error} />
+        ) : bars.isPending ? (
+          <Loading what="chart" />
+        ) : list.length === 0 ? (
+          <Empty>No price bars for {symbol}.</Empty>
+        ) : (
+          <ProChart symbol={symbol} bars={list} setup={setup} settings={settings} apiRef={api} />
+        )}
+      </div>
+    </section>
+  );
+}
+
+/** The stock's VCP setup (the chart's marks and the right panel). */
+const vcpSetup = (d: StockSetups | undefined): StockSetup | null =>
+  d?.setups.find((s) => s.strategy_id === "vcp") ?? null;
+
+const INTERVALS: { id: Interval; label: string; title: string }[] = [
+  { id: "D", label: "D", title: "Daily" },
+  { id: "W", label: "W", title: "Weekly" },
+  { id: "M", label: "M", title: "Monthly" },
+];
+
+function Toolbar({
+  settings,
+  onChange,
+  onScreenshot,
+  onFullScreen,
+}: {
+  settings: ChartSettings;
+  onChange: (p: Partial<ChartSettings>) => void;
+  onScreenshot: () => void;
+  onFullScreen: () => void;
+}) {
+  return (
+    <div className="flex flex-wrap items-center gap-2 border-b border-line pb-2" role="toolbar" aria-label="Chart settings">
+      <div className="flex gap-1" role="group" aria-label="Interval">
+        {INTERVALS.map((v) => (
+          <button
+            key={v.id}
+            type="button"
+            title={v.title}
+            aria-label={v.title}
+            aria-pressed={settings.interval === v.id}
+            onClick={() => onChange({ interval: v.id })}
+            className={`${BTN} w-8 justify-center ${settings.interval === v.id ? ON : ""}`}
+          >
+            {v.label}
+          </button>
+        ))}
+      </div>
+      <label className="flex items-center gap-1.5 text-xs text-mute">
+        Range
+        <select
+          aria-label="Range"
+          value={settings.range}
+          onChange={(e) => onChange({ range: e.target.value as ChartRange })}
+          className={SELECT}
+        >
+          {CHART_RANGES.map((r) => (
+            <option key={r.id} value={r.id}>
+              {r.label}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label className="flex items-center gap-1.5 text-xs text-mute">
+        Type
+        <select
+          aria-label="Chart type"
+          value={settings.type}
+          onChange={(e) => onChange({ type: e.target.value as ChartType })}
+          className={SELECT}
+        >
+          {CHART_TYPES.map((t) => (
+            <option key={t.id} value={t.id}>
+              {t.label}
+            </option>
+          ))}
+        </select>
+      </label>
+      <IndicatorMenu settings={settings} onChange={onChange} />
+      <button
+        type="button"
+        aria-pressed={settings.log}
+        onClick={() => onChange({ log: !settings.log })}
+        title="Logarithmic price scale"
+        className={`${BTN} ${settings.log ? ON : ""}`}
+      >
+        Log
+      </button>
+      <span className="ml-auto flex gap-1">
+        <button type="button" onClick={onScreenshot} className={BTN} title="Save the chart as a PNG image">
+          Screenshot
+        </button>
+        <button type="button" onClick={onFullScreen} className={BTN} title="Full screen (Esc to leave)">
+          Full screen
+        </button>
+      </span>
+    </div>
+  );
+}
+
+const GROUPS: IndicatorGroup[] = ["Moving averages", "Bands", "Panes", "Setup"];
+
+/** The Indicators dropdown: a checkbox per indicator, grouped; closes on Escape or a click outside. */
+function IndicatorMenu({ settings, onChange }: { settings: ChartSettings; onChange: (p: Partial<ChartSettings>) => void }) {
+  const [open, setOpen] = useState(false);
+  const wrap = useRef<HTMLDivElement>(null);
+  const button = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const away = (e: MouseEvent) => {
+      if (wrap.current && !wrap.current.contains(e.target as Node)) setOpen(false);
+    };
+    const key = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setOpen(false);
+        button.current?.focus();
+      }
+    };
+    document.addEventListener("mousedown", away);
+    document.addEventListener("keydown", key);
+    return () => {
+      document.removeEventListener("mousedown", away);
+      document.removeEventListener("keydown", key);
+    };
+  }, [open]);
+  const on = new Set(settings.indicators);
+  const toggle = (id: string) =>
+    onChange({ indicators: on.has(id) ? settings.indicators.filter((x) => x !== id) : [...settings.indicators, id] });
+  return (
+    <div ref={wrap} className="relative">
+      <button
+        ref={button}
+        type="button"
+        aria-haspopup="true"
+        aria-expanded={open}
+        onClick={() => setOpen((o) => !o)}
+        className={`${BTN} ${open ? "border-accent" : ""}`}
+      >
+        Indicators ({on.size}) <span aria-hidden="true">▾</span>
+      </button>
+      {open ? (
+        <div
+          role="dialog"
+          aria-label="Indicators"
+          className="absolute left-0 top-9 z-30 w-72 rounded-lg border border-line bg-panel p-3 text-xs shadow-xl"
+        >
+          {GROUPS.map((g) => (
+            <fieldset key={g} className="mb-2 last:mb-0">
+              <legend className="mb-1 text-[11px] uppercase tracking-wide text-mute">{g}</legend>
+              <div className={g === "Moving averages" ? "grid grid-cols-2 gap-x-2" : ""}>
+                {INDICATORS.filter((i) => i.group === g).map((i) => (
+                  <label key={i.id} className="flex cursor-pointer items-center gap-2 py-0.5 text-ink">
+                    <input type="checkbox" checked={on.has(i.id)} onChange={() => toggle(i.id)} />
+                    <span aria-hidden="true" className="inline-block h-0.5 w-3" style={{ background: i.color }} />
+                    {i.label}
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+          ))}
+          <div className="mt-2 flex justify-between border-t border-line pt-2">
+            <button type="button" className="text-accent hover:underline" onClick={() => onChange({ indicators: DEFAULT_CHART.indicators })}>
+              Reset to defaults
+            </button>
+            <button type="button" className="text-mute hover:text-ink" onClick={() => onChange({ indicators: [] })}>
+              Clear all
+            </button>
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+type TopRow = { symbol: string; score: number | null; status: string };
+
+function SideLists({ current, onPick, top }: { current: string | null; onPick: (s: string) => void; top: TopRow[] }) {
+  const { active } = useWatchlists();
+  const item = (s: string, right: React.ReactNode) => (
+    <li key={s}>
+      <button
+        type="button"
+        onClick={() => onPick(s)}
+        aria-current={s === current ? "true" : undefined}
+        className={`flex w-full items-center justify-between rounded px-2 py-1 text-left text-xs ${
+          s === current ? "bg-accent/15 font-semibold text-ink" : "text-ink hover:bg-panel2"
+        }`}
+      >
+        <span className="truncate">{s}</span>
+        {right}
+      </button>
+    </li>
+  );
+  return (
+    <aside aria-label="Stocks to chart" className="hidden min-w-0 space-y-3 lg:block">
+      <section className="rounded-lg border border-line bg-panel p-2">
+        <h2 className="mb-1 px-2 text-xs font-semibold text-ink">
+          {active.name} ({active.symbols.length})
+        </h2>
+        {active.symbols.length === 0 ? (
+          <p className="px-2 py-1 text-[11px] text-mute">Star a stock to add it here.</p>
+        ) : (
+          <ul className="max-h-64 overflow-y-auto">{active.symbols.map((s) => item(s, null))}</ul>
+        )}
+      </section>
+      <section className="rounded-lg border border-line bg-panel p-2">
+        <h2 className="mb-1 px-2 text-xs font-semibold text-ink">Top VCP setups</h2>
+        <ul className="max-h-[22rem] overflow-y-auto">
+          {top.slice(0, 15).map((r) => item(r.symbol, <span className="tabular-nums text-mute">{fmtNum(r.score, 0)}</span>))}
+        </ul>
+      </section>
+    </aside>
+  );
+}
+
+function Row({ label, value, hint }: { label: string; value: React.ReactNode; hint?: string }) {
+  return (
+    <div className="flex items-baseline justify-between gap-3 py-1.5" title={hint}>
+      <dt className="text-mute">{label}</dt>
+      <dd className="text-right tabular-nums text-ink">{value}</dd>
+    </div>
+  );
+}
+
+function weeksBetween(from: string | null, to: string | null): number | null {
+  if (!from || !to) return null;
+  return Math.round((Date.parse(to) - Date.parse(from)) / (7 * 86_400_000));
+}
+
+function SetupSide({ symbol }: { symbol: string }) {
+  const stock = useStockSetups(symbol);
+  const s = vcpSetup(stock.data);
+  const d = stock.data;
+  const close = d?.close ?? null;
+  const toPivot = s?.pivot != null && close != null ? (close / s.pivot - 1) * 100 : null;
+  const risk = s?.pivot != null && s.stop != null ? (s.stop / s.pivot - 1) * 100 : null;
+  const depths = (s?.contractions ?? []).map((c) => (c.depth_pct === null ? DASH : `−${Math.abs(c.depth_pct).toFixed(0)}%`));
+  return (
+    <aside aria-label={`VCP setup of ${symbol}`} className="min-w-0 lg:col-span-2 2xl:col-span-1">
+      <Card title="VCP analysis" subtitle={d ? `Scan of ${d.as_of ?? DASH}` : undefined}>
+        {stock.isError ? (
+          <ErrorBox error={stock.error} />
+        ) : stock.isPending ? (
+          <Loading what="setup" />
+        ) : !s ? (
+          <Empty>No VCP setup for {symbol} on the latest scan.</Empty>
+        ) : (
+          <>
+            <div className="mb-2 flex flex-wrap items-center gap-2 text-base">
+              <GradeBadge classification={s.classification} grade={s.grade} />
+              <StatusPill status={s.status} />
+            </div>
+            <dl className="divide-y divide-line text-xs">
+              <Row label="Score" value={fmtNum(s.score, 0)} />
+              <Row label="Pivot" value={fmtPrice(s.pivot)} />
+              <Row label="Close vs pivot" value={<span className={tone(toPivot)}>{fmtPct(toPivot, 1, true)}</span>} />
+              <Row label="Stop" value={`${fmtPrice(s.stop)} (${fmtPct(risk, 1, true)})`} hint="Stop level, and how far below the pivot" />
+              <Row label="Base depth" value={fmtPct(s.base_depth_pct, 1)} />
+              <Row label="Base length" value={`${weeksBetween(s.base_start, s.base_end ?? d?.as_of ?? null) ?? DASH} weeks`} />
+              <Row label="Contractions" value={depths.length ? `${depths.length} (${depths.join(", ")})` : DASH} />
+              <Row label="Breakout" value={s.breakout_date ?? DASH} />
+              <Row label="Weekly stage" value={d?.weekly_stage ? sentence(d.weekly_stage) : DASH} />
+              <Row
+                label="Trend Template"
+                value={d?.trend_template_pass == null ? DASH : d.trend_template_pass ? <span className="text-up">Pass</span> : <span className="text-down">Fail</span>}
+              />
+            </dl>
+          </>
+        )}
+      </Card>
+    </aside>
+  );
+}

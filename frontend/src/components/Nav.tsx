@@ -9,6 +9,7 @@ import { TopBar } from "./TopBar";
 const TOP = [
   ["Market Overview", "/dashboard"],
   ["Screener", "/screener"],
+  ["Chart", "/chart"],
   ["Stock Analysis", "/stocks"],
   ["Watchlist", "/watchlist"],
 ] as const;

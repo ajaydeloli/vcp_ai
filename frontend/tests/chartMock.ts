@@ -59,6 +59,23 @@ export class FakeChart {
   addLineSeries(o: any) {
     return this.add("line", o);
   }
+  addAreaSeries(o: any) {
+    return this.add("area", o);
+  }
+  crosshair: ((p: any) => void)[] = [];
+  subscribeCrosshairMove(f: (p: any) => void) {
+    this.crosshair.push(f);
+  }
+  unsubscribeCrosshairMove(f: (p: any) => void) {
+    this.crosshair = this.crosshair.filter((x) => x !== f);
+  }
+  /** Move the crosshair to a bar (its logical index), as the mouse would. */
+  hover(logical: number | undefined) {
+    for (const f of this.crosshair) f({ logical });
+  }
+  takeScreenshot() {
+    return { toDataURL: () => "data:image/png;base64,AAAA" };
+  }
   removeSeries(s: FakeSeries) {
     this.series = this.series.filter((x) => x !== s);
   }
@@ -103,6 +120,7 @@ export const mockModule = {
   ColorType: { Solid: "solid" },
   CrosshairMode: { Normal: 0 },
   LineStyle: { Solid: 0, Dashed: 2 },
+  PriceScaleMode: { Normal: 0, Logarithmic: 1 },
 };
 
 /** The live (not removed) charts, oldest first. */

@@ -95,6 +95,9 @@ function StockView({
                 <WatchStar symbol={selection.symbol} />
                 <NotesBadge symbol={selection.symbol} onStockPage={onStockPage} />
                 {company ? <span className="text-sm text-mute">{company}</span> : null}
+                <a href={`/chart/${encodeURIComponent(selection.symbol)}`} className="text-xs text-accent hover:underline">
+                  Chart →
+                </a>
                 {onStockPage ? null : (
                   <a href={`/stocks/${encodeURIComponent(selection.symbol)}`} className="text-xs text-accent hover:underline">
                     Full analysis →

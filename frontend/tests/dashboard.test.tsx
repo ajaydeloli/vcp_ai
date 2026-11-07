@@ -38,13 +38,14 @@ describe("dashboard page (market view)", () => {
     expect(within(nav).getByRole("link", { name: "Market Overview" })).toHaveAttribute("aria-current", "page");
     for (const [name, href] of [
       ["Screener", "/screener"],
+      ["Chart", "/chart"],
       ["Stock Analysis", "/stocks"],
       ["Watchlist", "/watchlist"],
     ] as const) {
       expect(within(nav).getByRole("link", { name })).toHaveAttribute("href", href);
     }
-    // the top bar keeps four pages; the rest sit in the More dropdown, closed until asked
-    expect(within(nav).getAllByRole("link")).toHaveLength(4);
+    // the top bar keeps five pages; the rest sit in the More dropdown, closed until asked
+    expect(within(nav).getAllByRole("link")).toHaveLength(5);
     expect(within(nav).getByRole("button", { name: "More pages" })).toHaveAttribute("aria-expanded", "false");
     expect(within(nav).queryByRole("link", { name: "Backtest" })).not.toBeInTheDocument();
     expect(screen.queryByRole("complementary", { name: "Menu" })).not.toBeInTheDocument();
@@ -106,7 +107,7 @@ describe("dashboard page (market view)", () => {
     expect(within(menu).getByRole("link", { name: "Backtest" })).toHaveAttribute("href", "/backtest");
     expect(within(menu).getByRole("link", { name: "Reports" })).toHaveAttribute("href", "/reports");
     expect(within(menu).getByRole("link", { name: "Fundamentals" })).toHaveAttribute("href", "/fundamentals");
-    expect(within(menu).getAllByRole("link")).toHaveLength(11); // every page, the More ones too
+    expect(within(menu).getAllByRole("link")).toHaveLength(12); // every page, the More ones too
     expect(within(menu).queryByText("later")).not.toBeInTheDocument();
     await userEvent.keyboard("{Escape}");
     expect(screen.queryByRole("complementary", { name: "Menu" })).not.toBeInTheDocument();
