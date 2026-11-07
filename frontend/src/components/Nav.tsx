@@ -69,9 +69,16 @@ function Rail({ active }: { active: Page }) {
   return (
     <nav
       aria-label="Main"
-      className="fixed inset-y-0 left-0 z-40 hidden w-14 flex-col items-center gap-1 border-r border-white/25 bg-bg py-2.5 lg:flex"
+      className="fixed inset-y-0 left-0 z-40 hidden w-14 flex-col items-center gap-1 border-r border-white/25 bg-bg pb-2.5 lg:flex"
     >
-      <a href="/dashboard" aria-label="ShreeVault home" title="ShreeVault" className="mb-3 rounded-lg p-1 hover:bg-panel2">
+      {/* the logo sits in a square as high as the top bar: its line continues the top bar's,
+          so the two lines meet the rail's in the top left corner */}
+      <a
+        href="/dashboard"
+        aria-label="ShreeVault home"
+        title="ShreeVault"
+        className="mb-2 flex h-14 w-full shrink-0 items-center justify-center border-b border-white/25 hover:bg-panel2"
+      >
         <Image src="/shreevault-mark.png" alt="" aria-hidden="true" width={32} height={32} priority className="h-8 w-8 rounded-md" />
       </a>
       {PAGES.map(([label, href, icon]) => {
