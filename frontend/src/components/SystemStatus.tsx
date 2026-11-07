@@ -24,11 +24,11 @@ export function SystemStatus() {
   const feed = live.data?.feed;
 
   return (
-    <Page active="System Status" title="System Status">
+    <Page active="System Status" title="System Status" fill>
       {status.isError ? <ErrorBox error={status.error} /> : null}
       {status.isPending ? <Loading what="status" /> : null}
       {s ? (
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        <div className="grid shrink-0 gap-4 md:grid-cols-2 xl:grid-cols-3">
           <Card title="Data" subtitle="End-of-day data used by every scan">
             <ul className="divide-y divide-line">
               <Row k="Prices to" v={fmtDay(s.prices_date)} />
@@ -73,7 +73,8 @@ export function SystemStatus() {
         </div>
       ) : null}
 
-      <Card title="Recent activity" subtitle="Last 7 days">
+      {/* on a wide screen the page fits the window and only this list scrolls */}
+      <Card title="Recent activity" subtitle="Last 7 days" className="min-h-0 lg:flex-1">
         {activity.isError ? (
           <ErrorBox error={activity.error} />
         ) : activity.isPending ? (
@@ -81,7 +82,7 @@ export function SystemStatus() {
         ) : activity.data.events.length === 0 ? (
           <Empty>No activity in the last 7 days.</Empty>
         ) : (
-          <ul className="divide-y divide-line text-xs">
+          <ul className="max-h-96 divide-y divide-line overflow-y-auto pr-1 text-xs lg:max-h-none lg:min-h-0 lg:flex-1">
             {activity.data.events.map((e, i) => (
               <li key={i} className="flex gap-3 py-2">
                 <span className="w-24 shrink-0 text-mute">{fmtDay(e.day)}</span>
