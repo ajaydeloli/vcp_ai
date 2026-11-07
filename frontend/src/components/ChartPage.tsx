@@ -281,41 +281,97 @@ function Toolbar({
 
 type TopRow = { symbol: string; score: number | null; status: string };
 
+const OPEN_KEY = "vcp-chart-lists-open";
+const TOP_ID = "top";
+
+function readOpen(): string[] | null {
+  try {
+    const v = JSON.parse(window.localStorage.getItem(OPEN_KEY) ?? "null") as unknown;
+    return Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : null;
+  } catch {
+    return null;
+  }
+}
+
+/** The right panel: every watch list and the top VCP setups, each a section that opens and
+ *  closes (which ones are open is kept in this browser; at first the active list and the setups). */
 function SideLists({ current, onPick, top }: { current: string | null; onPick: (s: string) => void; top: TopRow[] }) {
-  const { active } = useWatchlists();
-  const item = (s: string, right: React.ReactNode) => (
-    <li key={s}>
+  const { lists, active } = useWatchlists();
+  const [open, setOpen] = useState<string[] | null>(null);
+  useEffect(() => setOpen(readOpen()), []);
+  const shown = open ?? [active.id, TOP_ID];
+  const toggle = (id: string) => {
+    const next = shown.includes(id) ? shown.filter((x) => x !== id) : [...shown, id];
+    setOpen(next);
+    try {
+      window.localStorage.setItem(OPEN_KEY, JSON.stringify(next));
+    } catch {
+      /* storage blocked: kept until the page is reloaded */
+    }
+  };
+  const item = (sym: string, right: React.ReactNode) => (
+    <li key={sym}>
       <button
         type="button"
-        onClick={() => onPick(s)}
-        aria-current={s === current ? "true" : undefined}
+        onClick={() => onPick(sym)}
+        aria-current={sym === current ? "true" : undefined}
         className={`flex w-full items-center justify-between rounded px-2 py-1 text-left text-xs ${
-          s === current ? "bg-accent/15 font-semibold text-ink" : "text-ink hover:bg-panel2"
+          sym === current ? "bg-accent/15 font-semibold text-ink" : "text-ink hover:bg-panel2"
         }`}
       >
-        <span className="truncate">{s}</span>
+        <span className="truncate">{sym}</span>
         {right}
       </button>
     </li>
   );
-  return (
-    <aside aria-label="Stocks to chart" className="hidden min-w-0 space-y-3 lg:block">
-      <section className="rounded-lg border border-line bg-panel p-2">
-        <h2 className="mb-1 px-2 text-xs font-semibold text-ink">
-          {active.name} ({active.symbols.length})
+  const section = (id: string, title: string, count: number, body: React.ReactNode) => {
+    const isOpen = shown.includes(id);
+    return (
+      <section key={id} className="rounded-lg border border-line bg-panel">
+        <h2>
+          <button
+            type="button"
+            aria-expanded={isOpen}
+            onClick={() => toggle(id)}
+            className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-semibold text-ink hover:text-accent"
+          >
+            <span aria-hidden="true" className={`inline-block text-mute transition-transform ${isOpen ? "rotate-90" : ""}`}>
+              ›
+            </span>
+            <span className="min-w-0 flex-1 truncate">{title}</span>
+            <span className="font-normal tabular-nums text-mute">{count}</span>
+          </button>
         </h2>
-        {active.symbols.length === 0 ? (
-          <p className="px-2 py-1 text-[11px] text-mute">Star a stock to add it here.</p>
+        {isOpen ? <div className="border-t border-line p-1.5">{body}</div> : null}
+      </section>
+    );
+  };
+  return (
+    <aside aria-label="Stocks to chart" className="hidden min-w-0 space-y-2 lg:block">
+      {lists.map((l) =>
+        section(
+          l.id,
+          l.name,
+          l.symbols.length,
+          l.symbols.length === 0 ? (
+            <p className="px-2 py-1 text-[11px] text-mute">Star a stock to add it here.</p>
+          ) : (
+            <ul className="max-h-64 overflow-y-auto">{l.symbols.map((sym) => item(sym, null))}</ul>
+          ),
+        ),
+      )}
+      {section(
+        TOP_ID,
+        "Top VCP setups",
+        top.length,
+        top.length === 0 ? (
+          <p className="px-2 py-1 text-[11px] text-mute">No VCP setups on the latest scan.</p>
         ) : (
-          <ul className="max-h-64 overflow-y-auto">{active.symbols.map((s) => item(s, null))}</ul>
-        )}
-      </section>
-      <section className="rounded-lg border border-line bg-panel p-2">
-        <h2 className="mb-1 px-2 text-xs font-semibold text-ink">Top VCP setups</h2>
-        <ul className="max-h-[22rem] overflow-y-auto">
-          {top.slice(0, 15).map((r) => item(r.symbol, <span className="tabular-nums text-mute">{fmtNum(r.score, 0)}</span>))}
-        </ul>
-      </section>
+          <ul className="max-h-[24rem] overflow-y-auto">
+            {top.map((r) => item(r.symbol, <span className="tabular-nums text-mute">{fmtNum(r.score, 0)}</span>))}
+          </ul>
+        ),
+      )}
     </aside>
   );
 }

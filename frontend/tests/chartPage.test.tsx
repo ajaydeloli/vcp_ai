@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it } from "vitest";
 import { ChartPage } from "@/components/ChartPage";
 import { CHART_KEY } from "@/lib/chartSettings";
+import { WATCH_KEY } from "@/lib/watchlist";
 import { liveCharts, type FakeChart } from "./chartMock";
 import { fx, mockApi, renderApp } from "./helpers";
 
@@ -178,5 +179,33 @@ describe("chart page", () => {
     const lists = screen.getByRole("complementary", { name: "Stocks to chart" });
     const chartBox = screen.getByRole("region", { name: "Chart of NOSET" });
     expect(chartBox.compareDocumentPosition(lists) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it("the right panel lists every watch list and the top setups, each opening and closing", async () => {
+    window.localStorage.setItem(WATCH_KEY, JSON.stringify({
+      lists: [
+        { id: "a", name: "Leaders", symbols: ["ALPHA", "GAMMA"] },
+        { id: "b", name: "Banks", symbols: ["BETA"] },
+      ],
+      active: "a",
+    }));
+    mockApi();
+    renderApp(<ChartPage symbol="ALPHA" />);
+    const lists = await screen.findByRole("complementary", { name: "Stocks to chart" });
+    const leaders = within(lists).getByRole("button", { name: /Leaders/ });
+    const banks = within(lists).getByRole("button", { name: /Banks/ });
+    const top = within(lists).getByRole("button", { name: /Top VCP setups/ });
+    // at first the active list and the setups are open
+    expect(leaders).toHaveAttribute("aria-expanded", "true");
+    expect(banks).toHaveAttribute("aria-expanded", "false");
+    expect(top).toHaveAttribute("aria-expanded", "true");
+    expect(leaders).toHaveTextContent("2");
+    expect(await within(lists).findByRole("button", { name: /^BETA \d+$/ })).toBeInTheDocument(); // in the top setups, with its score
+    await userEvent.click(top);
+    expect(within(lists).queryByRole("button", { name: /^BETA/ })).not.toBeInTheDocument();
+    await userEvent.click(banks);
+    await userEvent.click(within(lists).getByRole("button", { name: "BETA" }));
+    await waitFor(() => expect(screen.getByTestId("chart-legend")).toHaveTextContent("BETA · 1D"));
+    expect(JSON.parse(window.localStorage.getItem("vcp-chart-lists-open") ?? "[]")).toEqual(["a", "b"]);
   });
 });
