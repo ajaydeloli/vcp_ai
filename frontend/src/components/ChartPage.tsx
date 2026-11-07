@@ -425,14 +425,23 @@ function SideBar({
     { id: "lists", label: "Watch lists", title: "Watch lists and top VCP setups" },
   ];
   const floating = !dock && open !== "none";
-  // a floating panel closes with Escape (a pinned one stays)
+  // a floating panel closes with Escape or a click anywhere outside the sidebar (a pinned one
+  // stays); clicks on the tabs are inside, so they still switch panels
+  const wrap = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!floating) return;
     const key = (e: KeyboardEvent) => {
       if (e.key === "Escape" && !document.querySelector("[role=dialog]")) onMode("none");
     };
+    const away = (e: MouseEvent) => {
+      if (wrap.current && !wrap.current.contains(e.target as Node)) onMode("none");
+    };
     document.addEventListener("keydown", key);
-    return () => document.removeEventListener("keydown", key);
+    document.addEventListener("mousedown", away);
+    return () => {
+      document.removeEventListener("keydown", key);
+      document.removeEventListener("mousedown", away);
+    };
   }, [floating, onMode]);
   const body = open === "lists" ? lists : symbol && open !== "none" ? <TabBody tab={open as SideTab} symbol={symbol} bare={floating} /> : null;
   // how wide a floating panel may grow: tables and charts need more room than lists
@@ -446,7 +455,7 @@ function SideBar({
         : "lg:max-w-[26rem]";
   const width = open === "fundamentals" || open === "history" ? "lg:w-[30rem]" : open === "lists" ? "lg:w-[13rem]" : "lg:w-[18rem]";
   return (
-    <div className="relative flex min-w-0 flex-col-reverse gap-2 lg:flex-row lg:items-start">
+    <div ref={wrap} className="relative flex min-w-0 flex-col-reverse gap-2 lg:flex-row lg:items-start">
       {body ? (
         <div
           id="side-panel"
@@ -460,24 +469,18 @@ function SideBar({
               : width
           }`}
         >
-          <div className="mb-1 hidden justify-end gap-1 lg:flex">
+          <div className="hidden h-5 justify-end lg:flex">
             <button
               type="button"
               aria-pressed={dock}
+              aria-label={dock ? "Unpin the panel" : "Pin the panel"}
               onClick={() => onDock(!dock)}
-              title={dock ? "Float over the chart (the chart keeps its full width)" : "Pin beside the chart (the chart gets narrower)"}
-              className={`rounded border px-1.5 py-0.5 text-[11px] ${dock ? "border-accent bg-accent text-white" : "border-line bg-panel text-mute hover:border-accent hover:text-ink"}`}
+              title={dock ? "Pinned beside the chart. Click to float it over the chart again" : "Pin beside the chart (the chart gets narrower)"}
+              className={`flex h-5 w-5 items-center justify-center rounded ${dock ? "bg-accent text-white" : "text-mute hover:bg-panel2 hover:text-ink"}`}
             >
-              {dock ? "Pinned" : "Pin"}
-            </button>
-            <button
-              type="button"
-              onClick={() => onMode("none")}
-              aria-label="Close the side panel"
-              title="Close (Esc)"
-              className="rounded border border-line bg-panel px-1.5 py-0.5 text-[11px] text-mute hover:border-accent hover:text-ink"
-            >
-              ✕
+              <svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true" fill={dock ? "currentColor" : "none"} stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round">
+                <path d="M10.5 1.5l4 4-2 1-2.5 2.5.5 3-1.5 1.5-2.5-2.5L3 14.5l-1-1 3.5-3.5L3 7.5 4.5 6l3 .5L10 4z" />
+              </svg>
             </button>
           </div>
           <div className={floating ? "lg:min-h-0 lg:flex-1 lg:overflow-y-auto" : ""}>{body}</div>

@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Chart page: a floating side panel closes on a click anywhere outside the sidebar (or Esc); the ✕ button is gone, and Pin is a small pin icon in the panel's top right corner (filled when pinned).
 - Chart page: the Trend, Score, Fundamentals, Notes and History panels look plain like VCP and Watch lists (no coloured card border or tint; the Stock Analysis page keeps its colours).
 - Chart page: the floating side panel now starts at the top of the chart card (it was below the toolbar), the same height as the card.
 - Chart page: the floating **Fundamentals** panel is as wide as its quarterly results and shareholding tables need (up to the screen width), so they no longer scroll sideways.

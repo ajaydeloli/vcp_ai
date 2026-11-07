@@ -37,6 +37,8 @@ describe("chart page", () => {
     expect(screen.getByRole("button", { name: "Log" }).className).toMatch(/\bbg-accent\b/);
     expect(screen.getByRole("button", { name: "Log" })).toHaveAttribute("aria-pressed", "true");
     await userEvent.click(screen.getByRole("button", { name: "Log" }));
+    // those clicks were outside the floating panel and closed it: open the VCP tab again
+    await userEvent.click(screen.getByRole("button", { name: "VCP" }));
     expect(screen.getByRole("button", { name: /Indicators \(8\)/ })).toBeInTheDocument();
     // the RS line against the Nifty 500 (the default benchmark), in its own pane
     await waitFor(() => expect(byScale("rs")[0]!.data.length).toBeGreaterThan(0));
@@ -226,7 +228,7 @@ describe("chart page", () => {
     expect(JSON.parse(window.localStorage.getItem("vcp-chart-lists-open") ?? "[]")).toEqual(["a", "b"]);
   });
 
-  it("the open panel floats over the chart (Esc closes it), or can be pinned beside it", async () => {
+  it("the open panel floats over the chart (Esc or a click outside closes it), or can be pinned beside it", async () => {
     mockApi();
     renderApp(<ChartPage symbol="ALPHA" />);
     const panel = await screen.findByTestId("side-panel");
@@ -237,19 +239,25 @@ describe("chart page", () => {
     expect(panel.className).toMatch(/lg:top-0\b/); // as high as the chart card
     expect(panel.className).toMatch(/lg:w-max/);
     expect(panel.className).not.toMatch(/lg:w-\[18rem\]/);
-    await userEvent.click(screen.getByRole("button", { name: "Pin" }));
+    expect(screen.queryByRole("button", { name: "Close the side panel" })).not.toBeInTheDocument();
+    // a click inside the panel or on a tab keeps it; a click on the chart closes it
+    await userEvent.click(await within(panel).findByText("Score"));
+    expect(screen.getByTestId("side-panel")).toBeInTheDocument();
+    await userEvent.click(screen.getByTestId("chart-legend"));
+    expect(screen.queryByTestId("side-panel")).not.toBeInTheDocument();
+    // pinned: it stays on Escape and on a click outside
+    await userEvent.click(screen.getByRole("button", { name: "VCP" }));
+    await userEvent.click(screen.getByRole("button", { name: "Pin the panel" }));
     expect(screen.getByTestId("side-panel")).toHaveAttribute("data-floating", "false");
     expect(JSON.parse(window.localStorage.getItem(CHART_KEY) ?? "{}").sideDock).toBe(true);
-    await userEvent.keyboard("{Escape}"); // a pinned panel stays
+    await userEvent.keyboard("{Escape}");
+    await userEvent.click(screen.getByTestId("chart-legend"));
     expect(screen.getByTestId("side-panel")).toBeInTheDocument();
-    await userEvent.click(screen.getByRole("button", { name: "Pinned" }));
+    await userEvent.click(screen.getByRole("button", { name: "Unpin the panel" }));
     expect(screen.getByTestId("side-panel")).toHaveAttribute("data-floating", "true");
     await userEvent.keyboard("{Escape}");
     expect(screen.queryByTestId("side-panel")).not.toBeInTheDocument();
     expect(within(screen.getByRole("group", { name: "Side panels" })).getByRole("button", { name: "VCP" })).toHaveAttribute("aria-pressed", "false");
-    await userEvent.click(screen.getByRole("button", { name: "Watch lists" }));
-    await userEvent.click(screen.getByRole("button", { name: "Close the side panel" }));
-    expect(screen.queryByTestId("side-panel")).not.toBeInTheDocument();
   });
 
   it("the Stock Analysis cards are sidebar tabs; the VCP tab has the pattern merged in", async () => {
