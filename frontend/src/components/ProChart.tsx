@@ -164,7 +164,8 @@ export function ProChart({ symbol, bars, setup, settings, benchmark = null, rsRa
     h.current = {
       chart,
       candles: chart.addCandlestickSeries({ borderVisible: false }),
-      bars: chart.addBarSeries({ visible: false }),
+      // OHLC bars a little thicker than the library's thin default
+      bars: chart.addBarSeries({ visible: false, thinBars: false }),
       line: chart.addLineSeries({ lineWidth: 2, visible: false, priceLineVisible: false }),
       area: chart.addAreaSeries({ lineWidth: 2, visible: false, priceLineVisible: false }),
       averages: new Map(),
@@ -214,9 +215,11 @@ export function ProChart({ symbol, bars, setup, settings, benchmark = null, rsRa
       visible: candleLike,
       upColor: type === "hollow" ? "rgba(0,0,0,0)" : col.up,
       downColor: col.down,
-      borderVisible: type === "hollow",
-      borderUpColor: col.up,
-      borderDownColor: col.down,
+      // the body border has its own colours (the same as the body by default); hollow candles
+      // are drawn by their border alone
+      borderVisible: true,
+      borderUpColor: col.borderUp,
+      borderDownColor: col.borderDown,
       wickUpColor: col.wickUp,
       wickDownColor: col.wickDown,
     });

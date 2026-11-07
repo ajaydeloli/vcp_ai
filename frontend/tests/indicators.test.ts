@@ -90,7 +90,7 @@ describe("chart indicators", () => {
     expect(s.params.rsi).toEqual({ period: 9, upper: 70, lower: 20 });
     expect(s.params.macd).toEqual(DEFAULT_PARAMS.macd); // fast must be below slow
     expect(s.params.bb).toEqual({ period: 20, mult: 2.5 });
-    expect(s.colors).toEqual({ ...DEFAULT_COLORS, up: "#00ff00" });
+    expect(s.colors).toEqual({ ...DEFAULT_COLORS, up: "#00ff00", borderUp: "#00ff00" }); // the border follows an older body colour
   });
 
   it("the RS line is the stock over the index, 100 at its start, per week at the week's last session", () => {

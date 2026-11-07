@@ -50,6 +50,8 @@ export type Toggle = (typeof TOGGLES)[number]["id"];
 export const COLOR_KEYS = [
   { id: "up", label: "Candle up" },
   { id: "down", label: "Candle down" },
+  { id: "borderUp", label: "Border up" },
+  { id: "borderDown", label: "Border down" },
   { id: "wickUp", label: "Wick up" },
   { id: "wickDown", label: "Wick down" },
   { id: "line", label: "Line and area" },
@@ -70,6 +72,8 @@ export type Colors = Record<ColorKey, string>;
 export const DEFAULT_COLORS: Colors = {
   up: "#26c281",
   down: "#ef5350",
+  borderUp: "#26c281",
+  borderDown: "#ef5350",
   wickUp: "#26c281",
   wickDown: "#ef5350",
   line: "#8ab4ff",
@@ -201,6 +205,9 @@ export function parseColors(v: unknown): Colors {
   const c = obj(v);
   const out = { ...DEFAULT_COLORS };
   for (const { id } of COLOR_KEYS) if (isHex(c[id])) out[id] = c[id] as string;
+  // colours saved before candle borders could be set: the border follows the body
+  if (!isHex(c.borderUp)) out.borderUp = out.up;
+  if (!isHex(c.borderDown)) out.borderDown = out.down;
   return out;
 }
 

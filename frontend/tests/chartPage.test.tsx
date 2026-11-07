@@ -68,6 +68,7 @@ describe("chart page", () => {
     expect(screen.getByTestId("chart-legend")).toHaveTextContent("ALPHA · 1W · NSE");
     await userEvent.selectOptions(screen.getByLabelText("Chart type"), "ohlc");
     await waitFor(() => expect(chart().of("bars")[0]!.options.visible).toBe(true));
+    expect(chart().of("bars")[0]!.options.thinBars).toBe(false); // slightly thick OHLC bars
     expect(candles().options.visible).toBe(false);
     expect(chart().of("bars")[0]!.priceLines.map((l) => l.title)).toEqual(["Pivot", "Stop"]);
 
@@ -167,6 +168,11 @@ describe("chart page", () => {
     fireEvent.change(within(menu).getByLabelText("Pivot line colour"), { target: { value: "#ff00ff" } });
     await waitFor(() => expect(candles().options.upColor).toBe("#0000ff"));
     expect(candles().options.wickDownColor).toBe("#ffff00");
+    fireEvent.change(within(menu).getByLabelText("Border up colour"), { target: { value: "#ffffff" } });
+    fireEvent.change(within(menu).getByLabelText("Border down colour"), { target: { value: "#000000" } });
+    await waitFor(() => expect(candles().options.borderUpColor).toBe("#ffffff"));
+    expect(candles().options.borderDownColor).toBe("#000000");
+    expect(candles().options.borderVisible).toBe(true);
     expect(candles().priceLines.find((l) => l.title === "Pivot")!.color).toBe("#ff00ff");
     expect(JSON.parse(window.localStorage.getItem(CHART_KEY) ?? "{}").colors.up).toBe("#0000ff");
     await userEvent.click(within(menu).getByRole("button", { name: "Reset colours" }));
