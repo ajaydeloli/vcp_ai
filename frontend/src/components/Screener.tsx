@@ -442,6 +442,11 @@ export function Screener() {
     setQuery({ ...DEFAULT_QUERY, strategy: p.strategy, pageSize: p.pageSize });
     setShowFundamentals(p.showFundamentals);
   }, []);
+  useEffect(() => {
+    // rows per page changed in the preferences: follow it at once, from the first page
+    const size = currentPrefs().pageSize;
+    setQuery((q) => (q.pageSize === size ? q : { ...q, pageSize: size, page: 1 }));
+  }, [prefs.pageSize]);
   const strategies = useStrategies();
   const strategyIds = strategies.data?.strategies.map((x) => x.strategy_id) ?? ["vcp"];
   const result = useScreener(query);

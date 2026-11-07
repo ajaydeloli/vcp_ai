@@ -6,7 +6,7 @@
 // the column set; every filter applies in both views. Display only.
 import { useEffect, useState } from "react";
 import { useFundamentals } from "@/lib/api";
-import { currentPrefs } from "@/lib/prefs";
+import { currentPrefs, usePrefs } from "@/lib/prefs";
 import { DASH, fmtDay, fmtInt, fmtNum, fmtPct, tone } from "@/lib/fmt";
 import { DEFAULT_FUNDAMENTALS_QUERY, SUPPORTING_NOTE, fmtPp, quarterLabel, statusText, type FundamentalsQuery } from "@/lib/fundamentals";
 import type { FundamentalsRow } from "@/lib/schemas";
@@ -333,13 +333,15 @@ function Filters({ q, onChange, onReset }: { q: FundamentalsQuery; onChange: (n:
 
 export function FundamentalsPage() {
   const [query, setQuery] = useState<FundamentalsQuery>(DEFAULT_FUNDAMENTALS_QUERY);
-  // rows per page as on the Screener (the preference), read once the browser's storage is
+  // rows per page as on the Screener (the preference): read from the browser's storage at the
+  // start and again whenever the preference changes
+  const prefSize = usePrefs().prefs.pageSize;
   const [pageSize, setPageSize] = useState(DEFAULT_FUNDAMENTALS_QUERY.pageSize);
   useEffect(() => {
     const size = currentPrefs().pageSize;
     setPageSize(size);
-    setQuery((q) => ({ ...q, pageSize: size, page: 1 }));
-  }, []);
+    setQuery((q) => (q.pageSize === size ? q : { ...q, pageSize: size, page: 1 }));
+  }, [prefSize]);
   const result = useFundamentals(query);
   const data = result.data;
   const change = (next: Partial<FundamentalsQuery>) => setQuery((q) => ({ ...q, ...next, page: 1 }));

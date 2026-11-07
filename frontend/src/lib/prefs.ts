@@ -26,7 +26,11 @@ export type Prefs = {
   startPage: string;
 };
 
-export const PAGE_SIZES = [15, 25, 50, 100];
+/** rows per page: any whole number in this range (the API serves at most 100 a page) */
+export const PAGE_SIZE_MIN = 5;
+export const PAGE_SIZE_MAX = 100;
+export const validPageSize = (n: unknown): n is number =>
+  typeof n === "number" && Number.isInteger(n) && n >= PAGE_SIZE_MIN && n <= PAGE_SIZE_MAX;
 export const START_PAGES: [string, string][] = [
   ["/dashboard", "Market Overview"],
   ["/screener", "Screener"],
@@ -60,7 +64,7 @@ export function parsePrefs(raw: string): Prefs {
   return {
     theme: pick(["dark", "light", "system"].includes(v.theme as string), v.theme, DEFAULT_PREFS.theme),
     strategy: pick(typeof v.strategy === "string" && /^[a-z_]{1,40}$/.test(v.strategy), v.strategy, DEFAULT_PREFS.strategy),
-    pageSize: pick(PAGE_SIZES.includes(v.pageSize as number), v.pageSize, DEFAULT_PREFS.pageSize),
+    pageSize: pick(validPageSize(v.pageSize), v.pageSize, DEFAULT_PREFS.pageSize),
     hiddenCols: Array.isArray(v.hiddenCols) ? v.hiddenCols.filter((c): c is string => typeof c === "string") : DEFAULT_PREFS.hiddenCols,
     showFundamentals: pick(typeof v.showFundamentals === "boolean", v.showFundamentals, DEFAULT_PREFS.showFundamentals),
     numbers: pick(v.numbers === "in" || v.numbers === "intl", v.numbers, DEFAULT_PREFS.numbers),

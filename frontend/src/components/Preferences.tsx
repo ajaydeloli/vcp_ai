@@ -6,7 +6,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useStrategies } from "@/lib/api";
 import { strategyLabel } from "@/lib/fmt";
-import { PAGE_SIZES, START_PAGES, type Numbers, type Theme, usePrefs } from "@/lib/prefs";
+import { PAGE_SIZE_MAX, PAGE_SIZE_MIN, START_PAGES, type Numbers, type Theme, usePrefs } from "@/lib/prefs";
 
 /** Screener columns that can be hidden (rank, star and symbol always show). Keys of COLS in Screener.tsx. */
 export const HIDEABLE_COLS: [string, string][] = [
@@ -109,13 +109,7 @@ function Panel({ onClose }: { onClose: () => void }) {
         </label>
         <label className="flex items-center justify-between gap-3 text-xs text-mute">
           Rows per page
-          <select className={field} value={prefs.pageSize} onChange={(e) => set({ pageSize: Number(e.target.value) })}>
-            {PAGE_SIZES.map((n) => (
-              <option key={n} value={n}>
-                {n}
-              </option>
-            ))}
-          </select>
+          <PageSizeInput value={prefs.pageSize} onChange={(pageSize) => set({ pageSize })} />
         </label>
         <label className="flex items-center gap-2 text-xs text-mute">
           <input type="checkbox" checked={prefs.showFundamentals} onChange={(e) => set({ showFundamentals: e.target.checked })} />
@@ -177,5 +171,40 @@ export function PreferencesButton() {
       </button>
       {open ? <Panel onClose={() => setOpen(false)} /> : null}
     </div>
+  );
+}
+
+/** Rows per page: type any whole number from PAGE_SIZE_MIN to PAGE_SIZE_MAX. A number in range
+ * applies as it is typed; leaving the box puts anything else back into the range. */
+function PageSizeInput({ value, onChange }: { value: number; onChange: (n: number) => void }) {
+  const [draft, setDraft] = useState(String(value));
+  useEffect(() => setDraft(String(value)), [value]);
+  const settle = () => {
+    const n = Math.round(Number(draft));
+    const ok = Number.isFinite(n) && draft.trim() !== "" ? Math.min(PAGE_SIZE_MAX, Math.max(PAGE_SIZE_MIN, n)) : value;
+    setDraft(String(ok));
+    if (ok !== value) onChange(ok);
+  };
+  return (
+    <input
+      type="number"
+      inputMode="numeric"
+      min={PAGE_SIZE_MIN}
+      max={PAGE_SIZE_MAX}
+      step={1}
+      aria-label="Rows per page"
+      title={`${PAGE_SIZE_MIN} to ${PAGE_SIZE_MAX}`}
+      className={`${field} w-20 text-right`}
+      value={draft}
+      onChange={(e) => {
+        setDraft(e.target.value);
+        const n = Number(e.target.value);
+        if (Number.isInteger(n) && n >= PAGE_SIZE_MIN && n <= PAGE_SIZE_MAX && n !== value) onChange(n);
+      }}
+      onBlur={settle}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") settle();
+      }}
+    />
   );
 }

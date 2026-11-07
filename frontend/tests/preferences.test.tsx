@@ -44,6 +44,25 @@ describe("preferences", () => {
     expect(stored()).toEqual(DEFAULT_PREFS);
   });
 
+  it("rows per page is typed: any whole number from 5 to 100", async () => {
+    const calls = mockApi();
+    renderApp(<Screener />);
+    await userEvent.click(screen.getByRole("button", { name: "Preferences" }));
+    const box = within(screen.getByRole("dialog", { name: "Preferences" })).getByRole("spinbutton", { name: "Rows per page" });
+    await userEvent.clear(box);
+    await userEvent.type(box, "20");
+    expect(stored().pageSize).toBe(20);
+    await waitFor(() => expect(calls.some((c) => c.startsWith("screener") && c.includes("page_size=20"))).toBe(true));
+    await userEvent.clear(box);
+    await userEvent.type(box, "300{Enter}");
+    expect(stored().pageSize).toBe(100);
+    expect(box).toHaveValue(100);
+    await userEvent.clear(box);
+    await userEvent.type(box, "2");
+    await userEvent.tab();
+    expect(stored().pageSize).toBe(5);
+  });
+
   it("the Screener opens with the preferred rows per page", async () => {
     window.localStorage.setItem(PREFS_KEY, JSON.stringify({ pageSize: 50 }));
     const calls = mockApi();
@@ -61,7 +80,7 @@ describe("preferences", () => {
 
   it("reads damaged or unknown values as the defaults", () => {
     expect(parsePrefs("not json")).toEqual(DEFAULT_PREFS);
-    expect(parsePrefs(JSON.stringify({ theme: "pink", pageSize: 7, startPage: "/evil", strategy: "Bad Name!" }))).toEqual(DEFAULT_PREFS);
+    expect(parsePrefs(JSON.stringify({ theme: "pink", pageSize: 500, startPage: "/evil", strategy: "Bad Name!" }))).toEqual(DEFAULT_PREFS);
   });
 
   it("every hideable column is a real Screener column", () => {
