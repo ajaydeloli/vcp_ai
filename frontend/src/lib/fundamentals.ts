@@ -25,7 +25,8 @@ export type FundamentalsQuery = {
   pageSize: number;
 };
 
-export const PAGE_SIZE_FUNDAMENTALS = 25;
+// the Screener's default; the page then follows the Rows per page preference
+export const PAGE_SIZE_FUNDAMENTALS = 15;
 
 export const DEFAULT_FUNDAMENTALS_QUERY: FundamentalsQuery = {
   q: "",

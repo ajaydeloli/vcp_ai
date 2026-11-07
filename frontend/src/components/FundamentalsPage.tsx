@@ -4,8 +4,9 @@
 // §17): every universe stock's latest fundamentals, sortable and filterable on the server.
 // Period end and publication date are separate columns. A Results / Shareholding switch picks
 // the column set; every filter applies in both views. Display only.
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useFundamentals } from "@/lib/api";
+import { currentPrefs } from "@/lib/prefs";
 import { DASH, fmtDay, fmtInt, fmtNum, fmtPct, tone } from "@/lib/fmt";
 import { DEFAULT_FUNDAMENTALS_QUERY, SUPPORTING_NOTE, fmtPp, quarterLabel, statusText, type FundamentalsQuery } from "@/lib/fundamentals";
 import type { FundamentalsRow } from "@/lib/schemas";
@@ -332,6 +333,13 @@ function Filters({ q, onChange, onReset }: { q: FundamentalsQuery; onChange: (n:
 
 export function FundamentalsPage() {
   const [query, setQuery] = useState<FundamentalsQuery>(DEFAULT_FUNDAMENTALS_QUERY);
+  // rows per page as on the Screener (the preference), read once the browser's storage is
+  const [pageSize, setPageSize] = useState(DEFAULT_FUNDAMENTALS_QUERY.pageSize);
+  useEffect(() => {
+    const size = currentPrefs().pageSize;
+    setPageSize(size);
+    setQuery((q) => ({ ...q, pageSize: size, page: 1 }));
+  }, []);
   const result = useFundamentals(query);
   const data = result.data;
   const change = (next: Partial<FundamentalsQuery>) => setQuery((q) => ({ ...q, ...next, page: 1 }));
@@ -342,7 +350,7 @@ export function FundamentalsPage() {
       <Nav active="Fundamentals" />
       <main className="min-w-0 flex-1 space-y-4 p-4 pb-16">
         <h1 className="sr-only">Fundamentals</h1>
-        <Filters q={query} onChange={change} onReset={() => setQuery(DEFAULT_FUNDAMENTALS_QUERY)} />
+        <Filters q={query} onChange={change} onReset={() => setQuery({ ...DEFAULT_FUNDAMENTALS_QUERY, pageSize })} />
         <Card
           title={view === "results" ? "Latest quarter of every universe stock" : "Latest shareholding pattern of every universe stock"}
           subtitle={
