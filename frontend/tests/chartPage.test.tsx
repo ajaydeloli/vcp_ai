@@ -1,4 +1,4 @@
-import { act, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it } from "vitest";
 import { ChartPage } from "@/components/ChartPage";
@@ -61,7 +61,7 @@ describe("chart page", () => {
 
     await userEvent.click(screen.getByRole("button", { name: /Indicators/ }));
     const menu = screen.getByRole("dialog", { name: "Indicators" });
-    await userEvent.click(within(menu).getByLabelText(/RSI \(14\)/));
+    await userEvent.click(within(menu).getByLabelText("RSI"));
     const rsiLine = byScale("rsi").find((s) => s.kind === "line")!;
     await waitFor(() => expect(rsiLine.options.visible).toBe(true));
     expect(rsiLine.priceLines.map((l) => l.price)).toEqual([70, 30]);
@@ -74,7 +74,7 @@ describe("chart page", () => {
     await userEvent.click(screen.getByRole("button", { name: "Log" }));
     const saved = JSON.parse(window.localStorage.getItem(CHART_KEY) ?? "{}");
     expect(saved).toMatchObject({ interval: "W", type: "ohlc", range: "5Y", log: true, benchmark: "Nifty 50" });
-    expect(saved.indicators).toContain("rsi");
+    expect(saved.toggles).toContain("rsi");
   });
 
   it("the legend follows the crosshair", async () => {
@@ -94,5 +94,69 @@ describe("chart page", () => {
     const lists = screen.getByRole("complementary", { name: "Stocks to chart" });
     await userEvent.click(within(lists).getByRole("button", { name: /BETA/ }));
     await waitFor(() => expect(screen.getByTestId("chart-legend")).toHaveTextContent("BETA · 1D"));
+  });
+
+  it("every indicator is configurable: a 20-bar volume average, a new EMA, RSI lines", async () => {
+    mockApi();
+    renderApp(<ChartPage symbol="ALPHA" />);
+    await waitFor(() => expect(candles().data).toHaveLength(fx.bars.bars.length));
+    const legend = screen.getByTestId("chart-legend");
+    expect(legend).toHaveTextContent("Vol SMA 50");
+    await userEvent.click(screen.getByRole("button", { name: /Indicators/ }));
+    const menu = screen.getByRole("dialog", { name: "Indicators" });
+    const volma = byScale("vol").find((s) => s.kind === "line")!;
+    const before = volma.data.length;
+    const period = within(menu).getByLabelText("Volume average period");
+    await userEvent.clear(period);
+    await userEvent.type(period, "20");
+    await waitFor(() => expect(legend).toHaveTextContent("Vol SMA 20"));
+    expect(volma.data.length).toBe(before + 30); // a 20-bar average starts 30 bars sooner
+    await userEvent.selectOptions(within(menu).getByLabelText("Volume average type"), "EMA");
+    await waitFor(() => expect(legend).toHaveTextContent("Vol EMA 20"));
+
+    // a new moving average, set to EMA 13 in a colour of our choice
+    const lines = chart().of("line").length;
+    await userEvent.click(within(menu).getByRole("button", { name: "+ Add moving average" }));
+    await waitFor(() => expect(chart().of("line").length).toBe(lines + 1));
+    const rows = within(menu).getAllByTestId("average-row");
+    const n = rows.length;
+    await userEvent.selectOptions(within(menu).getByLabelText(`Average ${n} type`), "EMA");
+    const p = within(menu).getByLabelText(`Average ${n} period`);
+    await userEvent.clear(p);
+    await userEvent.type(p, "13");
+    fireEvent.change(within(menu).getByLabelText(`Average ${n} colour`), { target: { value: "#123456" } });
+    await waitFor(() => expect(legend).toHaveTextContent("EMA 13"));
+    expect(chart().of("line").at(-1)!.options.color).toBe("#123456");
+    await userEvent.click(within(menu).getByRole("button", { name: "Remove EMA 13" }));
+    await waitFor(() => expect(chart().of("line").length).toBe(lines));
+    expect(legend).not.toHaveTextContent("EMA 13");
+
+    // RSI with its own lines
+    await userEvent.click(within(menu).getByLabelText("RSI"));
+    const upper = within(menu).getByLabelText("RSI upper line");
+    await userEvent.clear(upper);
+    await userEvent.type(upper, "80");
+    const rsiLine = byScale("rsi").find((s) => s.kind === "line")!;
+    await waitFor(() => expect(rsiLine.priceLines.map((l) => l.price)).toEqual([80, 30]));
+    const saved = JSON.parse(window.localStorage.getItem(CHART_KEY) ?? "{}");
+    expect(saved.params.volMa).toEqual({ kind: "EMA", period: 20 });
+    expect(saved.params.rsi.upper).toBe(80);
+  });
+
+  it("the chart's colours can be changed and reset", async () => {
+    mockApi();
+    renderApp(<ChartPage symbol="ALPHA" />);
+    await waitFor(() => expect(candles().data).toHaveLength(fx.bars.bars.length));
+    await userEvent.click(screen.getByRole("button", { name: /Colours/ }));
+    const menu = screen.getByRole("dialog", { name: "Colours" });
+    fireEvent.change(within(menu).getByLabelText("Candle up colour"), { target: { value: "#0000ff" } });
+    fireEvent.change(within(menu).getByLabelText("Wick down colour"), { target: { value: "#ffff00" } });
+    fireEvent.change(within(menu).getByLabelText("Pivot line colour"), { target: { value: "#ff00ff" } });
+    await waitFor(() => expect(candles().options.upColor).toBe("#0000ff"));
+    expect(candles().options.wickDownColor).toBe("#ffff00");
+    expect(candles().priceLines.find((l) => l.title === "Pivot")!.color).toBe("#ff00ff");
+    expect(JSON.parse(window.localStorage.getItem(CHART_KEY) ?? "{}").colors.up).toBe("#0000ff");
+    await userEvent.click(within(menu).getByRole("button", { name: "Reset colours" }));
+    await waitFor(() => expect(candles().options.upColor).toBe("#26c281"));
   });
 });

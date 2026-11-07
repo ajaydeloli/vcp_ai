@@ -10,7 +10,6 @@ import {
   BENCHMARKS,
   CHART_TYPES,
   DEFAULT_CHART,
-  INDICATORS,
   loadChart,
   lastSymbol,
   rememberSymbol,
@@ -18,20 +17,19 @@ import {
   type Benchmark,
   type ChartSettings,
   type ChartType,
-  type IndicatorGroup,
 } from "@/lib/chartSettings";
 import { DASH, fmtNum, fmtPct, fmtPrice, sentence, tone } from "@/lib/fmt";
 import { CHART_RANGES, type ChartRange, type Interval } from "@/lib/indicators";
 import { useWatchlists } from "@/lib/watchlist";
 import type { StockSetup, StockSetups } from "@/lib/schemas";
 import { ChartLinks } from "./ChartLinks";
+import { BTN, ColorMenu, IndicatorMenu } from "./ChartMenus";
 import { Nav } from "./Nav";
 import { ProChart } from "./ProChart";
 import { StatusBar } from "./StatusBar";
 import { Card, Empty, ErrorBox, GradeBadge, Loading, StatusPill } from "./ui";
 import { WatchStar } from "./WatchStar";
 
-const BTN = "inline-flex h-8 items-center gap-1.5 rounded border border-line bg-panel2 px-2.5 text-xs text-ink hover:border-accent";
 const ON = "border-accent bg-accent text-white";
 const SELECT = "h-8 rounded border border-line bg-panel2 px-2 text-xs text-ink";
 
@@ -97,7 +95,7 @@ function ChartArea({
 }) {
   const bars = useBars(symbol);
   const stock = useStockSetups(symbol);
-  const rsOn = settings.indicators.includes("rs");
+  const rsOn = settings.toggles.includes("rs");
   const bench = useIndexCloses(settings.benchmark, rsOn);
   const ranks = useRsRanks(symbol, rsOn);
   const api = useRef<IChartApi | null>(null);
@@ -237,7 +235,8 @@ function Toolbar({
         </select>
       </label>
       <IndicatorMenu settings={settings} onChange={onChange} />
-      {settings.indicators.includes("rs") ? (
+      <ColorMenu settings={settings} onChange={onChange} />
+      {settings.toggles.includes("rs") ? (
         <label className="flex items-center gap-1.5 text-xs text-mute" title="The RS line divides the stock's close by this index">
           RS vs
           <select
@@ -271,80 +270,6 @@ function Toolbar({
           Full screen
         </button>
       </span>
-    </div>
-  );
-}
-
-const GROUPS: IndicatorGroup[] = ["Moving averages", "Bands", "Panes", "Setup"];
-
-/** The Indicators dropdown: a checkbox per indicator, grouped; closes on Escape or a click outside. */
-function IndicatorMenu({ settings, onChange }: { settings: ChartSettings; onChange: (p: Partial<ChartSettings>) => void }) {
-  const [open, setOpen] = useState(false);
-  const wrap = useRef<HTMLDivElement>(null);
-  const button = useRef<HTMLButtonElement>(null);
-  useEffect(() => {
-    if (!open) return;
-    const away = (e: MouseEvent) => {
-      if (wrap.current && !wrap.current.contains(e.target as Node)) setOpen(false);
-    };
-    const key = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        setOpen(false);
-        button.current?.focus();
-      }
-    };
-    document.addEventListener("mousedown", away);
-    document.addEventListener("keydown", key);
-    return () => {
-      document.removeEventListener("mousedown", away);
-      document.removeEventListener("keydown", key);
-    };
-  }, [open]);
-  const on = new Set(settings.indicators);
-  const toggle = (id: string) =>
-    onChange({ indicators: on.has(id) ? settings.indicators.filter((x) => x !== id) : [...settings.indicators, id] });
-  return (
-    <div ref={wrap} className="relative">
-      <button
-        ref={button}
-        type="button"
-        aria-haspopup="true"
-        aria-expanded={open}
-        onClick={() => setOpen((o) => !o)}
-        className={`${BTN} ${open ? "border-accent" : ""}`}
-      >
-        Indicators ({on.size}) <span aria-hidden="true">▾</span>
-      </button>
-      {open ? (
-        <div
-          role="dialog"
-          aria-label="Indicators"
-          className="absolute left-0 top-9 z-30 w-72 rounded-lg border border-line bg-panel p-3 text-xs shadow-xl"
-        >
-          {GROUPS.map((g) => (
-            <fieldset key={g} className="mb-2 last:mb-0">
-              <legend className="mb-1 text-[11px] uppercase tracking-wide text-mute">{g}</legend>
-              <div className={g === "Moving averages" ? "grid grid-cols-2 gap-x-2" : ""}>
-                {INDICATORS.filter((i) => i.group === g).map((i) => (
-                  <label key={i.id} className="flex cursor-pointer items-center gap-2 py-0.5 text-ink">
-                    <input type="checkbox" checked={on.has(i.id)} onChange={() => toggle(i.id)} />
-                    <span aria-hidden="true" className="inline-block h-0.5 w-3" style={{ background: i.color }} />
-                    {i.label}
-                  </label>
-                ))}
-              </div>
-            </fieldset>
-          ))}
-          <div className="mt-2 flex justify-between border-t border-line pt-2">
-            <button type="button" className="text-accent hover:underline" onClick={() => onChange({ indicators: DEFAULT_CHART.indicators })}>
-              Reset to defaults
-            </button>
-            <button type="button" className="text-mute hover:text-ink" onClick={() => onChange({ indicators: [] })}>
-              Clear all
-            </button>
-          </div>
-        </div>
-      ) : null}
     </div>
   );
 }

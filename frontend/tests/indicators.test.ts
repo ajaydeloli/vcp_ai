@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DEFAULT_CHART, parseChart } from "@/lib/chartSettings";
+import { DEFAULT_CHART, DEFAULT_COLORS, DEFAULT_PARAMS, parseChart } from "@/lib/chartSettings";
 import { aggregate, bollinger, ema, heikinAshi, lastPerBar, macd, periodOf, rangeStart, rsi, rsLabels, rsLine, rsNewHighs, sma, weekKey, type OBar } from "@/lib/indicators";
 
 const bar = (day: string, o: number, h: number, l: number, c: number, v = 100): OBar => ({ day, open: o, high: h, low: l, close: c, volume: v });
@@ -70,9 +70,27 @@ describe("chart indicators", () => {
   it("saved settings are checked; anything unknown falls back to the defaults", () => {
     expect(parseChart(null)).toEqual(DEFAULT_CHART);
     expect(parseChart("not json")).toEqual(DEFAULT_CHART);
-    expect(parseChart(JSON.stringify({ interval: "W", type: "area", range: "5Y", indicators: ["rsi", "nope"], log: true })))
-      .toEqual({ interval: "W", type: "area", range: "5Y", indicators: ["rsi"], log: true, benchmark: "Nifty 500" });
     expect(parseChart(JSON.stringify({ interval: "X", type: "pie" })).interval).toBe("D");
+    // the older format (one list of ids): its averages and toggles carry over
+    const old = parseChart(JSON.stringify({ interval: "W", type: "area", range: "5Y", indicators: ["rsi", "sma20", "nope"], log: true }));
+    expect(old).toMatchObject({ interval: "W", type: "area", range: "5Y", log: true, benchmark: "Nifty 500", toggles: ["rsi"] });
+    expect(old.averages.filter((a) => a.on).map((a) => a.id)).toEqual(["sma20"]);
+    // the current format: bad periods, colours and parameters fall back one by one
+    const s = parseChart(JSON.stringify({
+      averages: [{ id: "a", kind: "EMA", period: 13, color: "#123456", on: true }, { id: "a", kind: "X", period: 0, color: "red" }],
+      toggles: ["volma", "volma", "bogus"],
+      params: { volMa: { kind: "EMA", period: 20 }, rsi: { period: 9, upper: 120, lower: 20 }, macd: { fast: 30, slow: 10, signal: 5 }, bb: { mult: 2.5 } },
+      colors: { up: "#00ff00", down: "nope" },
+    }));
+    expect(s.averages[0]).toEqual({ id: "a", kind: "EMA", period: 13, color: "#123456", on: true });
+    expect(s.averages[1]).toMatchObject({ kind: "SMA", period: 50, color: "#4aa3ff", on: true });
+    expect(s.averages[1]!.id).not.toBe("a");
+    expect(s.toggles).toEqual(["volma"]);
+    expect(s.params.volMa).toEqual({ kind: "EMA", period: 20 });
+    expect(s.params.rsi).toEqual({ period: 9, upper: 70, lower: 20 });
+    expect(s.params.macd).toEqual(DEFAULT_PARAMS.macd); // fast must be below slow
+    expect(s.params.bb).toEqual({ period: 20, mult: 2.5 });
+    expect(s.colors).toEqual({ ...DEFAULT_COLORS, up: "#00ff00" });
   });
 
   it("the RS line is the stock over the index, 100 at its start, per week at the week's last session", () => {

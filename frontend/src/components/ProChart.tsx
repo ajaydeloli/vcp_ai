@@ -1,9 +1,11 @@
 "use client";
 
 // The Chart page's chart (TradingView Lightweight Charts): daily, weekly or monthly bars as
-// candles, hollow candles, Heikin Ashi, OHLC bars, a line or an area; moving averages and
-// Bollinger bands on the price; volume, RSI and MACD in panes below it; the VCP setup's marks and
-// its pivot and stop. All series are made once; settings only change their data and visibility.
+// candles, hollow candles, Heikin Ashi, OHLC bars, a line or an area; any number of moving
+// averages and Bollinger bands on the price; the RS line, volume (and its average), RSI and MACD
+// in panes below it; the VCP setup's marks and its pivot and stop. Every period and colour comes
+// from the settings. The fixed series are made once; the averages are added and removed as the
+// settings change.
 import {
   LineStyle,
   PriceScaleMode,
@@ -15,8 +17,8 @@ import {
   type Time,
 } from "lightweight-charts";
 import { type MutableRefObject, useEffect, useMemo, useRef, useState } from "react";
-import { COLORS, buildMarkers, buildPriceLines } from "@/lib/chartData";
-import { INDICATORS, type ChartSettings } from "@/lib/chartSettings";
+import { buildMarkers, buildPriceLines } from "@/lib/chartData";
+import { fade, maLabel, type ChartSettings, type Colors, type Params } from "@/lib/chartSettings";
 import { fmtInt, fmtNum, fmtPct } from "@/lib/fmt";
 import {
   aggregate,
@@ -25,6 +27,7 @@ import {
   ema,
   heikinAshi,
   lastPerBar,
+  LABEL_GAP,
   macd,
   periodOf,
   rangeStart,
@@ -33,8 +36,7 @@ import {
   rsLine,
   rsNewHighs,
   sma,
-  LABEL_GAP,
-  YEAR_BARS,
+  type Interval,
   type OBar,
   type Series,
 } from "@/lib/indicators";
@@ -43,10 +45,13 @@ import type { Bar, StockSetup } from "@/lib/schemas";
 import { chartTheme } from "./ChartView";
 
 const RIGHT_GAP = 12; // empty bars after the last one: room for the "RS Rating NN" label
-const AVERAGE_IDS = ["sma10", "sma20", "sma30", "sma50", "sma150", "sma200", "ema10", "ema21", "ema50", "ema200"];
 const PANE_HEIGHT: Record<string, number> = { rs: 0.14, volume: 0.16, rsi: 0.14, macd: 0.16 };
-const PANES = ["rs", "volume", "rsi", "macd"];
-const color = (id: string) => INDICATORS.find((i) => i.id === id)?.color ?? COLORS.line;
+const PANES = ["rs", "volume", "rsi", "macd"] as const;
+const VOLUME_ALPHA = 0.45;
+
+/** The RS line's new-high lookback in bars, from the setting in weeks. */
+export const rsLookback = (weeks: number, interval: Interval) =>
+  interval === "D" ? weeks * 5 : interval === "W" ? weeks : Math.max(2, Math.round(weeks / 4.345));
 
 type Line = ISeriesApi<"Line">;
 type Handles = {
@@ -55,13 +60,14 @@ type Handles = {
   bars: ISeriesApi<"Bar">;
   line: Line;
   area: ISeriesApi<"Area">;
-  averages: Record<string, Line>;
+  averages: Map<string, Line>;
   bbUpper: Line;
   bbMid: Line;
   bbLower: Line;
   volume: ISeriesApi<"Histogram">;
   volma: Line;
   rsi: Line;
+  rsiLevels: IPriceLine[];
   rs: Line;
   macdHist: ISeriesApi<"Histogram">;
   macdLine: Line;
@@ -78,7 +84,6 @@ export type Computed = {
 };
 
 export type IndexClose = { day: string; close: number };
-
 export type RsRank = { day: string; rs_rank: number };
 
 export function compute(
@@ -90,21 +95,23 @@ export function compute(
   const daily = dailyBars(raw);
   const bars = aggregate(daily, s.interval);
   const closes: Series = bars.map((b) => b.close);
-  const on = new Set(s.indicators);
+  const on = new Set<string>(s.toggles);
+  const p = s.params;
   const lines: Record<string, Series> = {};
-  for (const id of AVERAGE_IDS) {
-    if (!on.has(id)) continue;
-    const n = Number(id.slice(3));
-    lines[id] = id.startsWith("sma") ? sma(closes, n) : ema(closes, n);
+  for (const a of s.averages) {
+    if (a.on) lines[a.id] = a.kind === "SMA" ? sma(closes, a.period) : ema(closes, a.period);
   }
   if (on.has("bb")) {
-    const b = bollinger(closes);
+    const b = bollinger(closes, p.bb.period, p.bb.mult);
     lines.bbUpper = b.upper;
     lines.bbMid = b.mid;
     lines.bbLower = b.lower;
   }
-  if (on.has("volma")) lines.volma = sma(bars.map((b) => b.volume), 50);
-  if (on.has("rsi")) lines.rsi = rsi(closes);
+  if (on.has("volma")) {
+    const vols = bars.map((b) => b.volume);
+    lines.volma = p.volMa.kind === "SMA" ? sma(vols, p.volMa.period) : ema(vols, p.volMa.period);
+  }
+  if (on.has("rsi")) lines.rsi = rsi(closes, p.rsi.period);
   if (on.has("rs") && benchmark && benchmark.length > 0) lines.rs = rsLine(daily, benchmark, bars, s.interval);
   if (on.has("rs") && ranks && ranks.length > 0) {
     lines.rsRank = lastPerBar(ranks.map((r) => ({ day: r.day, value: r.rs_rank })), daily, bars, s.interval);
@@ -113,7 +120,7 @@ export function compute(
     bars,
     drawn: s.type === "heikin" ? heikinAshi(bars) : bars,
     lines,
-    macd: on.has("macd") ? macd(closes) : null,
+    macd: on.has("macd") ? macd(closes, p.macd.fast, p.macd.slow, p.macd.signal) : null,
   };
 }
 
@@ -144,49 +151,36 @@ export function ProChart({ symbol, bars, setup, settings, benchmark = null, rsRa
   const theme = useResolvedTheme();
   const [hover, setHover] = useState<number | null>(null);
   const data = useMemo(() => compute(bars, settings, benchmark, rsRanks), [bars, settings, benchmark, rsRanks]);
-  const on = useMemo(() => new Set(settings.indicators), [settings.indicators]);
+  const on = useMemo(() => new Set<string>(settings.toggles), [settings.toggles]);
+  const col: Colors = settings.colors;
 
-  // the chart and every series, once
+  // the chart and its fixed series, once (colours and data come with the settings below)
   useEffect(() => {
     const el = box.current;
     if (!el) return;
     const chart = createChart(el, { ...chartTheme(), width: el.clientWidth, height: el.clientHeight || 520 });
     const quiet = { lastValueVisible: false, priceLineVisible: false, crosshairMarkerVisible: false };
-    const line = (c: string, opts: object = {}) => chart.addLineSeries({ color: c, lineWidth: 1, ...quiet, ...opts });
-    const averages: Record<string, Line> = {};
-    for (const id of AVERAGE_IDS) averages[id] = line(color(id), { visible: false });
-    const bb = color("bb");
+    const line = (opts: object = {}) => chart.addLineSeries({ lineWidth: 1, visible: false, ...quiet, ...opts });
     h.current = {
       chart,
-      candles: chart.addCandlestickSeries({
-        upColor: COLORS.up, downColor: COLORS.down, borderVisible: false,
-        wickUpColor: COLORS.up, wickDownColor: COLORS.down,
-      }),
-      bars: chart.addBarSeries({ upColor: COLORS.up, downColor: COLORS.down, visible: false }),
-      line: chart.addLineSeries({ color: COLORS.line, lineWidth: 2, visible: false, priceLineVisible: false }),
-      area: chart.addAreaSeries({
-        lineColor: COLORS.line, topColor: "rgba(138,180,255,0.35)", bottomColor: "rgba(138,180,255,0.02)",
-        lineWidth: 2, visible: false, priceLineVisible: false,
-      }),
-      averages,
-      bbUpper: line(bb, { visible: false, lineStyle: LineStyle.Dashed }),
-      bbMid: line(bb, { visible: false }),
-      bbLower: line(bb, { visible: false, lineStyle: LineStyle.Dashed }),
+      candles: chart.addCandlestickSeries({ borderVisible: false }),
+      bars: chart.addBarSeries({ visible: false }),
+      line: chart.addLineSeries({ lineWidth: 2, visible: false, priceLineVisible: false }),
+      area: chart.addAreaSeries({ lineWidth: 2, visible: false, priceLineVisible: false }),
+      averages: new Map(),
+      bbUpper: line({ lineStyle: LineStyle.Dashed }),
+      bbMid: line(),
+      bbLower: line({ lineStyle: LineStyle.Dashed }),
       volume: chart.addHistogramSeries({ priceFormat: { type: "volume" }, priceScaleId: "vol", ...quiet }),
-      volma: line(color("volma"), { priceScaleId: "vol", visible: false }),
-      rsi: line(color("rsi"), { priceScaleId: "rsi", visible: false }),
-      rs: line(color("rs"), { priceScaleId: "rs", visible: false, lineWidth: 2 }),
+      volma: line({ priceScaleId: "vol" }),
+      rsi: line({ priceScaleId: "rsi" }),
+      rsiLevels: [],
+      rs: line({ priceScaleId: "rs", lineWidth: 2 }),
       macdHist: chart.addHistogramSeries({ priceScaleId: "macd", visible: false, ...quiet }),
-      macdLine: line(color("macd"), { priceScaleId: "macd", visible: false }),
-      macdSignal: line("#ff9f1c", { priceScaleId: "macd", visible: false }),
+      macdLine: line({ priceScaleId: "macd" }),
+      macdSignal: line({ priceScaleId: "macd" }),
       priceLines: [],
     };
-    for (const lvl of [70, 30]) {
-      h.current.rsi.createPriceLine({
-        price: lvl, color: "rgba(160,160,160,0.6)", lineWidth: 1, lineStyle: LineStyle.Dashed,
-        axisLabelVisible: false, title: "",
-      });
-    }
     if (apiRef) apiRef.current = chart;
     const move = (p: { logical?: number }) => setHover(p.logical === undefined ? null : Math.round(p.logical));
     chart.subscribeCrosshairMove(move);
@@ -205,72 +199,115 @@ export function ProChart({ symbol, bars, setup, settings, benchmark = null, rsRa
     h.current?.chart.applyOptions(chartTheme());
   }, [theme]);
 
-  // data, visibility, panes, marks and the visible range
+  // data, colours, visibility, panes and marks
   useEffect(() => {
     const c = h.current;
     if (!c) return;
     const { bars: ob, drawn, lines } = data;
+    const p: Params = settings.params;
     const type = settings.type;
     const ohlc = drawn.map((b) => ({ time: b.day as Time, open: b.open, high: b.high, low: b.low, close: b.close }));
     const closes = drawn.map((b) => ({ time: b.day as Time, value: b.close }));
     const candleLike = type === "candles" || type === "hollow" || type === "heikin";
     c.candles.setData(candleLike ? ohlc : []);
-    c.candles.applyOptions(
-      type === "hollow"
-        ? { visible: true, upColor: "rgba(0,0,0,0)", borderVisible: true, borderUpColor: COLORS.up, borderDownColor: COLORS.down }
-        : { visible: candleLike, upColor: COLORS.up, borderVisible: false },
-    );
+    c.candles.applyOptions({
+      visible: candleLike,
+      upColor: type === "hollow" ? "rgba(0,0,0,0)" : col.up,
+      downColor: col.down,
+      borderVisible: type === "hollow",
+      borderUpColor: col.up,
+      borderDownColor: col.down,
+      wickUpColor: col.wickUp,
+      wickDownColor: col.wickDown,
+    });
     c.bars.setData(type === "ohlc" ? ohlc : []);
-    c.bars.applyOptions({ visible: type === "ohlc" });
+    c.bars.applyOptions({ visible: type === "ohlc", upColor: col.up, downColor: col.down });
     c.line.setData(type === "line" ? closes : []);
-    c.line.applyOptions({ visible: type === "line" });
+    c.line.applyOptions({ visible: type === "line", color: col.line });
     c.area.setData(type === "area" ? closes : []);
-    c.area.applyOptions({ visible: type === "area" });
+    c.area.applyOptions({
+      visible: type === "area",
+      lineColor: col.line,
+      topColor: fade(col.line, 0.35),
+      bottomColor: fade(col.line, 0.02),
+    });
     const main: ISeriesApi<SeriesType> =
       type === "ohlc" ? c.bars : type === "line" ? c.line : type === "area" ? c.area : c.candles;
 
-    for (const id of AVERAGE_IDS) {
-      c.averages[id]!.setData(points(ob, lines[id]));
-      c.averages[id]!.applyOptions({ visible: on.has(id) });
+    // moving averages: one series per average in the settings
+    const keep = new Set(settings.averages.map((a) => a.id));
+    for (const [id, s] of c.averages) {
+      if (!keep.has(id)) {
+        c.chart.removeSeries(s);
+        c.averages.delete(id);
+      }
+    }
+    for (const a of settings.averages) {
+      let s = c.averages.get(a.id);
+      if (!s) {
+        s = c.chart.addLineSeries({ lineWidth: 1, lastValueVisible: false, priceLineVisible: false, crosshairMarkerVisible: false });
+        c.averages.set(a.id, s);
+      }
+      s.setData(points(ob, lines[a.id]));
+      s.applyOptions({ visible: a.on, color: a.color });
     }
     c.bbUpper.setData(points(ob, lines.bbUpper));
     c.bbMid.setData(points(ob, lines.bbMid));
     c.bbLower.setData(points(ob, lines.bbLower));
-    for (const s of [c.bbUpper, c.bbMid, c.bbLower]) s.applyOptions({ visible: on.has("bb") });
+    for (const s of [c.bbUpper, c.bbMid, c.bbLower]) s.applyOptions({ visible: on.has("bb"), color: col.bb });
 
-    // panes under the price, top to bottom: volume, RSI, MACD (one chart, stacked price scales)
-    const panes = PANES.filter((p) => on.has(p));
-    const lower = panes.reduce((a, p) => a + PANE_HEIGHT[p]!, 0);
+    // panes under the price, top to bottom: RS line, volume, RSI, MACD (stacked price scales)
+    const panes = PANES.filter((x) => on.has(x));
+    const lower = panes.reduce((acc, x) => acc + PANE_HEIGHT[x]!, 0);
     c.chart.priceScale("right").applyOptions({
       scaleMargins: { top: 0.05, bottom: lower + (panes.length ? 0.03 : 0.05) },
       mode: settings.log ? PriceScaleMode.Logarithmic : PriceScaleMode.Normal,
     });
     let top = 1 - lower;
-    for (const p of panes) {
-      const ht = PANE_HEIGHT[p]!;
-      c.chart.priceScale(p === "volume" ? "vol" : p).applyOptions({
+    for (const x of panes) {
+      const ht = PANE_HEIGHT[x]!;
+      c.chart.priceScale(x === "volume" ? "vol" : x).applyOptions({
         scaleMargins: { top: top + 0.015, bottom: Math.max(0, 1 - top - ht) },
       });
       top += ht;
     }
     const volOn = on.has("volume");
+    const vUp = fade(col.volUp, VOLUME_ALPHA);
+    const vDown = fade(col.volDown, VOLUME_ALPHA);
     c.volume.setData(
       volOn
-        ? ob.flatMap((b) => (b.volume === null ? [] : [{
-            time: b.day as Time, value: b.volume, color: b.close >= b.open ? COLORS.upFade : COLORS.downFade,
-          }]))
+        ? ob.flatMap((b) => (b.volume === null ? [] : [{ time: b.day as Time, value: b.volume, color: b.close >= b.open ? vUp : vDown }]))
         : [],
     );
     c.volume.applyOptions({ visible: volOn });
     c.volma.setData(volOn ? points(ob, lines.volma) : []);
-    c.volma.applyOptions({ visible: volOn && on.has("volma") });
+    c.volma.applyOptions({ visible: volOn && on.has("volma"), color: col.volma });
     c.rsi.setData(points(ob, lines.rsi));
-    c.rsi.applyOptions({ visible: on.has("rsi") });
+    c.rsi.applyOptions({ visible: on.has("rsi"), color: col.rsi });
+    for (const l of c.rsiLevels) c.rsi.removePriceLine(l);
+    c.rsiLevels = [p.rsi.upper, p.rsi.lower].map((lvl) =>
+      c.rsi.createPriceLine({ price: lvl, color: "rgba(160,160,160,0.6)", lineWidth: 1, lineStyle: LineStyle.Dashed, axisLabelVisible: false, title: "" }),
+    );
     c.rs.setData(points(ob, lines.rs));
-    c.rs.applyOptions({ visible: on.has("rs") });
-    // a dot where the RS line makes a new one-year high; the first dot of each run and the
-    // line's last bar carry the RS rank of that day ("RS 91", "RS Rating 87")
-    const rsHighs = lines.rs ? rsNewHighs(lines.rs, YEAR_BARS[settings.interval]) : [];
+    c.rs.applyOptions({ visible: on.has("rs"), color: col.rs });
+    const m = data.macd;
+    c.macdLine.setData(points(ob, m?.macd));
+    c.macdSignal.setData(points(ob, m?.signal));
+    c.macdHist.setData(
+      m
+        ? ob.flatMap((b, i) => {
+            const v = m.hist[i];
+            return v === null || v === undefined ? [] : [{ time: b.day as Time, value: v, color: v >= 0 ? vUp : vDown }];
+          })
+        : [],
+    );
+    c.macdLine.applyOptions({ visible: m !== null, color: col.macd });
+    c.macdSignal.applyOptions({ visible: m !== null, color: col.macdSignal });
+    c.macdHist.applyOptions({ visible: m !== null });
+
+    // a dot where the RS line makes a new high over the lookback; the first dot of each run and
+    // the line's last bar carry the RS rank of that day ("RS 91", "RS Rating 87")
+    const rsHighs = lines.rs ? rsNewHighs(lines.rs, rsLookback(p.rs.weeks, settings.interval)) : [];
     let lastRs = -1;
     if (lines.rs) for (let k = lines.rs.length - 1; k >= 0; k--) if (lines.rs[k] !== null) { lastRs = k; break; }
     const labels = lines.rs ? rsLabels(rsHighs, lines.rsRank ?? [], lastRs, LABEL_GAP[settings.interval]) : [];
@@ -279,23 +316,11 @@ export function ProChart({ symbol, bars, setup, settings, benchmark = null, rsRa
         time: ob[l.index]!.day as Time,
         position: (l.text ? "aboveBar" : "inBar") as "aboveBar" | "inBar",
         shape: "circle" as const,
-        color: color("rs"),
+        color: col.rs,
         size: l.dot ? 0.5 : 0.1,
         text: l.text,
       })),
     );
-    const m = data.macd;
-    c.macdLine.setData(points(ob, m?.macd));
-    c.macdSignal.setData(points(ob, m?.signal));
-    c.macdHist.setData(
-      m
-        ? ob.flatMap((b, i) => {
-            const v = m.hist[i];
-            return v === null || v === undefined ? [] : [{ time: b.day as Time, value: v, color: v >= 0 ? COLORS.upFade : COLORS.downFade }];
-          })
-        : [],
-    );
-    for (const s of [c.macdLine, c.macdSignal, c.macdHist]) s.applyOptions({ visible: m !== null });
 
     // the VCP setup's marks, each moved to the bar (week or month) its day falls in
     const period = periodOf(dailyBars(bars), settings.interval);
@@ -311,16 +336,19 @@ export function ProChart({ symbol, bars, setup, settings, benchmark = null, rsRa
       ? buildPriceLines(setup).map((l): [ISeriesApi<SeriesType>, IPriceLine] => [
           main,
           main.createPriceLine({
-            price: l.price, color: l.color, lineWidth: 1, axisLabelVisible: true, title: l.title,
+            price: l.price,
+            color: l.title === "Stop" ? col.stop : col.pivot,
+            lineWidth: 1,
+            axisLabelVisible: true,
+            title: l.title,
             lineStyle: l.dashed ? LineStyle.Dashed : LineStyle.Solid,
           }),
         ])
       : [];
+  }, [data, settings, on, col, bars, setup, theme]);
 
-  }, [data, settings, on, bars, setup, theme]);
-
-  // the visible range: only when the stock, the interval or the range changes, so turning an
-  // indicator on or off keeps the user's own zoom
+  // the visible range: only when the stock, the interval or the range changes, so changing an
+  // indicator keeps the user's own zoom
   const ob = data.bars;
   const lastDay = ob[ob.length - 1]?.day ?? null;
   const rangeKey = `${symbol}|${settings.interval}|${settings.range}|${ob.length}|${lastDay}`;
@@ -342,13 +370,21 @@ export function ProChart({ symbol, bars, setup, settings, benchmark = null, rsRa
   const prev = ob[i - 1];
   const change = bar && prev ? (bar.close / prev.close - 1) * 100 : null;
   const val = (id: string) => data.lines[id]?.[i] ?? null;
-  const legendLines = [
-    ...AVERAGE_IDS.filter((id) => on.has(id)).map((id) => ({ id, label: INDICATORS.find((x) => x.id === id)!.label, v: val(id), digits: 2 })),
-    ...(on.has("bb") ? [{ id: "bb", label: "BB", v: val("bbMid"), digits: 2 }] : []),
-    ...(on.has("rs") ? [{ id: "rs", label: `RS vs ${settings.benchmark}`, v: val("rs"), digits: 1 }] : []),
-    ...(on.has("rs") && val("rsRank") !== null ? [{ id: "rs", label: "RS Rating", v: val("rsRank"), digits: 0 }] : []),
-    ...(on.has("rsi") ? [{ id: "rsi", label: "RSI 14", v: val("rsi"), digits: 1 }] : []),
-    ...(on.has("macd") ? [{ id: "macd", label: "MACD", v: data.macd?.macd[i] ?? null, digits: 2 }] : []),
+  const p = settings.params;
+  const legendLines: { key: string; label: string; v: number | null; digits: number; color: string }[] = [
+    ...settings.averages
+      .filter((a) => a.on)
+      .map((a) => ({ key: a.id, label: maLabel(a), v: val(a.id), digits: 2, color: a.color })),
+    ...(on.has("bb") ? [{ key: "bb", label: `BB ${p.bb.period}, ${p.bb.mult}`, v: val("bbMid"), digits: 2, color: col.bb }] : []),
+    ...(on.has("rs") ? [{ key: "rs", label: `RS vs ${settings.benchmark}`, v: val("rs"), digits: 1, color: col.rs }] : []),
+    ...(on.has("rs") && val("rsRank") !== null ? [{ key: "rsRank", label: "RS Rating", v: val("rsRank"), digits: 0, color: col.rs }] : []),
+    ...(on.has("volume") && on.has("volma")
+      ? [{ key: "volma", label: `Vol ${maLabel(p.volMa)}`, v: val("volma"), digits: 0, color: col.volma }]
+      : []),
+    ...(on.has("rsi") ? [{ key: "rsi", label: `RSI ${p.rsi.period}`, v: val("rsi"), digits: 1, color: col.rsi }] : []),
+    ...(on.has("macd")
+      ? [{ key: "macd", label: `MACD ${p.macd.fast}, ${p.macd.slow}, ${p.macd.signal}`, v: data.macd?.macd[i] ?? null, digits: 2, color: col.macd }]
+      : []),
   ];
   const INTERVAL = { D: "1D", W: "1W", M: "1M" } as const;
 
@@ -365,7 +401,9 @@ export function ProChart({ symbol, bars, setup, settings, benchmark = null, rsRa
               <span className="text-mute">H <span className="text-ink">{fmtNum(bar.high, 2)}</span></span>
               <span className="text-mute">L <span className="text-ink">{fmtNum(bar.low, 2)}</span></span>
               <span className="text-mute">C <span className="text-ink">{fmtNum(bar.close, 2)}</span></span>
-              <span className={change === null ? "text-mute" : change >= 0 ? "text-up" : "text-down"}>{fmtPct(change, 2, true)}</span>
+              <span style={{ color: change === null ? undefined : change >= 0 ? col.up : col.down }} className={change === null ? "text-mute" : ""}>
+                {fmtPct(change, 2, true)}
+              </span>
               {on.has("volume") ? <span className="text-mute">Vol <span className="text-ink">{fmtInt(bar.volume)}</span></span> : null}
             </>
           ) : null}
@@ -373,7 +411,7 @@ export function ProChart({ symbol, bars, setup, settings, benchmark = null, rsRa
         {legendLines.length > 0 ? (
           <p className="flex flex-wrap gap-x-3">
             {legendLines.map((l) => (
-              <span key={l.label} style={{ color: color(l.id) }}>
+              <span key={l.key} style={{ color: l.color }}>
                 {l.label} {fmtNum(l.v, l.digits)}
               </span>
             ))}
