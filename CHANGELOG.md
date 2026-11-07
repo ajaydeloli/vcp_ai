@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Chart page: the watch lists on the right fold into a slim **Watch lists** button, like the VCP panel on the left (› to hide, the button to show again; kept per browser).
 - Fix (Chart page): the chosen interval (D / W / M) and the Log button now show filled in the accent colour; the button's own background class had been winning over the highlight.
 - Chart page, right panel (owner, 2026-11-07): every watch list and the Top VCP setups (all of them, with scores) as sections you open and close, each with its stock count; which ones are open is kept in this browser (at first the active list and the setups).
 - Chart page layout (owner, 2026-11-07): the VCP analysis moved to the left and folds into a slim **VCP** button; it opens by itself only when the stock has a VCP setup on the latest scan ("VCP (none)" otherwise), and once you open or close it that choice is kept. The watch list and Top VCP setups moved to the right.

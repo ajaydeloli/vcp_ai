@@ -217,4 +217,16 @@ describe("chart page", () => {
     await waitFor(() => expect(screen.getByTestId("chart-legend")).toHaveTextContent("BETA · 1D"));
     expect(JSON.parse(window.localStorage.getItem("vcp-chart-lists-open") ?? "[]")).toEqual(["a", "b"]);
   });
+
+  it("the watch lists fold into a slim button on the right, like the VCP panel", async () => {
+    mockApi();
+    renderApp(<ChartPage symbol="ALPHA" />);
+    expect(await screen.findByRole("complementary", { name: "Stocks to chart" })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Hide watch lists" }));
+    expect(screen.queryByRole("complementary", { name: "Stocks to chart" })).not.toBeInTheDocument();
+    expect(JSON.parse(window.localStorage.getItem(CHART_KEY) ?? "{}").listsPanel).toBe("closed");
+    await userEvent.click(screen.getByRole("button", { name: "Show watch lists" }));
+    expect(screen.getByRole("complementary", { name: "Stocks to chart" })).toBeInTheDocument();
+    expect(JSON.parse(window.localStorage.getItem(CHART_KEY) ?? "{}").listsPanel).toBe("open");
+  });
 });

@@ -116,6 +116,8 @@ export type ChartSettings = {
   colors: Colors;
   /** the VCP analysis panel: shown when the stock has a setup (auto), or always open / closed */
   vcpPanel: VcpPanel;
+  /** the watch lists and top setups on the right: open, or folded into a slim button */
+  listsPanel: "open" | "closed";
 };
 
 export type VcpPanel = "auto" | "open" | "closed";
@@ -131,6 +133,7 @@ export const DEFAULT_CHART: ChartSettings = {
   params: DEFAULT_PARAMS,
   colors: DEFAULT_COLORS,
   vcpPanel: "auto",
+  listsPanel: "open",
 };
 
 const HEX = /^#[0-9a-f]{6}$/i;
@@ -219,6 +222,7 @@ export function parseChart(raw: string | null): ChartSettings {
       params: parseParams(v.params),
       colors: parseColors(v.colors),
       vcpPanel: v.vcpPanel === "open" || v.vcpPanel === "closed" ? v.vcpPanel : "auto",
+      listsPanel: v.listsPanel === "closed" ? "closed" : "open",
     };
   } catch {
     return DEFAULT_CHART;

@@ -67,7 +67,7 @@ export function ChartPage({ symbol: given }: { symbol: string | null }) {
   return (
     <div className="flex min-h-screen flex-col">
       <Nav active="Chart" onPick={pick} />
-      <main className="grid min-w-0 flex-1 gap-3 p-3 pb-14 lg:grid-cols-[auto_minmax(0,1fr)_12rem]">
+      <main className="grid min-w-0 flex-1 gap-3 p-3 pb-14 lg:grid-cols-[auto_minmax(0,1fr)_auto]">
         <h1 className="sr-only">Chart{shown ? `: ${shown}` : ""}</h1>
         {shown ? (
           <VcpSide symbol={shown} mode={settings.vcpPanel} onMode={(vcpPanel) => change({ vcpPanel })} />
@@ -81,7 +81,13 @@ export function ChartPage({ symbol: given }: { symbol: string | null }) {
         ) : (
           <ChartArea key={shown} symbol={shown} settings={settings} onChange={change} />
         )}
-        <SideLists current={shown} onPick={pick} top={top.data?.rows ?? []} />
+        <SideLists
+          current={shown}
+          onPick={pick}
+          top={top.data?.rows ?? []}
+          open={settings.listsPanel === "open"}
+          onOpen={(o) => change({ listsPanel: o ? "open" : "closed" })}
+        />
       </main>
       <StatusBar />
     </div>
@@ -294,7 +300,19 @@ function readOpen(): string[] | null {
 
 /** The right panel: every watch list and the top VCP setups, each a section that opens and
  *  closes (which ones are open is kept in this browser; at first the active list and the setups). */
-function SideLists({ current, onPick, top }: { current: string | null; onPick: (s: string) => void; top: TopRow[] }) {
+function SideLists({
+  current,
+  onPick,
+  top,
+  open: panelOpen,
+  onOpen,
+}: {
+  current: string | null;
+  onPick: (s: string) => void;
+  top: TopRow[];
+  open: boolean;
+  onOpen: (open: boolean) => void;
+}) {
   const { lists, active } = useWatchlists();
   const [open, setOpen] = useState<string[] | null>(null);
   useEffect(() => setOpen(readOpen()), []);
@@ -345,8 +363,36 @@ function SideLists({ current, onPick, top }: { current: string | null; onPick: (
       </section>
     );
   };
+  if (!panelOpen) {
+    return (
+      <button
+        type="button"
+        onClick={() => onOpen(true)}
+        aria-label="Show watch lists"
+        title="Show the watch lists and top VCP setups"
+        aria-expanded={false}
+        className="hidden items-center justify-center gap-1 rounded-lg border border-line bg-panel px-1 py-3 text-[11px] text-mute hover:border-accent hover:text-ink lg:flex lg:w-6 lg:flex-col lg:self-start"
+      >
+        <span aria-hidden="true">‹</span>
+        <span className="[writing-mode:vertical-rl]">Watch lists</span>
+      </button>
+    );
+  }
   return (
-    <aside aria-label="Stocks to chart" className="hidden min-w-0 space-y-2 lg:block">
+    <aside aria-label="Stocks to chart" className="hidden min-w-0 space-y-2 lg:block lg:w-[12rem]">
+      <div className="flex items-center justify-between px-1">
+        <span className="text-[11px] uppercase tracking-wide text-mute">Watch lists</span>
+        <button
+          type="button"
+          onClick={() => onOpen(false)}
+          aria-label="Hide watch lists"
+          aria-expanded={true}
+          title="Hide the watch lists and top VCP setups"
+          className="rounded border border-line px-1.5 text-xs text-mute hover:border-accent hover:text-ink"
+        >
+          ›
+        </button>
+      </div>
       {lists.map((l) =>
         section(
           l.id,
