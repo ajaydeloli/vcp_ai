@@ -17,6 +17,7 @@ import {
   type Benchmark,
   type ChartSettings,
   type ChartType,
+  type VcpPanel,
 } from "@/lib/chartSettings";
 import { DASH, fmtNum, fmtPct, fmtPrice, sentence, tone } from "@/lib/fmt";
 import { CHART_RANGES, type ChartRange, type Interval } from "@/lib/indicators";
@@ -67,9 +68,13 @@ export function ChartPage({ symbol: given }: { symbol: string | null }) {
   return (
     <div className="flex min-h-screen flex-col">
       <Nav active="Chart" onPick={pick} />
-      <main className="grid min-w-0 flex-1 gap-3 p-3 pb-14 lg:grid-cols-[12rem_minmax(0,1fr)] 2xl:grid-cols-[12rem_minmax(0,1fr)_19rem]">
+      <main className="grid min-w-0 flex-1 gap-3 p-3 pb-14 lg:grid-cols-[auto_minmax(0,1fr)_12rem]">
         <h1 className="sr-only">Chart{shown ? `: ${shown}` : ""}</h1>
-        <SideLists current={shown} onPick={pick} top={top.data?.rows ?? []} />
+        {shown ? (
+          <VcpSide symbol={shown} mode={settings.vcpPanel} onMode={(vcpPanel) => change({ vcpPanel })} />
+        ) : (
+          <span className="hidden lg:block" />
+        )}
         {shown === null ? (
           <Card title="Chart">
             <Empty>{top.isPending ? "Loading the best VCP setup…" : "Search a symbol or company above to chart it."}</Empty>
@@ -77,7 +82,7 @@ export function ChartPage({ symbol: given }: { symbol: string | null }) {
         ) : (
           <ChartArea key={shown} symbol={shown} settings={settings} onChange={change} />
         )}
-        {shown ? <SetupSide symbol={shown} /> : null}
+        <SideLists current={shown} onPick={pick} top={top.data?.rows ?? []} />
       </main>
       <StatusBar />
     </div>
@@ -329,7 +334,49 @@ function weeksBetween(from: string | null, to: string | null): number | null {
   return Math.round((Date.parse(to) - Date.parse(from)) / (7 * 86_400_000));
 }
 
-function SetupSide({ symbol }: { symbol: string }) {
+/** The VCP analysis on the left, opened and closed with a slim button; by default open only
+ *  when the stock has a VCP setup on the latest scan. */
+function VcpSide({ symbol, mode, onMode }: { symbol: string; mode: VcpPanel; onMode: (m: VcpPanel) => void }) {
+  const stock = useStockSetups(symbol);
+  const has = vcpSetup(stock.data) !== null;
+  const open = mode === "open" || (mode === "auto" && has);
+  if (!open) {
+    return (
+      <button
+        type="button"
+        onClick={() => onMode("open")}
+        aria-label="Show VCP analysis"
+        title={has ? "Show the VCP analysis" : `No VCP setup for ${symbol} on the latest scan; show the panel`}
+        aria-expanded={false}
+        className="flex items-center justify-center gap-1 rounded-lg border border-line bg-panel px-1 py-2 text-[11px] text-mute hover:border-accent hover:text-ink lg:w-6 lg:flex-col lg:self-start lg:py-3"
+      >
+        <span aria-hidden="true">›</span>
+        <span className="lg:[writing-mode:vertical-rl]">VCP{has ? "" : " (none)"}</span>
+      </button>
+    );
+  }
+  return (
+    <div className="min-w-0 lg:w-[18rem]">
+      <SetupSide
+        symbol={symbol}
+        onHide={
+          <button
+            type="button"
+            onClick={() => onMode("closed")}
+            aria-label="Hide VCP analysis"
+            aria-expanded={true}
+            title="Hide the VCP analysis"
+            className="rounded border border-line px-1.5 text-xs text-mute hover:border-accent hover:text-ink"
+          >
+            ‹
+          </button>
+        }
+      />
+    </div>
+  );
+}
+
+function SetupSide({ symbol, onHide }: { symbol: string; onHide?: React.ReactNode }) {
   const stock = useStockSetups(symbol);
   const s = vcpSetup(stock.data);
   const d = stock.data;
@@ -338,8 +385,8 @@ function SetupSide({ symbol }: { symbol: string }) {
   const risk = s?.pivot != null && s.stop != null ? (s.stop / s.pivot - 1) * 100 : null;
   const depths = (s?.contractions ?? []).map((c) => (c.depth_pct === null ? DASH : `−${Math.abs(c.depth_pct).toFixed(0)}%`));
   return (
-    <aside aria-label={`VCP setup of ${symbol}`} className="min-w-0 lg:col-span-2 2xl:col-span-1">
-      <Card title="VCP analysis" subtitle={d ? `Scan of ${d.as_of ?? DASH}` : undefined}>
+    <aside aria-label={`VCP setup of ${symbol}`} className="min-w-0">
+      <Card title="VCP analysis" subtitle={d ? `Scan of ${d.as_of ?? DASH}` : undefined} right={onHide}>
         {stock.isError ? (
           <ErrorBox error={stock.error} />
         ) : stock.isPending ? (

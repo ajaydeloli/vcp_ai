@@ -114,7 +114,11 @@ export type ChartSettings = {
   toggles: Toggle[];
   params: Params;
   colors: Colors;
+  /** the VCP analysis panel: shown when the stock has a setup (auto), or always open / closed */
+  vcpPanel: VcpPanel;
 };
+
+export type VcpPanel = "auto" | "open" | "closed";
 
 export const DEFAULT_CHART: ChartSettings = {
   interval: "D",
@@ -126,6 +130,7 @@ export const DEFAULT_CHART: ChartSettings = {
   toggles: ["rs", "volume", "volma", "vcp", "levels"],
   params: DEFAULT_PARAMS,
   colors: DEFAULT_COLORS,
+  vcpPanel: "auto",
 };
 
 const HEX = /^#[0-9a-f]{6}$/i;
@@ -213,6 +218,7 @@ export function parseChart(raw: string | null): ChartSettings {
       toggles: [...new Set(toggles)],
       params: parseParams(v.params),
       colors: parseColors(v.colors),
+      vcpPanel: v.vcpPanel === "open" || v.vcpPanel === "closed" ? v.vcpPanel : "auto",
     };
   } catch {
     return DEFAULT_CHART;

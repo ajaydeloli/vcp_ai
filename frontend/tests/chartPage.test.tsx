@@ -159,4 +159,24 @@ describe("chart page", () => {
     await userEvent.click(within(menu).getByRole("button", { name: "Reset colours" }));
     await waitFor(() => expect(candles().options.upColor).toBe("#26c281"));
   });
+
+  it("the VCP panel opens by itself only when there is a setup, and a slim button shows or hides it", async () => {
+    mockApi({ "stocks/NOSET/setups": { ...fx.stockSetups, symbol: "NOSET", setups: [] } });
+    renderApp(<ChartPage symbol="NOSET" />);
+    const show = await screen.findByRole("button", { name: "Show VCP analysis" });
+    expect(show).toHaveTextContent("VCP (none)");
+    expect(screen.queryByRole("complementary", { name: "VCP setup of NOSET" })).not.toBeInTheDocument();
+    await userEvent.click(show);
+    const panel = await screen.findByRole("complementary", { name: "VCP setup of NOSET" });
+    expect(panel).toHaveTextContent("No VCP setup for NOSET");
+    expect(JSON.parse(window.localStorage.getItem(CHART_KEY) ?? "{}").vcpPanel).toBe("open");
+    await userEvent.click(screen.getByRole("button", { name: "Hide VCP analysis" }));
+    expect(screen.queryByRole("complementary", { name: "VCP setup of NOSET" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Show VCP analysis" })).toBeInTheDocument();
+    expect(JSON.parse(window.localStorage.getItem(CHART_KEY) ?? "{}").vcpPanel).toBe("closed");
+    // the stock lists are on the right, after the chart
+    const lists = screen.getByRole("complementary", { name: "Stocks to chart" });
+    const chartBox = screen.getByRole("region", { name: "Chart of NOSET" });
+    expect(chartBox.compareDocumentPosition(lists) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
 });
