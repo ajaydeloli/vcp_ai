@@ -234,6 +234,7 @@ describe("chart page", () => {
     expect(panel.className).toMatch(/lg:absolute/);
     // full height of the chart area, width from its content
     expect(panel.className).toMatch(/lg:bottom-0/);
+    expect(panel.className).toMatch(/lg:top-0\b/); // as high as the chart card
     expect(panel.className).toMatch(/lg:w-max/);
     expect(panel.className).not.toMatch(/lg:w-\[18rem\]/);
     await userEvent.click(screen.getByRole("button", { name: "Pin" }));

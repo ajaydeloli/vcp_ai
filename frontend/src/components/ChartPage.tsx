@@ -452,11 +452,11 @@ function SideBar({
           id="side-panel"
           data-testid="side-panel"
           data-floating={floating ? "true" : "false"}
-          // floating: from below the chart's toolbar to the bottom of the chart, as wide as its
+          // floating: the full height of the chart card (top to bottom), as wide as its
           // content needs (13 to 26 rem); pinned: a fixed width beside the chart
           className={`min-w-0 ${
             floating
-              ? `lg:absolute lg:bottom-0 lg:right-full lg:top-[6.25rem] lg:z-30 lg:mr-2 lg:flex lg:w-max lg:min-w-[13rem] ${maxWide} lg:flex-col lg:rounded-lg lg:border lg:border-line lg:bg-panel lg:p-2 lg:shadow-2xl lg:shadow-black/60`
+              ? `lg:absolute lg:bottom-0 lg:right-full lg:top-0 lg:z-30 lg:mr-2 lg:flex lg:w-max lg:min-w-[13rem] ${maxWide} lg:flex-col lg:rounded-lg lg:border lg:border-line lg:bg-panel lg:p-2 lg:shadow-2xl lg:shadow-black/60`
               : width
           }`}
         >
