@@ -6,6 +6,7 @@ import type { ReactElement } from "react";
 import { vi } from "vitest";
 import activity from "./fixtures/api/activity.json";
 import bars from "./fixtures/api/bars.json";
+import indexCloses from "./fixtures/api/index_closes.json";
 import liveIndices from "./fixtures/api/live_indices.json";
 import liveQuotes from "./fixtures/api/live_quotes.json";
 import liveStatus from "./fixtures/api/live_status.json";
@@ -29,7 +30,7 @@ import stockFundamentalsNone from "./fixtures/api/stock_fundamentals_none.json";
 
 export const fx = {
   activity, backtests, bars, history, ipos, reports, liveIndices, liveQuotes, liveStatus, market, marketHealth, paper, search, screener, setupsVcp, status,
-  stockSetups, strategies, summary, fundamentals, stockFundamentals, stockFundamentalsNone,
+  stockSetups, strategies, summary, fundamentals, stockFundamentals, stockFundamentalsNone, indexCloses,
 }; // fmt: skip
 
 /** What the API would answer for a path ("setups?strategy=vcp"); undefined: no such sample. */
@@ -49,6 +50,7 @@ export function sample(rel: string): unknown {
     case "reports": return fx.reports;
     case "reports/generate": return { ...fx.reports.files[0], name: "2026-10-01.html", label: "Daily report 2026-10-01" };
     case "search": return fx.search;
+    case "indices/closes": return { ...fx.indexCloses, name: p.get("name") ?? "Nifty 500" };
     case "screener": return fx.screener;
     case "fundamentals": return fx.fundamentals;
     case "live/indices": return fx.liveIndices;

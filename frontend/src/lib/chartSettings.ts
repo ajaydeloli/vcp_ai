@@ -34,11 +34,16 @@ export const INDICATORS: IndicatorDef[] = [
   { id: "bb", label: "Bollinger bands (20, 2)", group: "Bands", color: "#8d99ae" },
   { id: "volume", label: "Volume", group: "Panes", color: "#8ab4ff" },
   { id: "volma", label: "Volume average (50)", group: "Panes", color: "#ffd166" },
+  { id: "rs", label: "RS line vs benchmark", group: "Panes", color: "#2f9bff" },
   { id: "rsi", label: "RSI (14)", group: "Panes", color: "#c77dff" },
   { id: "macd", label: "MACD (12, 26, 9)", group: "Panes", color: "#4aa3ff" },
   { id: "vcp", label: "VCP marks (base, contractions, breakout)", group: "Setup", color: "#ff9f1c" },
   { id: "levels", label: "Pivot and stop lines", group: "Setup", color: "#26c281" },
 ];
+
+/** Benchmarks for the RS line (NSE index names as stored). */
+export const BENCHMARKS = ["Nifty 500", "Nifty 50", "Nifty Midcap 150", "Nifty Smallcap 250"] as const;
+export type Benchmark = (typeof BENCHMARKS)[number];
 
 export type ChartSettings = {
   interval: Interval;
@@ -46,14 +51,16 @@ export type ChartSettings = {
   range: ChartRange;
   indicators: string[];
   log: boolean;
+  benchmark: Benchmark;
 };
 
 export const DEFAULT_CHART: ChartSettings = {
   interval: "D",
   type: "candles",
   range: "1Y",
-  indicators: ["sma50", "sma150", "sma200", "volume", "volma", "vcp", "levels"],
+  indicators: ["sma50", "sma150", "sma200", "rs", "volume", "volma", "vcp", "levels"],
   log: false,
+  benchmark: "Nifty 500",
 };
 
 export function parseChart(raw: string | null): ChartSettings {
@@ -66,6 +73,7 @@ export function parseChart(raw: string | null): ChartSettings {
       range: CHART_RANGES.some((r) => r.id === v.range) ? (v.range as ChartRange) : DEFAULT_CHART.range,
       indicators: Array.isArray(v.indicators) ? v.indicators.filter((x) => ids.has(x)) : DEFAULT_CHART.indicators,
       log: v.log === true,
+      benchmark: BENCHMARKS.includes(v.benchmark as Benchmark) ? (v.benchmark as Benchmark) : DEFAULT_CHART.benchmark,
     };
   } catch {
     return DEFAULT_CHART;

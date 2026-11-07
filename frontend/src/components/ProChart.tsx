@@ -28,7 +28,10 @@ import {
   periodOf,
   rangeStart,
   rsi,
+  rsLine,
+  rsNewHighs,
   sma,
+  YEAR_BARS,
   type OBar,
   type Series,
 } from "@/lib/indicators";
@@ -38,7 +41,8 @@ import { chartTheme } from "./ChartView";
 
 const RIGHT_GAP = 6;
 const AVERAGE_IDS = ["sma10", "sma20", "sma30", "sma50", "sma150", "sma200", "ema10", "ema21", "ema50", "ema200"];
-const PANE_HEIGHT: Record<string, number> = { volume: 0.18, rsi: 0.16, macd: 0.18 };
+const PANE_HEIGHT: Record<string, number> = { rs: 0.14, volume: 0.16, rsi: 0.14, macd: 0.16 };
+const PANES = ["rs", "volume", "rsi", "macd"];
 const color = (id: string) => INDICATORS.find((i) => i.id === id)?.color ?? COLORS.line;
 
 type Line = ISeriesApi<"Line">;
@@ -55,6 +59,7 @@ type Handles = {
   volume: ISeriesApi<"Histogram">;
   volma: Line;
   rsi: Line;
+  rs: Line;
   macdHist: ISeriesApi<"Histogram">;
   macdLine: Line;
   macdSignal: Line;
@@ -69,8 +74,11 @@ export type Computed = {
   macd: { macd: Series; signal: Series; hist: Series } | null;
 };
 
-export function compute(raw: Bar[], s: ChartSettings): Computed {
-  const bars = aggregate(dailyBars(raw), s.interval);
+export type IndexClose = { day: string; close: number };
+
+export function compute(raw: Bar[], s: ChartSettings, benchmark: IndexClose[] | null = null): Computed {
+  const daily = dailyBars(raw);
+  const bars = aggregate(daily, s.interval);
   const closes: Series = bars.map((b) => b.close);
   const on = new Set(s.indicators);
   const lines: Record<string, Series> = {};
@@ -87,6 +95,7 @@ export function compute(raw: Bar[], s: ChartSettings): Computed {
   }
   if (on.has("volma")) lines.volma = sma(bars.map((b) => b.volume), 50);
   if (on.has("rsi")) lines.rsi = rsi(closes);
+  if (on.has("rs") && benchmark && benchmark.length > 0) lines.rs = rsLine(daily, benchmark, bars, s.interval);
   return {
     bars,
     drawn: s.type === "heikin" ? heikinAshi(bars) : bars,
@@ -108,16 +117,18 @@ type Props = {
   bars: Bar[];
   setup: StockSetup | null;
   settings: ChartSettings;
+  /** the RS line's benchmark closes (null while loading or when the RS line is off) */
+  benchmark?: IndexClose[] | null;
   /** the chart itself, for the page's screenshot button */
   apiRef?: MutableRefObject<IChartApi | null>;
 };
 
-export function ProChart({ symbol, bars, setup, settings, apiRef }: Props) {
+export function ProChart({ symbol, bars, setup, settings, benchmark = null, apiRef }: Props) {
   const box = useRef<HTMLDivElement>(null);
   const h = useRef<Handles | null>(null);
   const theme = useResolvedTheme();
   const [hover, setHover] = useState<number | null>(null);
-  const data = useMemo(() => compute(bars, settings), [bars, settings]);
+  const data = useMemo(() => compute(bars, settings, benchmark), [bars, settings, benchmark]);
   const on = useMemo(() => new Set(settings.indicators), [settings.indicators]);
 
   // the chart and every series, once
@@ -149,6 +160,7 @@ export function ProChart({ symbol, bars, setup, settings, apiRef }: Props) {
       volume: chart.addHistogramSeries({ priceFormat: { type: "volume" }, priceScaleId: "vol", ...quiet }),
       volma: line(color("volma"), { priceScaleId: "vol", visible: false }),
       rsi: line(color("rsi"), { priceScaleId: "rsi", visible: false }),
+      rs: line(color("rs"), { priceScaleId: "rs", visible: false, lineWidth: 2 }),
       macdHist: chart.addHistogramSeries({ priceScaleId: "macd", visible: false, ...quiet }),
       macdLine: line(color("macd"), { priceScaleId: "macd", visible: false }),
       macdSignal: line("#ff9f1c", { priceScaleId: "macd", visible: false }),
@@ -212,7 +224,7 @@ export function ProChart({ symbol, bars, setup, settings, apiRef }: Props) {
     for (const s of [c.bbUpper, c.bbMid, c.bbLower]) s.applyOptions({ visible: on.has("bb") });
 
     // panes under the price, top to bottom: volume, RSI, MACD (one chart, stacked price scales)
-    const panes = ["volume", "rsi", "macd"].filter((p) => on.has(p));
+    const panes = PANES.filter((p) => on.has(p));
     const lower = panes.reduce((a, p) => a + PANE_HEIGHT[p]!, 0);
     c.chart.priceScale("right").applyOptions({
       scaleMargins: { top: 0.05, bottom: lower + (panes.length ? 0.03 : 0.05) },
@@ -239,6 +251,13 @@ export function ProChart({ symbol, bars, setup, settings, apiRef }: Props) {
     c.volma.applyOptions({ visible: volOn && on.has("volma") });
     c.rsi.setData(points(ob, lines.rsi));
     c.rsi.applyOptions({ visible: on.has("rsi") });
+    c.rs.setData(points(ob, lines.rs));
+    c.rs.applyOptions({ visible: on.has("rs") });
+    // a dot where the RS line makes a new one-year high
+    const rsHighs = lines.rs ? rsNewHighs(lines.rs, YEAR_BARS[settings.interval]) : [];
+    c.rs.setMarkers(
+      rsHighs.map((k) => ({ time: ob[k]!.day as Time, position: "inBar" as const, shape: "circle" as const, color: color("rs"), size: 0.5 })),
+    );
     const m = data.macd;
     c.macdLine.setData(points(ob, m?.macd));
     c.macdSignal.setData(points(ob, m?.signal));
@@ -300,6 +319,7 @@ export function ProChart({ symbol, bars, setup, settings, apiRef }: Props) {
   const legendLines = [
     ...AVERAGE_IDS.filter((id) => on.has(id)).map((id) => ({ id, label: INDICATORS.find((x) => x.id === id)!.label, v: val(id), digits: 2 })),
     ...(on.has("bb") ? [{ id: "bb", label: "BB", v: val("bbMid"), digits: 2 }] : []),
+    ...(on.has("rs") ? [{ id: "rs", label: `RS vs ${settings.benchmark}`, v: val("rs"), digits: 1 }] : []),
     ...(on.has("rsi") ? [{ id: "rsi", label: "RSI 14", v: val("rsi"), digits: 1 }] : []),
     ...(on.has("macd") ? [{ id: "macd", label: "MACD", v: data.macd?.macd[i] ?? null, digits: 2 }] : []),
   ];

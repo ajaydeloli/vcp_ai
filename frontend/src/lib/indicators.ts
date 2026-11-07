@@ -225,3 +225,45 @@ export function rangeStart(last: string, range: ChartRange): string | null {
   d.setUTCMonth(d.getUTCMonth() - r.months);
   return d.toISOString().slice(0, 10);
 }
+
+/** The RS line: the stock's close divided by the benchmark index's close on the same session,
+ *  for each chart bar the value at its last session, scaled so its first value is 100. A
+ *  session the index has no close for is skipped. */
+export function rsLine(
+  daily: OBar[],
+  index: { day: string; close: number }[],
+  bars: OBar[],
+  interval: Interval,
+): Series {
+  const idx = new Map(index.map((c) => [c.day, c.close]));
+  const period = periodOf(daily, interval);
+  const byBar = new Map<string, number>();
+  for (const b of daily) {
+    const c = idx.get(b.day);
+    const p = period.get(b.day);
+    if (c && p) byBar.set(p, b.close / c);
+  }
+  const raw: Series = bars.map((b) => byBar.get(b.day) ?? null);
+  const first = raw.find((v) => v !== null) ?? null;
+  return raw.map((v) => (v === null || first === null ? null : (v / first) * 100));
+}
+
+/** Bars where the RS line closes at its highest of the last ``lookback`` bars (a new RS high,
+ *  shown as a dot: leadership before or with the price). */
+export function rsNewHighs(rs: Series, lookback: number): number[] {
+  const out: number[] = [];
+  for (let i = lookback; i < rs.length; i++) {
+    const v = rs[i];
+    if (v === null || v === undefined) continue;
+    let high = -Infinity;
+    for (let j = i - lookback; j < i; j++) {
+      const w = rs[j];
+      if (w !== null && w !== undefined && w > high) high = w;
+    }
+    if (v > high) out.push(i);
+  }
+  return out;
+}
+
+/** About a year of bars for each interval (the RS new-high lookback). */
+export const YEAR_BARS: Record<Interval, number> = { D: 250, W: 52, M: 12 };

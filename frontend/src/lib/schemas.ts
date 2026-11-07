@@ -496,6 +496,12 @@ export type SetupRow = z.infer<typeof setupRow>;
 export type Setups = z.infer<typeof setups>;
 export type Bar = z.infer<typeof bar>;
 export type Bars = z.infer<typeof bars>;
+export const indexCloses = z.object({
+  ...stamp,
+  name: z.string(),
+  closes: z.array(z.object({ day, close: z.number() })),
+});
+export type IndexCloses = z.infer<typeof indexCloses>;
 export type StockSetup = z.infer<typeof stockSetup>;
 export type StockSetups = z.infer<typeof stockSetups>;
 export type ActivityEvent = z.infer<typeof activityEvent>;

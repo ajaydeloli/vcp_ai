@@ -40,6 +40,7 @@ CASES = {
     "stock_fundamentals": "stocks/ALPHA/fundamentals",
     "stock_fundamentals_none": "stocks/GAMMA/fundamentals",
     "fundamentals": "fundamentals",
+    "index_closes": "indices/closes?name=Nifty%20500",
 }
 
 

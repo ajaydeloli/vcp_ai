@@ -358,3 +358,12 @@ def test_stock_scores_list_each_scan_day_per_strategy(ro_env: Env) -> None:
     get(ro_env, "/api/v1/stocks/ALPHA/scores?strategy=nope", 404)
     get(ro_env, "/api/v1/stocks/NOPE/scores", 404)
     get(ro_env, "/api/v1/stocks/ALPHA/scores?days=0", 422)
+
+
+def test_index_closes_for_the_rs_line(ro_env: Env) -> None:
+    body = get(ro_env, "/api/v1/indices/closes?name=Nifty%2050&days=20")
+    assert body["name"] == "Nifty 50" and len(body["closes"]) == 20
+    days = [c["day"] for c in body["closes"]]
+    assert days == sorted(days) and body["as_of"] == days[-1]
+    assert get(ro_env, "/api/v1/indices/closes")["name"] == "Nifty 500"  # the default benchmark
+    get(ro_env, "/api/v1/indices/closes?name=India%20VIX", 422)  # only the four benchmarks

@@ -27,7 +27,11 @@ describe("chart page", () => {
     const nav = screen.getByRole("navigation", { name: "Main" });
     expect(within(nav).getByRole("link", { name: "Chart" })).toHaveAttribute("aria-current", "page");
     expect(screen.getByRole("button", { name: "Daily" })).toHaveAttribute("aria-pressed", "true");
-    expect(screen.getByRole("button", { name: /Indicators \(7\)/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Indicators \(8\)/ })).toBeInTheDocument();
+    // the RS line against the Nifty 500 (the default benchmark), in its own pane
+    await waitFor(() => expect(byScale("rs")[0]!.data.length).toBeGreaterThan(0));
+    expect(calls.some((c) => c === "indices/closes?name=Nifty%20500")).toBe(true);
+    expect(screen.getByTestId("chart-legend")).toHaveTextContent("RS vs Nifty 500");
     const legend = screen.getByTestId("chart-legend");
     expect(legend).toHaveTextContent("ALPHA · 1D · NSE");
     expect(legend).toHaveTextContent(fx.bars.bars[fx.bars.bars.length - 1]!.day);
@@ -60,10 +64,12 @@ describe("chart page", () => {
     await userEvent.keyboard("{Escape}");
     expect(screen.queryByRole("dialog", { name: "Indicators" })).not.toBeInTheDocument();
 
+    await userEvent.selectOptions(screen.getByLabelText("RS benchmark"), "Nifty 50");
+    await waitFor(() => expect(screen.getByTestId("chart-legend")).toHaveTextContent("RS vs Nifty 50"));
     await userEvent.selectOptions(screen.getByLabelText("Range"), "5Y");
     await userEvent.click(screen.getByRole("button", { name: "Log" }));
     const saved = JSON.parse(window.localStorage.getItem(CHART_KEY) ?? "{}");
-    expect(saved).toMatchObject({ interval: "W", type: "ohlc", range: "5Y", log: true });
+    expect(saved).toMatchObject({ interval: "W", type: "ohlc", range: "5Y", log: true, benchmark: "Nifty 50" });
     expect(saved.indicators).toContain("rsi");
   });
 

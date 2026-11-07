@@ -5,8 +5,9 @@
 // the watch list and the top VCP setups on the left, and the VCP setup on the right.
 import type { IChartApi } from "lightweight-charts";
 import { useEffect, useRef, useState } from "react";
-import { useBars, useSetups, useStockSetups } from "@/lib/api";
+import { useBars, useIndexCloses, useSetups, useStockSetups } from "@/lib/api";
 import {
+  BENCHMARKS,
   CHART_TYPES,
   DEFAULT_CHART,
   INDICATORS,
@@ -14,6 +15,7 @@ import {
   lastSymbol,
   rememberSymbol,
   saveChart,
+  type Benchmark,
   type ChartSettings,
   type ChartType,
   type IndicatorGroup,
@@ -95,6 +97,8 @@ function ChartArea({
 }) {
   const bars = useBars(symbol);
   const stock = useStockSetups(symbol);
+  const rsOn = settings.indicators.includes("rs");
+  const bench = useIndexCloses(settings.benchmark, rsOn);
   const api = useRef<IChartApi | null>(null);
   const wrap = useRef<HTMLElement>(null);
   const setup = vcpSetup(stock.data);
@@ -148,7 +152,7 @@ function ChartArea({
         ) : list.length === 0 ? (
           <Empty>No price bars for {symbol}.</Empty>
         ) : (
-          <ProChart symbol={symbol} bars={list} setup={setup} settings={settings} apiRef={api} />
+          <ProChart symbol={symbol} bars={list} setup={setup} settings={settings} benchmark={rsOn ? (bench.data?.closes ?? null) : null} apiRef={api} />
         )}
       </div>
     </section>
@@ -224,6 +228,23 @@ function Toolbar({
         </select>
       </label>
       <IndicatorMenu settings={settings} onChange={onChange} />
+      {settings.indicators.includes("rs") ? (
+        <label className="flex items-center gap-1.5 text-xs text-mute" title="The RS line divides the stock's close by this index">
+          RS vs
+          <select
+            aria-label="RS benchmark"
+            value={settings.benchmark}
+            onChange={(e) => onChange({ benchmark: e.target.value as Benchmark })}
+            className={SELECT}
+          >
+            {BENCHMARKS.map((b) => (
+              <option key={b} value={b}>
+                {b}
+              </option>
+            ))}
+          </select>
+        </label>
+      ) : null}
       <button
         type="button"
         aria-pressed={settings.log}

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_CHART, parseChart } from "@/lib/chartSettings";
-import { aggregate, bollinger, ema, heikinAshi, macd, periodOf, rangeStart, rsi, sma, weekKey, type OBar } from "@/lib/indicators";
+import { aggregate, bollinger, ema, heikinAshi, macd, periodOf, rangeStart, rsi, rsLine, rsNewHighs, sma, weekKey, type OBar } from "@/lib/indicators";
 
 const bar = (day: string, o: number, h: number, l: number, c: number, v = 100): OBar => ({ day, open: o, high: h, low: l, close: c, volume: v });
 
@@ -71,7 +71,22 @@ describe("chart indicators", () => {
     expect(parseChart(null)).toEqual(DEFAULT_CHART);
     expect(parseChart("not json")).toEqual(DEFAULT_CHART);
     expect(parseChart(JSON.stringify({ interval: "W", type: "area", range: "5Y", indicators: ["rsi", "nope"], log: true })))
-      .toEqual({ interval: "W", type: "area", range: "5Y", indicators: ["rsi"], log: true });
+      .toEqual({ interval: "W", type: "area", range: "5Y", indicators: ["rsi"], log: true, benchmark: "Nifty 500" });
     expect(parseChart(JSON.stringify({ interval: "X", type: "pie" })).interval).toBe("D");
+  });
+
+  it("the RS line is the stock over the index, 100 at its start, per week at the week's last session", () => {
+    const daily = [bar("2026-10-29", 10, 10, 10, 10), bar("2026-10-30", 11, 11, 11, 11), bar("2026-11-02", 12, 12, 12, 12), bar("2026-11-04", 15, 15, 15, 15)];
+    const idx = [
+      { day: "2026-10-29", close: 100 },
+      { day: "2026-10-30", close: 100 },
+      { day: "2026-11-02", close: 120 },
+      { day: "2026-11-04", close: 100 },
+    ];
+    expect(rsLine(daily, idx, daily, "D").map((v) => Number(v!.toFixed(2)))).toEqual([100, 110, 100, 150]);
+    const w = aggregate(daily, "W");
+    expect(rsLine(daily, idx, w, "W")).toEqual([100, (15 / 100 / (11 / 100)) * 100]);
+    expect(rsLine(daily, [], daily, "D")).toEqual([null, null, null, null]);
+    expect(rsNewHighs([100, 101, 99, 102, 102, 103], 2)).toEqual([3, 5]);
   });
 });

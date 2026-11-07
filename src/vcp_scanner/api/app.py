@@ -39,6 +39,8 @@ from vcp_scanner.serving import default_serving_path
 MARKET_LABEL = "VCP Quality Index, VQI (equal-weight index of the stocks we scan), not NIFTY"
 #: ``?date=YYYY-MM-DD`` (module level: FastAPI resolves annotations in the module namespace).
 DateParam = Annotated[date | None, Query(alias="date")]
+# The Chart page's RS line benchmarks (index_daily names).
+BENCHMARKS = "^(Nifty 50|Nifty 500|Nifty Midcap 150|Nifty Smallcap 250)$"
 ORIGINS = ("http://localhost:3000", "http://127.0.0.1:3000")
 
 
@@ -263,6 +265,26 @@ def create_app(
             hits = q.search_symbols(cur, q_, limit)
             return m.SearchResponse(as_of=q.latest_prices_date(cur), data_time=db.data_time(),
                                     query=q_, results=hits)  # fmt: skip
+
+    @app.get(f"{api}/indices/closes", response_model=m.IndexClosesResponse)
+    def index_closes(
+        name: Annotated[str, Query(pattern=BENCHMARKS)] = "Nifty 500",
+        days: Annotated[int, Query(ge=20, le=5000)] = 5000,
+    ) -> m.IndexClosesResponse:
+        """A benchmark index's daily closes, for the Chart page's RS line (display only)."""
+        with db.cursor() as cur:
+            try:
+                rows = cur.execute(
+                    "SELECT trade_date, close FROM index_daily WHERE index_name = ?"
+                    " ORDER BY trade_date DESC LIMIT ?", [name, days],
+                ).fetchall()  # fmt: skip
+            except duckdb.CatalogException:  # a serving copy older than the index table
+                rows = []
+        rows.reverse()
+        return m.IndexClosesResponse(
+            as_of=rows[-1][0] if rows else None, data_time=db.data_time(), name=name,
+            closes=[m.IndexClose(day=d, close=float(c)) for d, c in rows],
+        )  # fmt: skip
 
     @app.get(f"{api}/stocks/{{symbol}}/bars", response_model=m.BarsResponse)
     def stock_bars(

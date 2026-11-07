@@ -62,6 +62,7 @@ export const paths = {
   marketHealth: () => "market/health",
   market: (days: number) => `market${query({ days })}`,
   setups: (strategy: string, status?: string) => `setups${query({ strategy, status })}`,
+  indexCloses: (name: string) => `indices/closes${query({ name })}`,
   bars: (symbol: string, days: number) =>
     `stocks/${encodeURIComponent(symbol)}/bars${query({ days })}`,
   stockSetups: (symbol: string) => `stocks/${encodeURIComponent(symbol)}/setups`,
@@ -130,6 +131,14 @@ export const useSetups = (strategy: string, status?: string, enabled = true) =>
   useQuery({
     queryKey: ["setups", strategy, status ?? null],
     queryFn: () => getJson(paths.setups(strategy, status), s.setups),
+    enabled,
+    ...opts,
+  });
+/** A benchmark index's daily closes (the Chart page's RS line); fetched only when it is shown. */
+export const useIndexCloses = (name: string, enabled: boolean) =>
+  useQuery({
+    queryKey: ["indexCloses", name],
+    queryFn: () => getJson(paths.indexCloses(name), s.indexCloses),
     enabled,
     ...opts,
   });

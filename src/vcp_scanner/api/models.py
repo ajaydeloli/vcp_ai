@@ -363,6 +363,18 @@ class ScreenerResponse(Stamped):
     rows: list[ScreenerRow]
 
 
+class IndexClose(BaseModel):
+    day: date
+    close: float
+
+
+class IndexClosesResponse(Stamped):
+    """Daily closes of one NSE index (the Chart page's RS line benchmark), oldest first."""
+
+    name: str
+    closes: list[IndexClose]
+
+
 class Bar(BaseModel):
     day: date
     open: float | None
