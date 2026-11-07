@@ -20,7 +20,7 @@ API and the frontend are built; the strategies are frozen.
   gates per strategy: at least 30 closed trades, profit factor 1.3 or better, drawdown no worse
   than -20 %.
 - **Dashboard:** FastAPI at `/api/v1` and a Next.js frontend (`scripts/dashboard.sh`) over a
-  read-only serving copy. Pages: Market Overview, Screener, Stock Analysis,
+  read-only serving copy. Pages: Market Overview, Screener, Chart,
   Watchlist, Fundamentals, Recent IPOs, Strategies, Paper Trading, Backtest,
   Reports, System Status. Live prices are display only.
 - **Alerts:** Telegram evening summary and intraday pivot alerts (`vcp alerts`), monitoring only.

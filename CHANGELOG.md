@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Removed the **Stock Analysis** page (owner, 2026-11-07); the Chart page has all of it (chart, VCP setup and pattern, Trend Template, score, fundamentals, notes, history) and now shows the live price in its header. Every link to a stock (Screener, Watchlist, Fundamentals, Recent IPOs, new highs, the search box) opens its chart; old `/stocks/SYMBOL` addresses redirect to `/chart/SYMBOL`. The old chart component, the stock panel and their helpers are gone.
 - Dark theme: cards and panels a little darker, `#151518` (was `#18181b`).
 - Top bar: the page background colour (`#111113` in the dark theme) with a thin white line under it, instead of the panel colour and a grey line.
 - Market Overview: the divergence warning strip is plain like the cards (neutral border and panel colour); only its ⚠ and "Divergence:" stay amber.

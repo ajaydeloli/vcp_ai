@@ -33,7 +33,7 @@ const COLS: Col[] = [
     align: "left",
     sort: (r) => r.symbol,
     render: (r) => (
-      <a href={`/stocks/${encodeURIComponent(r.symbol)}`} className="font-medium text-accent hover:underline">
+      <a href={`/chart/${encodeURIComponent(r.symbol)}`} className="font-medium text-accent hover:underline">
         {r.symbol}
       </a>
     ),

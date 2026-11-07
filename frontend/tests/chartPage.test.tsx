@@ -266,7 +266,7 @@ describe("chart page", () => {
     expect(within(screen.getByRole("group", { name: "Side panels" })).getByRole("button", { name: "VCP" })).toHaveAttribute("aria-pressed", "false");
   });
 
-  it("the Stock Analysis cards are sidebar tabs; the VCP tab has the pattern merged in", async () => {
+  it("the stock's cards are sidebar tabs; the VCP tab has the pattern merged in", async () => {
     mockApi();
     renderApp(<ChartPage symbol="ALPHA" />);
     const tabs = await screen.findByRole("group", { name: "Side panels" });

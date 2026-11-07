@@ -1,7 +1,7 @@
 "use client";
 
 // Shareholding pattern on the stock page (F8; FUNDAMENTALS_SPECIFICATION §15): the compact block
-// of the Fundamentals card and the quarterly card of Stock Analysis. Display only: nothing here
+// of the Fundamentals card and the Chart page's Fundamentals panel. Display only: nothing here
 // changes a setup score or the paper ledger.
 import { useStockFundamentals } from "@/lib/api";
 import { DASH, fmtDay, fmtInt, fmtPct, tone } from "@/lib/fmt";

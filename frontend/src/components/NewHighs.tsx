@@ -59,7 +59,7 @@ export function NewHighsCard({ highs, box }: { highs: High[]; box: string }) {
                 {highs.map((h) => (
                   <tr key={h.symbol} className="border-t border-line/60">
                     <th scope="row" className="py-1 pr-1 text-left font-medium">
-                      <a href={`/stocks/${encodeURIComponent(h.symbol)}`} className="text-ink hover:text-accent">
+                      <a href={`/chart/${encodeURIComponent(h.symbol)}`} className="text-ink hover:text-accent">
                         {h.symbol}
                       </a>
                     </th>

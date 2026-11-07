@@ -39,13 +39,12 @@ describe("dashboard page (market view)", () => {
     for (const [name, href] of [
       ["Screener", "/screener"],
       ["Chart", "/chart"],
-      ["Stock Analysis", "/stocks"],
       ["Watchlist", "/watchlist"],
     ] as const) {
       expect(within(nav).getByRole("link", { name })).toHaveAttribute("href", href);
     }
-    // the top bar keeps five pages; the rest sit in the More dropdown, closed until asked
-    expect(within(nav).getAllByRole("link")).toHaveLength(5);
+    // the top bar keeps four pages; the rest sit in the More dropdown, closed until asked
+    expect(within(nav).getAllByRole("link")).toHaveLength(4);
     expect(within(nav).getByRole("button", { name: "More pages" })).toHaveAttribute("aria-expanded", "false");
     expect(within(nav).queryByRole("link", { name: "Backtest" })).not.toBeInTheDocument();
     expect(screen.queryByRole("complementary", { name: "Menu" })).not.toBeInTheDocument();
@@ -107,7 +106,7 @@ describe("dashboard page (market view)", () => {
     expect(within(menu).getByRole("link", { name: "Backtest" })).toHaveAttribute("href", "/backtest");
     expect(within(menu).getByRole("link", { name: "Reports" })).toHaveAttribute("href", "/reports");
     expect(within(menu).getByRole("link", { name: "Fundamentals" })).toHaveAttribute("href", "/fundamentals");
-    expect(within(menu).getAllByRole("link")).toHaveLength(12); // every page, the More ones too
+    expect(within(menu).getAllByRole("link")).toHaveLength(11); // every page, the More ones too
     expect(within(menu).queryByText("later")).not.toBeInTheDocument();
     await userEvent.keyboard("{Escape}");
     expect(screen.queryByRole("complementary", { name: "Menu" })).not.toBeInTheDocument();
@@ -355,7 +354,7 @@ describe("dashboard page (market view)", () => {
     expect(card.getByTestId("new-highs-summary")).toHaveTextContent("30 stocks at a new 52-week high today; 15 pass the Trend Template.");
     expect(card.getAllByRole("row")).toHaveLength(31); // every stock, the rows scroll
     const first = within(card.getAllByRole("row")[1]!);
-    expect(first.getByRole("link", { name: "S0" })).toHaveAttribute("href", "/stocks/S0");
+    expect(first.getByRole("link", { name: "S0" })).toHaveAttribute("href", "/chart/S0");
     expect(card.getAllByRole("row")[1]).toHaveTextContent("S0Capital Goods100.00-0.4%2.3×+12.3%99✓Trans.");
     expect(card.getAllByRole("row")[2]).toHaveTextContent("S1—101.00+1.5%2.3×+12.3%98✗Stage 2");
     expect(card.getByTestId("new-highs-scroll")).toHaveClass("overflow-auto");

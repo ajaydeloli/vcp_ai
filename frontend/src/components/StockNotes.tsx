@@ -14,22 +14,6 @@ const when = (iso: string) => {
     : d.toLocaleString("en-IN", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Asia/Kolkata" });
 };
 
-/** "📝 2 notes": next to the symbol in the stock header; a link to the notes on the stock page. */
-export function NotesBadge({ symbol, onStockPage }: { symbol: string; onStockPage: boolean }) {
-  const { notes } = useStockNotes(symbol);
-  if (notes.length === 0) return null;
-  return (
-    <a
-      href={onStockPage ? "#my-notes" : `/stocks/${encodeURIComponent(symbol)}#my-notes`}
-      className="text-xs text-warn hover:underline"
-      title={notes[0]?.text}
-      data-testid="notes-badge"
-    >
-      📝 {notes.length} {notes.length === 1 ? "note" : "notes"}
-    </a>
-  );
-}
-
 function ExportAll() {
   const all = useAllNotes();
   const rows = Object.entries(all).flatMap(([sym, list]) => list.map((n) => [sym, when(n.at), n.text]));

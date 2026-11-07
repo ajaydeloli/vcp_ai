@@ -42,7 +42,7 @@ import {
 } from "@/lib/indicators";
 import { useResolvedTheme } from "@/lib/prefs";
 import type { Bar, StockSetup } from "@/lib/schemas";
-import { chartTheme } from "./ChartView";
+import { chartTheme } from "@/lib/chartTheme";
 
 const RIGHT_GAP = 12; // empty bars after the last one: room for the "RS Rating NN" label
 const PANE_HEIGHT: Record<string, number> = { rs: 0.14, volume: 0.16, rsi: 0.14, macd: 0.16 };

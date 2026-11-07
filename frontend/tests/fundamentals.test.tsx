@@ -53,7 +53,7 @@ describe("fundamentals page", () => {
     mockApi();
     renderApp(<FundamentalsPage />);
     const link = await screen.findByRole("link", { name: "ALPHA" });
-    expect(link).toHaveAttribute("href", "/stocks/ALPHA");
+    expect(link).toHaveAttribute("href", "/chart/ALPHA");
     expect(screen.getByText(/2 of 4 universe stocks have results filed/)).toBeInTheDocument();
     const nav = screen.getByRole("navigation", { name: "Main" });
     // Fundamentals sits in the More dropdown (2026-10-23): the button names it as the current page

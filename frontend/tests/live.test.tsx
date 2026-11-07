@@ -1,14 +1,12 @@
-import { screen, waitFor, within } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
+import { screen, waitFor } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { LiveNotice } from "@/components/Live";
 import { Screener } from "@/components/Screener";
 import { StatusBar } from "@/components/StatusBar";
-import { StockPanel } from "@/components/StockPanel";
+import { ChartPage } from "@/components/ChartPage";
 import { liveEvery } from "@/lib/api";
 import type { LiveFeed } from "@/lib/schemas";
 import { feedNotice, feedState, fmtAge, liveLabel } from "@/lib/live";
-import { liveCharts } from "./chartMock";
 import { fx, mockApi, renderApp } from "./helpers";
 
 const tokenDown = () => {
@@ -58,58 +56,17 @@ describe("live prices on the pages", () => {
     expect(screen.queryByRole("button", { name: /^Live/ })).toBeNull();
   });
 
-  it("the stock page shows the live line beside the stored close", async () => {
+  it("the Chart page shows the live line beside the stored close", async () => {
     mockApi();
-    renderApp(<StockPanel selection={{ symbol: "ALPHA", strategy: "vcp" }} onSelect={() => {}} onStockPage />);
+    renderApp(<ChartPage symbol="ALPHA" />);
     await waitFor(() => expect(screen.getByTestId("live-line")).toHaveTextContent("102"));
     expect(screen.getByTestId("live-line")).toHaveTextContent("Live, delayed 0 s");
     expect(screen.getByText(/adjusted prices/)).toBeInTheDocument();
   });
 
-  it("the stock page keeps the chart on the left and the figures in a side panel", async () => {
-    mockApi();
-    renderApp(<StockPanel selection={{ symbol: "ALPHA", strategy: "vcp" }} onSelect={() => {}} onStockPage />);
-    const side = await screen.findByRole("complementary", { name: "Details of ALPHA" });
-    await waitFor(() => expect(within(side).getByTestId("live-line")).toHaveTextContent("102"));
-    for (const label of ["Close", "Score", "RS rank", "Pivot", "Stage", "Open", "High", "Low", "Volume"]) {
-      expect(within(side).getByText(label)).toBeInTheDocument();
-    }
-    expect(within(side).getByText(/adjusted prices/)).toBeInTheDocument();
-    expect(within(side).getByText("Stage").nextElementSibling).toHaveTextContent(/Stage \d|Transition/);
-  });
-
-  it("the chart can hide each average and switch to OHLC bars", async () => {
-    mockApi();
-    renderApp(<StockPanel selection={{ symbol: "ALPHA", strategy: "vcp" }} onSelect={() => {}} onStockPage />);
-    const box = await screen.findByLabelText("SMA 20");
-    const chart = liveCharts()[0]!;
-    const [s20, s50, s200] = chart.of("line");
-    expect(chart.of("candles")[0]!.options.visible).not.toBe(false);
-    await userEvent.click(box);
-    expect(s20!.options.visible).toBe(false);
-    expect(s50!.options.visible).not.toBe(false);
-    await userEvent.click(box);
-    expect(s20!.options.visible).toBe(true);
-    await userEvent.click(screen.getByLabelText("SMA 200"));
-    expect(s200!.options.visible).toBe(false);
-    await userEvent.click(screen.getByRole("button", { name: "OHLC bars" }));
-    expect(chart.of("bars")[0]!.options.visible).toBe(true);
-    expect(chart.of("candles")[0]!.options.visible).toBe(false);
-    await userEvent.click(screen.getByRole("button", { name: "Line" }));
-    expect(chart.of("line")[3]!.options.visible).toBe(true);
-    expect(chart.of("bars")[0]!.options.visible).toBe(false);
-    expect(chart.of("line")[3]!.data.length).toBeGreaterThan(0);
-    await userEvent.click(screen.getByRole("button", { name: "Candlesticks" }));
-    expect(chart.of("candles")[0]!.options.visible).toBe(true);
-    expect(chart.of("line")[3]!.options.visible).toBe(false);
-    expect(screen.getByRole("group", { name: "Chart range" })).toBeInTheDocument();
-    expect(screen.getByRole("group", { name: "Chart type" })).toBeInTheDocument();
-    expect(screen.getByRole("group", { name: "Moving averages" })).toBeInTheDocument();
-  });
-
   it("a stock without a live price says not available", async () => {
     mockApi();
-    renderApp(<StockPanel selection={{ symbol: "GAMMA", strategy: "vcp" }} onSelect={() => {}} onStockPage />);
+    renderApp(<ChartPage symbol="GAMMA" />);
     await waitFor(() => expect(screen.getByTestId("live-line")).toHaveTextContent(/not available/i));
   });
 

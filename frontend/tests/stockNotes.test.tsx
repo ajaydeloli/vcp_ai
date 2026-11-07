@@ -1,7 +1,7 @@
 import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it } from "vitest";
-import { StockAnalysis } from "@/components/StockAnalysis";
+import { StockNotes } from "@/components/StockNotes";
 import { NOTES_KEY, parseNotes } from "@/lib/notes";
 import { mockApi, renderApp } from "./helpers";
 
@@ -10,9 +10,9 @@ const stored = () => parseNotes(window.localStorage.getItem(NOTES_KEY) ?? "");
 beforeEach(() => window.localStorage.clear());
 
 describe("my notes on a stock", () => {
-  it("adds a note (button or Ctrl+Enter), shows it newest first and badges the symbol", async () => {
+  it("adds a note (button or Ctrl+Enter) and shows it newest first", async () => {
     mockApi();
-    renderApp(<StockAnalysis symbol="BETA" />);
+    renderApp(<StockNotes symbol="BETA" />);
     const box = await screen.findByLabelText("New note on BETA");
     await userEvent.type(box, "Results on 5 Nov");
     await userEvent.click(screen.getByRole("button", { name: "Add note" }));
@@ -22,7 +22,6 @@ describe("my notes on a stock", () => {
     expect(items).toHaveLength(2);
     expect(stored().BETA?.map((n) => n.text)).toEqual(["Results on 5 Nov", "Wait for the handle"]);
     expect(box).toHaveValue("");
-    expect(screen.getByTestId("notes-badge")).toHaveTextContent("2 notes");
   });
 
   it("asks once before deleting, and keeps notes per stock", async () => {
@@ -31,7 +30,7 @@ describe("my notes on a stock", () => {
       JSON.stringify({ BETA: [{ id: "a", at: "2026-10-20T05:00:00Z", text: "old idea" }], ALPHA: [{ id: "b", at: "2026-10-21T05:00:00Z", text: "other stock" }] }),
     );
     mockApi();
-    renderApp(<StockAnalysis symbol="BETA" />);
+    renderApp(<StockNotes symbol="BETA" />);
     expect(await screen.findByText("old idea")).toBeInTheDocument();
     expect(screen.queryByText("other stock")).not.toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: /Delete the note of/ }));

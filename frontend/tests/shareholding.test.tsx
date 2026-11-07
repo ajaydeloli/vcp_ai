@@ -6,7 +6,7 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 import { FundamentalsPage } from "@/components/FundamentalsPage";
 import { Screener } from "@/components/Screener";
-import { SetupOverview } from "@/components/SetupOverview";
+import { FundamentalsCard } from "@/components/Fundamentals";
 import { ShareholdingCard } from "@/components/Shareholding";
 import { fmtPp } from "@/lib/fundamentals";
 import { mockApi, renderApp } from "./helpers";
@@ -20,7 +20,7 @@ describe("shareholding", () => {
 
   it("the Fundamentals card shows the latest split with 1Q and 4Q changes and flags a rising pledge", async () => {
     mockApi();
-    renderApp(<SetupOverview selection={{ symbol: "ALPHA", strategy: "vcp" }} />);
+    renderApp(<FundamentalsCard symbol="ALPHA" />);
     const card = (await screen.findByText("Fundamentals")).closest("section")!;
     await waitFor(() => expect(card).toHaveTextContent("Shareholding · Jun 26 (revised)"));
     expect(card).toHaveTextContent("Promoter48.50%-0.50 pp-1.50 pp");

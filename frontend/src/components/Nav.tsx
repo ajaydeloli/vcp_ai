@@ -10,7 +10,6 @@ const TOP = [
   ["Market Overview", "/dashboard"],
   ["Screener", "/screener"],
   ["Chart", "/chart"],
-  ["Stock Analysis", "/stocks"],
   ["Watchlist", "/watchlist"],
 ] as const;
 
@@ -174,7 +173,7 @@ function Today() {
  *  bar with every page (the only menu on a narrow screen). */
 export function Nav({
   active = "Market Overview",
-  onPick = (symbol) => window.location.assign(`/stocks/${encodeURIComponent(symbol)}`),
+  onPick = (symbol) => window.location.assign(`/chart/${encodeURIComponent(symbol)}`),
 }: {
   active?: Page;
   onPick?: (symbol: string) => void;

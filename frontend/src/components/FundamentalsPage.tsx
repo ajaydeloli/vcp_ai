@@ -58,7 +58,7 @@ const COMMON_COLS: Col[] = [
     w: 140,
     sort: true,
     render: (r) => (
-      <a href={`/stocks/${encodeURIComponent(r.symbol)}`} title={r.company ?? undefined} className="font-medium text-accent hover:underline">
+      <a href={`/chart/${encodeURIComponent(r.symbol)}`} title={r.company ?? undefined} className="font-medium text-accent hover:underline">
         {r.symbol}
       </a>
     ),

@@ -202,7 +202,7 @@ export function Watchlist() {
           </div>
           {symbols.length === 0 ? (
             <Empty>
-              This list is empty. Press ☆ next to a stock on the Screener or Stock Analysis page, or
+              This list is empty. Press ☆ next to a stock on the Screener or Chart page, or
               add one with the box above.
             </Empty>
           ) : result.isError ? (

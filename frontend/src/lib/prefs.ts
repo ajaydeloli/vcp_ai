@@ -32,7 +32,6 @@ export const START_PAGES: [string, string][] = [
   ["/screener", "Screener"],
   ["/chart", "Chart"],
   ["/watchlist", "Watchlist"],
-  ["/stocks", "Stock Analysis"],
   ["/strategies", "Strategies"],
 ];
 

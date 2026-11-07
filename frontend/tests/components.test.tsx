@@ -1,17 +1,14 @@
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
-import { ChartView } from "@/components/ChartView";
 import { SetupCounts } from "@/components/SetupCounts";
 import { Tiles } from "@/components/Tiles";
 import { ScoreGauge } from "@/components/ScoreGauge";
 import { PaperPanel } from "@/components/PaperPanel";
-import { SetupOverview } from "@/components/SetupOverview";
+import { FundamentalsCard } from "@/components/Fundamentals";
+import { ScoreCard, TrendCard } from "@/components/SetupOverview";
 import { StatusBar } from "@/components/StatusBar";
-import { StockPanel } from "@/components/StockPanel";
 import { TopBar } from "@/components/TopBar";
-import { liveCharts } from "./chartMock";
 import { fx, mockApi, renderApp } from "./helpers";
 
 const kpi = (title: string) => screen.getByTestId(`kpi-${title}`);
@@ -86,85 +83,12 @@ describe("tiles", () => {
   });
 });
 
-function Harness({ first = "vcp" }: { first?: string }) {
-  const [sel, setSel] = useState({ symbol: "ALPHA", strategy: first });
-  return <StockPanel selection={sel} onSelect={setSel} />;
-}
+describe("the cards of a stock (Chart page tabs)", () => {
+  const stock = { ...fx.stockSetups, symbol: "ALPHA" } as never;
 
-describe("stock panel", () => {
-  it("is its own card: name, price, setup figures, and the chart with marks, pivot and stop", async () => {
-    mockApi();
-    renderApp(<Harness />);
-    await screen.findByText("Alpha Industries Ltd");
-    await waitFor(() => expect(liveCharts()).toHaveLength(1));
-    const chart = liveCharts()[0]!;
-    const candles = chart.of("candles")[0]!;
-    await waitFor(() => expect(candles.data).toHaveLength(fx.bars.bars.length));
-    expect(chart.of("line").map((l) => l.options.color)).toHaveLength(4); // three averages and the line chart
-    await waitFor(() => expect(candles.markers.length).toBeGreaterThan(0));
-    // marks on days without a bar are dropped: the sample's base start (a Saturday) and T2
-    expect(candles.markers.map((m) => m.text)).toEqual(["P1", "P2", "T1 9.2%"]);
-    // pivot and stop lines carry no title inside the plot (it hid the latest candles); their
-    // names and prices are in the legend at the top left
-    const vcp = fx.stockSetups.setups[0]!;
-    expect(candles.priceLines.map((l) => l.title)).toEqual(["", ""]);
-    expect(candles.priceLines.map((l) => l.price).sort()).toEqual([vcp.stop, vcp.pivot].sort());
-    const legend = screen.getByTestId("chart-levels");
-    expect(legend).toHaveTextContent("Pivot 120.00");
-    expect(legend).toHaveTextContent("Stop");
-
-    expect(screen.getByText("171.90", { selector: "span" })).toBeInTheDocument();
-    await waitFor(() => expect(screen.getByText("RS rank").nextElementSibling).toHaveTextContent("91"));
-    expect(screen.getByText("Score").nextElementSibling).toHaveTextContent("91");
-    expect(screen.getByText("Pivot").nextElementSibling).toHaveTextContent("120.00");
-    expect(screen.getByText("A+ VCP")).toBeInTheDocument();
-    expect(screen.getByTitle("NSE classification")).toHaveTextContent("Capital Goods · Heavy Electrical Equipment");
-  });
-
-  it("says when there is nothing selected", () => {
-    mockApi();
-    renderApp(<StockPanel selection={null} onSelect={() => {}} />);
-    expect(screen.getByText(/Select a stock from the list/)).toBeInTheDocument();
-  });
-
-  it("a stock without bars is said so, not drawn", async () => {
-    mockApi({ "stocks/NEWCO/bars?days=5000": { ...fx.bars, symbol: "NEWCO", bars: [] } });
-    renderApp(<StockPanel selection={{ symbol: "NEWCO", strategy: "vcp" }} onSelect={() => {}} />);
-    expect(await screen.findByText(/No price bars for NEWCO/)).toBeInTheDocument();
-    expect(liveCharts()).toHaveLength(0);
-  });
-});
-
-describe("setup overview", () => {
-  const overview = (strategy = "vcp") => renderApp(<SetupOverview selection={{ symbol: "ALPHA", strategy }} />);
-
-  it("shows the VCP pattern: contractions, base figures and distance to the pivot", async () => {
-    mockApi();
-    overview();
-    const card = (await screen.findByText("VCP pattern")).closest("section")!;
-    const [t1, t2] = within(card).getAllByRole("row").slice(1);
-    expect(t1).toHaveTextContent("T19.2%10First");
-    expect(t2).toHaveTextContent("T24.7%10✓ Tighter");
-    expect(card).toHaveTextContent("Base depth18.8%");
-    await waitFor(() => expect(card).toHaveTextContent("Base duration50 days"));
-    expect(card).toHaveTextContent("Pivot price120.00");
-    expect(card).toHaveTextContent("Current price171.90");
-    expect(card).toHaveTextContent("Distance to pivot1.2%");
-  });
-
-  it("a stock outside the ranking has dashes for base duration and distance, not 0", async () => {
-    mockApi({ "setups?strategy=vcp": { ...fx.setupsVcp, rows: [] } });
-    overview();
-    const card = (await screen.findByText("VCP pattern")).closest("section")!;
-    await waitFor(() => expect(card).toHaveTextContent("Pivot price120.00"));
-    expect(card).toHaveTextContent("Base duration—");
-    expect(card).toHaveTextContent("Distance to pivot—");
-  });
-
-  it("lists the Trend Template conditions with the weekly stage", async () => {
-    mockApi();
-    overview();
-    const card = (await screen.findByText("Trend Template")).closest("section")!;
+  it("lists the Trend Template conditions with the weekly stage", () => {
+    renderApp(<TrendCard stock={stock} />);
+    const card = screen.getByText("Trend Template").closest("section")!;
     expect(card).toHaveTextContent("3 / 3 ✓");
     expect(within(card).getAllByLabelText("passed")).toHaveLength(3);
     expect(card).toHaveTextContent("Stage 2");
@@ -172,7 +96,7 @@ describe("setup overview", () => {
 
   it("shows the latest quarter's fundamentals; a missing metric is a dash with its reason, never 0", async () => {
     mockApi();
-    overview();
+    renderApp(<FundamentalsCard symbol="ALPHA" />);
     const card = (await screen.findByText("Fundamentals")).closest("section")!;
     await waitFor(() => expect(card).toHaveTextContent("Jun 26 quarter · consolidated · published 20 Jul 2026"));
     expect(card).toHaveTextContent("● Current");
@@ -189,41 +113,18 @@ describe("setup overview", () => {
 
   it("a stock without results says so instead of showing numbers", async () => {
     mockApi();
-    renderApp(<SetupOverview selection={{ symbol: "GAMMA", strategy: "vcp" }} />);
+    renderApp(<FundamentalsCard symbol="GAMMA" />);
     const card = (await screen.findByText("Fundamentals")).closest("section")!;
     await waitFor(() => expect(card).toHaveTextContent("No results filed yet"));
     expect(card).not.toHaveTextContent("0.0");
   });
 
-  it("draws the score as a ring with one arc per component and the final score in the middle", async () => {
-    mockApi();
-    overview();
-    const card = (await screen.findByText("Score breakdown")).closest("section")!;
+  it("draws the score as a ring with one arc per component and the final score in the middle", () => {
+    renderApp(<ScoreCard setup={fx.stockSetups.setups[0] as never} />);
+    const card = screen.getByText("Score breakdown").closest("section")!;
     expect(within(card).getByRole("img", { name: /Final score 91/ })).toBeInTheDocument();
     expect(card).toHaveTextContent("Trend33.0 / 40");
     expect(card).toHaveTextContent("VCP17.0 / 40");
-  });
-
-});
-
-describe("chart range buttons", () => {
-  it("mark the chosen range and refit short histories", async () => {
-    const onRange = vi.fn();
-    renderApp(<ChartView bars={fx.bars.bars} setup={null} range="1Y" onRange={onRange} />);
-    expect(screen.getByRole("button", { name: "1Y" })).toHaveAttribute("aria-pressed", "true");
-    await userEvent.click(screen.getByRole("button", { name: "3M" }));
-    expect(onRange).toHaveBeenCalledWith("3M");
-    // 60 bars < 3 months: everything shown, with 6 empty bars after the last one
-    const n = fx.bars.bars.length;
-    expect(liveCharts()[0]!.logicalRange).toEqual({ from: 0, to: n - 1 + 6 });
-  });
-
-  it("show the last N bars as the visible range", () => {
-    const many = Array.from({ length: 300 }, (_, i) => ({ ...fx.bars.bars[0]!, day: `2025-01-${String((i % 28) + 1).padStart(2, "0")}-${i}` }));
-    const bars = many.map((b, i) => ({ ...b, day: `2025-${String(1 + Math.floor(i / 28)).padStart(2, "0")}-${String((i % 28) + 1).padStart(2, "0")}` }));
-    renderApp(<ChartView bars={bars} setup={null} range="3M" onRange={() => {}} />);
-    // the last 63 bars plus 6 empty bars, so the latest candles and marks clear the price axis
-    expect(liveCharts()[0]!.logicalRange).toEqual({ from: 300 - 63, to: 299 + 6 });
   });
 });
 

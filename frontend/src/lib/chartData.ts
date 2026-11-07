@@ -18,10 +18,6 @@ export const COLORS = {
   breakout: "#ff9f1c",
 } as const;
 
-export type Candle = { time: string; open: number; high: number; low: number; close: number };
-export type VolumePoint = { time: string; value: number; color: string };
-export type LinePoint = { time: string; value: number };
-
 export type ChartMarker = {
   time: string;
   position: "aboveBar" | "belowBar";
@@ -32,55 +28,6 @@ export type ChartMarker = {
 };
 
 export type ChartLine = { price: number; title: string; color: string; dashed: boolean };
-
-export const RANGES = [
-  { id: "3M", label: "3M", bars: 63 },
-  { id: "6M", label: "6M", bars: 126 },
-  { id: "1Y", label: "1Y", bars: 252 },
-  { id: "2Y", label: "2Y", bars: 504 },
-  { id: "5Y", label: "5Y", bars: 1260 },
-  { id: "ALL", label: "All", bars: Infinity },
-] as const;
-export type RangeId = (typeof RANGES)[number]["id"];
-
-export function toCandles(bars: Bar[]): Candle[] {
-  const out: Candle[] = [];
-  for (const b of bars) {
-    if (b.open === null || b.high === null || b.low === null || b.close === null) continue;
-    out.push({ time: b.day, open: b.open, high: b.high, low: b.low, close: b.close });
-  }
-  return out;
-}
-
-export function toVolume(bars: Bar[]): VolumePoint[] {
-  const out: VolumePoint[] = [];
-  for (const b of bars) {
-    if (b.volume === null || b.open === null || b.close === null) continue;
-    out.push({
-      time: b.day,
-      value: b.volume,
-      color: b.close >= b.open ? COLORS.upFade : COLORS.downFade,
-    });
-  }
-  return out;
-}
-
-/** A moving average as a line; days without a value are left out (never drawn as 0). */
-export function toSma(bars: Bar[], key: "sma20" | "sma50" | "sma200"): LinePoint[] {
-  const out: LinePoint[] = [];
-  for (const b of bars) {
-    const v = b[key];
-    if (v !== null) out.push({ time: b.day, value: v });
-  }
-  return out;
-}
-
-/** The first day to show for a range button (the last N bars); null shows everything. */
-export function rangeFrom(bars: Bar[], range: RangeId): string | null {
-  const n = RANGES.find((r) => r.id === range)?.bars ?? Infinity;
-  if (!Number.isFinite(n) || bars.length <= n) return null;
-  return bars[bars.length - n]?.day ?? null;
-}
 
 /** Marks for the selected strategy's setup: base start, VCP contractions or the detector's
  *  points, and the breakout. Marks on days with no bar are dropped (they could not be placed). */

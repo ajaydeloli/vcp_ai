@@ -14,7 +14,7 @@ describe("more pages", () => {
     mockApi();
     renderApp(<RecentIpos />);
     expect(await screen.findByRole("heading", { name: "Recent IPOs", level: 1 })).toBeInTheDocument();
-    expect(await screen.findByRole("link", { name: "NEWCO" })).toHaveAttribute("href", "/stocks/NEWCO");
+    expect(await screen.findByRole("link", { name: "NEWCO" })).toHaveAttribute("href", "/chart/NEWCO");
     expect(screen.getByText(/outside the scan universe/i)).toBeInTheDocument();
     // a 60-bar stock has no 200-day average: nothing invented
     await userEvent.type(screen.getByRole("spinbutton", { name: "Min bars" }), "100");

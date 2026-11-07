@@ -4,7 +4,7 @@
 // regime threshold).
 import { createChart, CrosshairMode, LineStyle, type IChartApi, type ISeriesApi, type Time } from "lightweight-charts";
 import { useEffect, useRef } from "react";
-import { chartTheme } from "./ChartView";
+import { chartTheme } from "@/lib/chartTheme";
 import { useResolvedTheme } from "@/lib/prefs";
 
 export type MiniSeries = {

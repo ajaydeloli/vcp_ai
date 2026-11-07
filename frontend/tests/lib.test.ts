@@ -1,12 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  buildMarkers,
-  buildPriceLines,
-  rangeFrom,
-  toCandles,
-  toSma,
-  toVolume,
-} from "@/lib/chartData";
+import { buildMarkers, buildPriceLines } from "@/lib/chartData";
 import { classLabel, daysBetween, sentence, DASH, fmtDay, fmtInt, fmtNum, fmtPct, fmtPrice, fmtStamp, tone } from "@/lib/fmt";
 import type { Bar, StockSetup } from "@/lib/schemas";
 import { unmetByTier } from "@/components/SetupOverview";
@@ -45,40 +38,6 @@ describe("display helpers: a missing value is a dash, never 0", () => {
     expect(sentence("sma150_above_sma200")).toBe("SMA150 above SMA200");
     expect(sentence("rs_rank")).toBe("RS rank");
     expect(sentence("PIVOT_READY")).toBe("Pivot ready");
-  });
-});
-
-describe("chart series", () => {
-  const bars = [
-    bar("2026-10-01", { sma20: 10.5 }),
-    bar("2026-10-02", { open: null }),
-    bar("2026-10-05", { sma20: 10.6, sma50: 10, volume: null }),
-  ];
-
-  it("candles skip bars without a full OHLC", () => {
-    expect(toCandles(bars).map((c) => c.time)).toEqual(["2026-10-01", "2026-10-05"]);
-  });
-
-  it("volume skips missing volume and colours by direction", () => {
-    const v = toVolume([bar("2026-10-01"), bar("2026-10-02", { close: 9 }), ...bars.slice(2)]);
-    expect(v).toHaveLength(2);
-    expect(v[0]?.color).not.toBe(v[1]?.color);
-  });
-
-  it("an average is drawn only where it exists (null is not drawn as 0)", () => {
-    expect(toSma(bars, "sma20")).toEqual([
-      { time: "2026-10-01", value: 10.5 },
-      { time: "2026-10-05", value: 10.6 },
-    ]);
-    expect(toSma(bars, "sma200")).toEqual([]);
-  });
-
-  it("range buttons show the last N bars; All and short history show everything", () => {
-    const many = Array.from({ length: 300 }, (_, i) => bar(`d${String(i).padStart(3, "0")}`));
-    expect(rangeFrom(many, "3M")).toBe("d237");
-    expect(rangeFrom(many, "1Y")).toBe("d048");
-    expect(rangeFrom(many, "ALL")).toBeNull();
-    expect(rangeFrom(many.slice(0, 50), "3M")).toBeNull();
   });
 });
 

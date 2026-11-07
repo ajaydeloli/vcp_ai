@@ -28,7 +28,7 @@ describe("my watch lists", () => {
 
     const calls = mockApi();
     renderApp(<Watchlist />);
-    expect(await screen.findByRole("link", { name: "ALPHA" })).toHaveAttribute("href", "/stocks/ALPHA");
+    expect(await screen.findByRole("link", { name: "ALPHA" })).toHaveAttribute("href", "/chart/ALPHA");
     expect(calls.some((c) => c.includes("symbols=ALPHA"))).toBe(true);
     await userEvent.click(screen.getByRole("button", { name: `Remove ALPHA from ${DEFAULT_NAME}` }));
     await waitFor(() => expect(screen.getByText(/This list is empty/)).toBeInTheDocument());

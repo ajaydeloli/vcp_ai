@@ -5,7 +5,7 @@
 // the watch list and the top VCP setups on the left, and the VCP setup on the right.
 import type { IChartApi } from "lightweight-charts";
 import { useEffect, useRef, useState } from "react";
-import { useBars, useIndexCloses, useRsRanks, useSetups, useStockSetups } from "@/lib/api";
+import { useBars, useIndexCloses, useLiveQuotes, useRsRanks, useSetups, useStockSetups } from "@/lib/api";
 import {
   BENCHMARKS,
   CHART_TYPES,
@@ -31,6 +31,7 @@ import { ShareholdingCard } from "./Shareholding";
 import { HistoryCard } from "./StockExtras";
 import { StockNotes } from "./StockNotes";
 import { BTN, ColorMenu, IndicatorMenu, toggleBtn } from "./ChartMenus";
+import { LiveLine } from "./Live";
 import { Nav } from "./Nav";
 import { ProChart } from "./ProChart";
 import { StatusBar } from "./StatusBar";
@@ -109,6 +110,7 @@ function ChartArea({
   const stock = useStockSetups(symbol);
   const rsOn = settings.toggles.includes("rs");
   const bench = useIndexCloses(settings.benchmark, rsOn);
+  const live = useLiveQuotes([symbol]);
   const ranks = useRsRanks(symbol, rsOn);
   const api = useRef<IChartApi | null>(null);
   const wrap = useRef<HTMLElement>(null);
@@ -147,10 +149,8 @@ function ChartArea({
         <span className="text-base font-semibold tabular-nums text-ink">{fmtPrice(last?.close)}</span>
         <span className={`text-sm tabular-nums ${tone(pct)}`}>{fmtPct(pct, 2, true)}</span>
         {last ? <span className="text-xs text-mute">close {last.day}, adjusted prices</span> : null}
+        <LiveLine q={live.bySymbol.get(symbol.toUpperCase())} />
         <span className="ml-auto flex items-center gap-3">
-          <a href={`/stocks/${encodeURIComponent(symbol)}`} className="text-xs text-accent hover:underline">
-            Full analysis →
-          </a>
           <ChartLinks symbol={symbol} />
         </span>
       </div>
@@ -511,7 +511,7 @@ function SideBar({
 }
 
 /** The cards in the sidebar look plain, like the VCP and watch-list panels: no coloured
- *  border or tinted background (the Stock Analysis page keeps its colours). Floating, the panel
+ *  border or tinted background. Floating, the panel
  *  has the border, so the cards have none; pinned, each card has the plain line border. */
 const PLAIN_FLOATING = "[&_section]:!border-0 [&_section]:!bg-transparent [&_section]:!bg-none";
 const PLAIN_PINNED = "[&_section]:!border [&_section]:!border-line [&_section]:!bg-panel [&_section]:!bg-none";
@@ -546,8 +546,7 @@ function TabCards({ tab, symbol, bare }: { tab: SideTab; symbol: string; bare: b
   return tab === "trend" ? <TrendCard stock={stock.data} /> : <ScoreCard setup={vcpSetup(stock.data)} />;
 }
 
-/** The VCP setup and its pattern in one panel (the Stock Analysis page's "VCP pattern" card
- *  merged in): grade, status, the key levels, the base, the contractions and the rules a higher
+/** The VCP setup and its pattern in one panel: grade, status, the key levels, the base, the contractions and the rules a higher
  *  grade still misses. ``bare``: no card border of its own (inside the floating panel). */
 function SetupSide({ symbol, bare = false }: { symbol: string; bare?: boolean }) {
   const stock = useStockSetups(symbol);

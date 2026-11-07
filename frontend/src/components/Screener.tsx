@@ -52,7 +52,7 @@ export const COLS: Col[] = [
     w: 150,
     label: "Symbol",
     render: (r) => (
-      <a href={`/stocks/${encodeURIComponent(r.symbol)}`} className="font-medium text-accent hover:underline">
+      <a href={`/chart/${encodeURIComponent(r.symbol)}`} className="font-medium text-accent hover:underline">
         {r.symbol}
       </a>
     ),

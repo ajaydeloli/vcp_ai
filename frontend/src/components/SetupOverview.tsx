@@ -1,12 +1,9 @@
 "use client";
 
-import { useSetups, useStockSetups } from "@/lib/api";
-import { DASH, daysBetween, fmtDay, fmtInt, fmtNum, fmtPct, fmtPrice, sentence } from "@/lib/fmt";
+import { DASH, daysBetween, fmtDay, fmtInt, fmtNum, fmtPct, sentence } from "@/lib/fmt";
 import type { StockSetup, StockSetups } from "@/lib/schemas";
-import { FundamentalsCard } from "./Fundamentals";
 import { ScoreRing, type Arc } from "./Rings";
-import type { Selection } from "@/lib/selection";
-import { Card, ErrorBox, Loading, TINT } from "./ui";
+import { Card, TINT } from "./ui";
 
 function Row({ k, v }: { k: string; v: React.ReactNode }) {
   return (
@@ -85,48 +82,6 @@ export function ContractionTable({ setup }: { setup: StockSetup }) {
     </table>
   ) : (
     <p className="mb-3 text-xs text-mute">No contractions stored for this setup.</p>
-  );
-}
-
-function PatternCard({
-  stock,
-  setup,
-  baseDays,
-  distance,
-}: {
-  stock: StockSetups;
-  setup: StockSetup | null;
-  baseDays: number | null;
-  distance: number | null;
-}) {
-  const d = setup?.details ?? {};
-  const unmet = setup ? unmetByTier(setup.details) : [];
-  return (
-    <Card title="VCP pattern" box={TINT.violet} subtitle={setup ? undefined : `No setup stored for this stock on ${fmtDay(stock.as_of)}.`}>
-      {setup ? (
-        <>
-          <ContractionTable setup={setup} />
-          <dl className="text-xs">
-            <Row k="Base depth" v={fmtPct(setup.base_depth_pct)} />
-            <Row k="Base duration" v={baseDays === null ? DASH : `${baseDays} days`} />
-            <Row k="Pivot price" v={fmtPrice(setup.pivot)} />
-            <Row k="Current price" v={fmtPrice(stock.close)} />
-            <Row k="Distance to pivot" v={fmtPct(distance)} />
-            <Row k="Stop" v={fmtPrice(setup.stop)} />
-            <Row k="Base start" v={fmtDay(setup.base_start)} />
-            <Row k="Base high / low" v={`${fmtPrice(asNumber(d["base_high"]))} / ${fmtPrice(asNumber(d["base_low"]))}`} />
-            <Row k="Prior advance" v={fmtPct(asNumber(d["prior_advance_pct"]))} />
-            <Row k="Volume dry-up" v={fmtNum(asNumber(d["dryup_volume_ratio"]), 2)} />
-            <Row k="Breakout" v={setup.breakout_date ? fmtDay(setup.breakout_date) : DASH} />
-          </dl>
-          {unmet.map(([tier, rules]) => (
-            <p key={tier} className="mt-2 text-xs text-warn">
-              Not {sentence(tier)}: {rules.map(sentence).join(", ")}
-            </p>
-          ))}
-        </>
-      ) : null}
-    </Card>
   );
 }
 
@@ -216,23 +171,3 @@ export function ScoreCard({ setup }: { setup: StockSetup | null }) {
   );
 }
 
-export function SetupOverview({ selection }: { selection: Selection | null }) {
-  const stock = useStockSetups(selection?.symbol ?? null);
-  const ranked = useSetups(selection?.strategy ?? "vcp", undefined, selection !== null);
-  if (!selection) return null;
-  if (stock.isError) return <ErrorBox error={stock.error} />;
-  if (stock.isPending) return <Loading what="setup overview" />;
-
-  const setups = stock.data.setups;
-  const setup = setups.find((s) => s.strategy_id === selection.strategy) ?? setups[0] ?? null;
-  const row = ranked.data?.rows.find((r) => r.symbol === selection.symbol && r.strategy_id === setup?.strategy_id);
-
-  return (
-    <div className="grid auto-rows-fr gap-4 md:grid-cols-2 xl:grid-cols-4 [&>section]:h-full [&>section]:min-w-0">
-      <PatternCard stock={stock.data} setup={setup} baseDays={row?.base_days ?? null} distance={row?.pivot_distance_pct ?? null} />
-      <TrendCard stock={stock.data} />
-      <FundamentalsCard symbol={selection.symbol} />
-      <ScoreCard setup={setup} />
-    </div>
-  );
-}
