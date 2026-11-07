@@ -191,7 +191,7 @@ export function Nav({
 
   return (
     <>
-      <header className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b border-line bg-panel px-4">
+      <header className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b border-white/25 bg-bg px-4">
         <button
           type="button"
           aria-label="Open the menu"
