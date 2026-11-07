@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Chart page: the sidebar's open panel now **floats over the chart** (owner, 2026-11-07), so the chart keeps its full width; Esc or ✕ closes it. **Pin** puts it beside the chart instead (kept per browser).
 - Chart page: **one sidebar on the right with tabs** (owner, 2026-11-07): **VCP** and **Watch lists**, one panel at a time; a tab opens its panel and closes the other, the open tab again folds the sidebar. At first VCP is open when the stock has a setup, else the watch lists; the choice is kept per browser. Replaces the left VCP panel and the separate fold button of the lists.
 - Chart page: the watch lists on the right fold into a slim **Watch lists** button, like the VCP panel on the left (› to hide, the button to show again; kept per browser).
 - Fix (Chart page): the chosen interval (D / W / M) and the Log button now show filled in the accent colour; the button's own background class had been winning over the highlight.

@@ -117,6 +117,8 @@ export type ChartSettings = {
   /** the right sidebar's open tab (one at a time): auto = the VCP analysis when the stock has a
    *  setup, else the watch lists; none = folded into its tab buttons */
   sidePanel: SidePanel;
+  /** false: the open panel floats over the chart (the chart keeps its width); true: pinned beside it */
+  sideDock: boolean;
 };
 
 export type SidePanel = "auto" | "vcp" | "lists" | "none";
@@ -132,6 +134,7 @@ export const DEFAULT_CHART: ChartSettings = {
   params: DEFAULT_PARAMS,
   colors: DEFAULT_COLORS,
   sidePanel: "auto",
+  sideDock: false,
 };
 
 const HEX = /^#[0-9a-f]{6}$/i;
@@ -220,6 +223,7 @@ export function parseChart(raw: string | null): ChartSettings {
       params: parseParams(v.params),
       colors: parseColors(v.colors),
       sidePanel: v.sidePanel === "vcp" || v.sidePanel === "lists" || v.sidePanel === "none" ? v.sidePanel : "auto",
+      sideDock: v.sideDock === true,
     };
   } catch {
     return DEFAULT_CHART;

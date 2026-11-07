@@ -225,4 +225,25 @@ describe("chart page", () => {
     await waitFor(() => expect(screen.getByTestId("chart-legend")).toHaveTextContent("BETA · 1D"));
     expect(JSON.parse(window.localStorage.getItem("vcp-chart-lists-open") ?? "[]")).toEqual(["a", "b"]);
   });
+
+  it("the open panel floats over the chart (Esc closes it), or can be pinned beside it", async () => {
+    mockApi();
+    renderApp(<ChartPage symbol="ALPHA" />);
+    const panel = await screen.findByTestId("side-panel");
+    expect(panel).toHaveAttribute("data-floating", "true");
+    expect(panel.className).toMatch(/lg:absolute/);
+    await userEvent.click(screen.getByRole("button", { name: "Pin" }));
+    expect(screen.getByTestId("side-panel")).toHaveAttribute("data-floating", "false");
+    expect(JSON.parse(window.localStorage.getItem(CHART_KEY) ?? "{}").sideDock).toBe(true);
+    await userEvent.keyboard("{Escape}"); // a pinned panel stays
+    expect(screen.getByTestId("side-panel")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Pinned" }));
+    expect(screen.getByTestId("side-panel")).toHaveAttribute("data-floating", "true");
+    await userEvent.keyboard("{Escape}");
+    expect(screen.queryByTestId("side-panel")).not.toBeInTheDocument();
+    expect(within(screen.getByRole("group", { name: "Side panels" })).getByRole("button", { name: "VCP" })).toHaveAttribute("aria-pressed", "false");
+    await userEvent.click(screen.getByRole("button", { name: "Watch lists" }));
+    await userEvent.click(screen.getByRole("button", { name: "Close the side panel" }));
+    expect(screen.queryByTestId("side-panel")).not.toBeInTheDocument();
+  });
 });

@@ -80,6 +80,8 @@ export function ChartPage({ symbol: given }: { symbol: string | null }) {
           symbol={shown}
           mode={settings.sidePanel}
           onMode={(sidePanel) => change({ sidePanel })}
+          dock={settings.sideDock}
+          onDock={(sideDock) => change({ sideDock })}
           lists={<SideLists current={shown} onPick={pick} top={top.data?.rows ?? []} />}
         />
       </main>
@@ -396,11 +398,15 @@ function SideBar({
   symbol,
   mode,
   onMode,
+  dock,
+  onDock,
   lists,
 }: {
   symbol: string | null;
   mode: SidePanel;
   onMode: (m: SidePanel) => void;
+  dock: boolean;
+  onDock: (d: boolean) => void;
   lists: React.ReactNode;
 }) {
   const stock = useStockSetups(symbol);
@@ -410,15 +416,52 @@ function SideBar({
     { id: "vcp", label: has || !symbol ? "VCP" : "VCP (none)", title: has ? "VCP analysis" : `No VCP setup for ${symbol ?? "this stock"} on the latest scan` },
     { id: "lists", label: "Watch lists", title: "Watch lists and top VCP setups" },
   ];
+  const floating = !dock && open !== "none";
+  // a floating panel closes with Escape (a pinned one stays)
+  useEffect(() => {
+    if (!floating) return;
+    const key = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && !document.querySelector("[role=dialog]")) onMode("none");
+    };
+    document.addEventListener("keydown", key);
+    return () => document.removeEventListener("keydown", key);
+  }, [floating, onMode]);
+  const body = open === "vcp" && symbol ? <SetupSide symbol={symbol} /> : open === "lists" ? lists : null;
+  const width = open === "vcp" ? "lg:w-[18rem]" : "lg:w-[13rem]";
   return (
-    <div className="flex min-w-0 flex-col-reverse gap-2 lg:flex-row lg:items-start">
-      {open === "vcp" && symbol ? (
-        <div id="side-panel" className="min-w-0 lg:w-[18rem]">
-          <SetupSide symbol={symbol} />
-        </div>
-      ) : open === "lists" ? (
-        <div id="side-panel" className="min-w-0 lg:w-[13rem]">
-          {lists}
+    <div className="relative flex min-w-0 flex-col-reverse gap-2 lg:flex-row lg:items-start">
+      {body ? (
+        <div
+          id="side-panel"
+          data-testid="side-panel"
+          data-floating={floating ? "true" : "false"}
+          className={`min-w-0 ${width} ${
+            floating
+              ? "lg:absolute lg:right-full lg:top-[6.25rem] lg:z-30 lg:mr-2 lg:max-h-[calc(100vh-15rem)] lg:overflow-y-auto lg:rounded-lg lg:shadow-2xl lg:shadow-black/60"
+              : ""
+          }`}
+        >
+          <div className="mb-1 hidden justify-end gap-1 lg:flex">
+            <button
+              type="button"
+              aria-pressed={dock}
+              onClick={() => onDock(!dock)}
+              title={dock ? "Float over the chart (the chart keeps its full width)" : "Pin beside the chart (the chart gets narrower)"}
+              className={`rounded border px-1.5 py-0.5 text-[11px] ${dock ? "border-accent bg-accent text-white" : "border-line bg-panel text-mute hover:border-accent hover:text-ink"}`}
+            >
+              {dock ? "Pinned" : "Pin"}
+            </button>
+            <button
+              type="button"
+              onClick={() => onMode("none")}
+              aria-label="Close the side panel"
+              title="Close (Esc)"
+              className="rounded border border-line bg-panel px-1.5 py-0.5 text-[11px] text-mute hover:border-accent hover:text-ink"
+            >
+              ✕
+            </button>
+          </div>
+          {body}
         </div>
       ) : null}
       <div role="group" aria-label="Side panels" className="flex gap-1 lg:sticky lg:top-3 lg:flex-col">
