@@ -11,7 +11,7 @@ from vcp_scanner.paper.research import RESEARCH_LEDGERS, research_ledgers
 
 
 def test_the_sma50_ledger_is_fixed_and_apart_from_the_frozen_rules() -> None:
-    [r] = research_ledgers("vcp")
+    r = research_ledgers("vcp")[0]
     assert r.rule_set == "research-sma50-v1" and r.rule_set != RULE_SET
     assert (r.start, r.decided) == (date(2026, 10, 1), date(2026, 11, 7))
     assert r.max_above_sma50_pct == 10.0 and research_ledgers("flat_base") == []

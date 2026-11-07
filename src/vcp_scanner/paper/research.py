@@ -27,6 +27,8 @@ class ResearchLedger:
     #: the day the rule was fixed (pre-registered; see the project's validation diagnosis)
     decided: date
     max_above_sma50_pct: float
+    #: choose between breakouts by score v2 (paper/score_v2.py) instead of the frozen score
+    rank_by_score_v2: bool = False
 
     def engine(self, frozen: EngineConfig) -> EngineConfig:
         """The frozen rules with this variant's one change."""
@@ -41,6 +43,16 @@ RESEARCH_LEDGERS: tuple[ResearchLedger, ...] = (
         start=date(2026, 10, 1),
         decided=date(2026, 11, 7),
         max_above_sma50_pct=10.0,
+    ),
+    # owner approval 2026-11-08: research-sma50-v1 with one change, the ranking
+    ResearchLedger(
+        rule_set="research-score2-v1",
+        strategy_id="vcp",
+        label="No entry more than 10% above the 50-day average; slots go to the higher score v2",
+        start=date(2026, 10, 1),
+        decided=date(2026, 11, 8),
+        max_above_sma50_pct=10.0,
+        rank_by_score_v2=True,
     ),
 )
 

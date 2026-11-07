@@ -73,6 +73,7 @@ def _update(args: argparse.Namespace) -> int:  # noqa: C901, PLR0915
     from vcp_scanner.domain.snapshot import LIVE_SNAPSHOT_ID
     from vcp_scanner.paper.ledger import RULE_SET, derive_events, plan_update
     from vcp_scanner.paper.research import research_ledgers
+    from vcp_scanner.paper.score_v2 import rescore
     from vcp_scanner.patterns.registry import load_runtime
     from vcp_scanner.research.outcomes import ENGINE_RULES
     from vcp_scanner.versioning import code_state
@@ -109,7 +110,8 @@ def _update(args: argparse.Namespace) -> int:  # noqa: C901, PLR0915
         paper = DuckDBPaperRepository(store)
         print(f"Paper ledger {RULE_SET} ({d.entry}, {d.regime}, {d.rule}; {ecfg.max_positions} "
               f"positions) from {start} through {through}")  # fmt: skip
-        def write(sid: str, rule_set: str, ecfg_x: EngineConfig, start_x: date) -> str:
+        def write(sid: str, rule_set: str, ecfg_x: EngineConfig, start_x: date,
+                  by_score_v2: bool = False) -> str:  # fmt: skip
             """Replay one ledger and append what is new; returns the line to print."""
             rt = load_runtime(args.config_dir, sid)
             chash = _strategy_hash(cfg, sid, args.config_dir)
@@ -118,6 +120,9 @@ def _update(args: argparse.Namespace) -> int:  # noqa: C901, PLR0915
                                    classes, None, eligible_only=True,
                                    strategy_id=sid)  # fmt: skip
             bars = repo.bars(sorted({s.instrument_id for s in signals}), start_x, through, 0)
+            if by_score_v2:  # research: slots go to the higher score v2
+                parts = repo.score_v2_parts(start_x - timedelta(days=7), through, chash, sid)
+                signals = rescore(signals, parts, bars)
             ledger_days = [x for x in days if x >= start_x]
             derived = derive_events(sid, signals, bars, ecfg_x, start_x, through, ledger_days)
             stored = paper.events(rule_set, sid, chash)
@@ -145,7 +150,8 @@ def _update(args: argparse.Namespace) -> int:  # noqa: C901, PLR0915
                 continue
             print(f"Research ledger {r.rule_set} ({r.label}) from {r.start}")
             try:
-                print(write(r.strategy_id, r.rule_set, r.engine(ecfg), r.start))
+                print(write(r.strategy_id, r.rule_set, r.engine(ecfg), r.start,
+                            r.rank_by_score_v2))  # fmt: skip
             except Exception as exc:
                 _err(f"  {r.strategy_id}: WARNING research ledger {r.rule_set} not written: {exc}")
     return 1 if failed else 0

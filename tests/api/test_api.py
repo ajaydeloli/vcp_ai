@@ -204,11 +204,14 @@ def test_paper_panel(ro_env: Env) -> None:
     assert crit["Profit factor"]["met"] is None  # fewer than 30 closed trades: not judged
     assert crit["Portfolio max drawdown"]["value"] is None  # not computed in v1: null
     # the research ledger is listed apart and does not count in the frozen totals
-    [res] = body["research"]
+    res = next(r for r in body["research"] if r["rule_set"] == "research-sma50-v1")
     assert (res["rule_set"], res["strategy_id"], res["start"], res["decided"]) == (
         "research-sma50-v1", "vcp", "2026-10-01", "2026-11-07")
     assert res["label"].startswith("No entry more than 10%")
     assert (res["closed"], len(res["open"]), res["ledger_through"]) == (0, 1, AS_OF.isoformat())
+    score2 = next(r for r in body["research"] if r["rule_set"] == "research-score2-v1")
+    assert score2["decided"] == "2026-11-08" and score2["ledger_through"] is None  # not written
+    assert [r["rule_set"] for r in body["research"]] == ["research-sma50-v1", "research-score2-v1"]
 
 
 def test_status_is_clean_when_everything_is_current(ro_env: Env) -> None:

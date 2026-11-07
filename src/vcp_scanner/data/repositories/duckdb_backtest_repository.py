@@ -60,6 +60,54 @@ class DuckDBBacktestRepository:
         return [Signal(r[0], r[1], float(r[2]), None if r[3] is None else float(r[3]),
                        None if r[4] is None else float(r[4]), str(r[5])) for r in rows]  # fmt: skip
 
+    def score_v2_parts(
+        self, start: date, end: date, config_hash: str, strategy_id: str = VCP_STRATEGY_ID,
+    ) -> dict[tuple[str, date], dict[str, float | None]]:  # fmt: skip
+        """The stored parts of score v2 (``paper/score_v2.py``) of each scored setup scanned
+        between ``start`` and ``end``: four raw measurements of its score scan and the prior
+        advance of its primary pattern in the VCP scan of the same day and config. The 50-day
+        distance comes from the bars, not from here."""
+        rows = self._store.conn.execute(
+            """
+            SELECT s.instrument_id, s.as_of_date,
+                   max(CASE WHEN c.component = 'VCP' AND c.sub_component = 'pivot'
+                            THEN c.raw_measurement END),
+                   max(CASE WHEN c.component = 'VCP' AND c.sub_component = 'final_contraction'
+                            THEN c.raw_measurement END),
+                   max(CASE WHEN c.component = 'VCP' AND c.sub_component = 'base_structure'
+                            THEN c.raw_measurement END),
+                   max(CASE WHEN c.component = 'TREND' AND c.sub_component = 'ma_stack_margin'
+                            THEN c.raw_measurement END),
+                   max(v.prior_advance_return_pct)
+            FROM setup_scores s
+            LEFT JOIN score_components c
+              ON c.scan_id = s.scan_id AND c.strategy_id = s.strategy_id
+             AND c.instrument_id = s.instrument_id
+            LEFT JOIN scan_runs r
+              ON r.scan_type = 'VCP' AND r.as_of_date = s.as_of_date
+             AND r.scan_config_hash = s.config_hash AND r.data_snapshot_id = s.data_snapshot_id
+             AND r.status = 'COMPLETED'
+            LEFT JOIN vcp_patterns v
+              ON v.scan_id = r.scan_id AND v.instrument_id = s.instrument_id AND v.is_primary
+            WHERE s.strategy_id = ? AND s.config_hash = ? AND s.data_snapshot_id = ?
+              AND s.as_of_date BETWEEN ? AND ?
+            GROUP BY 1, 2
+            """,
+            [strategy_id, config_hash, self._snapshot, start, end],
+        ).fetchall()
+
+        def f(x: object) -> float | None:
+            return None if x is None else float(x)  # type: ignore[arg-type]
+
+        return {
+            (str(r[0]), r[1]): {
+                "right_side_range_pct": f(r[2]), "final_contraction_pct": f(r[3]),
+                "base_depth_pct": f(r[4]), "stack_margin_pct": f(r[5]),
+                "prior_advance_pct": f(r[6]),
+            }
+            for r in rows
+        }  # fmt: skip
+
     def bars(
         self, instrument_ids: Sequence[str], start: date, end: date, after_days: int = 130
     ) -> dict[str, list[Bar]]:
