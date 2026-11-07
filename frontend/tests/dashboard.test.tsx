@@ -151,10 +151,11 @@ describe("dashboard page (market view)", () => {
     const names = within(overview)
       .getAllByRole("region")
       .map((r) => r.getAttribute("aria-label") ?? within(r).queryByRole("heading")?.textContent);
-    const colours = within(overview)
-      .getAllByRole("region")
-      .map((r) => /border-\[(#\w+)\]/.exec(r.className)?.[1]);
-    expect(new Set(colours).size).toBe(13); // every card has its own border colour
+    // every card is plain (owner, 2026-11-07): the neutral line border, no coloured border or tint
+    for (const r of within(overview).getAllByRole("region").filter((x) => x.tagName === "SECTION")) {
+      expect(r.className).not.toMatch(/border-\[#|bg-gradient/);
+      expect(r.className).toMatch(/border-line/);
+    }
     expect(names).toEqual([
       "Market health score",
       "Index trend",
@@ -202,12 +203,13 @@ describe("dashboard page (market view)", () => {
     expect(await screen.findByText(/Joined the universe: was out before for price ₹19.8, below the ₹20 minimum/)).toBeInTheDocument();
   });
 
-  it("recent activity has its own colour, half the width beside the feedback loop and the cards' height; no paper trading panel", async () => {
+  it("recent activity is a plain card, half the width beside the feedback loop and the cards' height; no paper trading panel", async () => {
     mockApi();
     renderApp(<Dashboard />);
     await screen.findByRole("region", { name: "Feedback loop" }); // the market cards are in
     const act = (await screen.findByText("Recent activity")).closest("section") as HTMLElement;
-    expect(act.className).toMatch(/border-\[#a3e635\]/);
+    expect(act.className).toMatch(/border-line/);
+    expect(act.className).not.toMatch(/border-\[#/);
     expect(act.parentElement?.className ?? "").toMatch(/lg:grid-cols-2/); // a half-width card of the grid
     expect(act.nextElementSibling).toHaveAttribute("aria-label", "Feedback loop");
     for (const card of [act, await screen.findByRole("region", { name: "Setups today" })]) expect(card.className).toMatch(/lg:h-\[23rem\]/);

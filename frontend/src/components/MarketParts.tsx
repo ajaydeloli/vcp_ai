@@ -28,22 +28,25 @@ export const SIZE = "lg:h-[23rem] lg:overflow-y-auto";
 const FIXED = "lg:h-[23rem] lg:overflow-hidden";
 
 /** Each card has its own border colour, with a faint tint of it in the background. */
+/** The Market Overview cards: plain, one neutral border and the panel colour (owner,
+ *  2026-11-07: no coloured borders or tints). Only the sizes differ. */
+const PLAIN = "border border-line bg-panel";
 export const BOX = {
-  index: `border-2 border-[#4aa3ff]/60 bg-gradient-to-br from-[#4aa3ff]/10 to-panel2 ${FIXED}`,
-  leadership: `border-2 border-[#26c281]/60 bg-gradient-to-br from-[#26c281]/10 to-panel2 ${FIXED}`,
-  breadth: `border-2 border-[#8b5cf6]/60 bg-gradient-to-br from-[#8b5cf6]/10 to-panel2 ${FIXED}`,
-  feedback: `border-2 border-[#f5a524]/60 bg-gradient-to-br from-[#f5a524]/10 to-panel2 ${FIXED}`,
-  stage: `border-2 border-[#22d3ee]/60 bg-gradient-to-br from-[#22d3ee]/10 to-panel2 ${FIXED}`,
-  setups: `border-2 border-[#f472b6]/60 bg-gradient-to-br from-[#f472b6]/10 to-panel2 ${SIZE}`,
-  paper: `border-2 border-[#fb923c]/60 bg-gradient-to-br from-[#fb923c]/10 to-panel2 ${SIZE}`,
-  activity: `border-2 border-[#a3e635]/60 bg-gradient-to-br from-[#a3e635]/10 to-panel2 ${SIZE}`,
-  flow: `border-2 border-[#e879f9]/60 bg-gradient-to-br from-[#e879f9]/10 to-panel2 ${FIXED}`,
-  sectors: `border-2 border-[#2dd4bf]/60 bg-gradient-to-br from-[#2dd4bf]/10 to-panel2 ${SIZE}`,
-  volume: `border-2 border-[#fb7185]/60 bg-gradient-to-br from-[#fb7185]/10 to-panel2 ${FIXED}`,
-  participation: `border-2 border-[#38bdf8]/60 bg-gradient-to-br from-[#38bdf8]/10 to-panel2 ${FIXED}`,
-  highs: `border-2 border-[#86efac]/60 bg-gradient-to-br from-[#86efac]/10 to-panel2 ${SIZE}`,
-  rotation: `border-2 border-[#fde047]/60 bg-gradient-to-br from-[#fde047]/10 to-panel2 lg:row-span-2 lg:h-[47rem] lg:overflow-hidden`,
-  score: `border-2 border-[#60a5fa]/60 bg-gradient-to-br from-[#60a5fa]/10 to-panel2 lg:col-span-2`,
+  index: `${PLAIN} ${FIXED}`,
+  leadership: `${PLAIN} ${FIXED}`,
+  breadth: `${PLAIN} ${FIXED}`,
+  feedback: `${PLAIN} ${FIXED}`,
+  stage: `${PLAIN} ${FIXED}`,
+  setups: `${PLAIN} ${SIZE}`,
+  paper: `${PLAIN} ${SIZE}`,
+  activity: `${PLAIN} ${SIZE}`,
+  flow: `${PLAIN} ${FIXED}`,
+  sectors: `${PLAIN} ${SIZE}`,
+  volume: `${PLAIN} ${FIXED}`,
+  participation: `${PLAIN} ${FIXED}`,
+  highs: `${PLAIN} ${SIZE}`,
+  rotation: `${PLAIN} lg:row-span-2 lg:h-[47rem] lg:overflow-hidden`,
+  score: `${PLAIN} lg:col-span-2`,
 };
 
 /** Market Health Score labels, best first, and their colours. */
@@ -54,7 +57,7 @@ export const LABEL_COLOR: Record<string, string> = {
   Weak: "#fb923c",
   Adverse: "#ef5350",
 };
-export const GREY = "#8a97b3";
+export const GREY = "#8e8e96";
 
 /** The shadow traffic light (logged, no trading effect). */
 export const EXPOSURE: Record<string, { text: string; color: string }> = {

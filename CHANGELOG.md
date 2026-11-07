@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Dark theme is neutral black (owner, 2026-11-07): background, panels, lines and grey text lose their blue tint (all pages, since they share the theme). Market Overview's cards and top tiles are plain: one neutral border, no coloured borders or tinted gradients. Other pages' coloured cards come next.
 - Chart page: candle **border colours** (up and down) are configurable in Colours (by default the body colour; colours saved earlier keep the border matching the body), and OHLC bars are drawn a little thicker.
 - Chart page: a floating side panel closes on a click anywhere outside the sidebar (or Esc); the ✕ button is gone, and Pin is a small pin icon in the panel's top right corner (filled when pinned).
 - Chart page: the Trend, Score, Fundamentals, Notes and History panels look plain like VCP and Watch lists (no coloured card border or tint; the Stock Analysis page keeps its colours).

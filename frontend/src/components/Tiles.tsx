@@ -6,7 +6,8 @@ import { feedNotice, liveLabel, unavailable } from "@/lib/live";
 import { NSE } from "./MarketParts";
 import { Sparkline } from "./Rings";
 
-const BOX = "flex min-h-[116px] flex-col justify-between rounded-lg border bg-gradient-to-br to-panel p-4";
+/** A tile: plain, like the cards (no coloured border or tint). */
+const BOX = "flex min-h-[116px] flex-col justify-between rounded-lg border border-line bg-panel p-4";
 const CYAN = "#22d3ee";
 const ORANGE = "#fb923c";
 
@@ -20,7 +21,7 @@ function UniverseIndexTile() {
     last?.index != null && prev?.index != null && prev.index !== 0 ? (last.index / prev.index - 1) * 100 : null;
   return (
     <div
-      className={`${BOX} border-accent/40 from-accent/20`}
+      className={BOX}
       title="Equal-weight index of the stocks we scan, 100 on the first day shown. Not NIFTY."
     >
       <p className="text-[11px] font-medium uppercase tracking-wide text-accent">VCP Quality Index (VQI)</p>
@@ -41,7 +42,7 @@ function UniverseIndexTile() {
 function ScanTile() {
   const s = useSummary().data;
   return (
-    <div className={`${BOX} border-[#22d3ee]/40 from-[#22d3ee]/20`}>
+    <div className={BOX}>
       <p className="text-[11px] font-medium uppercase tracking-wide" style={{ color: CYAN }}>
         Today&apos;s scan
       </p>
@@ -64,7 +65,7 @@ function ScanTile() {
 
 /** NIFTY 50, SENSEX and NIFTY 500 from the live feed (display only; nothing stored, nothing in any rule).
  *  Labelled "Live, delayed N s" or "Close of <date>"; with no price it says why, never 0. */
-function IndexLiveTile({ id, name, color, box }: { id: string; name: string; color: string; box: string }) {
+function IndexLiveTile({ id, name, color }: { id: string; name: string; color: string }) {
   const live = useLiveIndices();
   const idx = live.data?.indices.find((i) => i.id === id);
   const price = idx?.available ? idx.last_price : null;
@@ -80,7 +81,7 @@ function IndexLiveTile({ id, name, color, box }: { id: string; name: string; col
   const line = (idx?.points ?? []).map((p) => p.v);
   return (
     <div
-      className={`${BOX} ${box}`}
+      className={BOX}
       title={`${name} from the live feed${idx?.source ? ` (${idx.source})` : ""}. Display only: it feeds no scan, score or rule.`}
     >
       <p className="text-[11px] font-medium uppercase tracking-wide" style={{ color }}>
@@ -111,9 +112,9 @@ export function Tiles() {
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
       <UniverseIndexTile />
       <ScanTile />
-      <IndexLiveTile id="NIFTY50" name="NIFTY 50" color="#8b5cf6" box="border-violet/40 from-violet/20" />
-      <IndexLiveTile id="SENSEX" name="SENSEX" color={ORANGE} box="border-[#fb923c]/40 from-[#fb923c]/20" />
-      <IndexLiveTile id="NIFTY500" name="NIFTY 500" color={NSE.nifty500} box="border-[#1baf7a]/40 from-[#1baf7a]/20" />
+      <IndexLiveTile id="NIFTY50" name="NIFTY 50" color="#8b5cf6" />
+      <IndexLiveTile id="SENSEX" name="SENSEX" color={ORANGE} />
+      <IndexLiveTile id="NIFTY500" name="NIFTY 500" color={NSE.nifty500} />
     </div>
   );
 }

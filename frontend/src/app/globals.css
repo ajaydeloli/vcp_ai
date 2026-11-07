@@ -4,12 +4,13 @@
 
 :root {
   color-scheme: dark;
-  --c-bg: 7 11 20;
-  --c-panel: 13 20 34;
-  --c-panel2: 17 26 44;
-  --c-line: 27 39 64;
-  --c-ink: 230 236 248;
-  --c-mute: 138 151 179;
+  /* neutral black (owner, 2026-11-07): no blue tint in the backgrounds, lines or grey text */
+  --c-bg: 9 9 11;
+  --c-panel: 20 20 22;
+  --c-panel2: 28 28 31;
+  --c-line: 39 39 43;
+  --c-ink: 236 236 239;
+  --c-mute: 142 142 150;
   --c-accent: 47 109 246;
   --c-up: 38 194 129;
   --c-down: 239 83 80;
