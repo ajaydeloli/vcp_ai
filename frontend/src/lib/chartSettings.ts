@@ -114,13 +114,12 @@ export type ChartSettings = {
   toggles: Toggle[];
   params: Params;
   colors: Colors;
-  /** the VCP analysis panel: shown when the stock has a setup (auto), or always open / closed */
-  vcpPanel: VcpPanel;
-  /** the watch lists and top setups on the right: open, or folded into a slim button */
-  listsPanel: "open" | "closed";
+  /** the right sidebar's open tab (one at a time): auto = the VCP analysis when the stock has a
+   *  setup, else the watch lists; none = folded into its tab buttons */
+  sidePanel: SidePanel;
 };
 
-export type VcpPanel = "auto" | "open" | "closed";
+export type SidePanel = "auto" | "vcp" | "lists" | "none";
 
 export const DEFAULT_CHART: ChartSettings = {
   interval: "D",
@@ -132,8 +131,7 @@ export const DEFAULT_CHART: ChartSettings = {
   toggles: ["rs", "volume", "volma", "vcp", "levels"],
   params: DEFAULT_PARAMS,
   colors: DEFAULT_COLORS,
-  vcpPanel: "auto",
-  listsPanel: "open",
+  sidePanel: "auto",
 };
 
 const HEX = /^#[0-9a-f]{6}$/i;
@@ -221,8 +219,7 @@ export function parseChart(raw: string | null): ChartSettings {
       toggles: [...new Set(toggles)],
       params: parseParams(v.params),
       colors: parseColors(v.colors),
-      vcpPanel: v.vcpPanel === "open" || v.vcpPanel === "closed" ? v.vcpPanel : "auto",
-      listsPanel: v.listsPanel === "closed" ? "closed" : "open",
+      sidePanel: v.sidePanel === "vcp" || v.sidePanel === "lists" || v.sidePanel === "none" ? v.sidePanel : "auto",
     };
   } catch {
     return DEFAULT_CHART;

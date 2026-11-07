@@ -17,7 +17,7 @@ import {
   type Benchmark,
   type ChartSettings,
   type ChartType,
-  type VcpPanel,
+  type SidePanel,
 } from "@/lib/chartSettings";
 import { DASH, fmtNum, fmtPct, fmtPrice, sentence, tone } from "@/lib/fmt";
 import { CHART_RANGES, type ChartRange, type Interval } from "@/lib/indicators";
@@ -67,13 +67,8 @@ export function ChartPage({ symbol: given }: { symbol: string | null }) {
   return (
     <div className="flex min-h-screen flex-col">
       <Nav active="Chart" onPick={pick} />
-      <main className="grid min-w-0 flex-1 gap-3 p-3 pb-14 lg:grid-cols-[auto_minmax(0,1fr)_auto]">
+      <main className="grid min-w-0 flex-1 gap-3 p-3 pb-14 lg:grid-cols-[minmax(0,1fr)_auto]">
         <h1 className="sr-only">Chart{shown ? `: ${shown}` : ""}</h1>
-        {shown ? (
-          <VcpSide symbol={shown} mode={settings.vcpPanel} onMode={(vcpPanel) => change({ vcpPanel })} />
-        ) : (
-          <span className="hidden lg:block" />
-        )}
         {shown === null ? (
           <Card title="Chart">
             <Empty>{top.isPending ? "Loading the best VCP setup…" : "Search a symbol or company above to chart it."}</Empty>
@@ -81,12 +76,11 @@ export function ChartPage({ symbol: given }: { symbol: string | null }) {
         ) : (
           <ChartArea key={shown} symbol={shown} settings={settings} onChange={change} />
         )}
-        <SideLists
-          current={shown}
-          onPick={pick}
-          top={top.data?.rows ?? []}
-          open={settings.listsPanel === "open"}
-          onOpen={(o) => change({ listsPanel: o ? "open" : "closed" })}
+        <SideBar
+          symbol={shown}
+          mode={settings.sidePanel}
+          onMode={(sidePanel) => change({ sidePanel })}
+          lists={<SideLists current={shown} onPick={pick} top={top.data?.rows ?? []} />}
         />
       </main>
       <StatusBar />
@@ -300,19 +294,7 @@ function readOpen(): string[] | null {
 
 /** The right panel: every watch list and the top VCP setups, each a section that opens and
  *  closes (which ones are open is kept in this browser; at first the active list and the setups). */
-function SideLists({
-  current,
-  onPick,
-  top,
-  open: panelOpen,
-  onOpen,
-}: {
-  current: string | null;
-  onPick: (s: string) => void;
-  top: TopRow[];
-  open: boolean;
-  onOpen: (open: boolean) => void;
-}) {
+function SideLists({ current, onPick, top }: { current: string | null; onPick: (s: string) => void; top: TopRow[] }) {
   const { lists, active } = useWatchlists();
   const [open, setOpen] = useState<string[] | null>(null);
   useEffect(() => setOpen(readOpen()), []);
@@ -363,36 +345,8 @@ function SideLists({
       </section>
     );
   };
-  if (!panelOpen) {
-    return (
-      <button
-        type="button"
-        onClick={() => onOpen(true)}
-        aria-label="Show watch lists"
-        title="Show the watch lists and top VCP setups"
-        aria-expanded={false}
-        className="hidden items-center justify-center gap-1 rounded-lg border border-line bg-panel px-1 py-3 text-[11px] text-mute hover:border-accent hover:text-ink lg:flex lg:w-6 lg:flex-col lg:self-start"
-      >
-        <span aria-hidden="true">‹</span>
-        <span className="[writing-mode:vertical-rl]">Watch lists</span>
-      </button>
-    );
-  }
   return (
-    <aside aria-label="Stocks to chart" className="hidden min-w-0 space-y-2 lg:block lg:w-[12rem]">
-      <div className="flex items-center justify-between px-1">
-        <span className="text-[11px] uppercase tracking-wide text-mute">Watch lists</span>
-        <button
-          type="button"
-          onClick={() => onOpen(false)}
-          aria-label="Hide watch lists"
-          aria-expanded={true}
-          title="Hide the watch lists and top VCP setups"
-          className="rounded border border-line px-1.5 text-xs text-mute hover:border-accent hover:text-ink"
-        >
-          ›
-        </button>
-      </div>
+    <aside aria-label="Stocks to chart" className="min-w-0 space-y-2">
       {lists.map((l) =>
         section(
           l.id,
@@ -435,49 +389,63 @@ function weeksBetween(from: string | null, to: string | null): number | null {
   return Math.round((Date.parse(to) - Date.parse(from)) / (7 * 86_400_000));
 }
 
-/** The VCP analysis on the left, opened and closed with a slim button; by default open only
- *  when the stock has a VCP setup on the latest scan. */
-function VcpSide({ symbol, mode, onMode }: { symbol: string; mode: VcpPanel; onMode: (m: VcpPanel) => void }) {
+/** The right sidebar: a strip of tabs (VCP, Watch lists) and one panel at a time. A tab
+ *  opens its panel and closes the other; the open tab again folds the panel away. At first
+ *  (auto) the VCP analysis is open when the stock has a setup, else the watch lists. */
+function SideBar({
+  symbol,
+  mode,
+  onMode,
+  lists,
+}: {
+  symbol: string | null;
+  mode: SidePanel;
+  onMode: (m: SidePanel) => void;
+  lists: React.ReactNode;
+}) {
   const stock = useStockSetups(symbol);
   const has = vcpSetup(stock.data) !== null;
-  const open = mode === "open" || (mode === "auto" && has);
-  if (!open) {
-    return (
-      <button
-        type="button"
-        onClick={() => onMode("open")}
-        aria-label="Show VCP analysis"
-        title={has ? "Show the VCP analysis" : `No VCP setup for ${symbol} on the latest scan; show the panel`}
-        aria-expanded={false}
-        className="flex items-center justify-center gap-1 rounded-lg border border-line bg-panel px-1 py-2 text-[11px] text-mute hover:border-accent hover:text-ink lg:w-6 lg:flex-col lg:self-start lg:py-3"
-      >
-        <span aria-hidden="true">›</span>
-        <span className="lg:[writing-mode:vertical-rl]">VCP{has ? "" : " (none)"}</span>
-      </button>
-    );
-  }
+  const open: SidePanel = mode === "auto" ? (has ? "vcp" : "lists") : mode;
+  const tabs: { id: "vcp" | "lists"; label: string; title: string }[] = [
+    { id: "vcp", label: has || !symbol ? "VCP" : "VCP (none)", title: has ? "VCP analysis" : `No VCP setup for ${symbol ?? "this stock"} on the latest scan` },
+    { id: "lists", label: "Watch lists", title: "Watch lists and top VCP setups" },
+  ];
   return (
-    <div className="min-w-0 lg:w-[18rem]">
-      <SetupSide
-        symbol={symbol}
-        onHide={
-          <button
-            type="button"
-            onClick={() => onMode("closed")}
-            aria-label="Hide VCP analysis"
-            aria-expanded={true}
-            title="Hide the VCP analysis"
-            className="rounded border border-line px-1.5 text-xs text-mute hover:border-accent hover:text-ink"
-          >
-            ‹
-          </button>
-        }
-      />
+    <div className="flex min-w-0 flex-col-reverse gap-2 lg:flex-row lg:items-start">
+      {open === "vcp" && symbol ? (
+        <div id="side-panel" className="min-w-0 lg:w-[18rem]">
+          <SetupSide symbol={symbol} />
+        </div>
+      ) : open === "lists" ? (
+        <div id="side-panel" className="min-w-0 lg:w-[13rem]">
+          {lists}
+        </div>
+      ) : null}
+      <div role="group" aria-label="Side panels" className="flex gap-1 lg:sticky lg:top-3 lg:flex-col">
+        {tabs.map((t) => {
+          const on = open === t.id;
+          return (
+            <button
+              key={t.id}
+              type="button"
+              aria-pressed={on}
+              aria-controls={on ? "side-panel" : undefined}
+              title={on ? `Hide: ${t.title}` : t.title}
+              onClick={() => onMode(on ? "none" : t.id)}
+              className={`rounded-lg border px-2 py-1.5 text-[11px] lg:w-7 lg:px-1 lg:py-3 ${
+                on ? "border-accent bg-accent font-semibold text-white" : "border-line bg-panel text-mute hover:border-accent hover:text-ink"
+              }`}
+            >
+              <span className="lg:[writing-mode:vertical-rl]">{t.label}</span>
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 }
 
-function SetupSide({ symbol, onHide }: { symbol: string; onHide?: React.ReactNode }) {
+function SetupSide({ symbol }: { symbol: string }) {
   const stock = useStockSetups(symbol);
   const s = vcpSetup(stock.data);
   const d = stock.data;
@@ -487,7 +455,7 @@ function SetupSide({ symbol, onHide }: { symbol: string; onHide?: React.ReactNod
   const depths = (s?.contractions ?? []).map((c) => (c.depth_pct === null ? DASH : `−${Math.abs(c.depth_pct).toFixed(0)}%`));
   return (
     <aside aria-label={`VCP setup of ${symbol}`} className="min-w-0">
-      <Card title="VCP analysis" subtitle={d ? `Scan of ${d.as_of ?? DASH}` : undefined} right={onHide}>
+      <Card title="VCP analysis" subtitle={d ? `Scan of ${d.as_of ?? DASH}` : undefined}>
         {stock.isError ? (
           <ErrorBox error={stock.error} />
         ) : stock.isPending ? (

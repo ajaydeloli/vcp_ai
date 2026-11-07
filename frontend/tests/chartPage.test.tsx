@@ -101,6 +101,7 @@ describe("chart page", () => {
     mockApi();
     renderApp(<ChartPage symbol={null} />);
     await waitFor(() => expect(screen.getByTestId("chart-legend")).toHaveTextContent("ALPHA · 1D"));
+    await userEvent.click(screen.getByRole("button", { name: "Watch lists" }));
     const lists = screen.getByRole("complementary", { name: "Stocks to chart" });
     await userEvent.click(within(lists).getByRole("button", { name: /BETA/ }));
     await waitFor(() => expect(screen.getByTestId("chart-legend")).toHaveTextContent("BETA · 1D"));
@@ -170,24 +171,30 @@ describe("chart page", () => {
     await waitFor(() => expect(candles().options.upColor).toBe("#26c281"));
   });
 
-  it("the VCP panel opens by itself only when there is a setup, and a slim button shows or hides it", async () => {
+  it("one right sidebar with tabs: VCP when the stock has a setup, else the watch lists; one panel at a time", async () => {
     mockApi({ "stocks/NOSET/setups": { ...fx.stockSetups, symbol: "NOSET", setups: [] } });
     renderApp(<ChartPage symbol="NOSET" />);
-    const show = await screen.findByRole("button", { name: "Show VCP analysis" });
-    expect(show).toHaveTextContent("VCP (none)");
+    const tabs = await screen.findByRole("group", { name: "Side panels" });
+    const vcp = within(tabs).getByRole("button", { name: "VCP (none)" });
+    const lists = within(tabs).getByRole("button", { name: "Watch lists" });
+    // no setup: the watch lists are open, not the VCP panel
+    await waitFor(() => expect(lists).toHaveAttribute("aria-pressed", "true"));
+    expect(vcp).toHaveAttribute("aria-pressed", "false");
+    expect(screen.getByRole("complementary", { name: "Stocks to chart" })).toBeInTheDocument();
+    // the VCP tab opens its panel and closes the lists
+    await userEvent.click(vcp);
+    expect(await screen.findByRole("complementary", { name: "VCP setup of NOSET" })).toHaveTextContent("No VCP setup for NOSET");
+    expect(screen.queryByRole("complementary", { name: "Stocks to chart" })).not.toBeInTheDocument();
+    expect(lists).toHaveAttribute("aria-pressed", "false");
+    expect(JSON.parse(window.localStorage.getItem(CHART_KEY) ?? "{}").sidePanel).toBe("vcp");
+    // the open tab again folds the sidebar to its tabs
+    await userEvent.click(vcp);
     expect(screen.queryByRole("complementary", { name: "VCP setup of NOSET" })).not.toBeInTheDocument();
-    await userEvent.click(show);
-    const panel = await screen.findByRole("complementary", { name: "VCP setup of NOSET" });
-    expect(panel).toHaveTextContent("No VCP setup for NOSET");
-    expect(JSON.parse(window.localStorage.getItem(CHART_KEY) ?? "{}").vcpPanel).toBe("open");
-    await userEvent.click(screen.getByRole("button", { name: "Hide VCP analysis" }));
-    expect(screen.queryByRole("complementary", { name: "VCP setup of NOSET" })).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Show VCP analysis" })).toBeInTheDocument();
-    expect(JSON.parse(window.localStorage.getItem(CHART_KEY) ?? "{}").vcpPanel).toBe("closed");
-    // the stock lists are on the right, after the chart
-    const lists = screen.getByRole("complementary", { name: "Stocks to chart" });
+    expect(screen.queryByRole("complementary", { name: "Stocks to chart" })).not.toBeInTheDocument();
+    expect(JSON.parse(window.localStorage.getItem(CHART_KEY) ?? "{}").sidePanel).toBe("none");
+    // the sidebar is on the right of the chart
     const chartBox = screen.getByRole("region", { name: "Chart of NOSET" });
-    expect(chartBox.compareDocumentPosition(lists) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(chartBox.compareDocumentPosition(tabs) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
   it("the right panel lists every watch list and the top setups, each opening and closing", async () => {
@@ -200,6 +207,7 @@ describe("chart page", () => {
     }));
     mockApi();
     renderApp(<ChartPage symbol="ALPHA" />);
+    await userEvent.click(await screen.findByRole("button", { name: "Watch lists" }));
     const lists = await screen.findByRole("complementary", { name: "Stocks to chart" });
     const leaders = within(lists).getByRole("button", { name: /Leaders/ });
     const banks = within(lists).getByRole("button", { name: /Banks/ });
@@ -216,17 +224,5 @@ describe("chart page", () => {
     await userEvent.click(within(lists).getByRole("button", { name: "BETA" }));
     await waitFor(() => expect(screen.getByTestId("chart-legend")).toHaveTextContent("BETA · 1D"));
     expect(JSON.parse(window.localStorage.getItem("vcp-chart-lists-open") ?? "[]")).toEqual(["a", "b"]);
-  });
-
-  it("the watch lists fold into a slim button on the right, like the VCP panel", async () => {
-    mockApi();
-    renderApp(<ChartPage symbol="ALPHA" />);
-    expect(await screen.findByRole("complementary", { name: "Stocks to chart" })).toBeInTheDocument();
-    await userEvent.click(screen.getByRole("button", { name: "Hide watch lists" }));
-    expect(screen.queryByRole("complementary", { name: "Stocks to chart" })).not.toBeInTheDocument();
-    expect(JSON.parse(window.localStorage.getItem(CHART_KEY) ?? "{}").listsPanel).toBe("closed");
-    await userEvent.click(screen.getByRole("button", { name: "Show watch lists" }));
-    expect(screen.getByRole("complementary", { name: "Stocks to chart" })).toBeInTheDocument();
-    expect(JSON.parse(window.localStorage.getItem(CHART_KEY) ?? "{}").listsPanel).toBe("open");
   });
 });
