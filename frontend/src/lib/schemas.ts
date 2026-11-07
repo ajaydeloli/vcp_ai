@@ -227,6 +227,13 @@ export const paperStrategy = z.object({
   divergences: z.number(),
   criteria: z.array(criterion),
 });
+// a research ledger: a rule variant tracked next to the frozen rules, never part of the review
+export const paperResearch = paperStrategy.extend({
+  rule_set: z.string(),
+  label: z.string(),
+  start: day,
+  decided: day,
+});
 export const paper = z.object({
   ...stamp,
   rule_set: z.string(),
@@ -234,6 +241,7 @@ export const paper = z.object({
   min_closed_trades: z.number(),
   open_positions: z.number(),
   strategies: z.array(paperStrategy),
+  research: z.array(paperResearch),
 });
 
 export const ipoRow = z.object({
@@ -513,6 +521,7 @@ export type StockSetups = z.infer<typeof stockSetups>;
 export type ActivityEvent = z.infer<typeof activityEvent>;
 export type Activity = z.infer<typeof activity>;
 export type PaperStrategy = z.infer<typeof paperStrategy>;
+export type PaperResearch = z.infer<typeof paperResearch>;
 export type Paper = z.infer<typeof paper>;
 export type BacktestRun = z.infer<typeof backtestRun>;
 export type Backtests = z.infer<typeof backtests>;

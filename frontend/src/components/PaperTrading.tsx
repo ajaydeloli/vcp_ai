@@ -1,7 +1,8 @@
 "use client";
 
 import { usePaper } from "@/lib/api";
-import { DASH, fmtDay, fmtNum, strategyLabel } from "@/lib/fmt";
+import { DASH, fmtDay, fmtNum, fmtPct, fmtPrice, strategyLabel, tone } from "@/lib/fmt";
+import type { Paper } from "@/lib/schemas";
 import { PaperPanel } from "./PaperPanel";
 import { Page } from "./Page";
 import { Card, ErrorBox, Loading } from "./ui";
@@ -52,6 +53,69 @@ export function PaperTrading() {
           </div>
         )}
       </Card>
+      {p && p.research.length > 0 ? <Research p={p} /> : null}
     </Page>
+  );
+}
+
+/** Research ledgers: rule variants replayed next to the frozen rules, on the same signals and
+ *  days. Shown apart; they never count in the review above. */
+function Research({ p }: { p: Paper }) {
+  return (
+    <Card
+      title="Research ledgers"
+      subtitle="Rule variants tracked next to the frozen rules, on the same signals and days. Not part of the review. No real money."
+    >
+      <div className="space-y-4 text-xs">
+        {p.research.map((r) => (
+          <section key={r.rule_set} aria-label={r.rule_set}>
+            <h3 className="text-sm font-semibold text-ink">
+              {strategyLabel(r.strategy_id)}: {r.label}
+            </h3>
+            <p className="mb-2 text-[11px] text-mute">
+              {`Rule set ${r.rule_set} · rule fixed ${fmtDay(r.decided)} · from ${fmtDay(r.start)} · ledger through ${fmtDay(r.ledger_through)}`}
+            </p>
+            <table className="w-full text-left">
+              <thead className="text-[11px] uppercase text-mute">
+                <tr>
+                  <th className="py-1 font-medium">Closed</th>
+                  <th className="py-1 text-right font-medium">Win rate</th>
+                  <th className="py-1 text-right font-medium">Avg trade</th>
+                  <th className="py-1 text-right font-medium">Profit factor</th>
+                  <th className="py-1 text-right font-medium">Open</th>
+                  <th className="py-1 text-right font-medium">Skipped</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr className="border-t border-line/60">
+                  <td className="py-1.5 tabular-nums">
+                    {r.closed} / {p.min_closed_trades}
+                  </td>
+                  <td className="py-1.5 text-right tabular-nums">{fmtPct(r.win_rate_pct, 0)}</td>
+                  <td className={`py-1.5 text-right tabular-nums ${tone(r.avg_return_pct)}`}>{fmtPct(r.avg_return_pct, 2, true)}</td>
+                  <td className="py-1.5 text-right tabular-nums">{fmtNum(r.profit_factor, 2)}</td>
+                  <td className="py-1.5 text-right tabular-nums">{r.open.length}</td>
+                  <td className="py-1.5 text-right tabular-nums">{r.skipped_no_slot}</td>
+                </tr>
+              </tbody>
+            </table>
+            {r.open.length > 0 ? (
+              <ul className="mt-2 divide-y divide-line/60">
+                {r.open.map((o) => (
+                  <li key={o.instrument_id} className="flex flex-wrap items-center gap-x-4 gap-y-0.5 py-1.5">
+                    <a href={`/chart/${encodeURIComponent(o.symbol)}`} className="font-medium text-accent hover:underline">
+                      {o.symbol}
+                    </a>
+                    <span className="text-mute">{`since ${fmtDay(o.entry_day)} at ${fmtPrice(o.entry)}`}</span>
+                    <span className="text-mute">{`stop ${o.stop === null ? DASH : fmtPrice(o.stop)}`}</span>
+                    <span className={`tabular-nums ${tone(o.open_pct)}`}>{fmtPct(o.open_pct, 2, true)}</span>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+          </section>
+        ))}
+      </div>
+    </Card>
   );
 }

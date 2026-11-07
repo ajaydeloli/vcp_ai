@@ -536,12 +536,22 @@ class PaperStrategy(BaseModel):
     criteria: list[Criterion]
 
 
+class PaperResearch(PaperStrategy):
+    """A research ledger (a rule variant next to the frozen rules); never part of the review."""
+
+    rule_set: str
+    label: str  # what the variant changes
+    start: date  # first session written
+    decided: date  # the day the rule was fixed
+
+
 class PaperResponse(Stamped):
     rule_set: str
     review_from: date
     min_closed_trades: int
-    open_positions: int
+    open_positions: int  # of the frozen ledgers only
     strategies: list[PaperStrategy]
+    research: list[PaperResearch] = []
 
 
 # ---- Live prices (FRONTEND_SPECIFICATION 67.19): display only, from the in-memory feed ----------

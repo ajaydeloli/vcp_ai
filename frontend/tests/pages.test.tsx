@@ -1,4 +1,4 @@
-import { screen } from "@testing-library/react";
+import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { PaperTrading } from "@/components/PaperTrading";
@@ -33,6 +33,12 @@ describe("more pages", () => {
     renderApp(<PaperTrading />);
     expect(await screen.findByRole("heading", { name: "Review gates" })).toBeInTheDocument();
     expect((await screen.findAllByText(/^needs /)).length).toBeGreaterThan(0);
+    // the research ledger has its own card, apart from the review gates
+    const research = await screen.findByRole("region", { name: "research-sma50-v1" });
+    expect(screen.getByRole("heading", { name: "Research ledgers" })).toBeInTheDocument();
+    expect(research).toHaveTextContent("No entry more than 10% above the 50-day average");
+    expect(research).toHaveTextContent("rule fixed 7 Nov 2026");
+    expect(within(research).getByRole("link", { name: "BETA" })).toHaveAttribute("href", "/chart/BETA");
   });
 
   it("System Status shows the data dates, backup and live feed", async () => {

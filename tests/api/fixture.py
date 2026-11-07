@@ -345,6 +345,12 @@ def build_main_db(db: Path, ctx: Context) -> None:
                                {"kind": "STOP", "ret_pct": -5.15, "entry_day": PREV.isoformat()}),
                 ]  # fmt: skip
             repo.append(RULE_SET, spec[sid].config_hash, ev, "abc123")
+        # a research ledger of vcp: one open trade, kept apart from the frozen ledger above
+        research = [PaperEvent("vcp", None, d, "DAY_CLOSED", None, None, {"regime_on": d == PREV})
+                    for d in (PREV, AS_OF)] + [
+            PaperEvent("vcp", iid("BETA"), PREV, "ENTRY", 100.0, PREV,
+                       {"stop": 92.0, "score": 86.0, "classification": "VCP"})]  # fmt: skip
+        repo.append("research-sma50-v1", spec["vcp"].config_hash, research, "abc123")
     # --- logs and backups of the main database's folder ----------------------------------------
     logs = db.parent / "logs"
     logs.mkdir(parents=True, exist_ok=True)

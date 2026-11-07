@@ -72,6 +72,7 @@ def _update(args: argparse.Namespace) -> int:  # noqa: C901, PLR0915
     from vcp_scanner.domain.features import FEATURES_CALCULATION_VERSION
     from vcp_scanner.domain.snapshot import LIVE_SNAPSHOT_ID
     from vcp_scanner.paper.ledger import RULE_SET, derive_events, plan_update
+    from vcp_scanner.paper.research import research_ledgers
     from vcp_scanner.patterns.registry import load_runtime
     from vcp_scanner.research.outcomes import ENGINE_RULES
     from vcp_scanner.versioning import code_state
@@ -108,31 +109,45 @@ def _update(args: argparse.Namespace) -> int:  # noqa: C901, PLR0915
         paper = DuckDBPaperRepository(store)
         print(f"Paper ledger {RULE_SET} ({d.entry}, {d.regime}, {d.rule}; {ecfg.max_positions} "
               f"positions) from {start} through {through}")  # fmt: skip
-        for sid in strategies:
-            try:
-                rt = load_runtime(args.config_dir, sid)
-                chash = _strategy_hash(cfg, sid, args.config_dir)
-                classes = [t for t in rt.tiers if rt.grade(t) >= rt.min_grade]
-                signals = repo.signals(start - timedelta(days=7), through, chash,
-                                       classes, None, eligible_only=True,
-                                       strategy_id=sid)  # fmt: skip
-                bars = repo.bars(sorted({s.instrument_id for s in signals}), start, through, 0)
-                derived = derive_events(sid, signals, bars, ecfg, start, through, days)
-                stored = paper.events(RULE_SET, sid, chash)
-                plan = plan_update(sid, derived, stored, through)
-                extra = [plan.divergence] if plan.divergence else []
-                n = paper.append(RULE_SET, chash, [*plan.new, *extra], code)
-            except Exception as exc:  # one strategy failing must not stop the others
-                _err(f"  {sid}: ERROR {exc}")
-                failed = True
-                continue
+        def write(sid: str, rule_set: str, ecfg_x: EngineConfig, start_x: date) -> str:
+            """Replay one ledger and append what is new; returns the line to print."""
+            rt = load_runtime(args.config_dir, sid)
+            chash = _strategy_hash(cfg, sid, args.config_dir)
+            classes = [t for t in rt.tiers if rt.grade(t) >= rt.min_grade]
+            signals = repo.signals(start_x - timedelta(days=7), through, chash,
+                                   classes, None, eligible_only=True,
+                                   strategy_id=sid)  # fmt: skip
+            bars = repo.bars(sorted({s.instrument_id for s in signals}), start_x, through, 0)
+            ledger_days = [x for x in days if x >= start_x]
+            derived = derive_events(sid, signals, bars, ecfg_x, start_x, through, ledger_days)
+            stored = paper.events(rule_set, sid, chash)
+            plan = plan_update(sid, derived, stored, through)
+            extra = [plan.divergence] if plan.divergence else []
+            n = paper.append(rule_set, chash, [*plan.new, *extra], code)
             kinds: dict[str, int] = defaultdict(int)
             for ev in plan.new:
                 kinds[ev.event_type] += 1
             shown = ", ".join(f"{k} {v}" for k, v in sorted(kinds.items()) if k != "DAY_CLOSED")
             note = " DIVERGENCE recorded (see `vcp paper status`)" if plan.divergence else ""
-            print(f"  {sid:18} {n} rows appended (sessions after {plan.last_closed or '-'}: "
-                  f"{kinds.get('DAY_CLOSED', 0)}; {shown or 'no trades'}){note}")  # fmt: skip
+            return (f"  {sid:18} {n} rows appended (sessions after {plan.last_closed or '-'}: "
+                    f"{kinds.get('DAY_CLOSED', 0)}; {shown or 'no trades'}){note}")  # fmt: skip
+
+        for sid in strategies:
+            try:
+                print(write(sid, RULE_SET, ecfg, start))
+            except Exception as exc:  # one strategy failing must not stop the others
+                _err(f"  {sid}: ERROR {exc}")
+                failed = True
+        # research ledgers (paper/research.py): a variant next to the frozen rules; a failure
+        # here is reported but never fails the frozen ledger's step
+        for r in [r for sid in strategies for r in research_ledgers(sid)]:
+            if through < r.start:
+                continue
+            print(f"Research ledger {r.rule_set} ({r.label}) from {r.start}")
+            try:
+                print(write(r.strategy_id, r.rule_set, r.engine(ecfg), r.start))
+            except Exception as exc:
+                _err(f"  {r.strategy_id}: WARNING research ledger {r.rule_set} not written: {exc}")
     return 1 if failed else 0
 
 
@@ -141,6 +156,7 @@ def _status(args: argparse.Namespace) -> int:
     from vcp_scanner.config import load_scanner_config
     from vcp_scanner.data.repositories.duckdb_paper_repository import DuckDBPaperRepository
     from vcp_scanner.paper.ledger import RULE_SET
+    from vcp_scanner.paper.research import research_ledgers
     from vcp_scanner.paper.status import summarize
 
     try:
@@ -155,11 +171,15 @@ def _status(args: argparse.Namespace) -> int:
             "SELECT instrument_id, arg_max(close_adj, trade_date) FROM"
             " daily_prices_adjusted_current WHERE computed_from_snapshot_id = 'LIVE'"
             " GROUP BY 1").fetchall())  # fmt: skip
-        for sid in strategies:
-            ev = paper.events(RULE_SET, sid, _strategy_hash(cfg, sid, args.config_dir))
+        ledgers = [(sid, RULE_SET, "") for sid in strategies] + [
+            (r.strategy_id, r.rule_set, f" research {r.rule_set}: {r.label};")
+            for sid in strategies for r in research_ledgers(sid)
+        ]  # fmt: skip
+        for sid, rule_set, what in ledgers:
+            ev = paper.events(rule_set, sid, _strategy_hash(cfg, sid, args.config_dir))
             s = summarize(ev, closes)
             print(
-                f"[{sid}] ledger through {s.through or '-'}; closed trades {s.closed}, win "
+                f"[{sid}]{what} ledger through {s.through or '-'}; closed trades {s.closed}, win "
                 f"{s.win_rate:.1f}%, avg {s.avg_ret:+.2f}%, PF {s.profit_factor_text}; open "
                 f"{len(s.open)}; skipped (no slot) {s.skipped}; divergences {s.divergences}"
             )

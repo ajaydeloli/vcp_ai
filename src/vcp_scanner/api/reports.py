@@ -30,6 +30,7 @@ from vcp_scanner.data.providers.manual_sectors import FILE_NAME as MANUAL_SECTOR
 from vcp_scanner.data.providers.manual_sectors import load_manual_sectors, stale_entries
 from vcp_scanner.domain.snapshot import LIVE_SNAPSHOT_ID as LIVE
 from vcp_scanner.paper.ledger import RULE_SET, PaperEvent
+from vcp_scanner.paper.research import RESEARCH_LEDGERS
 from vcp_scanner.paper.status import summarize
 from vcp_scanner.run_state import run_progress
 
@@ -140,12 +141,12 @@ def status(cur: Cur, ctx: Context, now: datetime, data_time: datetime) -> m.Stat
 # --- paper ----------------------------------------------------------------------------------
 
 
-def _events(cur: Cur, spec: StrategySpec) -> list[PaperEvent]:
+def _events(cur: Cur, spec: StrategySpec, rule_set: str = RULE_SET) -> list[PaperEvent]:
     rows = cur.execute(
         "SELECT strategy_id, instrument_id, event_date, event_type, price, scan_date,"
         " metadata_json FROM paper_events WHERE rule_set = ? AND strategy_id = ?"
         " AND config_hash = ? ORDER BY event_date, recorded_at, event_id",
-        [RULE_SET, spec.strategy_id, spec.config_hash],
+        [rule_set, spec.strategy_id, spec.config_hash],
     ).fetchall()
     return [PaperEvent(r[0], r[1], r[2], r[3], r[4], r[5], json.loads(r[6] or "{}"))
             for r in rows]  # fmt: skip
@@ -161,65 +162,80 @@ def _symbols(cur: Cur, ids: list[str]) -> dict[str, str]:
     return {str(a): str(b) for a, b in rows}
 
 
+def _ledger(cur: Cur, spec: StrategySpec, rule_set: str) -> tuple[m.PaperStrategy, date | None]:
+    """One strategy's ledger of one rule set: results, open positions and the review gates."""
+    events = _events(cur, spec, rule_set)
+    ids = sorted({e.instrument_id for e in events if e.event_type == "ENTRY" and e.instrument_id})
+    closes = {
+        str(a): float(b)
+        for a, b in cur.execute(
+            "SELECT instrument_id, arg_max(close_adj, trade_date) FROM"
+            " daily_prices_adjusted_current WHERE computed_from_snapshot_id = ?"
+            " AND instrument_id IN (SELECT unnest(?)) GROUP BY 1",
+            [LIVE, ids],
+        ).fetchall()
+        if b is not None
+    }  # fmt: skip
+    s = summarize(events, closes)
+    names = _symbols(cur, ids)
+    n = s.closed
+    pf = s.profit_factor
+    judged = n >= MIN_CLOSED_TRADES
+    criteria = [
+        m.Criterion(name="Closed trades", required=f">= {MIN_CLOSED_TRADES}",
+                    value=float(n), met=judged),
+        m.Criterion(name="Profit factor", required=f">= {MIN_PROFIT_FACTOR}", value=pf,
+                    met=(pf >= MIN_PROFIT_FACTOR) if judged and pf is not None else None),
+        m.Criterion(name="Average trade after costs", required="> 0 %",
+                    value=s.avg_ret if n else None,
+                    met=(s.avg_ret > 0) if judged else None),
+        m.Criterion(name="Portfolio max drawdown",
+                    required=f"no worse than {MAX_DRAWDOWN_PCT:.0f} %", value=None, met=None),
+        m.Criterion(name="Portfolio return above the equal-weight universe index",
+                    required="above", value=None, met=None),
+    ]  # fmt: skip
+    out = m.PaperStrategy(
+        strategy_id=spec.strategy_id, ledger_through=s.through, closed=n,
+        win_rate_pct=s.win_rate if n else None, avg_return_pct=s.avg_ret if n else None,
+        profit_factor=pf,
+        open=[
+            m.OpenPosition(
+                instrument_id=o.instrument_id, symbol=names.get(o.instrument_id,
+                                                                o.instrument_id),
+                entry_day=o.entry_day, entry=o.entry, stop=o.stop, last=o.last,
+                open_pct=None if o.last is None else o.open_pct,
+            )
+            for o in s.open
+        ],
+        skipped_no_slot=s.skipped, divergences=s.divergences, criteria=criteria,
+    )  # fmt: skip
+    return out, s.through
+
+
 def paper(cur: Cur, ctx: Context, data_time: datetime) -> m.PaperResponse:
     out: list[m.PaperStrategy] = []
     through: list[date] = []
     for spec in ctx.strategies:
-        events = _events(cur, spec)
-        ids = sorted(
-            {e.instrument_id for e in events if e.event_type == "ENTRY" and e.instrument_id}
+        ledger, last = _ledger(cur, spec, RULE_SET)
+        if last:
+            through.append(last)
+        out.append(ledger)
+    # research ledgers (paper/research.py): shown apart, never part of the frozen review
+    specs = {s.strategy_id: s for s in ctx.strategies}
+    research = []
+    for r in RESEARCH_LEDGERS:
+        rspec = specs.get(r.strategy_id)
+        if rspec is None:
+            continue
+        ledger, _ = _ledger(cur, rspec, r.rule_set)
+        research.append(
+            m.PaperResearch(**ledger.model_dump(), rule_set=r.rule_set, label=r.label,
+                            start=r.start, decided=r.decided)  # fmt: skip
         )
-        closes = {
-            str(a): float(b)
-            for a, b in cur.execute(
-                "SELECT instrument_id, arg_max(close_adj, trade_date) FROM"
-                " daily_prices_adjusted_current WHERE computed_from_snapshot_id = ?"
-                " AND instrument_id IN (SELECT unnest(?)) GROUP BY 1",
-                [LIVE, ids],
-            ).fetchall()
-            if b is not None
-        }  # fmt: skip
-        s = summarize(events, closes)
-        names = _symbols(cur, ids)
-        n = s.closed
-        pf = s.profit_factor
-        judged = n >= MIN_CLOSED_TRADES
-        criteria = [
-            m.Criterion(name="Closed trades", required=f">= {MIN_CLOSED_TRADES}",
-                        value=float(n), met=judged),
-            m.Criterion(name="Profit factor", required=f">= {MIN_PROFIT_FACTOR}", value=pf,
-                        met=(pf >= MIN_PROFIT_FACTOR) if judged and pf is not None else None),
-            m.Criterion(name="Average trade after costs", required="> 0 %",
-                        value=s.avg_ret if n else None,
-                        met=(s.avg_ret > 0) if judged else None),
-            m.Criterion(name="Portfolio max drawdown",
-                        required=f"no worse than {MAX_DRAWDOWN_PCT:.0f} %", value=None, met=None),
-            m.Criterion(name="Portfolio return above the equal-weight universe index",
-                        required="above", value=None, met=None),
-        ]  # fmt: skip
-        if s.through:
-            through.append(s.through)
-        out.append(
-            m.PaperStrategy(
-                strategy_id=spec.strategy_id, ledger_through=s.through, closed=n,
-                win_rate_pct=s.win_rate if n else None, avg_return_pct=s.avg_ret if n else None,
-                profit_factor=pf,
-                open=[
-                    m.OpenPosition(
-                        instrument_id=o.instrument_id, symbol=names.get(o.instrument_id,
-                                                                        o.instrument_id),
-                        entry_day=o.entry_day, entry=o.entry, stop=o.stop, last=o.last,
-                        open_pct=None if o.last is None else o.open_pct,
-                    )
-                    for o in s.open
-                ],
-                skipped_no_slot=s.skipped, divergences=s.divergences, criteria=criteria,
-            )
-        )  # fmt: skip
     return m.PaperResponse(
         as_of=max(through) if through else None, data_time=data_time, rule_set=RULE_SET,
         review_from=REVIEW_FROM, min_closed_trades=MIN_CLOSED_TRADES,
-        open_positions=sum(len(p.open) for p in out), strategies=out,
+        open_positions=sum(len(p.open) for p in out), strategies=out, research=research,
     )  # fmt: skip
 
 
