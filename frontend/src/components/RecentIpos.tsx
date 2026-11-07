@@ -2,13 +2,13 @@
 
 import { useMemo, useState } from "react";
 import { useIpos } from "@/lib/api";
+import { usePrefs } from "@/lib/prefs";
 import { DASH, fmtDay, fmtInt, fmtNum, fmtPct, fmtPrice, tone } from "@/lib/fmt";
 import type { IpoRow } from "@/lib/schemas";
 import { Page } from "./Page";
 import { Field, FIELD, Pages } from "./Screener";
 import { Card, Empty, ErrorBox, Loading } from "./ui";
 
-const PAGE_SIZE = 15;
 
 type Col = {
   key: string;
@@ -71,6 +71,8 @@ export function RecentIpos() {
   const [sort, setSort] = useState("listed");
   const [dir, setDir] = useState<"asc" | "desc">("desc");
   const [page, setPage] = useState(1);
+  // rows per page: the preference, as on the Screener and Fundamentals
+  const pageSize = usePrefs().prefs.pageSize;
 
   const all = useMemo(() => ipos.data?.rows ?? [], [ipos.data]);
   const rows = useMemo(() => {
@@ -89,9 +91,9 @@ export function RecentIpos() {
       });
   }, [all, text, minBars, sort, dir]);
 
-  const pages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
+  const pages = Math.max(1, Math.ceil(rows.length / pageSize));
   const at = Math.min(page, pages);
-  const shown = rows.slice((at - 1) * PAGE_SIZE, at * PAGE_SIZE);
+  const shown = rows.slice((at - 1) * pageSize, at * pageSize);
   const changed = text !== "" || minBars !== "";
 
   return (
@@ -147,7 +149,6 @@ export function RecentIpos() {
 
       <Card
         title="Results"
-        subtitle="Outside the scan universe. Display only."
         right={
           ipos.data ? (
             <span className="text-xs text-mute">{`${fmtInt(rows.length)} of ${fmtInt(all.length)} listings match`}</span>
@@ -206,7 +207,7 @@ export function RecentIpos() {
                     <tr key={r.instrument_id} className="border-t border-line">
                       {COLS.map((c) => (
                         <td key={c.key} className={`px-3 py-1.5 ${align(c)}`}>
-                          {c.render(r, (at - 1) * PAGE_SIZE + i + 1)}
+                          {c.render(r, (at - 1) * pageSize + i + 1)}
                         </td>
                       ))}
                     </tr>
@@ -214,7 +215,7 @@ export function RecentIpos() {
                 </tbody>
               </table>
             </div>
-            <Pages page={at} total={rows.length} size={PAGE_SIZE} onPage={setPage} />
+            <Pages page={at} total={rows.length} size={pageSize} onPage={setPage} />
           </>
         )}
       </Card>

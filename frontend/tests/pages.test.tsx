@@ -10,12 +10,12 @@ import { Reports } from "@/components/Reports";
 import { mockApi, renderApp } from "./helpers";
 
 describe("more pages", () => {
-  it("Recent IPOs lists the young listings and says they are outside the scan", async () => {
+  it("Recent IPOs lists the young listings, no subtitle", async () => {
     mockApi();
     renderApp(<RecentIpos />);
     expect(await screen.findByRole("heading", { name: "Recent IPOs", level: 1 })).toBeInTheDocument();
     expect(await screen.findByRole("link", { name: "NEWCO" })).toHaveAttribute("href", "/chart/NEWCO");
-    expect(screen.getByText(/outside the scan universe/i)).toBeInTheDocument();
+    expect(screen.queryByText(/outside the scan universe/i)).not.toBeInTheDocument();
     // a 60-bar stock has no 200-day average: nothing invented
     await userEvent.type(screen.getByRole("spinbutton", { name: "Min bars" }), "100");
     expect(screen.queryByRole("link", { name: "NEWCO" })).not.toBeInTheDocument();
