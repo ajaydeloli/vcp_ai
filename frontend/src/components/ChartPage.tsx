@@ -507,8 +507,22 @@ function SideBar({
   );
 }
 
+/** The cards in the sidebar look plain, like the VCP and watch-list panels: no coloured
+ *  border or tinted background (the Stock Analysis page keeps its colours). Floating, the panel
+ *  has the border, so the cards have none; pinned, each card has the plain line border. */
+const PLAIN_FLOATING = "[&_section]:!border-0 [&_section]:!bg-transparent [&_section]:!bg-none";
+const PLAIN_PINNED = "[&_section]:!border [&_section]:!border-line [&_section]:!bg-panel [&_section]:!bg-none";
+
 /** One sidebar tab's content for the stock. */
 function TabBody({ tab, symbol, bare }: { tab: SideTab; symbol: string; bare: boolean }) {
+  return (
+    <div data-testid="tab-body" className={bare ? PLAIN_FLOATING : PLAIN_PINNED}>
+      <TabCards tab={tab} symbol={symbol} bare={bare} />
+    </div>
+  );
+}
+
+function TabCards({ tab, symbol, bare }: { tab: SideTab; symbol: string; bare: boolean }) {
   const stock = useStockSetups(symbol);
   if (tab === "vcp") return <SetupSide symbol={symbol} bare={bare} />;
   if (tab === "notes") return <StockNotes symbol={symbol} />;
@@ -517,7 +531,9 @@ function TabBody({ tab, symbol, bare }: { tab: SideTab; symbol: string; bare: bo
     return (
       <div className="space-y-3">
         <FundamentalsCard symbol={symbol} />
+        {bare ? <hr className="border-line" /> : null}
         <QuarterlyResultsCard symbol={symbol} />
+        {bare ? <hr className="border-line" /> : null}
         <ShareholdingCard symbol={symbol} />
       </div>
     );

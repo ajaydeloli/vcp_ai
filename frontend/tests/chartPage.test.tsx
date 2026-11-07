@@ -271,6 +271,8 @@ describe("chart page", () => {
     expect(screen.queryByRole("complementary", { name: "VCP setup of ALPHA" })).not.toBeInTheDocument();
     await userEvent.click(within(tabs).getByRole("button", { name: "Score" }));
     expect(await screen.findByRole("heading", { name: "Score breakdown" })).toBeInTheDocument();
+    // plain like the other panels: the card's coloured border and tint are switched off
+    expect(screen.getByTestId("tab-body").className).toMatch(/\[&_section\]:!border-0/);
     expect(screen.queryByRole("heading", { name: "Trend Template" })).not.toBeInTheDocument();
     await userEvent.click(within(tabs).getByRole("button", { name: "Fundamentals" }));
     expect(await screen.findByTestId("side-panel")).toHaveTextContent(/Quarterly results/i);
