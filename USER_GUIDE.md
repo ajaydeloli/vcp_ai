@@ -85,6 +85,16 @@ vcp fundamentals backfill                 # quarterly results from NSE filings (
 vcp classify update                       # sectors from NSE's index lists + config/manual_sectors.yaml
 ```
 
+### 2.3a Dashboard starts at logon
+
+A third Task Scheduler task, **VCP dashboard**, starts the dashboard one minute after you log on to Windows, with no window (since 2026-11-07):
+
+```text
+conhost.exe --headless wsl.exe -d Ubuntu -u ubuntu -- bash -lc "~/projects/vcp_ai/scripts/dashboard_autostart.sh"
+```
+
+It has no time limit and is restarted up to 3 times if it stops. `scripts/dashboard_autostart.sh` does nothing if the dashboard is already running (port 3000 or 8000 in use), and writes its output to `data/logs/dashboard.out`. `scripts/dashboard.sh` rebuilds the web page by itself when the frontend changed since the last build. To restart it: Task Scheduler, right-click **VCP dashboard**, End, then Run. To turn it off: Disable.
+
 ### 2.4 Schedule the evening run
 
 Two Windows Task Scheduler tasks run the pipeline on weekdays, **with no window** (since 2026-10-13). Both run the same command:

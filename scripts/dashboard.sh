@@ -11,6 +11,9 @@ WATCH=$!
 trap 'kill $API $WATCH 2>/dev/null || true' EXIT
 cd frontend
 [ -d node_modules ] || npm ci
-[ -d .next ] || npm run build
+# Rebuild when the frontend changed since the last build (an old build shows removed pages).
+if [ ! -f .next/BUILD_ID ] || [ -n "$(find src public package.json package-lock.json next.config.* -newer .next/BUILD_ID -print -quit 2>/dev/null)" ]; then
+    npm run build
+fi
 echo "Dashboard: http://localhost:3000/dashboard"
 npm run start

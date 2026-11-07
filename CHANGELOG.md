@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- The dashboard starts at Windows logon (owner, 2026-11-07): Task Scheduler task **VCP dashboard** (headless, no time limit) runs the new `scripts/dashboard_autostart.sh`, which skips if it is already running and logs to `data/logs/dashboard.out`. `scripts/dashboard.sh` now rebuilds the frontend when its source is newer than the last build (an old build kept showing removed pages).
 - Removed the Trend Template and Alerts pages from the dashboard (owner, 2026-11-06), with their menu entries and API routes `GET /api/v1/trend-template` and `/alerts` (the Past Leaders and AI Agent pages went with the AI layer). The Trend Template scan (`vcp compute trend-template`), the stock and screener columns and the Telegram alerts (`vcp alerts`) are unchanged.
 - Dropped the tables of the removed features (owner, 2026-11-06): `superperformance_studies`, `superperformance_runs`, `superperformance_bases` and `shadow_paper_events`. Their DDL is gone and `DuckDBStore.migrate()` drops them from any database (the stored data was derived and unused). The old agent notebook file `data/agent/agent.duckdb` and `data/agent/candidates` were moved to `data/backups/agent_archive/`.
 - Upstox corporate-action check logs its progress (owner, 2026-11-06): one line per 100 instruments asked, with the elapsed seconds. The step takes about 26 minutes (800 instruments, about 2 s each, by design); it looked stuck because it logged nothing in between.
