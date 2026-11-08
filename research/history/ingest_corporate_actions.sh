@@ -14,7 +14,7 @@ for y in 2011 2012 2013 2014 2015 2016 2017 2018 2019 2020 2021; do
   log=data/logs/history_ca_$y.log
   echo "$(date -u +%FT%TZ) $y $start..$end" >> data/logs/history_ca_all.log
   .venv/bin/vcp ingest corporate-actions --start "$start" --end "$end" --db "$DB" \
-    --env-file "$ENV" > "$log" 2>&1
+    --env-file "$ENV" --all-records > "$log" 2>&1
   code=$?
   echo "$(date -u +%FT%TZ) $y exit=$code $(grep -h 'Reconciliation complete\|Fetched' "$log" | sed 's/.*INFO  //' | tr '\n' ' ')" >> data/logs/history_ca_all.log
   [ $code -ne 0 ] && { echo "STOPPED at $y" >> data/logs/history_ca_all.log; exit $code; }

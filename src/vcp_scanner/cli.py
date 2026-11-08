@@ -365,6 +365,13 @@ def build_parser() -> argparse.ArgumentParser:
     ca_parser.add_argument(
         "--env-file", default=".env", help="Path to .env file with Upstox credentials"
     )
+    ca_parser.add_argument(
+        "--all-records",
+        action="store_true",
+        help="Take every NSE record and match it through each stock's symbol and ISIN history "
+        "(for a history backfill: NSE lists old actions under today's symbol and ISIN). "
+        "Default: only records whose symbol is a stored instrument's symbol",
+    )
 
     # compute subcommands
     compute_parser = subparsers.add_parser("compute", help="Feature and trend computation")

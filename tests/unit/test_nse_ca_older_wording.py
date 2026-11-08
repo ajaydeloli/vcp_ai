@@ -84,3 +84,28 @@ def test_a_bonus_and_split_in_one_record_give_both_actions() -> None:
     assert only.action_type is T.SPLIT
     deb = p._parse_nse_actions(_record("Split Rs 10 To Rs 2 / Bonus Debentures 1:1"))
     assert [a.action_type for a in deb] != [T.SPLIT, T.BONUS]
+
+
+def test_nse_shorthand_fv_splt_is_a_split() -> None:
+    from vcp_scanner.data.providers.nse_ca import NSECorporateActionProvider
+
+    p = NSECorporateActionProvider()
+    p.unparsed_ratios, p.unhandled_records = [], []
+    [a] = p._parse_nse_actions(_record(" Fv Splt Frm Rs 10 To Re 1", "JSWSTEEL", "INE019A01020"))
+    assert (a.action_type, a.ratio_numerator, a.ratio_denominator) == (T.SPLIT, 10, 1)
+
+
+def test_all_records_ignores_the_instrument_filter_only() -> None:
+    from vcp_scanner.cli_pipeline import _AllRecords
+
+    class Stub:
+        unparsed_ratios = ["x"]
+
+        def get_actions(self, start, end, instruments=None):  # noqa: ANN001, ANN202
+            self.seen = instruments
+            return ["a"]
+
+    inner = Stub()
+    wrapped = _AllRecords(inner)
+    assert wrapped.get_actions(1, 2, ["only-these"]) == ["a"] and inner.seen is None
+    assert wrapped.unparsed_ratios == ["x"]  # everything else is the wrapped provider's

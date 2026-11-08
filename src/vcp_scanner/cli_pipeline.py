@@ -449,6 +449,21 @@ def run_bhavcopy_ingest(args: argparse.Namespace) -> int:
 # ---------------------------------------------------------------------------
 
 
+class _AllRecords:
+    """A provider that ignores the instrument filter (``--all-records``): every record is
+    returned and the ingestion worker's resolver matches it through each instrument's symbol
+    and ISIN history. Everything else is the wrapped provider's."""
+
+    def __init__(self, inner: Any) -> None:
+        self._inner = inner
+
+    def get_actions(self, start: Any, end: Any, instruments: Any = None) -> Any:
+        return self._inner.get_actions(start, end, None)
+
+    def __getattr__(self, name: str) -> Any:
+        return getattr(self._inner, name)
+
+
 def run_corporate_actions(args: argparse.Namespace) -> int:
     from pathlib import Path
 
@@ -504,6 +519,8 @@ def run_corporate_actions(args: argparse.Namespace) -> int:
             "(NSE only) and will not be cross-confirmed."
         )
     primary, secondary = _build_ca_providers(upstox_token, ca_cfg)
+    if getattr(args, "all_records", False):
+        primary = _AllRecords(primary)
 
     with _open_store(args.db) as store:
         instruments = _select_instruments(

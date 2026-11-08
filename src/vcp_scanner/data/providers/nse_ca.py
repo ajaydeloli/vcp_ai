@@ -88,6 +88,7 @@ def parse_ratio(text: str, action_type: CorporateActionType) -> tuple[float, flo
     that as "ratio unknown", never as "no adjustment".
     """
     upper = text.upper().replace("\u20b9", "RS")
+    upper = re.sub(r"\bSPLT\b", "SPLIT", re.sub(r"\bFRM\b", "FROM", upper))
     if action_type == CorporateActionType.SPLIT:
         amounts = [float(a) for a in _AMOUNT_RE.findall(upper)]
         # Exactly two amounts (old, new). Otherwise the text mixes in something else (a dividend
@@ -280,7 +281,9 @@ class NSECorporateActionProvider:
             if "DEMERGER" in text:
                 # Factor derived from the ex-date special pre-open price (audit step 2.4).
                 action_type = CorporateActionType.DEMERGER
-            elif "SPLIT" in text or "SUB-DIVISION" in text or "SUBDIVISION" in text:
+            # "Fv Splt Frm Rs 10 To Re 1" is NSE's shorthand of 2016-2017 (JSWSTEEL, KPRMILL)
+            elif ("SPLIT" in text or "SUB-DIVISION" in text or "SUBDIVISION" in text
+                  or re.search(r"\bSPLT\b", text)):  # fmt: skip
                 action_type = CorporateActionType.SPLIT
             elif "CONSOLIDAT" in text and "SHARE" in text:
                 # A consolidation is a reverse split: "Consolidation Of Equity Shares From Re 1
