@@ -12,10 +12,9 @@ direction survives dropping any one quarter (``common.verdict``).
 
 from __future__ import annotations
 
+import common as c
 import numpy as np
 import pandas as pd
-
-import common as c
 
 P = "index_trend"
 t = c.trades()
