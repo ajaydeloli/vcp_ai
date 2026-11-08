@@ -55,3 +55,32 @@ def test_rights_wording(text: str, face: int, ratio: tuple, price: float) -> Non
 def test_rights_without_a_price_stay_unknown() -> None:
     assert rights_issue_price("RIGHTS 2:7", 10) is None  # JMCPROJECT 2016: no price given
     assert rights_issue_price("RIGHTS 1:2 @ PARTLY PAID", 10) is None  # "PAR" must be a word
+
+
+def _record(subject: str, symbol: str = "INDOCO", isin: str = "INE873D01024") -> dict:
+    return {"bcEndDate": "-", "bcStartDate": "-", "ind": "-", "ndEndDate": "-",
+            "ndStartDate": "-", "series": "EQ", "comp": "X", "exDate": "17-May-2012",
+            "faceVal": "10", "isin": isin, "recDate": "-", "symbol": symbol,
+            "subject": subject}  # fmt: skip
+
+
+def test_a_bonus_and_split_in_one_record_give_both_actions() -> None:
+    from vcp_scanner.data.providers.nse_ca import NSECorporateActionProvider
+
+    p = NSECorporateActionProvider()
+    p.unparsed_ratios, p.unhandled_records = [], []
+    indoco = "Bonus 1:2 And Face Value Split From Rs.10 To Rs.2"
+    split, bonus = p._parse_nse_actions(_record(indoco))
+    assert (split.action_type, split.ratio_numerator, split.ratio_denominator) == (T.SPLIT, 10, 2)
+    assert (bonus.action_type, bonus.ratio_numerator, bonus.ratio_denominator) == (T.BONUS, 1, 2)
+    assert bonus.ex_date == split.ex_date and bonus.isin == split.isin
+    assert bonus.corporate_action_id != split.corporate_action_id
+    # the same record always gives the same two IDs
+    again = p._parse_nse_actions(_record(indoco))
+    assert [a.corporate_action_id for a in again] == [split.corporate_action_id,
+                                                      bonus.corporate_action_id]  # fmt: skip
+    # a split alone, and a bonus of debentures next to a split, stay one action
+    [only] = p._parse_nse_actions(_record("Face Value Split From Rs 10/- To Rs 2/-"))
+    assert only.action_type is T.SPLIT
+    deb = p._parse_nse_actions(_record("Split Rs 10 To Rs 2 / Bonus Debentures 1:1"))
+    assert [a.action_type for a in deb] != [T.SPLIT, T.BONUS]

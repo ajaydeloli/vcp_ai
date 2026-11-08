@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import re
+from dataclasses import replace
 from datetime import UTC, date, datetime
 from typing import Any
 
@@ -215,12 +216,12 @@ class NSECorporateActionProvider:
                         if not any(inst.symbol == symbol for inst in instruments):
                             continue
 
-                    action = self._parse_nse_action(item)
                     # A stock that migrated from SME to the main board may be listed in both
                     # feeds; the deterministic ID keeps one copy.
-                    if action and action.corporate_action_id not in seen:
-                        seen.add(action.corporate_action_id)
-                        actions.append(action)
+                    for action in self._parse_nse_actions(item):
+                        if action.corporate_action_id not in seen:
+                            seen.add(action.corporate_action_id)
+                            actions.append(action)
 
             except ProviderError:
                 raise
@@ -233,6 +234,40 @@ class NSECorporateActionProvider:
                 ) from e
 
         return actions
+
+    def _parse_nse_actions(self, item: dict[str, Any]) -> list[CorporateAction]:
+        """The actions of one NSE record. A record that announces a bonus and a split together
+        ("Bonus 1:2 And Face Value Split From Rs.10 To Rs.2", INDOCO 2012; 23 such records in
+        2011-2018, none since) reads as a SPLIT; its bonus is added as a second action, so the
+        price factor is the product of both instead of the split alone."""
+        first = self._parse_nse_action(item)
+        if first is None:
+            return []
+        if first.action_type != CorporateActionType.SPLIT:
+            return [first]
+        text = f"{item.get('subject', '')} {item.get('purpose', '')}".upper()
+        if "BONUS" not in text or _NON_EQUITY_RE.search(text):
+            return [first]
+        ratio = parse_ratio(text, CorporateActionType.BONUS)
+        if ratio is None:
+            described = f"{item.get('symbol', '?')}: {text.strip()} (bonus part)"
+            self.unparsed_ratios.append(described)
+            logger.warning("Could not read the bonus ratio of NSE SPLIT+BONUS: %s", described)
+            return [first]
+        num, den = ratio
+        bonus = replace(
+            first,
+            corporate_action_id=deterministic_action_id(
+                self.PROVIDER_NAME, first.isin or item.get("symbol", ""),
+                CorporateActionType.BONUS.value, first.ex_date, num, den,
+                item.get("ndStartDate"),
+            ),
+            action_type=CorporateActionType.BONUS,
+            ratio_numerator=num,
+            ratio_denominator=den,
+            cash_amount=None,
+        )  # fmt: skip
+        return [first, bonus]
 
     def _parse_nse_action(self, item: dict[str, Any]) -> CorporateAction | None:
         """Parse a single NSE JSON record into a CorporateAction."""
