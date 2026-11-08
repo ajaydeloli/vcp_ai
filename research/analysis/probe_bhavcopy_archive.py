@@ -13,7 +13,7 @@ import requests
 
 from vcp_scanner.data.providers.nse_bhavcopy import bhavcopy_url
 
-UA = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124 Safari/537.36"
+UA = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124"
 s = requests.Session()
 s.headers.update({"User-Agent": UA, "Accept": "*/*"})
 for year in range(1994, 2021):
