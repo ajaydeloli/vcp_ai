@@ -39,7 +39,7 @@ def nse_near(symbol: str, day: pd.Timestamp) -> str:
     out = []
     for it in recs.get(symbol, []):
         try:
-            ex = datetime.strptime(it.get("exDate") or "", "%d-%b-%Y")
+            ex = datetime.strptime(it.get("exDate") or "", "%d-%b-%Y")  # noqa: DTZ007 - a date only
         except ValueError:
             continue
         if abs(ex - day.to_pydatetime()) <= timedelta(days=15):

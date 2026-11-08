@@ -50,12 +50,17 @@ for r in ev.itertuples():
 g = pd.DataFrame(rows)
 g["year"] = g["day"].dt.year
 # split-like: volume rises by about 1/ratio (within 40 %) and the price stays down
-g["split_like"] = (g["vol_x"] * g["ratio"]).between(0.6, 1.4) & (g["ratio"] < 0.75) & (g["later"] < 0.85)
-g["kind"] = pd.cut(g["ratio"], [0, 0.55, 0.75, 0.9, 10], labels=["<0.55", "0.55-0.75", "0.75-0.9", "0.9+"])
+g["split_like"] = (
+    (g["vol_x"] * g["ratio"]).between(0.6, 1.4) & (g["ratio"] < 0.75) & (g["later"] < 0.85)
+)
+g["kind"] = pd.cut(
+    g["ratio"], [0, 0.55, 0.75, 0.9, 10], labels=["<0.55", "0.55-0.75", "0.75-0.9", "0.9+"]
+)
 print("\nopen gaps by year and size of the drop (open / previous close)")
 print(pd.crosstab(g["year"], g["kind"]).to_string())
 print("\nsplit-like (volume x ratio about 1, price stays down):", int(g["split_like"].sum()),
       "of", len(g))  # fmt: skip
 s = g[g["split_like"]].sort_values("day")
-print(s[["instrument_id", "day", "ratio", "vol_x", "later", "hint"]].round(3).to_string(index=False))
+cols = ["instrument_id", "day", "ratio", "vol_x", "later", "hint"]
+print(s[cols].round(3).to_string(index=False))
 g.to_csv(ROOT / "data" / "research" / "history_gap_triage.csv", index=False)
