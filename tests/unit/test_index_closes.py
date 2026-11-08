@@ -166,3 +166,14 @@ def test_a_name_written_twice_in_one_file_is_dropped() -> None:
             "CNX 500,08-02-2013,-,-,-,4800,0,0,-,-,-,-,-\n")  # fmt: skip
     parsed = parse_index_closes((head + rows).encode(), date(2013, 2, 8))
     assert {x.index_name: x.close for x in parsed} == {"Nifty 500": 4800.0}
+
+
+def test_a_slashed_date_is_read() -> None:
+    from vcp_scanner.data.providers.nse_index_closes import parse_index_closes
+
+    head = ("Index Name,Index Date,Open Index Value,High Index Value,Low Index Value,"
+            "Closing Index Value,Points Change,Change(%),Volume,Turnover (Rs. Cr.),P/E,P/B,"
+            "Div Yield\n")  # fmt: skip
+    rows = "CNX 500,09/06/2014,1,2,0.5,6000,0,0,-,-,-,-,-\n"  # NSE, June 2014
+    parsed = parse_index_closes((head + rows).encode(), date(2014, 6, 9))
+    assert [(x.index_name, x.close) for x in parsed] == [("Nifty 500", 6000.0)]

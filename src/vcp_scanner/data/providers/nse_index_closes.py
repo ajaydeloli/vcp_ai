@@ -65,6 +65,8 @@ def _num(raw: str | None) -> float | None:
 
 def _dates(text: str) -> set[date]:
     out = set()
+    # Some files of June 2014 write slashes: "09/06/2014".
+    text = text.replace("/", "-")
     for fmt in ("%d-%m-%Y", "%m-%d-%Y"):
         with contextlib.suppress(ValueError):
             out.add(datetime.strptime(text, fmt).date())  # noqa: DTZ007
