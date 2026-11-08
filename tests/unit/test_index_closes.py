@@ -153,3 +153,16 @@ def test_cnx_names_before_the_2015_rename_map_to_todays_names() -> None:
     # CNX Smallcap is today's Smallcap 100, not the Smallcap 250 (which starts in 2017)
     assert got["Nifty Smallcap 100"] == 3000 and "Nifty Smallcap 250" not in got
     assert "CNX 500" not in got
+
+
+def test_a_name_written_twice_in_one_file_is_dropped() -> None:
+    from vcp_scanner.data.providers.nse_index_closes import parse_index_closes
+
+    head = ("Index Name,Index Date,Open Index Value,High Index Value,Low Index Value,"
+            "Closing Index Value,Points Change,Change(%),Volume,Turnover (Rs. Cr.),P/E,P/B,"
+            "Div Yield\n")  # fmt: skip
+    rows = ("CNX Alpha Index,08-02-2013,-,-,-,4713.18,0,0,-,-,-,-,-\n"
+            "CNX Alpha Index,08-02-2013,-,-,-,1572.9,0,0,-,-,-,-,-\n"
+            "CNX 500,08-02-2013,-,-,-,4800,0,0,-,-,-,-,-\n")  # fmt: skip
+    parsed = parse_index_closes((head + rows).encode(), date(2013, 2, 8))
+    assert {x.index_name: x.close for x in parsed} == {"Nifty 500": 4800.0}

@@ -117,7 +117,12 @@ def parse_index_closes(payload: bytes, trade_date: date) -> list[IndexClose]:
         ))  # fmt: skip
     if not out:
         raise ProviderError(f"NSE index closes {trade_date}: no index rows for that date")
-    return out
+    # A name written twice in one file is a mislabelled row (8 Feb 2013: two different
+    # "CNX Alpha Index" values). Which one is right cannot be told, so neither is kept.
+    seen: dict[str, int] = {}
+    for x in out:
+        seen[x.index_name] = seen.get(x.index_name, 0) + 1
+    return [x for x in out if seen[x.index_name] == 1]
 
 
 class NseIndexCloseProvider:
