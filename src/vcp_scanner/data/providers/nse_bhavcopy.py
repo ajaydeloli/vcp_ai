@@ -104,6 +104,17 @@ _DATE_FORMATS: dict[BhavcopyFormat, str] = {
 }
 
 
+def _session_date(text: str, date_format: str) -> date:
+    """The session date a row is stamped with. Legacy files write "28-JUL-2022", but some
+    (from 13 Jul 2020, for a while) write a two-digit year, "13-Jul-20": that is read too."""
+    try:
+        return datetime.strptime(text, date_format).date()  # noqa: DTZ007
+    except ValueError:
+        if date_format != "%d-%b-%Y":
+            raise
+        return datetime.strptime(text, "%d-%b-%y").date()  # noqa: DTZ007
+
+
 def bhavcopy_format(trade_date: date) -> BhavcopyFormat:
     """The layout NSE publishes for ``trade_date``."""
     return BhavcopyFormat.UDIFF if trade_date >= UDIFF_FROM else BhavcopyFormat.LEGACY
@@ -233,7 +244,7 @@ def parse_bhavcopy(
             continue
 
         try:
-            stamped = datetime.strptime(row[columns["date"]], date_format).date()  # noqa: DTZ007
+            stamped = _session_date(row[columns["date"]], date_format)
         except ValueError as exc:
             raise ProviderError(f"bhavcopy {trade_date}: bad session date {exc}") from exc
         if stamped != trade_date:

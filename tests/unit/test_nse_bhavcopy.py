@@ -113,6 +113,16 @@ def test_file_for_another_session_is_refused() -> None:
         parse_bhavcopy(date(2022, 7, 29), LEGACY_ZIP)
 
 
+def test_a_two_digit_year_stamp_is_read() -> None:
+    # NSE's legacy files from 13 Jul 2020 for a while stamp rows "13-Jul-20"
+    row = _legacy_row("ABC", "10", "11", "9", "10.5").replace("28-JUL-2022", "28-Jul-22")
+    parsed = parse_bhavcopy(LEGACY_DAY, _zip(LEGACY_HEADER + row))
+    assert [r.symbol for r in parsed.rows] == ["ABC"]
+    bad = _legacy_row("ABC", "10", "11", "9", "10.5").replace("28-JUL-2022", "2022/07/28")
+    with pytest.raises(ProviderError, match="bad session date"):
+        parse_bhavcopy(LEGACY_DAY, _zip(LEGACY_HEADER + bad))
+
+
 def test_layout_without_expected_columns_is_refused() -> None:
     with pytest.raises(ProviderError, match="lacks"):
         parse_bhavcopy(LEGACY_DAY, _zip("SYMBOL,SERIES,CLOSE\nABC,EQ,1\n"))
