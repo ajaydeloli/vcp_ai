@@ -24,12 +24,30 @@ logger = logging.getLogger(__name__)
 # Money amounts as NSE writes face values: "Rs 10/-", "Rs. 2/-", "Re 1/-", "INR 5".
 _AMOUNT_RE = re.compile(r"(?:RS|RE|INR)\.?\s*(\d+(?:\.\d+)?)")
 # "Bonus 1:2", "Bonus Issue 1 : 1", or the reverse spelling "1:1 Bonus".
-_BONUS_AFTER_RE = re.compile(r"BONUS[^\d]*(\d+)\s*:\s*(\d+)")
-_BONUS_BEFORE_RE = re.compile(r"(\d+)\s*:\s*(\d+)\s*BONUS")
+# Ratios may be fractional: "Bonus 1.5:1" (TOUCHWOOD 2019).
+_BONUS_AFTER_RE = re.compile(r"BONUS[^\d]*(\d+(?:\.\d+)?)\s*:\s*(\d+(?:\.\d+)?)")
+_BONUS_BEFORE_RE = re.compile(r"(\d+(?:\.\d+)?)\s*:\s*(\d+(?:\.\d+)?)\s*BONUS")
 # "Rights 1:14 @ Premium Rs 530/-", "Rights 1:19.07 @ Premium Rs 0", "Rights 21:20@ Premium ..."
 # Also "Rights Issue 4:17@ Premium Rs 390/-" and "Rights 7:10 @ Prm Rs 102/-" (live, 2026-10-01).
-_RIGHTS_RE = re.compile(r"RIGHTS(?:\s+ISSUE)?\s*(\d+(?:\.\d+)?)\s*:\s*(\d+(?:\.\d+)?)")
-_PREMIUM_RE = re.compile(r"(?:PREMIUM|PRM)\.?\s*(?:(?:RS|RE|INR)\.?)?\s*(\d+(?:\.\d+)?)")
+# Older wording separates the ratio with " - " or " : " ("Rights - 2:3@ Par Rs 10", ALOKTEXT
+# 2013; "Rights : 24:10 At Par", ASHIMASYN 2015).
+_RIGHTS_RE = re.compile(
+    r"RIGHTS(?:\s+ISSUE)?\s*[-:]?\s*(\d+(?:\.\d+)?)\s*:\s*(\d+(?:\.\d+)?)"
+)
+# "Premium Rs 530", "Prm Rs 102", and older "Prem Rs 40" / "Premium Of Rs 2.50" (CREST 2016,
+# IDEA 2019).
+_PREMIUM_RE = re.compile(
+    r"(?:PREMIUM|PREM|PRM)\.?\s*(?:OF\s+)?(?:(?:RS|RE|INR)\.?)?\s*(\d+(?:\.\d+)?)"
+)
+# A rights issue at par: issue price = face value, premium 0 ("@ Par", "At Par").
+_AT_PAR_RE = re.compile(r"(?:@|\bAT)\s*PAR\b")
+# The face values of a split inside a longer text that also names a dividend amount:
+# "Dividend - Rs 1.35/- Per Share / Face Value Split - From Rs 10/- Per Share To Rs 2/- Per
+# Share" (MANINFRA 2014).
+_SPLIT_FROM_TO_RE = re.compile(
+    r"SPLIT.{0,40}?FROM\s*(?:(?:RS|RE|INR)\.?\s*)?(\d+(?:\.\d+)?)(?:/-)?.{0,30}?\bTO\s*"
+    r"(?:FACE VALUE\s*)?(?:(?:RS|RE|INR)\.?\s*)?(\d+(?:\.\d+)?)"
+)
 # An Indian ISIN: "IN", a 1-char issuer type, 4-char issuer, 2-digit security type, 2-char issue
 # number and a check digit (e.g. INE920A01029).
 _ISIN_RE = re.compile(r"IN[A-Z0-9]{9}[0-9]")
@@ -71,11 +89,14 @@ def parse_ratio(text: str, action_type: CorporateActionType) -> tuple[float, flo
     upper = text.upper().replace("\u20b9", "RS")
     if action_type == CorporateActionType.SPLIT:
         amounts = [float(a) for a in _AMOUNT_RE.findall(upper)]
-        # Exactly two amounts (old, new). Three or more means the text mixes in something else
-        # (a dividend amount, say) and guessing which two are face values is not safe.
-        if len(amounts) != 2:
+        # Exactly two amounts (old, new). Otherwise the text mixes in something else (a dividend
+        # amount, say): then only the split's own "from ... to ..." phrase is read, never a guess.
+        if len(amounts) == 2:
+            old_fv, new_fv = amounts
+        elif (m := _SPLIT_FROM_TO_RE.search(upper)) is not None:
+            old_fv, new_fv = float(m.group(1)), float(m.group(2))
+        else:
             return None
-        old_fv, new_fv = amounts
         if old_fv <= 0 or new_fv <= 0 or old_fv == new_fv:
             return None
         return old_fv, new_fv
@@ -97,14 +118,17 @@ def rights_issue_price(text: str, face_value: object) -> float | None:
     """Rights issue price = face value + premium ("Rights 1:14 @ Premium Rs 530/-", face value 5
     -> 535; BHARTIARTL 2021). None when either part is missing: the factor is then unknown.
     """
-    m = _PREMIUM_RE.search(text.upper().replace("\u20b9", "RS"))
+    upper = text.upper().replace("\u20b9", "RS")
+    m = _PREMIUM_RE.search(upper)
     try:
         fv = float(str(face_value))
     except (TypeError, ValueError):
         return None
-    if m is None or not fv > 0:
+    if not fv > 0:
         return None
-    return fv + float(m.group(1))
+    if m is not None:
+        return fv + float(m.group(1))
+    return fv if _AT_PAR_RE.search(upper) else None
 
 
 class NSECorporateActionProvider:
