@@ -136,3 +136,20 @@ def test_update_stores_each_trading_day_once(tmp_path: Path, capsys: Any) -> Non
             "SELECT trade_date, status, rows FROM index_files ORDER BY 1"
         ).fetchall()
     assert rows == [(other, "NOT_FOUND", 0), (DAY, "OK", 167)]
+
+
+def test_cnx_names_before_the_2015_rename_map_to_todays_names() -> None:
+    from vcp_scanner.data.providers.nse_index_closes import parse_index_closes
+
+    head = ("Index Name,Index Date,Open Index Value,High Index Value,Low Index Value,"
+            "Closing Index Value,Points Change,Change(%),Volume,Turnover (Rs. Cr.),P/E,P/B,"
+            "Div Yield\n")  # fmt: skip
+    rows = "".join(f"{n},01-07-2014,1,2,0.5,{c},0,0,-,-,-,-,-\n" for n, c in
+                   (("CNX 500", 5000), ("CNX Nifty", 7600), ("CNX Smallcap", 3000),
+                    ("CNX Bank", 15000)))  # fmt: skip
+    parsed = parse_index_closes((head + rows).encode(), date(2014, 7, 1))
+    got = {x.index_name: x.close for x in parsed}
+    assert got["Nifty 500"] == 5000 and got["Nifty Bank"] == 15000 and got["Nifty 50"] == 7600
+    # CNX Smallcap is today's Smallcap 100, not the Smallcap 250 (which starts in 2017)
+    assert got["Nifty Smallcap 100"] == 3000 and "Nifty Smallcap 250" not in got
+    assert "CNX 500" not in got

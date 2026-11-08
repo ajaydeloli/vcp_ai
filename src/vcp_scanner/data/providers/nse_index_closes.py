@@ -71,6 +71,25 @@ def _dates(text: str) -> set[date]:
     return out
 
 
+#: Names NSE used before it renamed its CNX indices in November 2015 (and "S&P CNX" before
+#: that, until about 2013), mapped to today's names so an index keeps one series across the
+#: rename. Only renames of the same index: "CNX Smallcap" became Nifty Smallcap 100, not
+#: Smallcap 250 (which starts in 2017). Files since 2016 use none of these names.
+LEGACY_INDEX_NAMES: dict[str, str] = {
+    "S&P CNX NIFTY": "Nifty 50", "CNX NIFTY": "Nifty 50",
+    "S&P CNX 500": "Nifty 500", "CNX 500": "Nifty 500",
+    "CNX NIFTY JUNIOR": "Nifty Next 50", "CNX 100": "Nifty 100", "CNX 200": "Nifty 200",
+    "CNX MIDCAP": "Nifty Midcap 100", "CNX SMALLCAP": "Nifty Smallcap 100",
+    "CNX AUTO": "Nifty Auto", "CNX BANK": "Nifty Bank", "CNX ENERGY": "Nifty Energy",
+    "CNX FINANCE": "Nifty Financial Services", "CNX FMCG": "Nifty FMCG", "CNX IT": "Nifty IT",
+    "CNX MEDIA": "Nifty Media", "CNX METAL": "Nifty Metal", "CNX PHARMA": "Nifty Pharma",
+    "CNX PSU BANK": "Nifty PSU Bank", "CNX REALTY": "Nifty Realty",
+    "CNX COMMODITIES": "Nifty Commodities", "CNX INFRASTRUCTURE": "Nifty Infrastructure",
+    "CNX SERVICE SECTOR": "Nifty Services Sector", "CNX CONSUMPTION": "Nifty India Consumption",
+    "CNX MNC": "Nifty MNC", "CNX PSE": "Nifty PSE",
+}  # fmt: skip
+
+
 def parse_index_closes(payload: bytes, trade_date: date) -> list[IndexClose]:
     """Every index of one day's file. A row of another date, or without a close, is skipped;
     a file with no row of ``trade_date`` at all is an error (a wrong or changed file)."""
@@ -80,6 +99,7 @@ def parse_index_closes(payload: bytes, trade_date: date) -> list[IndexClose]:
     for row in reader:
         row = {(k or "").strip(): (v or "").strip() for k, v in row.items()}
         name = row.get("Index Name", "")
+        name = LEGACY_INDEX_NAMES.get(name.upper(), name)
         # NSE writes DD-MM-YYYY, but a few files of April 2023 are month first (04-06-2023
         # for 6 April): a row counts when either reading is the file's own date.
         if trade_date not in _dates(row.get("Index Date", "")):
