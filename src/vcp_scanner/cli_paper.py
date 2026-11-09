@@ -72,7 +72,7 @@ def _update(args: argparse.Namespace) -> int:  # noqa: C901, PLR0915
     from vcp_scanner.domain.features import FEATURES_CALCULATION_VERSION
     from vcp_scanner.domain.snapshot import LIVE_SNAPSHOT_ID
     from vcp_scanner.paper.ledger import RULE_SET, derive_events, plan_update
-    from vcp_scanner.paper.research import research_ledgers
+    from vcp_scanner.paper.research import RECLAIM_INDEX, needs_index, research_ledgers
     from vcp_scanner.paper.score_v2 import rescore
     from vcp_scanner.patterns.registry import load_runtime
     from vcp_scanner.research.outcomes import ENGINE_RULES
@@ -145,12 +145,23 @@ def _update(args: argparse.Namespace) -> int:  # noqa: C901, PLR0915
                 failed = True
         # research ledgers (paper/research.py): a variant next to the frozen rules; a failure
         # here is reported but never fails the frozen ledger's step
-        for r in [r for sid in strategies for r in research_ledgers(sid)]:
+        ledgers = [r for sid in strategies for r in research_ledgers(sid)]
+        n500: list[tuple[date, float]] | None = None
+        if needs_index(ledgers):
+            try:
+                n500 = store.conn.execute(
+                    "SELECT trade_date, close FROM index_daily WHERE index_name = ?"
+                    " AND trade_date BETWEEN ? AND ? AND close IS NOT NULL ORDER BY 1",
+                    [RECLAIM_INDEX, start - timedelta(days=200), through],
+                ).fetchall()
+            except Exception as exc:  # the ledger that needs it then reports a warning
+                _err(f"  WARNING NIFTY 500 closes not read: {exc}")
+        for r in ledgers:
             if through < r.start:
                 continue
             print(f"Research ledger {r.rule_set} ({r.label}) from {r.start}")
             try:
-                print(write(r.strategy_id, r.rule_set, r.engine(ecfg), r.start,
+                print(write(r.strategy_id, r.rule_set, r.engine(ecfg, n500), r.start,
                             r.rank_by_score_v2))  # fmt: skip
             except Exception as exc:
                 _err(f"  {r.strategy_id}: WARNING research ledger {r.rule_set} not written: {exc}")

@@ -164,6 +164,53 @@
    "label": "No entry more than 10% above the 50-day average; slots go to the higher score v2",
    "start": "2026-10-01",
    "decided": "2026-11-08"
+  },
+  {
+   "strategy_id": "vcp",
+   "ledger_through": null,
+   "closed": 0,
+   "win_rate_pct": null,
+   "avg_return_pct": null,
+   "profit_factor": null,
+   "open": [],
+   "skipped_no_slot": 0,
+   "divergences": 0,
+   "criteria": [
+    {
+     "name": "Closed trades",
+     "required": ">= 30",
+     "value": 0.0,
+     "met": false
+    },
+    {
+     "name": "Profit factor",
+     "required": ">= 1.3",
+     "value": null,
+     "met": null
+    },
+    {
+     "name": "Average trade after costs",
+     "required": "> 0 %",
+     "value": null,
+     "met": null
+    },
+    {
+     "name": "Portfolio max drawdown",
+     "required": "no worse than -20 %",
+     "value": null,
+     "met": null
+    },
+    {
+     "name": "Portfolio return above the equal-weight universe index",
+     "required": "above",
+     "value": null,
+     "met": null
+    }
+   ],
+   "rule_set": "research-reclaim-v1",
+   "label": "No entry while NIFTY 500 has held above its 50-day average for 21 sessions",
+   "start": "2026-10-01",
+   "decided": "2026-11-09"
   }
  ]
 }

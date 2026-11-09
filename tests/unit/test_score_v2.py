@@ -88,7 +88,7 @@ def test_with_one_free_slot_v2_picks_the_other_breakout() -> None:
 
 
 def test_the_score2_ledger_is_the_sma50_ledger_with_v2_ranking() -> None:
-    sma50, score2 = research_ledgers("vcp")
+    sma50, score2 = research_ledgers("vcp")[:2]
     assert (score2.rule_set, score2.decided) == ("research-score2-v1", date(2026, 11, 8))
     assert score2.rank_by_score_v2 and not sma50.rank_by_score_v2
     assert score2.engine(CFG) == sma50.engine(CFG) and score2.start == sma50.start
