@@ -33,6 +33,7 @@ ROOT = Path(__file__).resolve().parents[2]
 DB = str(ROOT / "data" / "history_2011.duckdb")
 CFG = str(ROOT / "config")
 LOG = ROOT / "data" / "logs" / "history_backfill.log"
+# --db / --log override these (the research copy of the master, 2026-11-10)
 
 
 def log(text: str) -> None:
@@ -67,7 +68,14 @@ def main() -> None:
     ap.add_argument("last", nargs="?", default="2021-06-30")
     ap.add_argument("--steps", default="once,sessions,after")
     ap.add_argument("--cadence", choices=["weekly", "daily"], default="weekly")
+    ap.add_argument("--db", default=None, help="database to scan (default: the history database)")
+    ap.add_argument("--log", default=None, help="progress log (default: history_backfill.log)")
     a = ap.parse_args()
+    global DB, LOG
+    if a.db:
+        DB = str(Path(a.db).resolve())
+    if a.log:
+        LOG = Path(a.log).resolve()
     steps = set(a.steps.split(","))
     first, last = date.fromisoformat(a.first), date.fromisoformat(a.last)
 
