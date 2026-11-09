@@ -31,7 +31,7 @@ CFG = str(ROOT / "config")
 
 def connect() -> duckdb.DuckDBPyConnection:
     c = duckdb.connect(str(MASTER), read_only=True)
-    c.execute(f"ATTACH '{BACKUP}' AS L (READ_ONLY)")
+    c.execute(f"ATTACH '{BACKUP}' AS L (READ_ONLY)")  # the live backup compared against
     return c
 
 
@@ -151,10 +151,13 @@ def paper() -> None:
 
 
 def main() -> None:
+    global BACKUP
     ap = argparse.ArgumentParser()
     ap.add_argument("--sessions", type=int, default=3)
     ap.add_argument("--skip", default="")
+    ap.add_argument("--backup", default=str(BACKUP), help="live backup to compare against")
     a = ap.parse_args()
+    BACKUP = Path(a.backup)
     skip = set(a.skip.split(","))
     c = connect()
     for name, fn in (("prices", check_prices), ("quality", check_quality),

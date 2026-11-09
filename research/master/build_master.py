@@ -57,12 +57,12 @@ def one(c: duckdb.DuckDBPyConnection, sql: str, params: list[object] | None = No
     return int(row[0]) if row else 0
 
 
-def stage_copy() -> None:
+def stage_copy(source: Path = BACKUP) -> None:
     OUT.parent.mkdir(parents=True, exist_ok=True)
     for p in (OUT, OUT.with_suffix(".duckdb.wal")):
         p.unlink(missing_ok=True)
-    shutil.copy2(BACKUP, OUT)
-    log(f"copy: {BACKUP.name} -> {OUT} ({OUT.stat().st_size / 1e9:.2f} GB)")
+    shutil.copy2(source, OUT)
+    log(f"copy: {source.name} -> {OUT} ({OUT.stat().st_size / 1e9:.2f} GB)")
 
 
 def build_map(c: duckdb.DuckDBPyConnection) -> None:
@@ -232,10 +232,12 @@ def stage_derive() -> None:
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--stages", default="copy,merge,factors,derive")
-    stages = ap.parse_args().stages.split(",")
+    ap.add_argument("--source", default=str(BACKUP), help="live backup to build from")
+    a = ap.parse_args()
+    stages = a.stages.split(",")
     LOG.parent.mkdir(parents=True, exist_ok=True)
-    for name, fn in (("copy", stage_copy), ("merge", stage_merge), ("factors", stage_factors),
-                     ("derive", stage_derive)):  # fmt: skip
+    for name, fn in (("copy", lambda: stage_copy(Path(a.source))), ("merge", stage_merge),
+                     ("factors", stage_factors), ("derive", stage_derive)):  # fmt: skip
         if name in stages:
             t = time.monotonic()
             fn()
