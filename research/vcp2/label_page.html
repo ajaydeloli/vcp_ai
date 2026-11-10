@@ -1,0 +1,244 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>VCP Labelling</title>
+<style>
+  :root { --bg:#0f1115; --panel:#171a21; --ink:#e6e8ec; --muted:#8b93a1; --up:#26a269; --down:#e5534b;
+          --line:#2a2f3a; --t1:#f5c211; --low:#3584e4; --piv:#c061cb; --accent:#62a0ea; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font:14px/1.4 system-ui, sans-serif; }
+  header { display:flex; gap:16px; align-items:center; padding:10px 16px; border-bottom:1px solid var(--line); flex-wrap:wrap; }
+  header h1 { font-size:16px; margin:0; }
+  .muted { color:var(--muted); }
+  main { display:grid; grid-template-columns: 1fr 300px; gap:12px; padding:12px 16px; }
+  @media (max-width: 900px) { main { grid-template-columns: 1fr; } }
+  #chartWrap { background:var(--panel); border:1px solid var(--line); border-radius:8px; position:relative; }
+  canvas { display:block; width:100%; height:560px; cursor:crosshair; }
+  aside { background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:12px; display:flex; flex-direction:column; gap:12px; }
+  .row { display:flex; gap:8px; flex-wrap:wrap; }
+  button { background:#232834; color:var(--ink); border:1px solid var(--line); border-radius:6px; padding:8px 12px; cursor:pointer; font:inherit; }
+  button:hover { border-color:var(--accent); }
+  button.on { background:var(--accent); color:#0b0d12; border-color:var(--accent); }
+  button.yes.on { background:var(--up); border-color:var(--up); }
+  button.no.on { background:var(--down); border-color:var(--down); }
+  textarea { width:100%; min-height:60px; background:#0f1115; color:var(--ink); border:1px solid var(--line); border-radius:6px; padding:6px; font:inherit; }
+  .marks div { font-variant-numeric: tabular-nums; }
+  .k { display:inline-block; width:10px; height:10px; border-radius:2px; margin-right:6px; vertical-align:middle; }
+  #status { min-height:20px; }
+  .help { font-size:12px; color:var(--muted); }
+</style>
+</head>
+<body>
+<header>
+  <h1>VCP labelling</h1>
+  <span id="where" class="muted"></span>
+  <span id="progress" class="muted"></span>
+  <span class="row" style="margin-left:auto">
+    <button id="prev">◀ Prev</button>
+    <button id="next">Next ▶</button>
+    <button id="nextOpen">Next unlabelled</button>
+  </span>
+</header>
+<main>
+  <div id="chartWrap"><canvas id="c"></canvas></div>
+  <aside>
+    <div>
+      <div class="muted">Is this a VCP on the last day shown?</div>
+      <div class="row" style="margin-top:6px">
+        <button class="verdict yes" data-v="yes">Yes</button>
+        <button class="verdict no" data-v="no">No</button>
+        <button class="verdict" data-v="unsure">Unsure</button>
+      </div>
+    </div>
+    <div>
+      <div class="muted">Mark on the chart (click near a bar)</div>
+      <div class="row" style="margin-top:6px">
+        <button class="mode" data-m="t1"><span class="k" style="background:var(--t1)"></span>T1 peak</button>
+        <button class="mode" data-m="low"><span class="k" style="background:var(--low)"></span>Contraction lows</button>
+        <button class="mode" data-m="pivot"><span class="k" style="background:var(--piv)"></span>Pivot</button>
+      </div>
+      <div class="row" style="margin-top:6px">
+        <button id="undo">Undo last mark</button>
+        <button id="clear">Clear marks</button>
+      </div>
+      <p class="help">T1 and pivot snap to the bar's high, lows to the bar's low. Lows are kept in date order, one per contraction.</p>
+    </div>
+    <div class="marks" id="marks"></div>
+    <div>
+      <div class="muted">Note (optional)</div>
+      <textarea id="note" maxlength="500"></textarea>
+    </div>
+    <div class="row"><button id="save" class="on">Save and next</button></div>
+    <div id="status" class="muted"></div>
+    <p class="help">Keys: Y / N / U verdict · 1 T1 · 2 lows · 3 pivot · Z undo · Enter save · ← → move.</p>
+  </aside>
+</main>
+<script>
+"use strict";
+const cv = document.getElementById("c"), ctx = cv.getContext("2d");
+let list = [], idx = 0, cur = null, verdict = null, mode = "t1";
+let marks = { t1: null, lows: [], pivot: null }, undoStack = [];
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+
+async function api(path, opts) {
+  const r = await fetch(path, opts);
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+async function loadList() { list = await api("/api/samples"); }
+function progress() {
+  const done = list.filter(s => s.done).length;
+  document.getElementById("progress").textContent = `${done} of ${list.length} labelled`;
+}
+async function openSample(i) {
+  idx = Math.max(0, Math.min(list.length - 1, i));
+  cur = await api(`/api/sample/${list[idx].id}`);
+  const l = cur.label;
+  verdict = l ? l.verdict : null;
+  marks = { t1: l && l.t1 ? l.t1 : null, lows: l ? l.lows : [], pivot: l && l.pivot ? l.pivot : null };
+  undoStack = [];
+  document.getElementById("note").value = l && l.note ? l.note : "";
+  document.getElementById("where").textContent =
+    `#${list[idx].position}  ${cur.symbol}  ·  scan day ${cur.scan_date}`;
+  document.getElementById("status").textContent = l ? "Already labelled; saving replaces it." : "";
+  setMode(mode); paintVerdict(); progress(); draw(); showMarks();
+}
+function setMode(m) {
+  mode = m;
+  document.querySelectorAll(".mode").forEach(b => b.classList.toggle("on", b.dataset.m === m));
+}
+function paintVerdict() {
+  document.querySelectorAll(".verdict").forEach(b => b.classList.toggle("on", b.dataset.v === verdict));
+}
+function showMarks() {
+  const f = m => m ? `${m.date}  ${m.price.toFixed(2)}` : "—";
+  document.getElementById("marks").innerHTML =
+    `<div><span class="k" style="background:var(--t1)"></span>T1: ${f(marks.t1)}</div>` +
+    `<div><span class="k" style="background:var(--low)"></span>Lows: ${marks.lows.length ? marks.lows.map(f).join("<br>&nbsp;&nbsp;&nbsp;&nbsp;") : "—"}</div>` +
+    `<div><span class="k" style="background:var(--piv)"></span>Pivot: ${f(marks.pivot)}</div>`;
+}
+
+// ---- chart -------------------------------------------------------------------------------
+let geo = null;
+function sma(closes, n) {
+  const out = []; let s = 0;
+  for (let i = 0; i < closes.length; i++) {
+    s += closes[i]; if (i >= n) s -= closes[i - n];
+    out.push(i >= n - 1 ? s / n : null);
+  }
+  return out;
+}
+function draw() {
+  const dpr = window.devicePixelRatio || 1, W = cv.clientWidth, H = cv.clientHeight;
+  cv.width = W * dpr; cv.height = H * dpr; ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, W, H);
+  if (!cur) return;
+  const bars = cur.bars, n = bars.length;
+  const padL = 8, padR = 64, top = 12, priceH = H * 0.78, volTop = top + priceH + 8, volH = H - volTop - 18;
+  const hi = Math.max(...bars.map(b => b[2])), lo = Math.min(...bars.map(b => b[3]));
+  const span = hi - lo || 1, pMax = hi + span * 0.03, pMin = lo - span * 0.03;
+  const bw = (W - padL - padR) / n;
+  const x = i => padL + i * bw + bw / 2;
+  const y = p => top + (pMax - p) / (pMax - pMin) * priceH;
+  const vMax = Math.max(...bars.map(b => b[5] || 0)) || 1;
+  geo = { x, y, bw, padL, n, pMin, pMax, top, priceH };
+  // grid and price axis
+  ctx.strokeStyle = css("--line"); ctx.fillStyle = css("--muted"); ctx.font = "11px system-ui"; ctx.lineWidth = 1;
+  for (let k = 0; k <= 6; k++) {
+    const p = pMin + (pMax - pMin) * k / 6, yy = y(p);
+    ctx.beginPath(); ctx.moveTo(padL, yy); ctx.lineTo(W - padR, yy); ctx.stroke();
+    ctx.fillText(p.toFixed(p < 100 ? 2 : 0), W - padR + 6, yy + 4);
+  }
+  // month labels
+  let lastM = "", lastX = -1e9;
+  bars.forEach((b, i) => {
+    const m = b[0].slice(0, 7);
+    if (m !== lastM && i > 0 && x(i) - lastX >= 52) { ctx.fillText(m, x(i) - 18, H - 4); lastX = x(i); }
+    lastM = m;
+  });
+  // moving averages
+  const closes = bars.map(b => b[4]);
+  [[50, "#62a0ea"], [150, "#f6d32d88"], [200, "#e66100aa"]].forEach(([n2, col]) => {
+    const s = sma(closes, n2); ctx.strokeStyle = col; ctx.beginPath(); let started = false;
+    s.forEach((v, i) => { if (v == null) return; if (!started) { ctx.moveTo(x(i), y(v)); started = true; } else ctx.lineTo(x(i), y(v)); });
+    ctx.stroke();
+  });
+  // candles and volume
+  bars.forEach((b, i) => {
+    const [, o, h, l, c, v] = b, up = c >= o, col = up ? css("--up") : css("--down");
+    ctx.strokeStyle = col; ctx.fillStyle = col;
+    ctx.beginPath(); ctx.moveTo(x(i), y(h)); ctx.lineTo(x(i), y(l)); ctx.stroke();
+    const yo = y(o), yc = y(c), bodyW = Math.max(1, bw * 0.7);
+    ctx.fillRect(x(i) - bodyW / 2, Math.min(yo, yc), bodyW, Math.max(1, Math.abs(yc - yo)));
+    if (v) { ctx.globalAlpha = 0.5; const vh = v / vMax * volH; ctx.fillRect(x(i) - bodyW / 2, volTop + volH - vh, bodyW, vh); ctx.globalAlpha = 1; }
+  });
+  // marks
+  const dot = (m, col, label) => {
+    if (!m) return; const i = bars.findIndex(b => b[0] === m.date); if (i < 0) return;
+    ctx.fillStyle = col; ctx.beginPath(); ctx.arc(x(i), y(m.price), 6, 0, Math.PI * 2); ctx.fill();
+    ctx.fillText(label, x(i) + 8, y(m.price) - 8);
+  };
+  ctx.font = "12px system-ui";
+  dot(marks.t1, css("--t1"), "T1");
+  marks.lows.forEach((m, k) => dot(m, css("--low"), `L${k + 1}`));
+  if (marks.pivot) {
+    const i = bars.findIndex(b => b[0] === marks.pivot.date);
+    ctx.strokeStyle = css("--piv"); ctx.setLineDash([5, 4]);
+    ctx.beginPath(); ctx.moveTo(i >= 0 ? x(i) : padL, y(marks.pivot.price)); ctx.lineTo(W - padR, y(marks.pivot.price)); ctx.stroke();
+    ctx.setLineDash([]); dot(marks.pivot, css("--piv"), "Pivot");
+  }
+  // last bar = scan day
+  ctx.strokeStyle = css("--accent"); ctx.setLineDash([2, 4]);
+  ctx.beginPath(); ctx.moveTo(x(n - 1), top); ctx.lineTo(x(n - 1), top + priceH); ctx.stroke(); ctx.setLineDash([]);
+}
+cv.addEventListener("click", ev => {
+  if (!geo || !cur) return;
+  const r = cv.getBoundingClientRect(), px = ev.clientX - r.left;
+  const i = Math.max(0, Math.min(geo.n - 1, Math.round((px - geo.padL - geo.bw / 2) / geo.bw)));
+  const b = cur.bars[i];
+  undoStack.push(JSON.stringify(marks));
+  if (mode === "t1") marks.t1 = { date: b[0], price: b[2] };
+  else if (mode === "pivot") marks.pivot = { date: b[0], price: b[2] };
+  else {
+    marks.lows = marks.lows.filter(m => m.date !== b[0]).concat([{ date: b[0], price: b[3] }]);
+    marks.lows.sort((a, c) => a.date.localeCompare(c.date));
+  }
+  draw(); showMarks();
+});
+
+// ---- controls ----------------------------------------------------------------------------
+document.querySelectorAll(".verdict").forEach(b => b.onclick = () => { verdict = b.dataset.v; paintVerdict(); });
+document.querySelectorAll(".mode").forEach(b => b.onclick = () => setMode(b.dataset.m));
+document.getElementById("undo").onclick = () => { if (undoStack.length) { marks = JSON.parse(undoStack.pop()); draw(); showMarks(); } };
+document.getElementById("clear").onclick = () => { undoStack.push(JSON.stringify(marks)); marks = { t1: null, lows: [], pivot: null }; draw(); showMarks(); };
+document.getElementById("prev").onclick = () => openSample(idx - 1);
+document.getElementById("next").onclick = () => openSample(idx + 1);
+document.getElementById("nextOpen").onclick = () => { const j = list.findIndex((s, k) => k > idx && !s.done); openSample(j >= 0 ? j : list.findIndex(s => !s.done)); };
+async function save() {
+  const st = document.getElementById("status");
+  if (!verdict) { st.textContent = "Choose Yes, No or Unsure first."; return; }
+  const body = { verdict, t1: marks.t1, lows: marks.lows, pivot: marks.pivot, note: document.getElementById("note").value || null };
+  try {
+    await api(`/api/label/${cur.id}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    list[idx].done = true; st.textContent = "Saved."; progress();
+    const j = list.findIndex((s, k) => k > idx && !s.done);
+    if (j >= 0) openSample(j); else st.textContent = "Saved. Every chart is labelled.";
+  } catch (e) { st.textContent = "Not saved: " + e.message; }
+}
+document.getElementById("save").onclick = save;
+document.addEventListener("keydown", e => {
+  if (e.target.tagName === "TEXTAREA") return;
+  const k = e.key.toLowerCase();
+  if (k === "y" || k === "n" || k === "u") { verdict = { y: "yes", n: "no", u: "unsure" }[k]; paintVerdict(); }
+  else if (k === "1") setMode("t1"); else if (k === "2") setMode("low"); else if (k === "3") setMode("pivot");
+  else if (k === "z") document.getElementById("undo").click();
+  else if (k === "enter") save();
+  else if (e.key === "ArrowLeft") openSample(idx - 1); else if (e.key === "ArrowRight") openSample(idx + 1);
+});
+window.addEventListener("resize", draw);
+(async () => { await loadList(); const j = list.findIndex(s => !s.done); await openSample(j >= 0 ? j : 0); })();
+</script>
+</body>
+</html>
