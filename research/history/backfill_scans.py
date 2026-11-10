@@ -30,7 +30,7 @@ import duckdb
 from vcp_scanner.cli import main as cli_main
 
 ROOT = Path(__file__).resolve().parents[2]
-DB = str(ROOT / "data" / "history_2011.duckdb")
+DB = str(ROOT / "data" / "research" / "vcp_research.duckdb")  # history_2011 retired 2026-11-10
 CFG = str(ROOT / "config")
 LOG = ROOT / "data" / "logs" / "history_backfill.log"
 # --db / --log override these (the research copy of the master, 2026-11-10)
