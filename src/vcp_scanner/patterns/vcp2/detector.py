@@ -374,7 +374,11 @@ def detect(bars: Bars, cfg: VCP2Config) -> Detection:
     res = contraction_legs(bars, s, swings, cfg)
     legs = res.legs
     counted = [x for x in legs if not _noise(x, cfg)]
-    final = legs[-1] if legs else Leg(s, base_high, s, base_high)
+    # the final contraction is the last real one; a shallow wiggle after it is not measured as
+    # one, but its peak still counts for the pivot when it is higher
+    last = legs[-1] if legs else Leg(s, base_high, s, base_high)
+    final = counted[-1] if counted else last
+    final_ended = final is not last or final_leg_ended(bars, final, cfg)
     base_low_i = _argmin(lo_, s, n)
     base_low = lo_[base_low_i]
     depth = (base_high - base_low) / base_high * 100.0
@@ -396,7 +400,7 @@ def detect(bars: Bars, cfg: VCP2Config) -> Detection:
     r_lo = min(lo_[j] for j in right)
     base_tr = _mean([_tr_pct(bars, j) for j in range(s + 1, n)])
     right_tr = _mean([_tr_pct(bars, j) for j in right])
-    pivot = final.peak_price
+    pivot = max(final.peak_price, last.peak_price)
     up = sum(vol[j] or 0.0 for j in range(s + 1, n) if cl[j] > cl[j - 1])
     down = sum(vol[j] or 0.0 for j in range(s + 1, n) if cl[j] < cl[j - 1])
     span = base_high - base_low
@@ -426,7 +430,7 @@ def detect(bars: Bars, cfg: VCP2Config) -> Detection:
         tightening_share=tightening,
         final_depth_pct=final.depth_pct,
         final_bars=final.bars,
-        final_ended=final_leg_ended(bars, final, cfg),
+        final_ended=final_ended,
         undercuts=res.undercuts,
         deepest_undercut_pct=res.deepest_undercut_pct,
         undercut_recovery_bars=res.undercut_recovery_bars,
@@ -437,7 +441,9 @@ def detect(bars: Bars, cfg: VCP2Config) -> Detection:
         right_side_range_pct=(r_hi - r_lo) / r_hi * 100.0,
         atr_ratio=_ratio(right_tr, base_tr),
         days_since_final_low=n - 1 - final.low,
-        final_volume_ratio=_vol_ratio(vol, final.peak, n - 1) if final.peak < n - 1 else None,
+        # dry-up inside the final contraction: peak to its low once it has ended, else to today
+        final_volume_ratio=(_vol_ratio(vol, final.peak, final.low if final_ended else n - 1)
+                            if final.peak < n - 1 else None),  # fmt: skip
         up_down_volume=up / down if down else None,
         last5_volume_ratio=_vol_ratio(vol, max(0, n - 5), n - 1),
         is_candidate=not unmet,
