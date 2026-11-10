@@ -56,6 +56,12 @@ LABEL_DDL = (
 )
 
 
+def records(cur: duckdb.DuckDBPyConnection) -> str:
+    """The cursor's rows as a JSON list of objects; dates as ISO text (no pandas needed)."""
+    cols = [d[0] for d in cur.description or []]
+    return json.dumps([dict(zip(cols, r, strict=True)) for r in cur.fetchall()], default=str)
+
+
 def pick(rows: list[tuple[Any, ...]], n: int, taken: dict[str, list[date]],
          rng: random.Random) -> list[tuple[Any, ...]]:  # fmt: skip
     """Up to ``n`` rows (instrument_id, scan_date, ...) in random order, a stock at most once
@@ -133,19 +139,20 @@ def main() -> None:
             [iid, LIVE_SNAPSHOT_ID, day, CHART_BARS]).fetchall()[::-1]  # fmt: skip
         v2row = src.execute("""
             SELECT * FROM vcp2_candidates WHERE config_hash = ? AND instrument_id = ?
-              AND scan_date = ?""", [chash, iid, day]).df()  # fmt: skip
+              AND scan_date = ?""", [chash, iid, day])  # fmt: skip
+        v2json = records(v2row)
         v1row = src.execute("""
             SELECT base_start_date, pivot_price, contraction_count, classification
             FROM vcp_patterns WHERE instrument_id = ? AND as_of_date = ? AND is_primary""",
-            [iid, day]).df()  # fmt: skip
+            [iid, day])  # fmt: skip
+        v1json = records(v1row)
         lab.execute("INSERT INTO samples VALUES (?,?,?,?,?)",
                     [pos, iid, sym[0] if sym else iid, day, pos])  # fmt: skip
         lab.executemany("INSERT INTO sample_bars VALUES (?,?,?,?,?,?,?)",
                         [[pos, *b] for b in bars])  # fmt: skip
         lab.execute("INSERT INTO sample_truth VALUES (?,?,?,?,?,?)", [
             pos, grp, v1.get((iid, day)), bool(v2.get((iid, day), (False,))[0]),
-            v2row.to_json(orient="records", date_format="iso"),
-            v1row.to_json(orient="records", date_format="iso")])  # fmt: skip
+            v2json, v1json])  # fmt: skip
     meta = {"seed": a.seed, "vcp2_config_hash": chash, "first": FIRST.isoformat(),
             "last": LAST.isoformat(), "chart_bars": CHART_BARS, "sep_days": SEP_DAYS,
             "groups": {"A": len(grp_a), "B": len(grp_b), "C": len(grp_c)},
