@@ -257,3 +257,14 @@ def test_a_later_bar_never_changes_an_earlier_day() -> None:
         again = Bars(longer.dates[:k], longer.high[:k], longer.low[:k], longer.close[:k],
                      longer.volume[:k])  # fmt: skip
         assert detect(again, CFG) == detect(day, CFG)
+
+
+def test_a_wiggle_after_the_last_contraction_is_not_the_final_contraction() -> None:
+    # T2 485 -> 450, then a rally with a 1 % wiggle at 470 on the way up to 478
+    closes = path(300.0, [*RUNUP, *staircase(), (12, 485.0), (12, 450.0), (8, 470.0),
+                          (6, 466.0), (6, 478.0)])  # fmt: skip
+    c = detect(bars_of(closes), CFG).candidate
+    assert c is not None and c.contraction_count == 2
+    assert c.final_depth_pct == pytest.approx(c.contractions[-1].depth_pct)
+    assert c.pivot == pytest.approx(485 * (1 + SPREAD))  # T2's peak, not the wiggle's
+    assert c.final_ended
