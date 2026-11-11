@@ -58,10 +58,13 @@ def main() -> None:
     rng = random.Random(a.seed)
     chash = vcp2_config_hash(load_vcp2_config(ROOT / "config"))
     src = duckdb.connect(str(RESEARCH), read_only=True)
-    weekly = [r[0] for r in src.execute(
-        "SELECT DISTINCT as_of_date FROM scan_runs WHERE scan_type = 'VCP' AND status = "
-        "'COMPLETED' AND as_of_date BETWEEN ? AND ? ORDER BY 1",
-        [FIRST, LAST]).fetchall()]  # fmt: skip
+    # v1 weekly scan days that have prices (v1 has one, Sunday 2012-11-11, without any)
+    weekly = [r[0] for r in src.execute("""
+        SELECT DISTINCT as_of_date FROM scan_runs WHERE scan_type = 'VCP' AND status =
+          'COMPLETED' AND as_of_date BETWEEN ? AND ? AND as_of_date IN (
+            SELECT DISTINCT trade_date FROM daily_prices_adjusted_current
+            WHERE computed_from_snapshot_id = ? AND trade_date BETWEEN ? AND ?)
+        ORDER BY 1""", [FIRST, LAST, LIVE_SNAPSHOT_ID, FIRST, LAST]).fetchall()]  # fmt: skip
     src.execute("CREATE TEMP TABLE wk AS SELECT unnest(?) AS d", [weekly])
     scanned = src.execute(
         "SELECT count(DISTINCT scan_date) FROM vcp2_runs WHERE config_hash = ? "
