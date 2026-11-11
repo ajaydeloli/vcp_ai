@@ -34,7 +34,7 @@ vcp2:
     min_base_bars: 10           # owner 2026-11-11: shorter bases allowed (v2.0: 15)
     min_depth_pct: 3
     max_depth_pct: 50
-    min_contractions: 2
+    min_contractions: 1         # owner 2026-11-11: one contraction counts; 2 or 3 is research rule A1
     max_above_pivot_pct: 7      # owner 2026-11-11: a close more than 5-7% above the pivot since it
                                 # formed ends the VCP (7 = the loose end; 5 is tested in research)
   pivot:

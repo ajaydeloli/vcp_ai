@@ -234,8 +234,17 @@ def test_a_shallow_wiggle_is_not_a_contraction() -> None:
 
 def test_the_candidate_minimum_is_reported_not_enforced() -> None:
     closes = path(300.0, [*RUNUP, (10, 470.0), (8, 490.0)])  # one shallow leg so far
-    c = detect(bars_of(closes), CFG).candidate
+    two = VCP2Config(candidate=CandidateConfig(min_contractions=2))
+    c = detect(bars_of(closes), two).candidate
     assert c is not None and not c.is_candidate and "contractions" in c.unmet
+
+
+def test_one_contraction_is_enough_by_default() -> None:
+    # owner 2026-11-11: a single contraction is a VCP (complete or forming); 2+ is rule A1
+    assert CFG.candidate.min_contractions == 1
+    closes = path(300.0, [*RUNUP, (10, 470.0), (8, 490.0)])
+    c = detect(bars_of(closes), CFG).candidate
+    assert c is not None and c.contraction_count == 1 and c.is_candidate
 
 
 def test_measurements_are_filled() -> None:
@@ -315,7 +324,7 @@ V20 = VCP2Config(  # the v2.0 behaviour, for comparison
     base_start=BaseStartConfig(earliest_equal_high=False),
     contraction=ContractionConfig(merge_rally_pullbacks=False),
     swing=SwingConfig(edge_right_bars=5),
-    candidate=CandidateConfig(min_base_bars=15),
+    candidate=CandidateConfig(min_base_bars=15, min_contractions=2),
 )
 
 

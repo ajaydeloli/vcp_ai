@@ -33,22 +33,24 @@ from label_report import RESEARCH, bar_gap, load  # noqa: E402
 RULE_PCT = 7.0
 MATCH = 5
 NEW = VCP2Config()
-NO_RULE = CandidateConfig(min_base_bars=15, max_above_pivot_pct=1e9)
+NO_RULE = CandidateConfig(min_base_bars=15, min_contractions=2, max_above_pivot_pct=1e9)
+TWO = CandidateConfig(min_contractions=2)  # v2.2's candidate minimum
 V20 = VCP2Config(
     base_start=BaseStartConfig(earliest_equal_high=False),
     contraction=ContractionConfig(merge_rally_pullbacks=False),
     swing=SwingConfig(edge_right_bars=5),
     candidate=NO_RULE,
 )
-V21 = V20.model_copy(update={"candidate": CandidateConfig(min_base_bars=15)})
+V21 = V20.model_copy(update={"candidate": CandidateConfig(min_base_bars=15, min_contractions=2)})
 VARIANTS: dict[str, VCP2Config] = {
     "v2.0 (stored scan)": V20,
     "v2.1 above-pivot rule": V21,
     "  + forming contraction": V21.model_copy(update={"swing": SwingConfig()}),
     "  + earliest equal high": V21.model_copy(update={"base_start": BaseStartConfig()}),
-    "  + shorter base (10)": V21.model_copy(update={"candidate": CandidateConfig()}),
+    "  + shorter base (10)": V21.model_copy(update={"candidate": TWO}),
     "  + merge rally pullbacks": V21.model_copy(update={"contraction": ContractionConfig()}),
-    "v2.2 all four": NEW,
+    "v2.2 all four": NEW.model_copy(update={"candidate": TWO}),
+    "v2.3 one contraction": NEW,
 }
 
 

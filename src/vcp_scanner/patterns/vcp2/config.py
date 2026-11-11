@@ -22,8 +22,9 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_valida
 from vcp_scanner.domain.errors import ConfigError
 
 # 2.1.0 (2026-11-11): owner's above-pivot rule. 2.2.0 (2026-11-11): forming contraction, earliest
-# equal high, rally pullbacks merged (each a setting), shorter bases.
-VCP2_VERSION = "vcp-2.2.0"
+# equal high, rally pullbacks merged (each a setting), shorter bases. 2.3.0 (2026-11-11): one
+# contraction is enough to be a candidate.
+VCP2_VERSION = "vcp-2.3.0"
 CONFIG_FILE = "vcp2.yaml"
 
 
@@ -96,7 +97,9 @@ class CandidateConfig(_Strict):
     min_base_bars: int = Field(10, gt=0)  # owner 2026-11-11: shorter bases allowed (v2.0: 15)
     min_depth_pct: float = Field(3.0, ge=0)
     max_depth_pct: float = Field(50.0, gt=0, le=100)
-    min_contractions: int = Field(2, ge=1)
+    # owner 2026-11-11 (labelling round 2): one contraction counts (a VCP complete or forming);
+    # "at least 2 or 3" is research rule A1 (v2.0-2.2: 2)
+    min_contractions: int = Field(1, ge=1)
     # owner 2026-11-11: once a close has been more than 5-7 % above the pivot, it is not a VCP
     max_above_pivot_pct: float = Field(7.0, gt=0)
 
