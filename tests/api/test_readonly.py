@@ -42,7 +42,7 @@ def test_writing_verbs_are_refused(ro_env: Env, method: str) -> None:
 
 def test_requests_leave_both_databases_untouched(ro_env: Env) -> None:
     serving = ro_env.data_dir / "serving" / "vcp_serving.duckdb"
-    research = ro_env.data_dir / "golden_src.duckdb"
+    research = ro_env.data_dir / "vcp_research.duckdb"
     before = (_digest(serving), _digest(ro_env.db), _digest(research))
     for p in PATHS:
         assert ro_env.client.get(f"/api/v1/{p}").status_code == 200

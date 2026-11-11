@@ -54,7 +54,8 @@ def create_app(
     are read from ``data_dir``. ``live`` is the live-price service (display only); by default one
     is built from ``config/live.yaml`` and reads credentials from ``env_file`` at its first poll."""
     data = Path(data_dir)
-    research = Path(research_db) if research_db else data / "golden_src.duckdb"
+    # stored backtest runs: the research copy (owner 2026-11-11; golden_src.duckdb retired)
+    research = Path(research_db) if research_db else data / "research" / "vcp_research.duckdb"
     reports_folder = Path(reports_dir) if reports_dir else data.resolve().parent / "reports"
     db = ServingDb(serving_path or default_serving_path(data / "vcp_scanner.duckdb"))
     ctx: Context = build_context(config_dir, data)

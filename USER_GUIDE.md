@@ -586,7 +586,7 @@ vcp compute scores --as-of $D
 | Command | What it does |
 |---|---|
 | `vcp fundamentals update [--days N]` | Fetch, parse and compute the filings of the last days (the evening run does this). |
-| `vcp fundamentals backfill [--limit N] [--resume] [--research-db FILE]` | Everything since `history_from` in the config; resumable. `--research-db data/golden_src.duckdb` also fetches the stocks with past setups in the research database, delisted ones included (for the F7 study). Long: NSE refuses after many hours, so split it across days. |
+| `vcp fundamentals backfill [--limit N] [--resume] [--research-db FILE]` | Everything since `history_from` in the config; resumable. `--research-db data/research/vcp_research.duckdb` also fetches the stocks with past setups in the research database, delisted ones included (for the F7 study). Long: NSE refuses after many hours, so split it across days. |
 | `vcp fundamentals fetch [--symbol S] [--from D] [--to D]` | Download result filings not stored yet. |
 | `vcp fundamentals parse [--retry-errors] [--rebuild]` | Turn stored filings into quarterly values. |
 | `vcp fundamentals status` | What is stored. |

@@ -94,7 +94,7 @@ def add_research_parser(subparsers: argparse._SubParsersAction) -> None:  # type
     fs.add_argument("--no-store", action="store_true",
                     help="Do not write the scores to fundamental_research_scores")  # fmt: skip
     fs.add_argument("--out", default="reports/research", help="Folder for the report")
-    fs.add_argument("--research-db", default="data/golden_src.duckdb")
+    fs.add_argument("--research-db", default="data/research/vcp_research.duckdb")
     fs.add_argument("--db", default="data/vcp_scanner.duckdb")
     fs.add_argument("--config-dir", default="config")
 

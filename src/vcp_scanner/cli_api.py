@@ -17,7 +17,8 @@ def add_api_parser(subparsers: argparse._SubParsersAction) -> None:  # type: ign
     s.add_argument("--serving-db", default=None,
                    help="Default: <data-dir>/serving/vcp_serving.duckdb")  # fmt: skip
     s.add_argument("--research-db", default=None,
-                   help="Stored backtest runs (read-only)")  # fmt: skip
+                   help="Stored backtest runs (read-only). Default: "
+                        "<data-dir>/research/vcp_research.duckdb")  # fmt: skip
     s.add_argument("--reports-dir", default=None,
                    help="Daily and weekly HTML reports. Default: <project>/reports")  # fmt: skip
     s.add_argument("--config-dir", default="config")

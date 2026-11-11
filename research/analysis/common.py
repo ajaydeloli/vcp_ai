@@ -21,7 +21,9 @@ import numpy as np
 import pandas as pd
 
 ROOT = Path(__file__).resolve().parents[2]
-RESEARCH_DB = ROOT / "data" / "golden_src.duckdb"
+# the research copy holds the stored runs below since 2026-11-11 (copied from the retired
+# golden_src.duckdb with their ids unchanged)
+RESEARCH_DB = ROOT / "data" / "research" / "vcp_research.duckdb"
 SERVING_DB = ROOT / "data" / "serving" / "vcp_serving.duckdb"
 OUT = ROOT / "data" / "research"
 RUNS = {"development": "bt-20261006T055416134812Z", "validation": "bt-20261006T055418960095Z"}
