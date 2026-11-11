@@ -12,6 +12,7 @@ from vcp_scanner.patterns.vcp2.config import (
     BaseStartConfig,
     CandidateConfig,
     ContractionConfig,
+    SwingConfig,
     VCP2Config,
     load_vcp2_config,
     vcp2_config_hash,
@@ -297,8 +298,82 @@ def test_the_above_pivot_limit_is_a_setting() -> None:
 
 
 def test_a_pullback_after_running_above_the_pivot_starts_a_new_contraction() -> None:
-    # +8.5 % above the 425.9 pivot, then back to 435: a fourth contraction from the new 462.9
-    # peak, still under the 501 base high; the pivot moves up to that peak
+    # +8.5 % above the 425.9 pivot, then back to 435: a new contraction from the 462.9 peak,
+    # still under the 501 base high; the pivot moves up to that peak. The 440.9 and 425.9 peaks
+    # it exceeds were pauses in the rally (rule 6), so T1 and this one remain.
     c = detect(bars_of(path(300.0, [*DEEP, (5, 462.0), (5, 435.0)])), CFG).candidate
-    assert c is not None and c.contraction_count == 4
+    assert c is not None and c.contraction_count == 2
     assert c.pivot == pytest.approx(462 * (1 + SPREAD)) and "above_pivot" not in c.unmet
+    no_merge = VCP2Config(contraction=ContractionConfig(merge_rally_pullbacks=False))
+    c = detect(bars_of(path(300.0, [*DEEP, (5, 462.0), (5, 435.0)])), no_merge).candidate
+    assert c is not None and c.contraction_count == 4
+
+
+# ---- owner changes 2026-11-11 (v2.2.0) ------------------------------------------------------
+
+V20 = VCP2Config(  # the v2.0 behaviour, for comparison
+    base_start=BaseStartConfig(earliest_equal_high=False),
+    contraction=ContractionConfig(merge_rally_pullbacks=False),
+    swing=SwingConfig(edge_right_bars=5),
+    candidate=CandidateConfig(min_base_bars=15),
+)
+
+
+def test_a_forming_contraction_counts() -> None:
+    # T2 485 -> 450, rally to 470, and only 3 sessions down to 458 so far: T3 is forming
+    closes = path(300.0, [*RUNUP, *staircase(), (12, 485.0), (12, 450.0), (8, 470.0), (3, 458.0)])
+    c = detect(bars_of(closes), CFG).candidate
+    assert c is not None and c.contraction_count == 3 and not c.final_ended
+    assert c.pivot == pytest.approx(470 * (1 + SPREAD))
+    old = detect(bars_of(closes), V20).candidate  # needs 5 sessions after the 470 high
+    assert old is not None and old.contraction_count == 2
+
+
+def test_a_forming_high_is_never_a_base_start() -> None:
+    # a new high 3 sessions ago, then a dip: still broken out, not a 3-session base
+    closes = path(300.0, [*RUNUP, *staircase(), (20, 520.0), (3, 505.0)])
+    assert detect(bars_of(closes), CFG).reason == BROKEN_OUT
+
+
+def test_the_base_starts_at_the_earliest_equal_high() -> None:
+    # peak A 500, dip to 470, peak B 505 (1 % higher: equal within 1.5 %), then the decline
+    closes = path(300.0, [*RUNUP, (10, 470.0), (10, 505.0), (15, 430.0), (10, 470.0), (10, 450.0),
+                          (6, 460.0)])  # fmt: skip
+    c = detect(bars_of(closes), CFG).candidate
+    assert c is not None and c.base_start_date == date(2020, 1, 1) + timedelta(days=100)
+    assert c.base_high == pytest.approx(505 * (1 + SPREAD))  # the base high stays the highest
+    assert c.contractions[0].peak_price == pytest.approx(500 * (1 + SPREAD))
+    old = detect(bars_of(closes), V20).candidate
+    assert old is not None and old.base_start_date == date(2020, 1, 1) + timedelta(days=120)
+
+
+def test_a_higher_high_beyond_the_tolerance_is_not_an_equal_high() -> None:
+    closes = path(300.0, [*RUNUP, (10, 470.0), (10, 512.0), (15, 430.0), (10, 470.0), (10, 450.0),
+                          (6, 460.0)])  # fmt: skip  # 512 is 2.4 % above 500
+    c = detect(bars_of(closes), CFG).candidate
+    assert c is not None and c.base_start_date == date(2020, 1, 1) + timedelta(days=120)
+
+
+def test_a_pullback_in_the_rally_is_not_a_contraction() -> None:
+    # after T1 (500 -> 420): rally to 470, a pause down to 455, on up to 488, then 488 -> 455
+    closes = path(300.0, [*RUNUP, *staircase(), (10, 470.0), (5, 455.0), (10, 488.0),
+                          (10, 455.0), (5, 470.0)])  # fmt: skip
+    c = detect(bars_of(closes), CFG).candidate
+    assert c is not None and c.contraction_count == 2
+    assert c.contractions[1].peak_price == pytest.approx(488 * (1 + SPREAD))
+    old = detect(bars_of(closes), V20).candidate
+    assert old is not None and old.contraction_count == 3
+
+
+def test_equal_peaks_are_not_merged() -> None:
+    # T2 peaks at 485, T3 at 488: equal within the tolerance, both are contractions
+    closes = path(300.0, [*RUNUP, *staircase(), (12, 485.0), (10, 455.0), (10, 488.0),
+                          (10, 465.0), (5, 475.0)])  # fmt: skip
+    c = detect(bars_of(closes), CFG).candidate
+    assert c is not None and c.contraction_count == 3
+
+
+def test_a_shorter_base_can_be_a_candidate() -> None:
+    assert CFG.candidate.min_base_bars == 10
+    with pytest.raises(ValueError):
+        SwingConfig(edge_right_bars=6)  # never more than right_bars

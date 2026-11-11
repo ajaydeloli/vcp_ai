@@ -52,7 +52,7 @@ def load() -> list[dict[str, Any]]:
     rows = c.execute("""
         SELECT s.sample_id, s.symbol, s.scan_date, t.grp, t.v1_class, t.v2_candidate,
                t.v2_json, t.v1_json, l.verdict, l.t1_date, l.t1_price, l.lows_json,
-               l.pivot_date, l.pivot_price
+               l.pivot_date, l.pivot_price, s.instrument_id
         FROM samples s JOIN sample_truth t USING (sample_id)
         LEFT JOIN labels l USING (sample_id) ORDER BY s.sample_id""").fetchall()  # fmt: skip
     bars: dict[int, list[date]] = {}
@@ -67,7 +67,7 @@ def load() -> list[dict[str, Any]]:
         v1 = json.loads(r[7] or "[]")
         v2r = v2[0] if v2 else None
         out.append({
-            "id": r[0], "symbol": r[1], "scan_date": r[2], "grp": r[3],
+            "id": r[0], "symbol": r[1], "scan_date": r[2], "grp": r[3], "iid": r[14],
             "v1_class": r[4], "v1_pick": r[4] in VCP_CLASSES, "v2_pick": bool(r[5]),
             "v2": v2r, "v2_legs": json.loads(v2r["contractions_json"]) if v2r else [],
             "v1": v1[0] if v1 else None, "verdict": r[8], "t1_date": r[9], "t1_price": r[10],

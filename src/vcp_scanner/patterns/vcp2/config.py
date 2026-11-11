@@ -21,7 +21,9 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_valida
 
 from vcp_scanner.domain.errors import ConfigError
 
-VCP2_VERSION = "vcp-2.1.0"  # 2.1.0 (2026-11-11): owner's above-pivot rule
+# 2.1.0 (2026-11-11): owner's above-pivot rule. 2.2.0 (2026-11-11): forming contraction, earliest
+# equal high, rally pullbacks merged (each a setting), shorter bases.
+VCP2_VERSION = "vcp-2.2.0"
 CONFIG_FILE = "vcp2.yaml"
 
 
@@ -36,6 +38,9 @@ class BaseStartConfig(_Strict):
     left_edge_share: float = Field(0.25, gt=0, lt=1)
     extend_bars: int = Field(30, gt=0)
     max_window_bars: int = Field(325, gt=0)
+    # owner 2026-11-11: the base starts at the earliest swing high within the contraction
+    # tolerance of the highest one (False: at the highest itself, as in v2.0)
+    earliest_equal_high: bool = True
 
     @model_validator(mode="after")
     def _cap_not_below_window(self) -> BaseStartConfig:
@@ -54,6 +59,9 @@ class ContractionConfig(_Strict):
     break_on: Literal["close", "high"] = "close"
     shakeout_tolerance_pct: float = Field(0.0, ge=0, lt=50)
     shakeout_recovery_bars: int = Field(5, gt=0)
+    # owner 2026-11-11: a pullback whose peak a later contraction's peak exceeds (by more than
+    # the tolerance) was a pause in the rally, not a contraction (False: counted, as in v2.0)
+    merge_rally_pullbacks: bool = True
 
 
 class SwingConfig(_Strict):
@@ -64,6 +72,16 @@ class SwingConfig(_Strict):
     min_depth_pct: float = Field(2.0, ge=0)
     min_duration_bars: int = Field(3, ge=0)
     short_swing_max_depth_pct: float = Field(4.0, ge=0)
+    # owner 2026-11-11: a forming contraction counts. At the right edge a high followed by at
+    # least this many bars (all lower) also splits contractions; it is never a base start.
+    # Equal to right_bars: off, as in v2.0.
+    edge_right_bars: int = Field(2, gt=0)
+
+    @model_validator(mode="after")
+    def _edge_not_above_right(self) -> SwingConfig:
+        if self.edge_right_bars > self.right_bars:
+            raise ValueError("swing.edge_right_bars must not exceed right_bars")
+        return self
 
 
 class PriorAdvanceConfig(_Strict):
@@ -75,7 +93,7 @@ class PriorAdvanceConfig(_Strict):
 class CandidateConfig(_Strict):
     """3.1: the deliberately loose minimum to be a candidate."""
 
-    min_base_bars: int = Field(15, gt=0)
+    min_base_bars: int = Field(10, gt=0)  # owner 2026-11-11: shorter bases allowed (v2.0: 15)
     min_depth_pct: float = Field(3.0, ge=0)
     max_depth_pct: float = Field(50.0, gt=0, le=100)
     min_contractions: int = Field(2, ge=1)

@@ -9,23 +9,29 @@ vcp2:
     left_edge_share: 0.25       # extend when the highest high is in this oldest share of the window
     extend_bars: 30             # sessions added per extension (6 weeks)
     max_window_bars: 325        # never look back further than this (65 weeks)
+    earliest_equal_high: true   # owner 2026-11-11: start at the earliest high within the tolerance
+                                # of the highest (false = the highest itself, v2.0)
   contraction:                  # 3.2 (owner 2026-11-09/10)
     level_tolerance_pct: 1.5    # highs/lows within this % count as equal (owner: 1-2%)
     break_on: close             # a leg ends on a close (not an intraday high) above its last lower high
     shakeout_tolerance_pct: 0   # 0 = off; an undercut up to this % may be a shakeout
     shakeout_recovery_bars: 5   # ...if it closes back above the old low within this many sessions
+    merge_rally_pullbacks: true # owner 2026-11-11: a pullback whose peak a later contraction's peak
+                                # exceeds (by more than the tolerance) is part of the rally
   swing:
     left_bars: 5
     right_bars: 5
     min_depth_pct: 2.0          # safety net: a leg shallower than this is noise
     min_duration_bars: 3        # ...or shorter than this while shallower than:
     short_swing_max_depth_pct: 4.0
+    edge_right_bars: 2          # owner 2026-11-11: a forming contraction counts; at the right edge a
+                                # high needs only this many lower bars after it (5 = off, v2.0)
   prior_advance:
     lookback_bars: 120          # run-up into the base high, from the lowest low of these sessions
     long_lookback_bars: 252     # recorded only
     min_pct: 20                 # candidate minimum
   candidate:                    # deliberately loose minimum (3.1)
-    min_base_bars: 15
+    min_base_bars: 10           # owner 2026-11-11: shorter bases allowed (v2.0: 15)
     min_depth_pct: 3
     max_depth_pct: 50
     min_contractions: 2

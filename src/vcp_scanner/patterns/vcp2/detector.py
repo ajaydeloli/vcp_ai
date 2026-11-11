@@ -5,14 +5,18 @@ measurement as a number. Deciding which bases to trade is the research plan's jo
 tested one at a time), never this module's. Pure: arrays in, a result out; no database.
 
 As-of safety: the caller passes the bars up to and including the scan day; nothing later is
-ever read. A swing high counts only once ``right_bars`` bars have followed it, so a later run
-never changes an earlier day's result.
+ever read, so a later run never changes an earlier day's result. A swing high is confirmed once
+``right_bars`` bars have followed it; at the right edge a *forming* swing high (at least
+``edge_right_bars`` lower bars after it) also splits contractions, so a contraction still forming
+counts (owner 2026-11-11). It may disappear on a later day; it is never a base start.
 
 **Base start (3.1).** The highest confirmed swing high of the last ``window_bars`` sessions (the
 earliest on a tie). If it lies in the window's oldest ``left_edge_share``, the window grows by
 ``extend_bars`` and the older high is taken only if it is higher; this repeats while the high
-keeps landing at the left edge, up to ``max_window_bars``. No close since may be above it, and the
-run-up into it must be at least ``prior_advance.min_pct``.
+keeps landing at the left edge, up to ``max_window_bars``. With ``earliest_equal_high`` the base
+then starts at the earliest swing high in the window within the tolerance *t* of that highest
+one (owner 2026-11-11); the base high stays the highest. No close since may be above the base
+high, and the run-up into it must be at least ``prior_advance.min_pct``.
 
 **Contractions (3.2).** Swing highs after the base start split it into segments; each segment's
 low is the lowest low before the next swing high. Levels are compared with a tolerance *t*
@@ -30,6 +34,9 @@ low is the lowest low before the next swing high. Levels are compared with a tol
    above the old low within ``shakeout_recovery_bars``).
 5. A leg shallower than the minimum swing (``swing.min_depth_pct``, or short and shallow) is noise
    and is merged into its neighbour, not counted.
+6. With ``merge_rally_pullbacks``, a contraction (never the first) whose peak a later
+   contraction's peak exceeds by more than *t* was a pause in the rally, not a contraction, and is
+   not counted (owner 2026-11-11).
 """
 
 from __future__ import annotations
@@ -160,6 +167,38 @@ def swing_highs(high: Sequence[float], left: int, right: int) -> list[int]:
         if all(high[j] <= h for j in range(i - left, i + right + 1) if j != i):
             out.append(i)
     return out
+
+
+def edge_swing_highs(high: Sequence[float], left: int, right: int, edge: int) -> list[int]:
+    """Forming swing highs at the right edge: at least as high as the ``left`` bars before and
+    every bar since, with at least ``edge`` but fewer than ``right`` bars after. They split
+    contractions only; a base never starts at one."""
+    n = len(high)
+    out = []
+    for i in range(max(left, n - right), n - edge):
+        h = high[i]
+        if all(high[j] <= h for j in range(i - left, n) if j != i):
+            out.append(i)
+    return out
+
+
+def earliest_equal_high(
+    high: Sequence[float], swings: Sequence[int], top: int, lo: int, tolerance_pct: float
+) -> int:
+    """The earliest swing high in [lo, top] within ``tolerance_pct`` of the highest (``top``)."""
+    level = high[top] * (1 - tolerance_pct / 100.0)
+    return next((i for i in swings if lo <= i <= top and high[i] >= level), top)
+
+
+def merge_rally_pullbacks(legs: Sequence[Leg], tolerance_pct: float) -> list[Leg]:
+    """Drop each contraction (never the first) whose peak a later contraction's peak exceeds by
+    more than the tolerance: it was a pause in the rally, not a contraction."""
+    t = tolerance_pct / 100.0
+
+    def exceeded(k: int) -> bool:
+        return any(y.peak_price > legs[k].peak_price * (1 + t) for y in legs[k + 1 :])
+
+    return [x for k, x in enumerate(legs) if k == 0 or not exceeded(k)]
 
 
 def _highest(swings: Sequence[int], high: Sequence[float], lo: int) -> int | None:
@@ -357,8 +396,12 @@ def detect(bars: Bars, cfg: VCP2Config) -> Detection:
     found = base_start(hi, swings, cfg)
     if found is None:
         return Detection(as_of, None, NO_SWING_HIGH)
-    s, window, extensions = found
-    base_high = hi[s]
+    top, window, extensions = found
+    s = top
+    if cfg.base_start.earliest_equal_high:
+        s = earliest_equal_high(hi, swings, top, max(0, n - window),
+                                cfg.contraction.level_tolerance_pct)  # fmt: skip
+    base_high = hi[top]  # the highest high, even when the base starts at an earlier equal one
     if any(cl[j] > base_high for j in range(s + 1, n)):
         return Detection(as_of, None, BROKEN_OUT)
     pa = cfg.prior_advance
@@ -372,12 +415,15 @@ def detect(bars: Bars, cfg: VCP2Config) -> Detection:
     long_before = lo_[max(0, s - pa.long_lookback_bars) : s]
     prior_long = (base_high / min(long_before) - 1) * 100.0 if long_before else None
 
-    res = contraction_legs(bars, s, swings, cfg)
+    edge = edge_swing_highs(hi, sw.left_bars, sw.right_bars, sw.edge_right_bars)
+    res = contraction_legs(bars, s, sorted({*swings, *edge}), cfg)
     legs = res.legs
     counted = [x for x in legs if not _noise(x, cfg)]
+    if cfg.contraction.merge_rally_pullbacks:
+        counted = merge_rally_pullbacks(counted, cfg.contraction.level_tolerance_pct)
     # the final contraction is the last real one; a shallow wiggle after it is not measured as
     # one, but its peak still counts for the pivot when it is higher
-    last = legs[-1] if legs else Leg(s, base_high, s, base_high)
+    last = legs[-1] if legs else Leg(s, hi[s], s, hi[s])
     final = counted[-1] if counted else last
     final_ended = final is not last or final_leg_ended(bars, final, cfg)
     base_low_i = _argmin(lo_, s, n)
