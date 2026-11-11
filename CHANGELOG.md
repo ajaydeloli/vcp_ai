@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **Two databases:** live (`data/vcp_scanner.duckdb`) and research (`data/research/vcp_research.duckdb`) (owner, 2026-11-11).
+  - The Backtest page, `vcp research fundamental-study` and the research analyses now read the research copy.
+  - The 21 stored VCP backtest runs (320,714 events) were copied there from `data/golden_src.duckdb` with ids unchanged. The research analyses rebuild their stored totals exactly.
+  - `data/golden_src.duckdb` and its backup copy are deleted (about 7 GB).
+  - While a research scan writes to the research copy, the Backtest page says it cannot open it until the scan ends.
 - Removed the paper-ledger rows of the four strategies dropped on 2026-11-06 (owner, 2026-11-11): 1,604 `paper_events` rows of flat base, three weeks tight, cup and handle and double bottom (watch-list entries, expiries and day markers from 2026-10-01 to 2026-11-04; none took a trade). Saved first to `data/backups_manual/paper_events_removed_strategies_20261111.parquet`. VCP's 10,692 rows across the four ledgers are unchanged.
 - Cleared the rest of those four strategies' history (owner, 2026-11-11). Every deleted row is saved as parquet first; every other row is checked unchanged.
   - **Main database:** 52,120 rows (their setups, scores, score components, forward labels, breakout events and status history, and 192 scan runs). Saved to `data/backups_manual/removed_strategies_20261111/`.
