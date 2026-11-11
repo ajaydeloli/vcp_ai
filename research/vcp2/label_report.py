@@ -11,6 +11,7 @@ Writes one row per chart to data/research/vcp2_label_report.csv.
 
 from __future__ import annotations
 
+import argparse
 import csv
 import json
 from collections.abc import Callable
@@ -242,7 +243,20 @@ def features(rows: list[dict[str, Any]]) -> None:
     print(f"  no v2 base at all:      {no_base}")
 
 
+GROUPS = {
+    1: {"A": "A: drawn as v2 candidate", "B": "B: drawn as v1 VCP", "C": "C: TT pass, neither"},
+    2: {"A": "A: TT pass, v2 candidate", "B": "B: TT pass, not v2"},
+}
+
+
 def main() -> None:
+    global LABELS, OUT
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--round", type=int, choices=(1, 2), default=1)
+    a = ap.parse_args()
+    if a.round == 2:
+        LABELS = ROOT / "data" / "research" / "vcp2_labels_r2.duckdb"
+        OUT = ROOT / "data" / "research" / "vcp2_label_report_r2.csv"
     rows = load()
     todo = sum(r["verdict"] is None for r in rows)
     print(f"{len(rows)} charts, {len(rows) - todo} labelled")
@@ -251,8 +265,7 @@ def main() -> None:
         r["quad"] = {(True, True): "both v1 and v2", (True, False): "v1 only",
                      (False, True): "v2 only", (False, False): "neither"}[
                          (r["v1_pick"], r["v2_pick"])]  # fmt: skip
-        r["grp_name"] = {"A": "A: drawn as v2 candidate", "B": "B: drawn as v1 VCP",
-                         "C": "C: TT pass, neither"}[r["grp"]]  # fmt: skip
+        r["grp_name"] = GROUPS[a.round][r["grp"]]
     verdict_table(rows, "grp_name", "1a. Owner verdict by sample group")
     verdict_table(rows, "quad", "1b. Owner verdict by what each detector said")
     for r in rows:
