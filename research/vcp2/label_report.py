@@ -116,7 +116,7 @@ def verdict_table(rows: list[dict[str, Any]], key: str, title: str) -> None:
 
 
 def detector_scores(rows: list[dict[str, Any]]) -> None:
-    print("\n2. Each detector against the owner (all 150 charts)")
+    print(f"\n2. Each detector against the owner (all {len(rows)} charts)")
     yes = [r for r in rows if r["verdict"] == "yes"]
     yu = [r for r in rows if r["verdict"] in ("yes", "unsure")]
 
