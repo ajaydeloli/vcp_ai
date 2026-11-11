@@ -65,6 +65,8 @@ DDL = (
         trend_template_pass BOOLEAN, trend_template_failed VARCHAR,
         contractions_json VARCHAR,
         PRIMARY KEY (config_hash, scan_date, instrument_id))""",
+    # added 2026-11-11 (owner's above-pivot rule); NULL on rows scanned before it existed
+    "ALTER TABLE vcp2_candidates ADD COLUMN IF NOT EXISTS max_above_pivot_pct DOUBLE",
 )
 
 _SKIP = ("as_of", "contractions", "unmet", "is_candidate")

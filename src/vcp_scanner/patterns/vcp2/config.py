@@ -21,7 +21,7 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_valida
 
 from vcp_scanner.domain.errors import ConfigError
 
-VCP2_VERSION = "vcp-2.0.0"
+VCP2_VERSION = "vcp-2.1.0"  # 2.1.0 (2026-11-11): owner's above-pivot rule
 CONFIG_FILE = "vcp2.yaml"
 
 
@@ -79,6 +79,8 @@ class CandidateConfig(_Strict):
     min_depth_pct: float = Field(3.0, ge=0)
     max_depth_pct: float = Field(50.0, gt=0, le=100)
     min_contractions: int = Field(2, ge=1)
+    # owner 2026-11-11: once a close has been more than 5-7 % above the pivot, it is not a VCP
+    max_above_pivot_pct: float = Field(7.0, gt=0)
 
     @model_validator(mode="after")
     def _depth_range(self) -> CandidateConfig:

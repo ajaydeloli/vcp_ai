@@ -128,6 +128,7 @@ class Candidate:
     pivot: float
     pivot_alt: float  # highest high of the last right_side_window sessions
     distance_to_pivot_pct: float
+    max_above_pivot_pct: float | None  # highest close after the pivot bar, % above the pivot
     right_side_range_pct: float
     atr_ratio: float | None  # mean true range % of the right side / of the whole base
     days_since_final_low: int
@@ -400,7 +401,10 @@ def detect(bars: Bars, cfg: VCP2Config) -> Detection:
     r_lo = min(lo_[j] for j in right)
     base_tr = _mean([_tr_pct(bars, j) for j in range(s + 1, n)])
     right_tr = _mean([_tr_pct(bars, j) for j in right])
+    pivot_bar = final.peak if final.peak_price >= last.peak_price else last.peak
     pivot = max(final.peak_price, last.peak_price)
+    after_pivot = [cl[j] for j in range(pivot_bar + 1, n)]
+    above_pivot = (max(after_pivot) / pivot - 1) * 100.0 if after_pivot else None
     up = sum(vol[j] or 0.0 for j in range(s + 1, n) if cl[j] > cl[j - 1])
     down = sum(vol[j] or 0.0 for j in range(s + 1, n) if cl[j] < cl[j - 1])
     span = base_high - base_low
@@ -412,6 +416,8 @@ def detect(bars: Bars, cfg: VCP2Config) -> Detection:
         unmet.append("base_depth")
     if len(counted) < c.min_contractions:
         unmet.append("contractions")
+    if above_pivot is not None and above_pivot > c.max_above_pivot_pct:
+        unmet.append("above_pivot")
     cand = Candidate(
         as_of=as_of,
         base_start_date=bars.dates[s],
@@ -438,6 +444,7 @@ def detect(bars: Bars, cfg: VCP2Config) -> Detection:
         pivot=pivot,
         pivot_alt=r_hi,
         distance_to_pivot_pct=(cl[-1] / pivot - 1) * 100.0,
+        max_above_pivot_pct=above_pivot,
         right_side_range_pct=(r_hi - r_lo) / r_hi * 100.0,
         atr_ratio=_ratio(right_tr, base_tr),
         days_since_final_low=n - 1 - final.low,

@@ -10,6 +10,7 @@ import pytest
 from vcp_scanner.domain.errors import ConfigError
 from vcp_scanner.patterns.vcp2.config import (
     BaseStartConfig,
+    CandidateConfig,
     ContractionConfig,
     VCP2Config,
     load_vcp2_config,
@@ -64,6 +65,7 @@ def test_defaults_are_the_owners_values() -> None:
     assert (bs.window_bars, bs.left_edge_share, bs.extend_bars, bs.max_window_bars) == (
         130, 0.25, 30, 325)  # fmt: skip
     assert (ct.level_tolerance_pct, ct.break_on, ct.shakeout_tolerance_pct) == (1.5, "close", 0)
+    assert CFG.candidate.max_above_pivot_pct == 7.0
 
 
 def test_the_repo_file_loads_and_equals_the_defaults() -> None:
@@ -76,6 +78,7 @@ def test_invalid_settings_are_refused(tmp_path: Path) -> None:
                  "vcp2:\n  base_start:\n    left_edge_share: 1.5\n",
                  "vcp2:\n  contraction:\n    level_tolerance_pct: -1\n",
                  "vcp2:\n  candidate:\n    min_depth_pct: 60\n",
+                 "vcp2:\n  candidate:\n    max_above_pivot_pct: 0\n",
                  "vcp2:\n  unknown_section: {}\n"):  # fmt: skip
         (tmp_path / "vcp2.yaml").write_text(body)
         with pytest.raises(ConfigError):
@@ -268,3 +271,34 @@ def test_a_wiggle_after_the_last_contraction_is_not_the_final_contraction() -> N
     assert c.final_depth_pct == pytest.approx(c.contractions[-1].depth_pct)
     assert c.pivot == pytest.approx(485 * (1 + SPREAD))  # T2's peak, not the wiggle's
     assert c.final_ended
+
+
+# ---- above the pivot (owner 2026-11-11) -----------------------------------------------------
+
+# Three contractions under a 501 base high; the final peak (the pivot) is 425 x 1.002 = 425.9.
+DEEP = [*RUNUP, (20, 380.0), (15, 440.0), (12, 405.0), (8, 425.0), (6, 415.0)]
+
+
+def test_more_than_7pct_above_the_pivot_is_not_a_candidate() -> None:
+    near = detect(bars_of(path(300.0, [*DEEP, (5, 438.0)])), CFG).candidate  # +2.8 %
+    far = detect(bars_of(path(300.0, [*DEEP, (5, 462.0)])), CFG).candidate  # +8.5 %
+    assert near is not None and near.is_candidate
+    assert near.max_above_pivot_pct == pytest.approx(438 / (425 * 1.002) * 100 - 100, abs=0.01)
+    assert far is not None and not far.is_candidate and far.unmet == ("above_pivot",)
+    assert far.pivot == pytest.approx(425 * (1 + SPREAD))  # still below the base high
+
+
+def test_the_above_pivot_limit_is_a_setting() -> None:
+    closes = path(300.0, [*DEEP, (5, 449.0)])  # +5.4 % above the pivot
+    five = VCP2Config(candidate=CandidateConfig(max_above_pivot_pct=5.0))
+    assert detect(bars_of(closes), CFG).candidate.is_candidate  # type: ignore[union-attr]
+    c = detect(bars_of(closes), five).candidate
+    assert c is not None and "above_pivot" in c.unmet
+
+
+def test_a_pullback_after_running_above_the_pivot_starts_a_new_contraction() -> None:
+    # +8.5 % above the 425.9 pivot, then back to 435: a fourth contraction from the new 462.9
+    # peak, still under the 501 base high; the pivot moves up to that peak
+    c = detect(bars_of(path(300.0, [*DEEP, (5, 462.0), (5, 435.0)])), CFG).candidate
+    assert c is not None and c.contraction_count == 4
+    assert c.pivot == pytest.approx(462 * (1 + SPREAD)) and "above_pivot" not in c.unmet
