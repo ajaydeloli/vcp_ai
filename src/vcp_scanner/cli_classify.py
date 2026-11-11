@@ -17,7 +17,7 @@ def add_classify_parser(subparsers: argparse._SubParsersAction) -> None:  # type
     p = subparsers.add_parser("classify", help="Sector and industry of each stock (NSE)")
     sub = p.add_subparsers(dest="classify_command")
     u = sub.add_parser("update", help="Read NSE's index lists and the manual sectors file")
-    u.add_argument("--db", default="data/vcp_scanner.duckdb")
+    u.add_argument("--db", default="data/database_live.duckdb")
     u.add_argument("--config-dir", default="config")
 
 

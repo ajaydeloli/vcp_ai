@@ -25,7 +25,7 @@ from vcp_scanner.cli import main as cli_main
 
 ROOT = Path(__file__).resolve().parents[2]
 MASTER = ROOT / "data" / "master_build" / "vcp_master.duckdb"
-BACKUP = ROOT / "data" / "backups_manual" / "vcp_scanner_premerge_20261109.duckdb"
+BACKUP = ROOT / "data" / "backups_manual" / "database_live_premerge_20261109.duckdb"
 CFG = str(ROOT / "config")
 
 

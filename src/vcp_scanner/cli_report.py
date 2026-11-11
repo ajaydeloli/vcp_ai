@@ -18,7 +18,7 @@ def add_report_parser(subparsers: argparse._SubParsersAction) -> None:  # type: 
         s = sub.add_parser(name, help=text)
         s.add_argument("--date", default=None, metavar="YYYY-MM-DD",
                        help="Report day (default: latest prices)")  # fmt: skip
-        s.add_argument("--db", default="data/vcp_scanner.duckdb")
+        s.add_argument("--db", default="data/database_live.duckdb")
         s.add_argument("--serving", default=None, help="Serving copy (default: next to --db)")
         s.add_argument("--config-dir", default="config")
         s.add_argument("--out-dir", default=None, help="Default: <project>/reports")
@@ -30,7 +30,7 @@ def add_report_parser(subparsers: argparse._SubParsersAction) -> None:  # type: 
         metavar="YYYY-MM-DD",
         help="The pack's day (default: today); data are the latest stored",
     )
-    r.add_argument("--db", default="data/vcp_scanner.duckdb")
+    r.add_argument("--db", default="data/database_live.duckdb")
     r.add_argument("--serving", default=None, help="Serving copy (default: next to --db)")
     r.add_argument("--config-dir", default="config")
     r.add_argument("--out-dir", default=None, help="Default: <project>/reports")

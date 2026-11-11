@@ -34,7 +34,7 @@ class Env(NamedTuple):
 
 def _make(data_dir: Path) -> Env:
     ctx, db = build_all(data_dir)
-    research = build_research_db(data_dir / "vcp_research.duckdb")
+    research = build_research_db(data_dir / "database_research.duckdb")
     write_report_files(data_dir / "reports")
     clock = {"now": NOW}
     # Every test app gets a fake live feed (synthetic prices, polled once at NOW): no test can

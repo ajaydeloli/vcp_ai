@@ -14,7 +14,7 @@ def add_health_parser(subparsers: argparse._SubParsersAction) -> None:  # type: 
     p = subparsers.add_parser("health", help="Market Health Score (display and research only)")
     sub = p.add_subparsers(dest="health_command")
     b = sub.add_parser("build", help="Score and store the sessions not stored yet")
-    b.add_argument("--db", default="data/vcp_scanner.duckdb")
+    b.add_argument("--db", default="data/database_live.duckdb")
     b.add_argument("--config-dir", default="config")
     b.add_argument("--rebuild", action="store_true",
                    help="Replace the stored days of the current settings version")  # fmt: skip

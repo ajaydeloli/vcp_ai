@@ -23,8 +23,8 @@ import pandas as pd
 ROOT = Path(__file__).resolve().parents[2]
 # the research copy holds the stored runs below since 2026-11-11 (copied from the retired
 # golden_src.duckdb with their ids unchanged)
-RESEARCH_DB = ROOT / "data" / "research" / "vcp_research.duckdb"
-SERVING_DB = ROOT / "data" / "serving" / "vcp_serving.duckdb"
+RESEARCH_DB = ROOT / "data" / "research" / "database_research.duckdb"
+SERVING_DB = ROOT / "data" / "serving" / "database_serving.duckdb"
 OUT = ROOT / "data" / "research"
 RUNS = {"development": "bt-20261006T055416134812Z", "validation": "bt-20261006T055418960095Z"}
 EXPECTED = {"development": (574, 2.15), "validation": (317, 0.89)}  # stored every-trade results

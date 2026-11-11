@@ -27,10 +27,10 @@ def add_fundamentals_parser(subparsers: argparse._SubParsersAction) -> None:  # 
     s.add_argument("--symbol", default=None, help="One NSE symbol (default: all universe stocks)")
     s.add_argument("--from", dest="start", default=None, metavar="YYYY-MM-DD")
     s.add_argument("--to", dest="end", default=None, metavar="YYYY-MM-DD")
-    s.add_argument("--db", default="data/vcp_scanner.duckdb")
+    s.add_argument("--db", default="data/database_live.duckdb")
     s.add_argument("--interval", type=float, default=1.0, help="Seconds between requests")
     q = sub.add_parser("parse", help="Turn stored filings into quarterly values")
-    q.add_argument("--db", default="data/vcp_scanner.duckdb")
+    q.add_argument("--db", default="data/database_live.duckdb")
     q.add_argument("--config-dir", default="config")
     q.add_argument(
         "--retry-errors",
@@ -47,7 +47,7 @@ def add_fundamentals_parser(subparsers: argparse._SubParsersAction) -> None:  # 
         ("update", "Fetch, parse and compute the filings of the last days (daily step)"),
     ):
         b = sub.add_parser(name, help=text)
-        b.add_argument("--db", default="data/vcp_scanner.duckdb")
+        b.add_argument("--db", default="data/database_live.duckdb")
         b.add_argument("--config-dir", default="config")
         b.add_argument("--days", type=int, default=None, help="update: days back (config)")
         b.add_argument("--limit", type=int, default=None, help="backfill: first N stocks only")
@@ -63,11 +63,11 @@ def add_fundamentals_parser(subparsers: argparse._SubParsersAction) -> None:  # 
             " history_from, delisted ones included (F6/F7: no survivorship gap in the study)",
         )
     st = sub.add_parser("status", help="What is stored (read-only)")
-    st.add_argument("--db", default="data/vcp_scanner.duckdb")
+    st.add_argument("--db", default="data/database_live.duckdb")
     v = sub.add_parser("show", help="Metrics of one stock as of a date (read-only)")
     v.add_argument("symbol")
     v.add_argument("--date", default=None, metavar="YYYY-MM-DD", help="Default: today")
-    v.add_argument("--db", default="data/vcp_scanner.duckdb")
+    v.add_argument("--db", default="data/database_live.duckdb")
     v.add_argument("--config-dir", default="config")
 
 

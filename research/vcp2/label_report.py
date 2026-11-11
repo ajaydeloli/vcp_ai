@@ -24,7 +24,7 @@ import duckdb
 
 ROOT = Path(__file__).resolve().parents[2]
 LABELS = ROOT / "data" / "research" / "vcp2_labels.duckdb"
-RESEARCH = ROOT / "data" / "research" / "vcp_research.duckdb"
+RESEARCH = ROOT / "data" / "research" / "database_research.duckdb"
 OUT = ROOT / "data" / "research" / "vcp2_label_report.csv"
 VCP_CLASSES = {"VCP", "VCP_LIKE", "A_PLUS_VCP"}
 MATCH_BARS = 5  # a detector low within this many bars of an owner low counts as the same low

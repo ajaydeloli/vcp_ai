@@ -16,7 +16,7 @@ def add_indices_parser(subparsers: argparse._SubParsersAction) -> None:  # type:
     p = subparsers.add_parser("indices", help="NSE index closes (NIFTY 50, 500, sectors)")
     sub = p.add_subparsers(dest="indices_command")
     u = sub.add_parser("update", help="Fetch the index closes of trading days not stored yet")
-    u.add_argument("--db", default="data/vcp_scanner.duckdb")
+    u.add_argument("--db", default="data/database_live.duckdb")
     u.add_argument("--from", dest="start", default=None, metavar="YYYY-MM-DD",
                    help=f"First day (default: {DEFAULT_DAYS_BACK} days ago)")  # fmt: skip
     u.add_argument("--interval", type=float, default=1.0, help="Seconds between requests")

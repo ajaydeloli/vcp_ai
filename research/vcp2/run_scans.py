@@ -34,7 +34,7 @@ def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("first")
     ap.add_argument("last")
-    ap.add_argument("--db", default=str(ROOT / "data" / "research" / "vcp_research.duckdb"))
+    ap.add_argument("--db", default=str(ROOT / "data" / "research" / "database_research.duckdb"))
     ap.add_argument("--log", default=str(ROOT / "data" / "logs" / "vcp2_scans.log"))
     a = ap.parse_args()
     first, last = date.fromisoformat(a.first), date.fromisoformat(a.last)

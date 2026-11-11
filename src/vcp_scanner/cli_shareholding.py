@@ -20,7 +20,7 @@ def add_shareholding_parser(subparsers: argparse._SubParsersAction) -> None:  # 
         ("update", "List, download and parse the filings of the last days (daily step)"),
     ):
         b = sub.add_parser(name, help=text)
-        b.add_argument("--db", default="data/vcp_scanner.duckdb")
+        b.add_argument("--db", default="data/database_live.duckdb")
         b.add_argument("--config-dir", default="config")
         b.add_argument("--days", type=int, default=None, help="update: list this many days back")
         b.add_argument("--limit", type=int, default=None, help="first N stocks only (a trial)")
@@ -30,13 +30,13 @@ def add_shareholding_parser(subparsers: argparse._SubParsersAction) -> None:  # 
             help="backfill: the saved target list of the last backfill (no listing)",
         )
     rp = sub.add_parser("reparse", help="Read every stored file again (after a parser fix)")
-    rp.add_argument("--db", default="data/vcp_scanner.duckdb")
+    rp.add_argument("--db", default="data/database_live.duckdb")
     st = sub.add_parser("status", help="What is stored (read-only)")
-    st.add_argument("--db", default="data/vcp_scanner.duckdb")
+    st.add_argument("--db", default="data/database_live.duckdb")
     v = sub.add_parser("show", help="One stock's shareholding by quarter (read-only)")
     v.add_argument("symbol")
     v.add_argument("--quarters", type=int, default=8)
-    v.add_argument("--db", default="data/vcp_scanner.duckdb")
+    v.add_argument("--db", default="data/database_live.duckdb")
 
 
 def _say(message: str) -> None:

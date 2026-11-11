@@ -21,8 +21,8 @@ from pathlib import Path
 import duckdb
 
 ROOT = Path(__file__).resolve().parents[2]
-HIST = ROOT / "data" / "research" / "vcp_research.duckdb"  # history_2011 retired 2026-11-10
-LIVE = ROOT / "data" / "serving" / "vcp_serving.duckdb"
+HIST = ROOT / "data" / "research" / "database_research.duckdb"  # history_2011 retired 2026-11-10
+LIVE = ROOT / "data" / "serving" / "database_serving.duckdb"
 LOG = ROOT / "data" / "logs" / "history_backfill.log"
 FIRST, LAST = date(2012, 7, 2), date(2021, 6, 30)
 

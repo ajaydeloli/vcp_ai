@@ -17,7 +17,7 @@ def add_paper_parser(subparsers: argparse._SubParsersAction) -> None:  # type: i
                        ("status", "Open paper positions and results so far")):  # fmt: skip
         s = sub.add_parser(name, help=text)
         s.add_argument("--strategy", default=None, help="One strategy (default: every paper one)")
-        s.add_argument("--db", default="data/vcp_scanner.duckdb")
+        s.add_argument("--db", default="data/database_live.duckdb")
         s.add_argument("--config-dir", default="config")
         if name == "update":
             s.add_argument(

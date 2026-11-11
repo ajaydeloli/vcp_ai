@@ -36,7 +36,7 @@ A research scanner for NSE stocks.
 
 ## 2. Installation
 
-The project runs in **WSL Ubuntu** on Windows. The path used throughout is `~/projects/vcp_ai`. Run every command from that folder: the defaults (`config`, `data/vcp_scanner.duckdb`, `.env`) are relative paths.
+The project runs in **WSL Ubuntu** on Windows. The path used throughout is `~/projects/vcp_ai`. Run every command from that folder: the defaults (`config`, `data/database_live.duckdb`, `.env`) are relative paths.
 
 ### 2.1 Requirements
 
@@ -247,12 +247,12 @@ The API only listens on this PC (127.0.0.1). It only reads data: nothing on the 
 
 ### 5.2 Where its data comes from
 
-The API reads the **serving copy** (`data/serving/vcp_serving.duckdb`), not the main database. The evening run refreshes the copy. That way the dashboard keeps working while the run writes, and a page can never change the data.
+The API reads the **serving copy** (`data/serving/database_serving.duckdb`), not the main database. The evening run refreshes the copy. That way the dashboard keeps working while the run writes, and a page can never change the data.
 
 After working on the main database by hand (a rebuild, a manual scan), refresh the copy yourself:
 
 ```bash
-.venv/bin/python -c "from vcp_scanner.serving import refresh_serving_copy; refresh_serving_copy('data/vcp_scanner.duckdb')"
+.venv/bin/python -c "from vcp_scanner.serving import refresh_serving_copy; refresh_serving_copy('data/database_live.duckdb')"
 ```
 
 ### 5.3 The pages
@@ -407,8 +407,8 @@ Some events cannot be closed by hand:
 - The run's output names the newest backup. To restore it:
 
 ```bash
-mv data/vcp_scanner.duckdb data/vcp_scanner.duckdb.damaged
-cp data/backups/vcp_scanner_<newest>.duckdb data/vcp_scanner.duckdb
+mv data/database_live.duckdb data/database_live.duckdb.damaged
+cp data/backups/vcp_scanner_<newest>.duckdb data/database_live.duckdb
 vcp run daily --serving-copy
 ```
 
@@ -474,7 +474,7 @@ vcp config validate
 
 | Option | Default | Meaning |
 |---|---|---|
-| `--db PATH` | `data/vcp_scanner.duckdb` | the main database |
+| `--db PATH` | `data/database_live.duckdb` | the main database |
 | `--config-dir DIR` | `config` | the YAML configs |
 | `--env-file PATH` | `.env` | credentials |
 | `--as-of YYYY-MM-DD` | (required where shown) | the session to work on |
@@ -586,7 +586,7 @@ vcp compute scores --as-of $D
 | Command | What it does |
 |---|---|
 | `vcp fundamentals update [--days N]` | Fetch, parse and compute the filings of the last days (the evening run does this). |
-| `vcp fundamentals backfill [--limit N] [--resume] [--research-db FILE]` | Everything since `history_from` in the config; resumable. `--research-db data/research/vcp_research.duckdb` also fetches the stocks with past setups in the research database, delisted ones included (for the F7 study). Long: NSE refuses after many hours, so split it across days. |
+| `vcp fundamentals backfill [--limit N] [--resume] [--research-db FILE]` | Everything since `history_from` in the config; resumable. `--research-db data/research/database_research.duckdb` also fetches the stocks with past setups in the research database, delisted ones included (for the F7 study). Long: NSE refuses after many hours, so split it across days. |
 | `vcp fundamentals fetch [--symbol S] [--from D] [--to D]` | Download result filings not stored yet. |
 | `vcp fundamentals parse [--retry-errors] [--rebuild]` | Turn stored filings into quarterly values. |
 | `vcp fundamentals status` | What is stored. |
@@ -731,8 +731,8 @@ A change to any of these is a new version and restarts that strategy's paper clo
 
 | Path | What |
 |---|---|
-| `data/vcp_scanner.duckdb` | The main database (about 2.2 GB). Only the commands write it. |
-| `data/serving/vcp_serving.duckdb` | The dashboard's read-only copy, refreshed by the evening run. |
+| `data/database_live.duckdb` | The main database (about 2.2 GB). Only the commands write it. |
+| `data/serving/database_serving.duckdb` | The dashboard's read-only copy, refreshed by the evening run. |
 | `data/backups/` | The newest 3 pre-run backups. |
 | `data/raw/` | Downloaded NSE files (bhavcopies and others), kept so a rebuild needs no download. |
 | `data/logs/daily_runs.log`, `data/logs/daily_run_<date>.out` | Evening-run summary and full output. |

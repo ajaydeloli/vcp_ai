@@ -21,7 +21,7 @@ T0 = datetime(2026, 10, 2, 13, 45, tzinfo=UTC)
 
 
 def _db(tmp_path: Path) -> Path:
-    path = tmp_path / "vcp_scanner.duckdb"
+    path = tmp_path / "database_live.duckdb"
     con = duckdb.connect(str(path))
     con.execute("CREATE TABLE t AS SELECT range AS i FROM range(1000)")
     con.close()
@@ -41,7 +41,7 @@ def test_backup_is_a_working_copy_and_only_the_newest_are_kept(tmp_path: Path) -
     db = _db(tmp_path)
     backups = tmp_path / "backups"
     made = [backup_database(db, backups, keep=3, now=T0 + timedelta(hours=h)) for h in range(5)]
-    kept = list_backups(backups, "vcp_scanner")
+    kept = list_backups(backups, "database_live")
     assert kept == made[:1:-1]  # newest three, newest first
     con = duckdb.connect(str(kept[0]), read_only=True)
     assert con.execute("SELECT count(*) FROM t").fetchone() == (1000,)
@@ -65,8 +65,8 @@ def test_leftover_partial_copy_is_removed_and_never_listed(tmp_path: Path) -> No
     db = _db(tmp_path)
     backups = tmp_path / "backups"
     backups.mkdir()
-    (backups / "vcp_scanner_20261001_000000.duckdb.partial").write_bytes(b"half")
-    assert list_backups(backups, "vcp_scanner") == []
+    (backups / "database_live_20261001_000000.duckdb.partial").write_bytes(b"half")
+    assert list_backups(backups, "database_live") == []
     backup_database(db, backups, now=T0)
     assert not list(backups.glob("*.partial"))
 
@@ -80,11 +80,11 @@ def test_damaged_database_is_refused_with_a_restore_hint(tmp_path: Path) -> None
         backup_database(db, backups, now=T0 + timedelta(days=1))
     hint = restore_hint(db, backups)
     assert str(good) in hint and "cp " in hint
-    assert list_backups(backups, "vcp_scanner") == [good]  # the good copy is not rotated out
+    assert list_backups(backups, "database_live") == [good]  # the good copy is not rotated out
 
 
 def test_daily_run_stops_before_any_step_on_a_damaged_database(tmp_path: Path) -> None:
-    db = tmp_path / "vcp_scanner.duckdb"
+    db = tmp_path / "database_live.duckdb"
     db.write_bytes(b"\x00" * 4096)
     calls: list[list[str]] = []
 

@@ -20,7 +20,7 @@ from vcp_scanner.patterns.vcp2.config import load_vcp2_config
 from vcp_scanner.patterns.vcp2.detector import Bars, Detection, detect
 
 ROOT = Path(__file__).resolve().parents[2]
-DB = ROOT / "data" / "research" / "vcp_research.duckdb"
+DB = ROOT / "data" / "research" / "database_research.duckdb"
 
 
 def main() -> None:

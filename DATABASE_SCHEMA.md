@@ -2461,7 +2461,7 @@ project/
 │       └── outcomes/
 │
 ├── db/
-│   └── vcp_scanner.duckdb
+│   └── database_live.duckdb
 │
 └── migrations/
 ```

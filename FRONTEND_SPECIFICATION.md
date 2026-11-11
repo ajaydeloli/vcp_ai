@@ -1966,7 +1966,7 @@ The owner asked (2026-10-06, signed off the same day: W1–W4 all as recommended
 
 ## 67.2 Database access: a serving copy
 
-DuckDB does not let another process read while the daily run writes. The daily run's last step copies the database (after its checkpoint) to `data/serving/vcp_serving.duckdb` (replaced atomically: write to a temporary file, then rename). The API opens only that copy, read-only, and re-opens it when the file changes. During the evening run the dashboard shows the previous evening's data, with its time stamped in the status bar. The copy is a cache: never backed up, never committed.
+DuckDB does not let another process read while the daily run writes. The daily run's last step copies the database (after its checkpoint) to `data/serving/database_serving.duckdb` (replaced atomically: write to a temporary file, then rename). The API opens only that copy, read-only, and re-opens it when the file changes. During the evening run the dashboard shows the previous evening's data, with its time stamped in the status bar. The copy is a cache: never backed up, never committed.
 
 ## 67.3 API v1 (`/api/v1`, GET only, JSON, FastAPI)
 
@@ -2024,13 +2024,13 @@ NIFTY / BANKNIFTY quotes (no index data); sector and market-cap filters (no such
 | # | Question | Options | Decided |
 |---|---|---|---|
 | W1 | Stack | (a) FastAPI + Next.js as in §5 · (b) FastAPI serving one plain HTML/JS page | (a): FastAPI + Next.js (TypeScript, Tailwind, TanStack Query, Lightweight Charts, Zod) |
-| W2 | Database access | (a) serving copy refreshed by the daily run · (b) the API reads the main database directly and shows "busy" during the run | (a): `data/serving/vcp_serving.duckdb`, refreshed atomically as the daily run's last step; the API opens only that copy, read-only |
+| W2 | Database access | (a) serving copy refreshed by the daily run · (b) the API reads the main database directly and shows "busy" during the run | (a): `data/serving/database_serving.duckdb`, refreshed atomically as the daily run's last step; the API opens only that copy, read-only |
 | W3 | v1 scope | (a) the dashboard page of §67.4 only · (b) also a full stock page and screener now | (a): one page done well first |
 | W4 | Theme | (a) dark, after the mockup · (b) light · (c) both with a switch | (a), the switch later |
 
 ## 67.9 As built: API v1 (step D1, 2026-10-06)
 
-- **Serving copy** (`vcp_scanner.serving`): `vcp run daily --serving-copy` adds a last step that checkpoints the main database, copies it to `<db folder>/serving/vcp_serving.duckdb` under a `.partial` name, checks that the copy opens, then renames it over the old one. A failed copy fails the run (named in the summary line) and leaves the previous copy in place. **Opt-in, off by default** until the owner agrees; the 2.2 GB copy takes about 9 s.
+- **Serving copy** (`vcp_scanner.serving`): `vcp run daily --serving-copy` adds a last step that checkpoints the main database, copies it to `<db folder>/serving/database_serving.duckdb` under a `.partial` name, checks that the copy opens, then renames it over the old one. A failed copy fails the run (named in the summary line) and leaves the previous copy in place. **Opt-in, off by default** until the owner agrees; the 2.2 GB copy takes about 9 s.
 - **API** (`vcp_scanner.api`, FastAPI): the endpoints of §67.3 under `/api/v1`, GET only (other verbs: 405), CORS for `http://localhost:3000` and `http://127.0.0.1:3000` only. `vcp api serve [--host 127.0.0.1] [--port 8000] [--data-dir data] [--serving-db PATH]`. Logs and backups are read from the main database's folder (`--data-dir`).
 - **The copy is opened read-only and re-opened when the file is replaced**, once no request still reads the old one (DuckDB keeps one instance per path in a process, so a plain re-connect would keep showing the old file). A missing copy gives a 503 naming the command that writes it.
 - **Strategies and hashes** are read from `config/` at start-up: the five paper strategies with their config hashes (equal to the frozen ones of STRATEGY_SPECIFICATION §21.1; a test pins them) and tiers. `/setups` shows the ranked list (`eligible=true`, the default; `eligible=false` adds the other scored rows), best score first, with optional `min_grade`, `status`, `limit`; `date` defaults to the strategy's latest scan.
@@ -2065,7 +2065,7 @@ The owner's second mockup (nine panels in a fixed grid) replaced the first layou
 
 ## 67.12 Serving copy switched on (2026-10-07)
 
-Owner go (2026-10-07): `scripts/daily_run.sh` now passes `--serving-copy`, so every scheduled run (19:15 and 22:00 IST) and every manual run of the script ends by refreshing `data/serving/vcp_serving.duckdb`. The copy is atomic: the previous copy stays in place if the refresh fails, and a failed refresh marks the run `FAILED: dashboard serving copy` in `data/logs/daily_runs.log` (the data steps are unaffected). Cost: about 9 seconds and 2.3 GB (4.6 GB for a moment during the swap). `vcp run daily` called by hand without the flag still writes no copy.
+Owner go (2026-10-07): `scripts/daily_run.sh` now passes `--serving-copy`, so every scheduled run (19:15 and 22:00 IST) and every manual run of the script ends by refreshing `data/serving/database_serving.duckdb`. The copy is atomic: the previous copy stays in place if the refresh fails, and a failed refresh marks the run `FAILED: dashboard serving copy` in `data/logs/daily_runs.log` (the data steps are unaffected). Cost: about 9 seconds and 2.3 GB (4.6 GB for a moment during the swap). `vcp run daily` called by hand without the flag still writes no copy.
 
 
 ## 67.13 As built: Screener page (2026-10-07)

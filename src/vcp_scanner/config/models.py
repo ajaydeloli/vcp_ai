@@ -650,7 +650,7 @@ class FundamentalsConfig(StrictBaseModel):
 class DataConfig(StrictBaseModel):
     """Data persistence and provider configuration (PROJECT_DESIGN section 45)."""
 
-    duckdb_path: str = "data/vcp_scanner.duckdb"
+    duckdb_path: str = "data/database_live.duckdb"
     raw_storage_dir: str = "data/raw"
     canonical_storage_dir: str = "data/canonical"
     primary_provider: str = "kite"

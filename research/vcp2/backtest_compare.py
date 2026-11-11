@@ -52,7 +52,7 @@ from vcp_scanner.research.outcomes import ENGINE_RULES
 from vcp_scanner.research.vcp2_signals import CandidateDay, daily_signals
 
 ROOT = Path(__file__).resolve().parents[2]
-RESEARCH = ROOT / "data" / "research" / "vcp_research.duckdb"
+RESEARCH = ROOT / "data" / "research" / "database_research.duckdb"
 OUT = ROOT / "data" / "research" / "vcp2_backtest_trades.csv"
 FIRST, SIG_END, DATA_END = date(2012, 7, 1), date(2017, 8, 31), date(2017, 12, 31)
 V1_CLASSES = ["VCP_LIKE", "VCP", "A_PLUS_VCP"]

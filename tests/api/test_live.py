@@ -140,7 +140,8 @@ def test_closed_weekend_start_without_a_snapshot_is_not_available(env: Env) -> N
 
 
 def test_the_universe_is_the_eligible_members_of_the_newest_scan(env: Env) -> None:
-    con = duckdb.connect(str(Path(env.data_dir) / "serving" / "vcp_serving.duckdb"), read_only=True)
+    serving = Path(env.data_dir) / "serving" / "database_serving.duckdb"
+    con = duckdb.connect(str(serving), read_only=True)
     try:
         rows = q.live_universe(con.cursor(), env.ctx)
     finally:

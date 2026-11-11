@@ -362,7 +362,7 @@ def build_main_db(db: Path, ctx: Context) -> None:
     )
     backups = db.parent / "backups"
     backups.mkdir(parents=True, exist_ok=True)
-    (backups / "vcp_scanner_20261005_134501.duckdb").write_bytes(b"")
+    (backups / "database_live_20261005_134501.duckdb").write_bytes(b"")
 
 
 def build_all(data_dir: Path) -> tuple[Context, Path]:
@@ -370,7 +370,7 @@ def build_all(data_dir: Path) -> tuple[Context, Path]:
     main database path."""
     data_dir.mkdir(parents=True, exist_ok=True)
     ctx = build_context(CONFIG_DIR, data_dir)
-    db = data_dir / "vcp_scanner.duckdb"
+    db = data_dir / "database_live.duckdb"
     build_main_db(db, ctx)
     refresh_serving_copy(db)
     return ctx, db

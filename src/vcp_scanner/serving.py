@@ -1,10 +1,11 @@
 """The serving copy of the database for the read-only dashboard API (FRONTEND_SPECIFICATION 67.2).
 
 DuckDB does not let another process read while the daily run writes, so the daily run's last step
-copies the checkpointed database to ``<db folder>/serving/vcp_serving.duckdb`` and the API opens
-only that copy, read-only. The copy is written under a ``.partial`` name, opened and checked, and
-renamed over the old copy only then, so the API never sees a half-written file and a failed
-refresh leaves the previous copy in place. The copy is a cache: never backed up, never committed.
+copies the checkpointed database to ``<db folder>/serving/database_serving.duckdb`` and the API
+opens only that copy, read-only. The copy is written under a ``.partial`` name, opened and
+checked, and renamed over the old copy only then, so the API never sees a half-written file and a
+failed refresh leaves the previous copy in place. The copy is a cache: never backed up, never
+committed.
 """
 
 from __future__ import annotations
@@ -15,7 +16,7 @@ from pathlib import Path
 
 from vcp_scanner.backup import check_database
 
-SERVING_NAME = "vcp_serving.duckdb"
+SERVING_NAME = "database_serving.duckdb"
 
 
 def default_serving_path(db: str | Path) -> Path:

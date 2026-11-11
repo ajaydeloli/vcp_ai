@@ -35,7 +35,7 @@ from pathlib import Path
 import duckdb
 
 ROOT = Path(__file__).resolve().parents[2]
-BACKUP = ROOT / "data" / "backups_manual" / "vcp_scanner_premerge_20261109.duckdb"
+BACKUP = ROOT / "data" / "backups_manual" / "database_live_premerge_20261109.duckdb"
 HIST = ROOT / "data" / "history_2011.duckdb"
 OUT = ROOT / "data" / "master_build" / "vcp_master.duckdb"
 LOG = ROOT / "data" / "logs" / "master_build.log"

@@ -23,7 +23,8 @@ import numpy as np
 import pandas as pd
 
 P = "index_trend"
-HISTORY_DB = c.ROOT / "data" / "research" / "vcp_research.duckdb"  # history_2011 retired 2026-11-10
+# the research copy (history_2011 retired 2026-11-10)
+HISTORY_DB = c.ROOT / "data" / "research" / "database_research.duckdb"
 
 # (id, column, scored-good side, other side, prediction) -- fixed 2026-11-08 before any look
 CHECKS = [

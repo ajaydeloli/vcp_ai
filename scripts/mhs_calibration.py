@@ -2,7 +2,7 @@
 followed — VQI's and NIFTY 500's return over the next 20 sessions and the success of the
 breakouts of the next 20 sessions — in sample (to 30 Jun 2024) and out of sample (after).
 
-    .venv/bin/python scripts/mhs_calibration.py [data/vcp_scanner.duckdb]
+    .venv/bin/python scripts/mhs_calibration.py [data/database_live.duckdb]
 """
 
 from __future__ import annotations
@@ -78,4 +78,4 @@ def main(db: str) -> None:
 
 
 if __name__ == "__main__":
-    main(sys.argv[1] if len(sys.argv) > 1 else "data/vcp_scanner.duckdb")
+    main(sys.argv[1] if len(sys.argv) > 1 else "data/database_live.duckdb")

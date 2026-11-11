@@ -5,7 +5,7 @@
 # the weekly scans 2012-07-02 .. 2026-09-30 and forward labels. Live is only read.
 set -euo pipefail
 cd "$(dirname "$0")/../.."
-OUT=data/research/vcp_research.duckdb
+OUT=data/research/database_research.duckdb
 LOG=data/logs/research_copy.log
 mkdir -p data/research
 if [ -e "$OUT" ]; then echo "STOP: $OUT exists; move it away first"; exit 2; fi
@@ -16,7 +16,7 @@ if [ -e "$OUT" ]; then echo "STOP: $OUT exists; move it away first"; exit 2; fi
 import shutil, sys, duckdb
 from pathlib import Path
 from vcp_scanner.backup import check_database
-src, dst = Path("data/vcp_scanner.duckdb"), Path(sys.argv[1])
+src, dst = Path("data/database_live.duckdb"), Path(sys.argv[1])
 err = check_database(src, checkpoint=True)
 if err: sys.exit(f"live check failed: {err}")
 part = dst.with_suffix(".partial"); shutil.copy2(src, part)

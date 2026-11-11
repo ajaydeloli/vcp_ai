@@ -20,14 +20,14 @@ from vcp_scanner.versioning import PACKAGE_VERSION, version_manifest
 
 _LOG_LEVELS = ("DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL")
 
-DEFAULT_DB_PATH = "data/vcp_scanner.duckdb"  # matches data.duckdb_path in config/data.yaml
+DEFAULT_DB_PATH = "data/database_live.duckdb"  # matches data.duckdb_path in config/data.yaml
 
 
 def _add_db_arg(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--db",
         default=DEFAULT_DB_PATH,
-        help="Path to DuckDB database file (default: data/vcp_scanner.duckdb)",
+        help="Path to DuckDB database file (default: data/database_live.duckdb)",
     )
 
 
@@ -211,7 +211,7 @@ def build_parser() -> argparse.ArgumentParser:
     universe_parser.add_argument(
         "--db",
         default=DEFAULT_DB_PATH,
-        help="Path to DuckDB database file (default: data/vcp_scanner.duckdb)",
+        help="Path to DuckDB database file (default: data/database_live.duckdb)",
     )
     universe_parser.add_argument(
         "--config-dir",
@@ -261,7 +261,7 @@ def build_parser() -> argparse.ArgumentParser:
     sm_parser.add_argument(
         "--db",
         default=DEFAULT_DB_PATH,
-        help="Path to DuckDB database file (default: data/vcp_scanner.duckdb)",
+        help="Path to DuckDB database file (default: data/database_live.duckdb)",
     )
 
     adjusted_parser = ingest_subparsers.add_parser(
@@ -294,7 +294,7 @@ def build_parser() -> argparse.ArgumentParser:
     adjusted_parser.add_argument(
         "--db",
         default=DEFAULT_DB_PATH,
-        help="Path to DuckDB database file (default: data/vcp_scanner.duckdb)",
+        help="Path to DuckDB database file (default: data/database_live.duckdb)",
     )
 
     market_parser = ingest_subparsers.add_parser(
@@ -577,7 +577,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--serving-copy",
         action="store_true",
         help="Last step: refresh the dashboard's read-only serving copy of the database "
-        "(<db folder>/serving/vcp_serving.duckdb)",
+        "(<db folder>/serving/database_serving.duckdb)",
     )
     daily_parser.add_argument(
         "--no-backup",

@@ -46,7 +46,7 @@ def _common(p: argparse.ArgumentParser) -> None:
     p.add_argument("--watch-days", type=int, default=20)
     p.add_argument("--max-positions", type=int, default=10)
     p.add_argument("--cost-bps", type=float, default=15.0, help="Cost per side, basis points")
-    p.add_argument("--db", default="data/vcp_scanner.duckdb")
+    p.add_argument("--db", default="data/database_live.duckdb")
     p.add_argument("--config-dir", default="config")
 
 
@@ -69,7 +69,7 @@ def add_backtest_parser(subparsers: argparse._SubParsersAction) -> None:  # type
     )
     br.add_argument("--from", dest="date_from", required=True, metavar="YYYY-MM-DD")
     br.add_argument("--to", dest="date_to", required=True, metavar="YYYY-MM-DD")
-    br.add_argument("--db", default="data/vcp_scanner.duckdb")
+    br.add_argument("--db", default="data/database_live.duckdb")
     br.add_argument("--config-dir", default="config")
     la = sub.add_parser(
         "lookahead-check", help="Rebuild a stored scan from a copy without later data; compare"
@@ -77,7 +77,7 @@ def add_backtest_parser(subparsers: argparse._SubParsersAction) -> None:  # type
     la.add_argument("--as-of", required=True, metavar="YYYY-MM-DD")
     la.add_argument("--variant", choices=["prices", "corporate-actions"], default="prices")
     la.add_argument("--work-dir", default="data/tmp", help="Where the temporary copy goes")
-    la.add_argument("--db", default="data/vcp_scanner.duckdb")
+    la.add_argument("--db", default="data/database_live.duckdb")
     la.add_argument("--config-dir", default="config")
 
 

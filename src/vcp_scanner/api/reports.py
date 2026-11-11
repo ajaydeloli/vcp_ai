@@ -35,6 +35,8 @@ from vcp_scanner.paper.status import summarize
 from vcp_scanner.run_state import run_progress
 
 REVIEW_FROM = date(2027, 4, 1)  # STRATEGY_SPECIFICATION 21.6
+#: Backups are named after the database file (``backup.py``): data/database_live.duckdb
+LIVE_DB_STEM = "database_live"
 PUBLISH_HOUR = 20  # today's prices are not expected before the evening run has finished
 
 
@@ -47,7 +49,7 @@ def _last_line(path: Path) -> str | None:
 
 
 def _backup(ctx: Context, now: datetime) -> tuple[str | None, float | None]:
-    found = list_backups(ctx.data_dir / "backups", "vcp_scanner")
+    found = list_backups(ctx.data_dir / "backups", LIVE_DB_STEM)
     if not found:
         return None, None
     match = BACKUP_RE.match(found[0].name)

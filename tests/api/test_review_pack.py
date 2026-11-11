@@ -67,7 +67,7 @@ def _config(env: Env) -> str:
 
 
 def _pack(env: Env, day: date) -> dict[str, Any]:
-    return R.build_pack(env.data_dir / "serving" / "vcp_serving.duckdb", _config(env), day)
+    return R.build_pack(env.data_dir / "serving" / "database_serving.duckdb", _config(env), day)
 
 
 def test_the_pack_on_the_fixture_reports_the_ledger_and_its_disagreement(ro_env: Env) -> None:
@@ -96,7 +96,7 @@ def test_on_the_review_date_too_few_trades_postpone_the_review(ro_env: Env) -> N
 
 
 def test_write_review_makes_the_html_and_the_json(ro_env: Env, tmp_path: Path) -> None:
-    path = R.write_review(ro_env.data_dir / "serving" / "vcp_serving.duckdb", _config(ro_env),
+    path = R.write_review(ro_env.data_dir / "serving" / "database_serving.duckdb", _config(ro_env),
                           tmp_path, date(2026, 10, 6))  # fmt: skip
     assert path == tmp_path / "review" / "2026-10-06.html"
     html = path.read_text()
@@ -112,7 +112,7 @@ def test_the_weekly_summary_brings_the_pack_from_the_review_date(
 ) -> None:
     from vcp_scanner.reporting.build import _review_pack
 
-    serving = ro_env.data_dir / "serving" / "vcp_serving.duckdb"
+    serving = ro_env.data_dir / "serving" / "database_serving.duckdb"
     assert _review_pack(serving, "config", ro_env.data_dir, tmp_path, date(2027, 3, 26)) == []
     [path] = _review_pack(serving, "config", ro_env.data_dir, tmp_path, date(2027, 4, 2))
     assert path.name == "2027-04-02.html"

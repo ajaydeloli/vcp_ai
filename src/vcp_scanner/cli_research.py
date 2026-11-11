@@ -33,7 +33,7 @@ def add_research_parser(subparsers: argparse._SubParsersAction) -> None:  # type
     sheet.add_argument("--per-stratum", type=int, default=25)
     sheet.add_argument("--seed", type=int, default=20261002)
     sheet.add_argument("--out", required=True, help="Output folder")
-    sheet.add_argument("--db", default="data/vcp_scanner.duckdb")
+    sheet.add_argument("--db", default="data/database_live.duckdb")
     sheet.add_argument("--config-dir", default="config")
 
     oc = sub.add_parser(
@@ -59,7 +59,7 @@ def add_research_parser(subparsers: argparse._SubParsersAction) -> None:  # type
         help="Also show validation for this exit rule (chosen on development first)",
     )
     oc.add_argument("--csv", help="Write every window (all variants) to this CSV")
-    oc.add_argument("--db", default="data/vcp_scanner.duckdb")
+    oc.add_argument("--db", default="data/database_live.duckdb")
     oc.add_argument("--config-dir", default="config")
 
     rv = sub.add_parser("review-sheet", help="Write a mark-check sheet (detector marks drawn)")
@@ -69,7 +69,7 @@ def add_research_parser(subparsers: argparse._SubParsersAction) -> None:  # type
     rv.add_argument("--strategy", default="vcp",
                     help="Strategy whose stored setups to review (default: vcp)")  # fmt: skip
     rv.add_argument("--out", required=True, help="Output folder")
-    rv.add_argument("--db", default="data/vcp_scanner.duckdb")
+    rv.add_argument("--db", default="data/database_live.duckdb")
     rv.add_argument("--config-dir", default="config")
 
     so = sub.add_parser(
@@ -81,7 +81,7 @@ def add_research_parser(subparsers: argparse._SubParsersAction) -> None:  # type
                     help="Last as-of date of the development period")  # fmt: skip
     so.add_argument("--scan-config-hash", metavar="HASH12",
                     help="Use Trend Template scans made under this config hash")  # fmt: skip
-    so.add_argument("--db", default="data/vcp_scanner.duckdb")
+    so.add_argument("--db", default="data/database_live.duckdb")
     so.add_argument("--config-dir", default="config")
 
     fs = sub.add_parser(
@@ -94,8 +94,8 @@ def add_research_parser(subparsers: argparse._SubParsersAction) -> None:  # type
     fs.add_argument("--no-store", action="store_true",
                     help="Do not write the scores to fundamental_research_scores")  # fmt: skip
     fs.add_argument("--out", default="reports/research", help="Folder for the report")
-    fs.add_argument("--research-db", default="data/research/vcp_research.duckdb")
-    fs.add_argument("--db", default="data/vcp_scanner.duckdb")
+    fs.add_argument("--research-db", default="data/research/database_research.duckdb")
+    fs.add_argument("--db", default="data/database_live.duckdb")
     fs.add_argument("--config-dir", default="config")
 
     imp = sub.add_parser("import-labels", help="Turn the sheet's CSV into golden fixtures")

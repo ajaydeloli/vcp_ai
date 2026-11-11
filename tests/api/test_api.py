@@ -222,7 +222,7 @@ def test_status_is_clean_when_everything_is_current(ro_env: Env) -> None:
     body = get(ro_env, "/api/v1/status")
     assert body["prices_date"] == AS_OF.isoformat() and body["warnings"] == []
     assert body["daily_run"].startswith("2026-10-05 19:15 IST")
-    assert body["newest_backup"] == "vcp_scanner_20261005_134501.duckdb"
+    assert body["newest_backup"] == "database_live_20261005_134501.duckdb"
     assert 0 < body["backup_age_days"] < 1
     assert all(s["latest_scan"] == AS_OF.isoformat() == s["ledger_through"]
                for s in body["strategies"])  # fmt: skip
@@ -268,7 +268,7 @@ def test_no_backup_is_a_warning(env: Env) -> None:
 
 
 def test_a_missing_serving_copy_is_a_503_with_the_remedy(env: Env) -> None:
-    (env.data_dir / "serving" / "vcp_serving.duckdb").unlink()
+    (env.data_dir / "serving" / "database_serving.duckdb").unlink()
     r = env.client.get("/api/v1/status")
     assert r.status_code == 503 and "vcp run daily --serving-copy" in r.json()["detail"]
 

@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 # Switch the live database to the merged master (owner go 2026-11-09 10:35 IST).
 # Holds the daily run's lock throughout, backs live up, rebuilds the master from that backup,
-# checks it, and only then replaces data/vcp_scanner.duckdb (atomic rename). Rollback: copy the
-# pre-swap backup back over data/vcp_scanner.duckdb.
+# checks it, and only then replaces data/database_live.duckdb (atomic rename). Rollback: copy the
+# pre-swap backup back over data/database_live.duckdb.
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 STAMP=$(date +%Y%m%d_%H%M%S)
-BK="data/backups_manual/vcp_scanner_preswap_${STAMP}.duckdb"
+BK="data/backups_manual/database_live_preswap_${STAMP}.duckdb"
 CHECK="data/logs/master_swap_check_${STAMP}.out"
 REUSE="${1:-}"  # a pre-swap backup the current master was already built from
 exec 9>data/logs/daily_run.lock
@@ -14,15 +14,15 @@ flock -n 9 || { echo "a daily run is in progress; nothing done"; exit 1; }
 echo "$(date -u +%FT%TZ) lock held"
 if [ -n "$REUSE" ]; then
   # live must be byte for byte the backup the master was built from
-  cmp -s data/vcp_scanner.duckdb "$REUSE" || { echo "STOP: live changed since $REUSE"; exit 2; }
-  [ ! -e data/vcp_scanner.duckdb.wal ] || { echo "STOP: live has a write-ahead log"; exit 2; }
+  cmp -s data/database_live.duckdb "$REUSE" || { echo "STOP: live changed since $REUSE"; exit 2; }
+  [ ! -e data/database_live.duckdb.wal ] || { echo "STOP: live has a write-ahead log"; exit 2; }
   BK="$REUSE"; echo "reusing the master built from $BK (live identical to it)"
 else
 .venv/bin/python - "$BK" <<'PY'
 import shutil, sys, duckdb
 from pathlib import Path
 from vcp_scanner.backup import check_database
-src, dst = Path("data/vcp_scanner.duckdb"), Path(sys.argv[1])
+src, dst = Path("data/database_live.duckdb"), Path(sys.argv[1])
 err = check_database(src, checkpoint=True)
 if err: sys.exit(f"live check failed: {err}")
 if Path(str(src) + ".wal").exists(): sys.exit("live has a write-ahead log after checkpoint")
@@ -48,8 +48,8 @@ from vcp_scanner.backup import check_database
 err = check_database("data/master_build/vcp_master.duckdb", checkpoint=True)
 if err: raise SystemExit(f"master check failed: {err}")
 PY
-cp data/master_build/vcp_master.duckdb data/vcp_scanner.duckdb.new
-mv -f data/vcp_scanner.duckdb.new data/vcp_scanner.duckdb
-echo "$(date -u +%FT%TZ) SWAPPED: data/vcp_scanner.duckdb is the master (rollback: $BK)"
-.venv/bin/python -c "from vcp_scanner.serving import refresh_serving_copy as r; print('serving', r('data/vcp_scanner.duckdb'))"
+cp data/master_build/vcp_master.duckdb data/database_live.duckdb.new
+mv -f data/database_live.duckdb.new data/database_live.duckdb
+echo "$(date -u +%FT%TZ) SWAPPED: data/database_live.duckdb is the master (rollback: $BK)"
+.venv/bin/python -c "from vcp_scanner.serving import refresh_serving_copy as r; print('serving', r('data/database_live.duckdb'))"
 echo "$(date -u +%FT%TZ) done; lock released"

@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **Databases renamed** so their names do not tie the project to one method (owner, 2026-11-11):
+
+  | Was | Now |
+  |---|---|
+  | `data/vcp_scanner.duckdb` | `data/database_live.duckdb` |
+  | `data/research/vcp_research.duckdb` | `data/research/database_research.duckdb` |
+  | `data/serving/vcp_serving.duckdb` | `data/serving/database_serving.duckdb` |
+  | Backups `vcp_scanner_<date>.duckdb` | `database_live_<date>.duckdb` |
+
+  - Every default path, the nightly run, the tests and the docs follow.
+  - The status page's backup lookup no longer hard-codes the old name: it would otherwise have reported "no backup" after the rename.
+  - The chart-labelling files (`vcp2_labels*.duckdb`) keep their names: they belong to the VCP v2 work.
+  - The Python package is still `vcp_scanner`.
 - **Two databases:** live (`data/vcp_scanner.duckdb`) and research (`data/research/vcp_research.duckdb`) (owner, 2026-11-11).
   - The Backtest page, `vcp research fundamental-study` and the research analyses now read the research copy.
   - The 21 stored VCP backtest runs (320,714 events) were copied there from `data/golden_src.duckdb` with ids unchanged. The research analyses rebuild their stored totals exactly.

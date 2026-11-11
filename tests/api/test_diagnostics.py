@@ -114,7 +114,7 @@ def test_scan_runs_with_the_evening_run_log(env: Env) -> None:
 
 
 def test_backtest_detail_pairs_entries_with_exits(env: Env) -> None:
-    research = env.data_dir / "vcp_research.duckdb"
+    research = env.data_dir / "database_research.duckdb"
     events = [
         ("ALPHA", date(2023, 1, 2), "BREAKOUT", 100.0, {}),
         ("ALPHA", date(2023, 1, 9), "STOP", 92.0, {"ret_pct": -8.0}),

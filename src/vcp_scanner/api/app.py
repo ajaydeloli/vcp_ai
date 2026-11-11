@@ -50,14 +50,14 @@ def create_app(
     origins: tuple[str, ...] = ORIGINS, live: LiveService | None = None, env_file: str = ".env",
     research_db: str | Path | None = None, reports_dir: str | Path | None = None,
 ) -> FastAPI:  # fmt: skip
-    """``serving_path`` defaults to ``<data_dir>/serving/vcp_serving.duckdb``; logs and backups
+    """``serving_path`` defaults to ``<data_dir>/serving/database_serving.duckdb``; logs and backups
     are read from ``data_dir``. ``live`` is the live-price service (display only); by default one
     is built from ``config/live.yaml`` and reads credentials from ``env_file`` at its first poll."""
     data = Path(data_dir)
     # stored backtest runs: the research copy (owner 2026-11-11; golden_src.duckdb retired)
-    research = Path(research_db) if research_db else data / "research" / "vcp_research.duckdb"
+    research = Path(research_db) if research_db else data / "research" / "database_research.duckdb"
     reports_folder = Path(reports_dir) if reports_dir else data.resolve().parent / "reports"
-    db = ServingDb(serving_path or default_serving_path(data / "vcp_scanner.duckdb"))
+    db = ServingDb(serving_path or default_serving_path(data / "database_live.duckdb"))
     ctx: Context = build_context(config_dir, data)
     clock = now or (lambda: datetime.now(IST))
     app = FastAPI(title="VCP scanner dashboard API", version="1")

@@ -31,7 +31,7 @@ trap 'exit 129' HUP
 trap 'exit 130' INT
 trap 'exit 143' TERM
 echo "=== start $(TZ=Asia/Kolkata date '+%Y-%m-%d %H:%M') IST"
-.venv/bin/vcp run daily --db data/vcp_scanner.duckdb --config-dir config --env-file .env --serving-copy
+.venv/bin/vcp run daily --db data/database_live.duckdb --config-dir config --env-file .env --serving-copy
 code=$?
 echo "=== end $(TZ=Asia/Kolkata date '+%Y-%m-%d %H:%M') IST, exit $code"
 exit $code

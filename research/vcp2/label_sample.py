@@ -32,7 +32,7 @@ from vcp_scanner.domain.snapshot import LIVE_SNAPSHOT_ID
 from vcp_scanner.patterns.vcp2.config import load_vcp2_config, vcp2_config_hash
 
 ROOT = Path(__file__).resolve().parents[2]
-RESEARCH = ROOT / "data" / "research" / "vcp_research.duckdb"
+RESEARCH = ROOT / "data" / "research" / "database_research.duckdb"
 LABELS = ROOT / "data" / "research" / "vcp2_labels.duckdb"
 FIRST, LAST = date(2012, 7, 1), date(2017, 12, 31)
 CHART_BARS = 420

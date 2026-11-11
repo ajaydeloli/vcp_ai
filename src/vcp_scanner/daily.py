@@ -27,7 +27,7 @@ evenings: every step catches up on its own.
    strategy (STRATEGY_SPECIFICATION 21.3).
 
 8. Serving copy (FRONTEND_SPECIFICATION 67.2; only with ``--serving-copy``): the checkpointed
-   database is copied atomically to ``<db folder>/serving/vcp_serving.duckdb`` for the
+   database is copied atomically to ``<db folder>/serving/database_serving.duckdb`` for the
    read-only dashboard API. A failed copy fails the run but leaves the previous copy in place.
 
 One line per run is appended to ``<db folder>/logs/daily_runs.log``.
