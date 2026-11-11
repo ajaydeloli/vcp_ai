@@ -16,6 +16,8 @@ Trading systems (event engine, ``backtest/engine.py``, 15 bps a side, 10 slots f
               low or 8 % (tighter), time exit after 60 sessions;
   * frozen  - v1's paper rules: the same exit, plus a real cross with the close at most 5 %
               above the pivot (cross_5), breakout volume >= 1.5x, and the breadth regime.
+  * base+reg, froz-reg - the market regime on its own (owner question 2026-11-11): the base
+              system with the breadth regime added, and the frozen rules without it.
 
     .venv/bin/python research/vcp2/backtest_compare.py
 """
@@ -130,9 +132,13 @@ def systems(regime: Any) -> dict[str, EngineConfig]:
     rule = next(r for r in ENGINE_RULES if r.name == "hold_low8")
     return {
         "base": EngineConfig(rule, watch_days=20, min_volume_ratio=0.0, entry="breakout"),
+        "base+reg": EngineConfig(
+            rule, watch_days=20, min_volume_ratio=0.0, entry="breakout", regime=regime
+        ),
         "frozen": EngineConfig(
             rule, watch_days=20, min_volume_ratio=1.5, entry="cross_5", regime=regime
         ),  # fmt: skip
+        "froz-reg": EngineConfig(rule, watch_days=20, min_volume_ratio=1.5, entry="cross_5"),
     }
 
 
