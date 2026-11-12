@@ -1,8 +1,9 @@
 "use client";
 
-import { usePaper } from "@/lib/api";
+import { useLiveQuotes, usePaper } from "@/lib/api";
 import { DASH, fmtDay, fmtNum, fmtPct, fmtPrice, strategyLabel, tone } from "@/lib/fmt";
 import type { Paper } from "@/lib/schemas";
+import { LiveCell, LiveGain, LiveNotice } from "./Live";
 import { PaperPanel } from "./PaperPanel";
 import { Page } from "./Page";
 import { Card, ErrorBox, Loading } from "./ui";
@@ -13,6 +14,7 @@ export function PaperTrading() {
   const p = paper.data;
   return (
     <Page active="Paper Trading" title="Paper Trading">
+      <LiveNotice />
       <PaperPanel />
       <Card
         title="Review gates"
@@ -61,6 +63,8 @@ export function PaperTrading() {
 /** Research ledgers: rule variants replayed next to the frozen rules, on the same signals and
  *  days. Shown apart; they never count in the review above. */
 function Research({ p }: { p: Paper }) {
+  const symbols = p.research.flatMap((r) => r.open.map((o) => o.symbol));
+  const live = useLiveQuotes(symbols, symbols.length > 0); // display only
   return (
     <Card
       title="Research ledgers"
@@ -108,7 +112,15 @@ function Research({ p }: { p: Paper }) {
                     </a>
                     <span className="text-mute">{`since ${fmtDay(o.entry_day)} at ${fmtPrice(o.entry)}`}</span>
                     <span className="text-mute">{`stop ${o.stop === null ? DASH : fmtPrice(o.stop)}`}</span>
-                    <span className={`tabular-nums ${tone(o.open_pct)}`}>{fmtPct(o.open_pct, 2, true)}</span>
+                    <span className={`tabular-nums ${tone(o.open_pct)}`} title="ledger result at the last close">
+                      {fmtPct(o.open_pct, 2, true)}
+                    </span>
+                    <span className="text-mute">
+                      live <LiveCell q={live.bySymbol.get(o.symbol.toUpperCase())} />
+                    </span>
+                    <span className="text-mute">
+                      live P/L <LiveGain q={live.bySymbol.get(o.symbol.toUpperCase())} entry={o.entry} stop={o.stop} entryDay={o.entry_day} />
+                    </span>
                   </li>
                 ))}
               </ul>

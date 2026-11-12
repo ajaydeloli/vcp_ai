@@ -145,6 +145,30 @@ describe("paper panel", () => {
     expect(open).toHaveTextContent("92.00");
   });
 
+  it("marks open positions at the live price, display only, and flags a stop the day's low reached", async () => {
+    mockApi();
+    renderApp(<PaperPanel />);
+    // BETA: entry 100, stop 92; live 51.00 (+2.00% today), day's low 49
+    const gain = await screen.findByTestId("live-gain-BETA");
+    expect(gain).toHaveTextContent("-49.00%");
+    expect(gain).toHaveTextContent("stop hit");
+    const row = gain.closest("tr")!;
+    expect(row).toHaveTextContent("171.90"); // the ledger's last close is still shown
+    expect(within(row).getByTestId("live-BETA")).toHaveTextContent("51.00");
+    expect(screen.getByText(/display only, before costs/)).toBeInTheDocument();
+  });
+
+  it("does not flag the stop from the entry day's own low (stops count from the next session)", async () => {
+    const strategies = fx.paper.strategies.map((s) => ({
+      ...s, open: s.open.map((o) => ({ ...o, entry_day: "2026-10-06" })), // the live quote's session
+    }));
+    mockApi({ paper: { ...fx.paper, strategies } });
+    renderApp(<PaperPanel />);
+    const gain = await screen.findByTestId("live-gain-BETA");
+    expect(gain).toHaveTextContent("-49.00%");
+    expect(gain).not.toHaveTextContent("stop hit");
+  });
+
   it("with no trades at all, says so", async () => {
     const strategies = fx.paper.strategies.map((s) => ({ ...s, closed: 0, open: [], win_rate_pct: null, avg_return_pct: null }));
     mockApi({ paper: { ...fx.paper, open_positions: 0, strategies } });

@@ -26,6 +26,35 @@ export function LiveCell({ q }: { q: LiveQuote | undefined }) {
   );
 }
 
+/** An open paper position marked at the live price: the gain since entry, before costs, and a
+ *  flag when the low of a session after the entry day has reached the stop (the ledger checks
+ *  stops from the day after entry; the evening run then records the stop exit). Display only:
+ *  the paper ledger itself settles on closing prices. */
+export function LiveGain({ q, entry, stop, entryDay }: {
+  q: LiveQuote | undefined; entry: number; stop: number | null; entryDay: string;
+}) {
+  if (!q || !q.available || q.last_price === null || entry <= 0) {
+    return <span className="text-mute">{DASH}</span>;
+  }
+  const gain = (q.last_price / entry - 1) * 100;
+  const after = q.session_date !== null && q.session_date > entryDay; // YYYY-MM-DD strings
+  const hit = after && stop !== null && q.low !== null && q.low <= stop;
+  return (
+    <span
+      className="whitespace-nowrap"
+      title={`at ${q.mode === "closed" ? "the last" : "the live"} price ${fmtPrice(q.last_price)}, before costs; display only, the ledger settles at the close`}
+      data-testid={`live-gain-${q.symbol}`}
+    >
+      <span className={`tabular-nums ${tone(gain)}`}>{fmtPct(gain, 2, true)}</span>
+      {hit ? (
+        <span className="ml-1 rounded bg-down/15 px-1 text-[10px] font-semibold text-down" title={`today's low ${fmtPrice(q.low)} reached the stop ${fmtPrice(stop)}`}>
+          stop hit
+        </span>
+      ) : null}
+    </span>
+  );
+}
+
 /** The live price on one line, for the Chart page's header: "Live 102.00 +1.50 (+1.49%) · Live,
  *  delayed N s" (or "Last" when the market is closed); display only, never a stored value. */
 export function LiveLine({ q }: { q: LiveQuote | undefined }) {

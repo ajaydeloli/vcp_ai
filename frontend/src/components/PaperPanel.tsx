@@ -1,7 +1,8 @@
 "use client";
 
-import { usePaper } from "@/lib/api";
+import { useLiveQuotes, usePaper } from "@/lib/api";
 import { DASH, fmtDay, fmtNum, fmtPct, fmtPrice, strategyLabel, tone } from "@/lib/fmt";
+import { LiveCell, LiveGain } from "./Live";
 import { BOX } from "./MarketParts";
 import { Card, ErrorBox, Loading } from "./ui";
 
@@ -9,6 +10,8 @@ export function PaperPanel() {
   const paper = usePaper();
   const p = paper.data;
   const open = p ? p.strategies.flatMap((s) => s.open.map((o) => ({ ...o, strategy: s.strategy_id }))) : [];
+  // live prices of the open positions (display only; the ledger settles on closing prices)
+  const live = useLiveQuotes(open.map((o) => o.symbol), open.length > 0);
   const closed = p ? p.strategies.reduce((a, s) => a + s.closed, 0) : 0;
   // criteria the API could not judge yet (value null): said plainly, not shown as 0
   const notComputed = new Set(
@@ -81,8 +84,10 @@ export function PaperPanel() {
                     <th className="py-1 font-medium">List</th>
                     <th className="py-1 text-right font-medium">Entry</th>
                     <th className="py-1 text-right font-medium">Stop</th>
-                    <th className="py-1 text-right font-medium">Last</th>
-                    <th className="py-1 text-right font-medium">Open</th>
+                    <th className="py-1 text-right font-medium" title="last close in the ledger">Last</th>
+                    <th className="py-1 text-right font-medium" title="ledger result at the last close">Open</th>
+                    <th className="py-1 text-right font-medium" title="live price and today's change; display only">Live</th>
+                    <th className="py-1 text-right font-medium" title="gain since entry at the live price, before costs; display only">Live P/L</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -96,11 +101,24 @@ export function PaperPanel() {
                       <td className={`py-1.5 text-right tabular-nums ${tone(o.open_pct)}`}>
                         {fmtPct(o.open_pct, 2, true)}
                       </td>
+                      <td className="py-1.5 text-right">
+                        <LiveCell q={live.bySymbol.get(o.symbol.toUpperCase())} />
+                      </td>
+                      <td className="py-1.5 text-right">
+                        <LiveGain q={live.bySymbol.get(o.symbol.toUpperCase())} entry={o.entry} stop={o.stop} entryDay={o.entry_day} />
+                      </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
+          ) : null}
+
+          {open.length > 0 ? (
+            <p className="text-mute">
+              Live and Live P/L are display only, before costs. The ledger settles each evening on the
+              closing price, and a day whose low reaches the stop is recorded as a stop exit.
+            </p>
           ) : null}
 
           {notComputed.size > 0 ? (
